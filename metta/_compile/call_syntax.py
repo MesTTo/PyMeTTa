@@ -3,7 +3,7 @@
 Guarantees:
   - result consumers use the call-values domain, preserving its native
     strings [tested: test_call_consumer_source.CallConsumerSourceTests;
-    commit=WORKTREE]
+    commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
   - carried values and host-island locals remain data inside independent call
     frames [tested: test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_carried_native_calls_hold_completed_operand_values; commit=86756da11eade288973b0dfaab7486a29e598cfd]

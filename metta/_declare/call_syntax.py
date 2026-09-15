@@ -3,7 +3,7 @@
 Guarantees:
   - native consumer validation derives from CallConsumer and retains its
     existing wire values [tested:
-    test_call_consumer_source.CallConsumerSourceTests; commit=WORKTREE]
+    test_call_consumer_source.CallConsumerSourceTests; commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
   - canonical keyword terms become one fresh dictionary per body activation
     [tested: test_compiled_collectors_match_native_equation_heads;
     test_compiled_generator_answers_share_one_keyword_dictionary; commit=1796cf0f581aa767db9289b807f66238cb747065]

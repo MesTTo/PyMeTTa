@@ -3,7 +3,7 @@
 Guarantees:
   - the call consumer domain names immediate application or iteration,
     independently of the refusal vocabulary [tested:
-    test_call_consumer_source.CallConsumerSourceTests; commit=WORKTREE]
+    test_call_consumer_source.CallConsumerSourceTests; commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
   - compiled parameter slots hold fixed values, positional expressions and
     ordered keyword-pair expressions through one packing operation [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
