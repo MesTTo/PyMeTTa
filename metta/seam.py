@@ -48,6 +48,14 @@ Assumes:
     the finder `extensions/python/_workspace.py` installs [source 2026-09-07:
     https://docs.python.org/3/library/importlib.metadata.html#entry-points]
 Guarantees:
+  - failed registration publication restores the local preimage and
+    compensates completed observers; inverse failures remain retryable and
+    every independent failure is reported [tested:
+    test_registration_failure_restores_all_required_views,
+    test_registration_inverse_retries_only_failed_actions,
+    test_registration_compensates_observers_in_reverse_order,
+    test_registration_retry_inside_a_caught_failure_retains_its_inverse,
+    test_transaction_rollback_replays_each_seam_mutation; commit=WORKTREE]
   - registered rows own a read-only copy of their field mapping and immutable
     registration metadata; field payloads retain their own ownership [tested:
     test_registered_rows_cannot_bypass_snapshot_generation; commit=23c1156bbecfa534f228853b06c9b4868ad1c645]
@@ -56,7 +64,7 @@ Guarantees:
     test_entry_point_collision_reports_both_owners; commit=4716ce2d8c4483d50fdb5146f296c019d7470dd4]
   - inverse sequences attempt both actions and retain every failure,
     including control exceptions [tested:
-    test_inverse_sequence_attempts_every_action; commit=93d72737c8d84e5883520fafaf4cba9a50ea4fc4]
+    test_inverse_sequence_attempts_every_action; commit=WORKTREE]
   - registration listeners receive the exact point and registrant names,
     including quotes and the words " registration " [tested:
     test_registration_identity_is_not_parsed_from_prose; commit=56a8207a945675056312e206a000442b857ced03]
@@ -103,12 +111,12 @@ Guarantees:
     so a MeTTa program matches the extension surface it is running on
     [tested: test_the_seam_publishes_itself_into_the_catalog]
 Owns:
-  - _POINTS and _ROWS hold the process-wide seam; a registration made inside an
-    integration's transaction frame is undone with it, through the same
-    registry-undo the operation registry uses [tested:
-    test_a_registration_inside_a_failed_integration_is_undone_with_it]
+  - _POINTS and _ROWS hold the process-wide seam; each _Inverse retains its
+    failed actions until a caller retries it successfully [tested:
+    test_registration_inverse_retries_only_failed_actions; commit=WORKTREE]
 Guarded by:
-  - _LOCK serializes declaration, registration and the one-shot discovery flag
+  - _LOCK serializes declaration, registration publication, inverse actions
+    and the one-shot discovery flag
 Open Obligations:
   To Do: None
   Hacks: None
@@ -530,7 +538,8 @@ _POINTS: Final[dict[str, Point]] = {}
 _ROWS: Final[dict[str, list[Row]]] = {}
 _LOCK: Final = threading.RLock()
 _LOADED: set[str] = set()
-_LISTENERS: list[Callable[[str, str, Callable[[], None]], None]] = []
+type _RegistrationListener = Callable[[str, str, Callable[[], None]], Callable[[], None] | None]
+_LISTENERS: list[_RegistrationListener] = []
 _LOADED_ENTRIES: set[tuple[str, str]] = set()
 _ENTRY_CHANGED = threading.Condition(_LOCK)
 _LOADING_ENTRIES: dict[tuple[str, str], int] = {}
@@ -855,11 +864,11 @@ def _register(
     # side effect through its adder and hands back the inverse. Without this a
     # name registered into a store that keeps none, the reflector list among
     # them, read back as the callable's own name.
-    added = declared.adder(row) if declared.adder is not None else None
     with _LOCK:
         held = _ROWS[declared.name]
         if declared.validator is not None:
             declared.validator(row, tuple(item for item in held if item.name != name))
+        added = declared.adder(row) if declared.adder is not None else None
         for position, standing in enumerate(held):
             if standing.name == name:
                 held[position] = row
@@ -870,32 +879,35 @@ def _register(
                 )
                 return row
         held.append(row)
-
-    def withdraw_row() -> None:
-        _unregister(declared, name)
-
-    _enlist(declared.name, name, _both(added, withdraw_row))
+        _enlist(declared.name, name, _both(added, functools.partial(held.remove, row)))
     return row
 
 
-def _both(first: Callable[[], None] | None, second: Callable[[], None]) -> Callable[[], None]:
-    """Undo a foreign store's half and this table's half, in that order."""
-    if first is None:
-        return second
+class _Inverse:
+    """An ordered rollback whose successful actions are consumed under _LOCK."""
 
-    def undo() -> None:
+    def __init__(self, actions: Iterable[Callable[[], None]]) -> None:
+        self.actions: list[Callable[[], None]] = list(actions)
+
+    def __call__(self) -> None:
         failures: list[BaseException] = []
-        for action in (first, second):
-            try:
-                action()
-            except BaseException as error:  # noqa: BLE001 -- every inverse runs even after interruption
-                failures.append(error)
+        with _LOCK:
+            pending, self.actions = self.actions, []
+            for action in pending:
+                try:
+                    action()
+                except BaseException as error:  # noqa: BLE001 -- every inverse runs even after interruption
+                    self.actions.append(action)
+                    failures.append(error)
         if len(failures) == 1:
             raise failures[0]
         if failures:
             raise BaseExceptionGroup("registration inverse actions failed", failures)
 
-    return undo
+
+def _both(first: Callable[[], None] | None, second: Callable[[], None]) -> _Inverse:
+    """Undo a foreign store's half and this table's half, in that order."""
+    return _Inverse((second,) if first is None else (first, second))
 
 
 def _restore(name: str, position: int, row: Row) -> None:
@@ -911,8 +923,8 @@ def _reinsert(name: str, position: int, row: Row) -> None:
         _ROWS[name].insert(position, row)
 
 
-def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) -> None:
-    """Hear every registration, with the inverse that withdraws it.
+def on_registration(callback: _RegistrationListener) -> None:
+    """Publish each registration, retaining its inverse when needed.
 
     The direction is deliberate. A registration made inside an integration's
     installer has to be undone when that installer fails, and the frame that
@@ -920,16 +932,42 @@ def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) ->
     a seam that imported it would drag metta._errors.errors up the stack with it. So
     the OWNER of the frame subscribes, the way metta._catalog.kinds subscribes to
     the conversion registry's own listener list.
+
+    A stateful listener returns a callable that restores its own preimage.
+    Returning None declares a projection that reconciles from the registry
+    when called again after rollback. A listener that raises must leave its
+    own state unchanged. Transaction journals retain each supplied inverse
+    independently and return a compensator that removes that exact record.
+
+    Publication runs under the reentrant seam lock. Listeners may read the
+    seam on this thread; they must not wait for another thread to mutate it.
     """
-    _LISTENERS.append(callback)
+    with _LOCK:
+        _LISTENERS.append(callback)
 
 
-def _enlist(declared: str, name: str, undo: Callable[[], None] | None) -> None:
-    """Tell every listener how to withdraw this registration."""
+def _enlist(declared: str, name: str, undo: _Inverse | None) -> None:
+    """Publish atomically with completed observers' rollback receipts."""
     if undo is None:
         return
-    for callback in tuple(_LISTENERS):
-        callback(declared, name, undo)
+    with _LOCK:
+        restored = len(undo.actions)
+        try:
+            for callback in tuple(_LISTENERS):
+                compensate = callback(declared, name, undo)
+                if compensate is not None and not callable(compensate):
+                    raise TypeError("a registration listener returns a compensation callable or None")
+                undo.actions.insert(
+                    restored,
+                    functools.partial(callback, declared, name, undo)
+                    if compensate is None else compensate,
+                )
+        except BaseException as error:  # noqa: BLE001 -- rollback also covers interrupted publication
+            try:
+                undo()
+            except BaseException as cleanup:  # noqa: BLE001 -- retain both publication and rollback failures
+                raise BaseExceptionGroup("registration publication and rollback failed", [error, cleanup]) from None
+            raise
 
 
 def _unregister(declared: Point, name: str) -> bool:
@@ -941,15 +979,13 @@ def _unregister(declared: Point, name: str) -> bool:
                 break
         else:
             return False
-    # A withdrawal is a registry change like a registration: every listener
-    # hears it, with the inverse that puts the row back where it stood, so a
-    # projection of the registry (the door catalog) and an installer's undo
-    # frame follow the registry in both directions.
-    _enlist(
-        declared.name,
-        name,
-        functools.partial(_reinsert, declared.name, position, standing),
-    )
+        # Withdrawal publishes under the same lock and failure boundary as
+        # insertion and replacement; its local inverse remains an insertion.
+        _enlist(
+            declared.name,
+            name,
+            _Inverse((functools.partial(_reinsert, declared.name, position, standing),)),
+        )
     return True
 
 
