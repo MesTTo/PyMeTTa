@@ -22,7 +22,7 @@ Guarantees:
     quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name;
     commit=eec241dcf822db6c4c1d1ecdb6092a6a9f3c7851]
   - owned-record-read's row reads the same one-row record on both surfaces
-    [tested: python extensions/python/tools/phrasebook.py --gate; commit=WORKTREE]
+    [tested: python extensions/python/tools/phrasebook.py --gate; commit=dbb95d0bff10a93f2fef0453195b2331918f92dc]
   - eval-one's row has matched native and Python results, 7 on both surfaces
     [tested: python extensions/python/tools/phrasebook.py --gate; commit=eec241dcf822db6c4c1d1ecdb6092a6a9f3c7851]
   - on-unwind's native failure outcome reaches an editable handler on both
