@@ -12,7 +12,7 @@ metta/doors/_orders.py, which doororder.py derives from the same analysis and
 whose drift the door-order lane refuses; only rows outside the table are
 analysed in the running process [tested:
 test_shipped_rows_publish_from_the_table_without_analysis,
-test_rows_outside_the_table_are_analysed_at_runtime; commit=WORKTREE].
+test_rows_outside_the_table_are_analysed_at_runtime; commit=38aa006aa9ecb1ce5366439fee69474623e37091].
 Owns resources: source files are read and closed during snapshot acquisition;
 the last source snapshot and its immutable report are cached in this process.
 Guarded by: functools.lru_cache protects publication; duplicate concurrent

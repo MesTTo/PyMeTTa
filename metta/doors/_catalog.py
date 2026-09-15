@@ -11,7 +11,7 @@ Guarantees: each row's arguments, axes, implementation, refusals, tiers,
   Body orders come from metta.doors._order.orders, which reads the generated
   verdict table for shipped rows, so a boot publishes without analysing source
   [measured 2026-09-15: Space() plus one run 34.58s before, 0.61s after;
-  commit=WORKTREE].
+  commit=38aa006aa9ecb1ce5366439fee69474623e37091].
 Owns resources: none. atoms() constructs values; door_catalog.pl owns the
   transactional publication and its previous snapshot.
 """

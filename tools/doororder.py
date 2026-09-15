@@ -10,7 +10,7 @@ The shipped verdict table metta/doors/_orders.py is a projection of this
 analysis: --write regenerates it and a check refuses drift, so a boot reads
 the table instead of analysing the tree [tested:
 test_door_order_gate_refuses_a_stale_verdict_table,
-test_verdict_table_round_trips_every_verdict; commit=WORKTREE].
+test_verdict_table_round_trips_every_verdict; commit=38aa006aa9ecb1ce5366439fee69474623e37091].
 """
 
 from __future__ import annotations
