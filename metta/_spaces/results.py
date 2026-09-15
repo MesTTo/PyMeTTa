@@ -4,6 +4,10 @@ A Rows is a mutable sequence of Row tuples, one per query answer, while
 Answers progressively caches one evaluation source for replay, projections,
 and exact-cardinality reads.
 Guarantees:
+  - Answers positions and slice bounds use Python's lossless index protocol
+    without pulling beyond the selected prefix [tested:
+    test_answers_accepts_index_protocol_like_rows,
+    test_answers_slices_use_lossless_indices_without_extra_pulls; commit=WORKTREE]
   - Rows with the same columns share one bounded cached Row subclass [tested
     test_row_classes_are_reused_and_bounded]
   - slicing, copying, concatenation, and repetition preserve Rows and its
@@ -127,6 +131,7 @@ import html
 import importlib as _importlib
 import inspect
 import itertools
+import operator
 import reprlib
 import threading
 import typing
@@ -1547,7 +1552,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             raise
 
     @overload
-    def __getitem__(self, key: int) -> T: ...
+    def __getitem__(self, key: SupportsIndex) -> T: ...
 
     @overload
     def __getitem__(self, key: slice) -> Answers[T]: ...
@@ -1559,19 +1564,24 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
     def __getitem__(self, key: str) -> Answers[Any]: ...
 
     def __getitem__(
-        self, key: int | slice | Variable | str
+        self, key: SupportsIndex | slice | Variable | str
     ) -> T | Answers[T] | Answers[Any]:
         if isinstance(key, (Variable, str)):
             return self._project(key.name if isinstance(key, Variable) else key)
         if isinstance(key, slice):
-            return self._slice(key)
-        if not isinstance(key, int):
+            return self._slice(slice(*(
+                None if bound is None else operator.index(bound)
+                for bound in (key.start, key.stop, key.step)
+            )))
+        try:
+            index = operator.index(key)
+        except TypeError:
             msg = (
                 "Answers indices are integers, slices, Variables, or exact "
                 f"column strings, not {type(key).__name__}"
             )
-            raise TypeError(msg)
-        return self._at(key)
+            raise TypeError(msg) from None
+        return self._at(index)
 
     @property
     def _pristine(self) -> bool:
