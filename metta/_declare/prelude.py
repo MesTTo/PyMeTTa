@@ -11,7 +11,7 @@ this runtime is visible rather than ambient.
 Guarantees:
   - runtime operator selectors retain the exact exported callable identities
     supplied by the pinned source inventory [tested:
-    test_every_available_source_callable_uses_the_operator_frame; commit=WORKTREE]
+    test_every_available_source_callable_uses_the_operator_frame; commit=f866cc992295171a9a9e97417514f31597181e7b]
   - the operator service consumes a structural operand frame and has one
     fixed native signature regardless of Python operand count [tested:
     test_operator_frames_accept_many_operands_and_retain_values; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]

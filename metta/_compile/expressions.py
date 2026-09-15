@@ -33,7 +33,7 @@ Guarantees:
     test_callable_mentions_share_operator_and_fourteen_math_names,
     test_compiled_callable_mentions_preserve_python_call_semantics;
     test_every_available_source_callable_uses_the_operator_frame;
-    test_bare_alias_arity_errors_keep_the_exact_python_call; commit=WORKTREE]
+    test_bare_alias_arity_errors_keep_the_exact_python_call; commit=f866cc992295171a9a9e97417514f31597181e7b]
   - supported expression lowerings preserve Python value and short-circuit
     semantics [tested test_boolean_operators_answer_the_operand,
     test_fstrings_str_round_range_slices]
@@ -45,7 +45,7 @@ Guarantees:
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - the composite operator word ``neg`` lowers to ``(- 0 x)`` at both S and
     fn call forms [tested: test_compiled_operator_word_calls_preserve_composite_images;
-    commit=WORKTREE]
+    commit=f866cc992295171a9a9e97417514f31597181e7b]
   - a host-bound Defined mention lowers to the sibling's declared MeTTa name
     [tested: test_compiled_body_calls_renamed_defined_sibling;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -60,7 +60,7 @@ Guarantees:
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - imported ``functools.reduce`` lowers named reducers to ``foldl-atom`` and
     lambdas to its explicit accumulator/item template [tested:
-    test_reduce_lowers_named_and_lambda_reducers; commit=WORKTREE]
+    test_reduce_lowers_named_and_lambda_reducers; commit=f866cc992295171a9a9e97417514f31597181e7b]
   - a four-argument bare unify call lowers to the engine's protected special
     form rather than resolving as a host closure [tested:
     test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;

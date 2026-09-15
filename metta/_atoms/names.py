@@ -12,7 +12,7 @@ Guarantees:
     the mechanical name map, and ``neg`` builds its canonical composite image
     through the same generated roster [tested:
     test_operator_words_precede_the_mechanical_name_map;
-    commit=WORKTREE]
+    commit=f866cc992295171a9a9e97417514f31597181e7b]
   - ``python_name`` is ``attribute_name``'s inverse and lives beside it, so
     the stub renderer and the import hook's module answer one rule for one
     head and a name Python cannot spell is refused by both [tested:
@@ -81,7 +81,7 @@ class OperatorRecipe:
 # is composite, which is what its policy row carries. A composite row without
 # a word door is refused with that row's canonical image [source:
 # extensions/python/metta/_atoms/operators.py:OPERATOR_LOWERINGS;
-# commit=WORKTREE].
+# commit=f866cc992295171a9a9e97417514f31597181e7b].
 OPERATOR_WORDS: Final[dict[str, str | OperatorRecipe]] = {
     _lowerings.selector(entry): (
         OperatorRecipe(_lowerings.selector(entry), entry)

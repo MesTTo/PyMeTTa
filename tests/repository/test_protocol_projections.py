@@ -3,7 +3,7 @@
 Guarantees: controls check semantic identities and rejection, including
 guarded bodies, alias replacement, optional arity and runtime export drift
 [source: extensions/python/tools/protocolgen.py:operator_rows;
-commit=WORKTREE]. These controls import no PeTTa runtime.
+commit=f866cc992295171a9a9e97417514f31597181e7b]. These controls import no PeTTa runtime.
 """
 
 from __future__ import annotations

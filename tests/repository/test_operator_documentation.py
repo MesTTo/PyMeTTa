@@ -4,7 +4,7 @@ Guarantees: the source-derived inventory supplies protocol identities while
 operators.py alone supplies MeTTa policy. Method, word, compiler and runtime
 projections retain those meanings [source:
 extensions/python/metta/_atoms/operators.py:OPERATOR_LOWERINGS;
-commit=WORKTREE].
+commit=f866cc992295171a9a9e97417514f31597181e7b].
 Owns resources: scratch_space retires the temporary matmul equation.
 """
 

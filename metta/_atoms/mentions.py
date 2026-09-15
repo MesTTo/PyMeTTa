@@ -2,7 +2,7 @@
 
 Guarantees: callable identity, aliases and accepted positional shapes are
 projections of the locked source inventory [source:
-extensions/python/metta/_atoms/_python_protocols.py:CALLABLES; commit=WORKTREE].
+extensions/python/metta/_atoms/_python_protocols.py:CALLABLES; commit=f866cc992295171a9a9e97417514f31597181e7b].
 Decides: the math table names the engine's fourteen math meanings. Operator
 term mentions use the joined atom policy; exact Python calls use the existing
 py-operator service. Runtime bindings contain only exported module attributes,

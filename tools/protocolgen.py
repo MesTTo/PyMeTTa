@@ -4,7 +4,7 @@ Assumes: protocol_source validates the exact source inventory and provenance.
 Guarantees: reflected partners join through C slot roles, in-place partners
 join through direct AST forms and their slot role, and guarded source bodies
 cannot become an unconditional syntax operation [source:
-extensions/python/tools/protocol_source.py:inventory; commit=WORKTREE].
+extensions/python/tools/protocol_source.py:inventory; commit=f866cc992295171a9a9e97417514f31597181e7b].
 Fails when: source links are ambiguous, a policy has no source operation, or a
 generated artifact differs. Generation uses local locked inputs and no engine.
 Decides: generated records are immutable; MeTTa meaning choices remain in

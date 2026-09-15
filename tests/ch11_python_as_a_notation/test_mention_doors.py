@@ -19,7 +19,7 @@ Guarantees:
     keeps its canonical image [tested:
     test_operator_words_precede_the_mechanical_name_map,
     test_compiled_operator_word_calls_preserve_composite_images;
-    commit=WORKTREE]
+    commit=f866cc992295171a9a9e97417514f31597181e7b]
   - mapped generator calls remain nondeterministic in definition effects
     [tested: test_mapped_nondeterministic_calls_keep_their_call_role;
     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]

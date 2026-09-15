@@ -4,7 +4,7 @@ Assumes: implementations remain in the modules their rows name.
 Guarantees: changed membership, signatures, sugar points, or evidence cannot
   leave a stale projection unnoticed [tested:
   test_every_door_projection_is_current,
-  test_door_sync_detects_a_planted_change_in_each_projection; commit=WORKTREE].
+  test_door_sync_detects_a_planted_change_in_each_projection; commit=f866cc992295171a9a9e97417514f31597181e7b].
 Decides: rows choose the surface. Source syntax checks a hand implementation
   against its row and supplies no independent membership list.
 """

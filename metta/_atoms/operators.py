@@ -4,7 +4,7 @@ Assumes: tools/protocolgen.py has checked the locked CPython source inventory.
 Guarantees: protocol names, reflected and augmented partners, callable shapes
 and AST forms come from that inventory; atom, compiler and word projections
 read the same joined rows [source:
-extensions/python/tools/protocolgen.py:operator_rows; commit=WORKTREE].
+extensions/python/tools/protocolgen.py:operator_rows; commit=f866cc992295171a9a9e97417514f31597181e7b].
 Decides: atom images, reserved methods, exact numeric heads and public operator
 words are MeTTa policy. They are written once in _POLICIES. A callable's full
 Python signature remains distinct from an atom image's minimum operand count.

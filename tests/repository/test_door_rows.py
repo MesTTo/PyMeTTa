@@ -2,7 +2,7 @@
 
 Guarantees: catalog publication, registry replacement, generated protocols,
   and the projection gate are exercised through their observable boundaries
-  [tested: this file; commit=WORKTREE].
+  [tested: this file; commit=f866cc992295171a9a9e97417514f31597181e7b].
   Typed body order metadata preserves the existing outer catalog query
   [tested: test_boot_publishes_complete_typed_door_rows,
   test_nested_door_records_have_declared_types; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].

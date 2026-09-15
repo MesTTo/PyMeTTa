@@ -3,7 +3,7 @@
 Guarantees: every source operator callable has a public compiled witness;
 direct syntax, guarded calls, larger operand frames and exception values use
 the existing twin oracle [source:
-extensions/python/tools/protocolgen.py:render_programs; commit=WORKTREE].
+extensions/python/tools/protocolgen.py:render_programs; commit=f866cc992295171a9a9e97417514f31597181e7b].
 Owns resources: each scratch_space fixture retires its native declarations.
 """
 
