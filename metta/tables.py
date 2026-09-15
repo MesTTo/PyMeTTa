@@ -38,6 +38,13 @@ Guarantees:
     test_table_ingestion_has_one_declared_failure_boundary,
     test_table_writer_failure_rolls_back_and_closes_input;
     commit=01b2a9b3dfb721804cd8378610566e1985502289]
+  - a registered frame library's rows reach ingestion through the reader it
+    declares on the frame point, and an unreadable source is refused naming
+    that declaration [tested:
+    tests/test_pandas.py::test_frame_rows_use_the_declared_native_extractor,
+    tests/test_polars.py::test_frame_rows_use_the_declared_native_extractor,
+    tests/test_tables_doors.py::test_tables_add_refuses_an_unsupported_source;
+    commit=179bcf460e69f3f7e05683027983a063df0b482e]
   - unsupported foreign stores refuse before input acquisition, and a nested
     foreign ingestion requires the declared savepoint capability [tested:
     test_unsupported_table_store_refuses_before_input_acquisition,
