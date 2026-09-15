@@ -50,7 +50,7 @@ Assumes:
 Guarantees:
   - colliding entry-point names refuse before any provider loads and name
     both distribution origins in a stable order [tested:
-    test_entry_point_collision_reports_both_owners; commit=WORKTREE]
+    test_entry_point_collision_reports_both_owners; commit=4716ce2d8c4483d50fdb5146f296c019d7470dd4]
   - inverse sequences attempt both actions and retain every failure,
     including control exceptions [tested:
     test_inverse_sequence_attempts_every_action; commit=93d72737c8d84e5883520fafaf4cba9a50ea4fc4]
