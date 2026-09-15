@@ -55,7 +55,7 @@ Guarantees:
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - imported ``functools.reduce`` lowers named reducers to ``foldl-atom`` and
     lambdas to its explicit accumulator/item template [tested:
-    test_reduce_lowers_named_and_lambda_reducers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    test_reduce_lowers_named_and_lambda_reducers; commit=WORKTREE]
   - a four-argument bare unify call lowers to the engine's protected special
     form rather than resolving as a host closure [tested:
     test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
@@ -80,11 +80,15 @@ Guarantees:
     annotations, including bare native comparison tests [tested:
     test_compiled_operators_follow_python_protocols_and_result_species,
     test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts;
-    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
+    commit=WORKTREE]
   - list collects known engine answer streams through collapse and keeps host
     iterables as host lists [tested:
     test_list_collects_engine_answers_and_preserves_host_lists;
     commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
+  - Python operators receive one held operand frame after source expressions
+    run in order [tested: test_compiled_operator_frames_evaluate_sources_once_in_order;
+    test_compiled_operator_frames_remain_native_rewrite_patterns;
+    commit=WORKTREE]
   - unshadowed type queries use get-metatype and explicit py retains host
     type queries [tested:
     test_type_uses_engine_metatypes_with_an_explicit_host_boundary;
@@ -603,9 +607,22 @@ class ExpressionCompilerMixin(CompilerContext):
         return applied
 
     def _python_operator(self, selector: str, *operands: Atom) -> Expression:
-        """Apply one fixed Python operator to evaluated Atom operands."""
+        """Evaluate operand computations once, then pass one native data frame."""
         self.runtime_ops.add("py-operator")
-        return Expression([Symbol("py-operator"), Symbol(selector), *operands])
+        values: list[Atom] = []
+        bindings: list[tuple[Variable, Expression]] = []
+        for operand in operands:
+            if isinstance(operand, Expression):
+                value = Variable(self._temp("operator-operand"))
+                bindings.append((value, operand))
+                values.append(value)
+            else:
+                values.append(operand)
+        frame = Expression([Symbol("noeval"), Expression(values)])
+        body = Expression([Symbol("py-operator"), Symbol(selector), frame])
+        for value, source in reversed(bindings):
+            body = Expression([Symbol("let"), value, source, body])
+        return body
 
     def _native_number(self, node: ast.expr) -> bool:
         """Whether this expression is constrained to a native int/float."""

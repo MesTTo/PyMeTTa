@@ -9,6 +9,9 @@ itself, so the compiled equations and the Python twin cannot disagree; a
 Defined lists the ones it leans on as runtime_ops, so the dependency on
 this runtime is visible rather than ambient.
 Guarantees:
+  - the operator service consumes a structural operand frame and has one
+    fixed native signature regardless of Python operand count [tested:
+    test_operator_frames_accept_many_operands_and_retain_values; commit=WORKTREE]
   - Python exception classification leaves the engine's `except` reference map
     available [tested: test_reference_except_and_compiled_exception_dispatch_coexist;
     commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
@@ -32,7 +35,7 @@ Guarantees:
   - compiled operators invoke the corresponding Python protocol exactly once
     and preserve set/dict space images at their boundary [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=e3787593132a7ece2d300397045f7415709847c9]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -374,18 +377,21 @@ def _exception_targets(
 
 # Invoke one compiler-selected function from Python's operator module. This is
 # a comment because internal prelude prose must not become a public @doc atom.
-def _py_operator(selector, *operands):
+def _py_operator(selector, operands):
     if not isinstance(selector, Symbol) or selector.name not in _PYTHON_OPERATORS:
         msg = f"unknown compiled Python operator selector: {selector!r}"
         raise ValueError(msg)
-    error = _carried_error(operands)
+    if not isinstance(operands, Expression):
+        msg = "compiled Python operator arguments must be a native expression frame"
+        raise TypeError(msg)
+    error = _carried_error(operands.children)
     if error is not None:
         return error
     operation = _PYTHON_OPERATORS[selector.name]
     try:
-        return operation(*(pythonic(operand) for operand in operands))
+        return operation(*(pythonic(operand) for operand in operands.children))
     except Exception as error:  # noqa: BLE001 -- Python's operator protocol defines the caught data
-        call = Expression([Symbol("py-operator"), selector, *operands])
+        call = Expression([Symbol("py-operator"), selector, operands])
         reason = Expression(
             [
                 Symbol("python_error"),
@@ -599,7 +605,7 @@ def install(runtime) -> None:
         (_railway(py_slice), "py-slice", None),
         (py_global_read, "py-global-read", None),
         (py_global_write, "py-global-write", None),
-        (_py_operator, "py-operator", [2, 3]),
+        (_py_operator, "py-operator", None),
         (_py_set, "py-set", None),
         (_py_set_pairs, "py-set-pairs", None),
         (_py_dict_pairs, "py-dict-pairs", None),

@@ -31,7 +31,7 @@ Guarantees:
     keep that syntax proof without publishing a source-absent arrow [tested:
     test_compiled_operators_follow_python_protocols_and_result_species,
     test_no_type_check_keeps_annotations_as_a_compile_proof_only;
-    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
+    commit=WORKTREE]
   - Defined renders its own escaped equation source in rich notebooks, and a
     Prolog-backed definition's source remains valid MeTTa text [tested:
     test_defined_rich_repr_shows_escaped_source,
@@ -1339,7 +1339,7 @@ def test_compiled_operators_follow_python_protocols_and_result_species(m):  # no
         dt_at_least: "ge",
     }
     for defined, selector in protocol_heads.items():
-        assert str(defined.body) == f"(py-operator {selector} $left $right)"
+        assert str(defined.body) == f"(py-operator {selector} (noeval ($left $right)))"
 
     native_heads = {
         dt_native_add: "(+ $left $right)",
@@ -1376,8 +1376,8 @@ def test_compiled_operators_follow_python_protocols_and_result_species(m):  # no
     assert m.eval(fn.eq(1, 1.0)) == [False]
     assert m.eval(fn.eq(float("nan"), float("nan"))) == [True]
     assert m.eval(fn.eq(-0.0, 0.0)) == [False]
-    assert str(dt_annotated_equal.body) == "(py-operator eq $left $right)"
-    assert str(dt_annotated_float_equal.body) == "(py-operator eq $left $right)"
+    assert str(dt_annotated_equal.body) == "(py-operator eq (noeval ($left $right)))"
+    assert str(dt_annotated_float_equal.body) == "(py-operator eq (noeval ($left $right)))"
 
     def members(answer):
         return {
@@ -1459,7 +1459,7 @@ def test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts(m):
     calls.clear()
     assert dt_compare_test(left, middle) == ["falsy"]
     assert calls == ["lt", ("bool", "direct")]
-    assert "(py-truthy (py-operator lt $a $b))" in str(dt_compare_test.body)
+    assert "(py-truthy (py-operator lt (noeval ($a $b))))" in str(dt_compare_test.body)
     assert "(< $a $b)" in str(dt_native_compare_test.body)
     assert "py-truthy" not in str(dt_native_compare_test.body)
     assert dt_native_compare_test(1, 2) == ["truthy"]
@@ -1687,7 +1687,7 @@ def test_walrus_bindings_hoist_as_let(metta):
             return (y := x * x) + y
 
         assert str(wsq.bodies[0]) == (
-            "(let* (($y (py-operator mul $x $x))) (py-operator add $y $y))"
+            "(let* (($y (py-operator mul (noeval ($x $x))))) (py-operator add (noeval ($y $y))))"
         )
         assert m.eval("(wsq 3)") == [18]
 

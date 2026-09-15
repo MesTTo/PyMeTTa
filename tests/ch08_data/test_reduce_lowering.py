@@ -3,7 +3,7 @@ Guarantees:
   - imported and module-qualified ``functools.reduce`` lower a named reducer
     to three-argument ``foldl-atom`` and a lambda to its bound-variable
     template form [tested: test_reduce_lowers_named_and_lambda_reducers;
-    commit=e3787593132a7ece2d300397045f7415709847c9]
+    commit=WORKTREE]
   - reduce recognition follows the imported callable's identity rather than
     claiming an unrelated function named reduce [tested:
     test_reduce_requires_the_functools_callable_identity; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -14,7 +14,7 @@ from __future__ import annotations
 import functools
 from functools import reduce as fold
 
-from metta import Expression, S
+from metta import Expression, Grounded, S, V
 
 
 def test_reduce_lowers_named_and_lambda_reducers(metta):  # noqa: D103 -- the test name states the behavioral contract
@@ -45,10 +45,14 @@ def test_reduce_lowers_named_and_lambda_reducers(metta):  # noqa: D103 -- the te
     assert list(template_fold(values, 1)) == [9]
     assert list(generic_fold(S["+"], values, 0)) == [6]
     assert str(named_fold.body) == "(foldl-atom $values 0 combine)"
-    assert str(template_fold.body) == (
-        "(foldl-atom $values 0 $accumulator $item "
-        "(py-operator add (py-operator add $accumulator $item) $bias))"
+    assert template_fold.body.children[:5] == (
+        S["foldl-atom"], V.values, Grounded(0), V.accumulator, V.item,
     )
+    bound = template_fold.body.children[5]
+    assert bound.head == S.let
+    temporary, first, second = bound.args
+    assert first == S["py-operator"](S["add"], S.noeval(Expression([V.accumulator, V.item])))
+    assert second == S["py-operator"](S["add"], S.noeval(Expression([temporary, V.bias])))
     assert str(generic_fold.body) == "(foldl-atom $values $initial $reducer)"
 
 
