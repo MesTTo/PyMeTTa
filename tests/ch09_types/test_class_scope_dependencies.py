@@ -2,7 +2,7 @@
 
 Guarantees: replacements, cycles and native edits retain only reachable scoped
   resources [tested: test_kept_native_field_graphs_preserve_exact_reachability;
-  commit=WORKTREE].
+  commit=bc30fbd0bbcbf535de217d5a9efad2910002f343].
 Owns resources: each case releases its scopes, class program and context.
 """
 

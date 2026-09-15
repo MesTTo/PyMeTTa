@@ -14,7 +14,7 @@ Guarantees:
   - kept mutable receivers retain their current native field dependencies
     after scope children finish [tested:
     test_kept_fields_follow_the_last_stored_value,
-    test_kept_native_field_graphs_preserve_exact_reachability; commit=WORKTREE]
+    test_kept_native_field_graphs_preserve_exact_reachability; commit=bc30fbd0bbcbf535de217d5a9efad2910002f343]
   - constructor and method parameters use the same native packing while
     constructor defaults remain source computations [tested:
     test_constructor_defaults_follow_the_native_callable_contract;

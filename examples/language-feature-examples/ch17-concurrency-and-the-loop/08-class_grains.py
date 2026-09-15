@@ -6,7 +6,7 @@ A Space subclass owns private facts and rules. Both notations query those rows.
 Python twin; commit=518e67bc11d72ed28dfda7dd0646d1f48d14ac24]
 Guarantees: the returned native value retains its current stored Space field
   [tested: examples/ch17-concurrency-and-the-loop/08-class_grains.metta and its
-  Python twin; commit=WORKTREE].
+  Python twin; commit=bc30fbd0bbcbf535de217d5a9efad2910002f343].
 Owns resources:
   - the scope releases the declaring space, classes and their instances.
 """
@@ -155,7 +155,7 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --repin --rounds 10
 #: --reason 'The current-field dependency claim and intervening reference repairs now use deterministic singleton memo retirement'
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
-#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=bc30fbd0bbcbf535de217d5a9efad2910002f343].
 BUDGET = 10400240
 #: The minimum measurements give a declaration and crossing gap of 11729673.
 #: [measured: 14262547 twin and 2532874 native inferences;
@@ -167,5 +167,5 @@ BUDGET = 10400240
 #: [measured: 10400240 twin and 2689542 native inferences;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 10
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
-#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=bc30fbd0bbcbf535de217d5a9efad2910002f343].
 OVERRUN = 7710698
