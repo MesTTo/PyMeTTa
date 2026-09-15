@@ -7,7 +7,7 @@ Guarantees:
   - Answers preserves broad sequence equality and is unhashable, so equal
     strings, bytes, ranges and tuples cannot become inconsistent dictionary
     keys [tested: test_audit_a3_broad_sequence_equality_is_unhashable;
-    commit=WORKTREE]
+    commit=4ecded66c4478341c5010c8f242d3c727ec0cf8f]
   - one immutable record retains each value and caller row through replay,
     slicing, source failure and asynchronous projection after close [tested:
     test_answer_record_survives_replay_slice_and_async_projection,
