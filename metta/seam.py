@@ -48,6 +48,9 @@ Assumes:
     the finder `extensions/python/_workspace.py` installs [source 2026-09-07:
     https://docs.python.org/3/library/importlib.metadata.html#entry-points]
 Guarantees:
+  - registration listeners receive the exact point and registrant names,
+    including quotes and the words " registration " [tested:
+    test_registration_identity_is_not_parsed_from_prose; commit=WORKTREE]
   - concurrent discovery waits for registration to finish, failed entries
     remain retryable, and cycles among discovery waits refuse [tested:
     test_concurrent_discovery_waits_for_complete_registration,
@@ -821,8 +824,9 @@ def _register(
             if standing.name == name:
                 held[position] = row
                 _enlist(
+                    declared.name,
+                    name,
                     _both(added, functools.partial(_restore, declared.name, position, standing)),
-                    f"{declared.name} registration {name!r}",
                 )
                 return row
         held.append(row)
@@ -830,7 +834,7 @@ def _register(
     def withdraw_row() -> None:
         _unregister(declared, name)
 
-    _enlist(_both(added, withdraw_row), f"{declared.name} registration {name!r}")
+    _enlist(declared.name, name, _both(added, withdraw_row))
     return row
 
 
@@ -866,13 +870,12 @@ def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) ->
     _LISTENERS.append(callback)
 
 
-def _enlist(undo: Callable[[], None] | None, description: str) -> None:
+def _enlist(declared: str, name: str, undo: Callable[[], None] | None) -> None:
     """Tell every listener how to withdraw this registration."""
     if undo is None:
         return
-    declared, _, name = description.partition(" registration ")
     for callback in tuple(_LISTENERS):
-        callback(declared, name.strip("'"), undo)
+        callback(declared, name, undo)
 
 
 def _unregister(declared: Point, name: str) -> bool:
@@ -889,8 +892,9 @@ def _unregister(declared: Point, name: str) -> bool:
     # projection of the registry (the door catalog) and an installer's undo
     # frame follow the registry in both directions.
     _enlist(
+        declared.name,
+        name,
         functools.partial(_restore, declared.name, position, standing),
-        f"{declared.name} registration {name!r}",
     )
     return True
 
