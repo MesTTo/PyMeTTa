@@ -121,7 +121,7 @@ seam:grounded_apply(Obj, Args, Result) :-
     metta_py_bridge,
     py_call('metta._binding.host':is_callable(Obj), @true),
     metta_py_split_kwargs(Args, Positional0, Kwargs),
-    maplist(py_arg_norm, Positional0, Positional),
+    maplist(py_frame_arg_norm, Positional0, Positional),
     metta_py_opts(Opts),
     metta_py_guard([Obj|Args],
                    py_call('metta._binding.host':apply(Obj, Positional, Kwargs), Raw, Opts)),

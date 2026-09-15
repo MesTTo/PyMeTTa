@@ -2,6 +2,10 @@
 
 Guarantees: the public testing contracts survive the package partition
 [tested: test_the_prolog_twin_is_checked_against_its_reference; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Guarantees: borrowed results compare through their public structural image,
+including nested containers, while scalar species remain distinct [tested:
+test_operator_result_twins_compare_nested_value_projections;
+test_check_twin_distinguishes_integer_float_and_boolean_answers; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -10,6 +14,7 @@ from types import GeneratorType
 
 from metta._atoms.factories import (
     Expression,
+    Grounded,
     Symbol,
     _encode,
 )
@@ -153,10 +158,13 @@ def _space_symbols(atom):
 def _comparable(value):
     """An engine answer and a twin answer in one shape.
 
-    Encoding is the public boundary's normalization: atoms stay atoms, Python
-    sequences become expressions, and scalar species stay distinct groundings.
+    Carried values use the same structural image as the Python reference.
+    Scalar species stay distinct groundings.
     """
-    return _encode(value)
+    atom = _encode(value.value if isinstance(value, Grounded) else value)
+    if isinstance(atom, Expression):
+        return Expression([_comparable(child) for child in atom.children])
+    return atom
 
 
 def _twin_answers(defined, arguments) -> list:

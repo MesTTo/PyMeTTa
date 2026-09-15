@@ -305,6 +305,7 @@ if TYPE_CHECKING:
         py_range: Symbol
         py_repr: Symbol
         py_round: Symbol
+        py_sequence_image: Symbol
         py_set: Symbol
         py_set_pairs: Symbol
         py_slice: Symbol
@@ -643,6 +644,7 @@ _NAMES = frozenset(
         "py-range",
         "py-repr",
         "py-round",
+        "py-sequence-image",
         "py-set",
         "py-set-pairs",
         "py-slice",
@@ -929,6 +931,7 @@ _ALIASES.update(
         ("py_range", "py-range"),
         ("py_repr", "py-repr"),
         ("py_round", "py-round"),
+        ("py_sequence_image", "py-sequence-image"),
         ("py_set", "py-set"),
         ("py_set_pairs", "py-set-pairs"),
         ("py_slice", "py-slice"),

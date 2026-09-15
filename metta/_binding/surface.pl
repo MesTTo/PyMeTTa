@@ -45,6 +45,9 @@
 %     test_py_iter_once_reports_its_own_pull; commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44].
 %   - grounded algebra equality unwraps values and returns one truth value
 %     [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
+%   - Python call and construction frames retain borrowed object references
+%     until the Python helper unwraps them [tested:
+%     test_host_call_frames_preserve_borrowed_value_identity; commit=WORKTREE].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.
@@ -435,14 +438,14 @@ metta_py_resolve_grounded(Spec, Result) :-
 
 metta_py_items(Items, Who, List) :-
     (   is_list(Items)
-    ->  maplist(py_arg_norm, Items, List)
+    ->  maplist(py_frame_arg_norm, Items, List)
     ;   throw(error(type_error(expression, Items),
                     context(Who/2, 'takes one expression of items')))
     ).
 
 metta_py_pair(Pair, [Key, Value]) :-
     (   Pair = [Key0, Value0]
-    ->  py_arg_norm(Key0, Key), py_arg_norm(Value0, Value)
+    ->  py_frame_arg_norm(Key0, Key), py_frame_arg_norm(Value0, Value)
     ;   throw(error(type_error(pair, Pair),
                     context('py-dict'/2, 'takes two-element pairs')))
     ).
@@ -466,7 +469,7 @@ metta_py_kwarg([Name, Value0], Name-Value) :-
     ->  reduce(Value0, Evaluated, _)
     ;   Evaluated = Value0
     ),
-    py_arg_norm(Evaluated, Value).
+    py_frame_arg_norm(Evaluated, Value).
 metta_py_kwarg(Other, _) :-
     throw(error(type_error(keyword_argument, Other),
                 context('Kwargs'/1, 'takes (name value) pairs'))).
@@ -614,9 +617,18 @@ py_bool_norm(R, R).
 % The same conversion outward: the language booleans are the atoms true and
 % false, which janus would pass as the strings 'true' and 'false'; map them
 % (through lists too) to @(true)/@(false) so Python receives real booleans.
-py_arg_norm(true, '@'(true)) :- !.
-py_arg_norm(false, '@'(false)) :- !.
-py_arg_norm(L, L1) :- is_list(L), !, maplist(py_arg_norm, L, L1).
+:- meta_predicate py_arg_norm(2, ?, ?).
+
+py_arg_norm(X, Y) :- py_arg_norm(py_arg_unboxed, X, Y).
+
+% Framed helpers unwrap in Python. Unwrapping here would round-trip the
+% payload through Janus before its callee and copy an exact tuple.
+py_frame_arg_norm(X, Y) :- py_arg_norm(=, X, Y).
+
+py_arg_norm(_, true, '@'(true)) :- !.
+py_arg_norm(_, false, '@'(false)) :- !.
+py_arg_norm(Leaf, L, L1) :- is_list(L), !, maplist(py_arg_norm(Leaf), L, L1).
+py_arg_norm(Leaf, X, Y) :- call(Leaf, X, Y).
 %A crossed host value is carried in a metta Box, and the goal-term call
 %route hands janus the reference AS WRITTEN, so the callee received the
 %envelope: setattr on a crossed object raised 'Box' object has no
@@ -624,10 +636,10 @@ py_arg_norm(L, L1) :- is_list(L), !, maplist(py_arg_norm, L, L1).
 %test costs nothing on ordinary terms and keeps this off every
 %non-object argument; metta_py:unboxed/1 is _unwrap, the same law
 %apply/3 already runs on its own route.
-py_arg_norm(X, Y) :- python_object_blob(X), py_is_object(X), !,
+py_arg_unboxed(X, Y) :- python_object_blob(X), py_is_object(X), !,
                      metta_py_bridge,
                      py_call('metta._binding.host':unboxed(X), Y, [py_object(true)]).
-py_arg_norm(X, X).
+py_arg_unboxed(X, X).
 
 :- dynamic python_import_alias/2.
 python_call_module(Name, ModuleKey) :- python_import_alias(Name, ModuleKey), !.

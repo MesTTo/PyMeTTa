@@ -1,5 +1,9 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - proved native sequence results retain their structural image while
+    unknown protocol results keep the borrowed value boundary [tested:
+    test_native_sequence_operator_results_retain_images;
+    test_unknown_reflected_sequence_result_remains_borrowed; commit=WORKTREE]
   - ordinary carried calls and host islands keep completed values separate
     from keyword control [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control; commit=86756da11eade288973b0dfaab7486a29e598cfd]
@@ -535,6 +539,7 @@ class ExpressionCompilerMixin(CompilerContext):
             node.lineno,
             left_kind=left_kind,
             right_kind=right_kind,
+            result_kind=self._container_kind(node),
             native=native,
         )
 
@@ -547,6 +552,7 @@ class ExpressionCompilerMixin(CompilerContext):
         *,
         left_kind: str | None = None,
         right_kind: str | None = None,
+        result_kind: str | None = None,
         native: bool = False,
     ) -> Atom:
         """Lower one binary operation over already-compiled operands.
@@ -567,7 +573,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 construct=type(op).__name__,
                 line=line,
             )
-        applied = self._python_operator(selector, left, right)
+        applied = self._python_operator(selector, left, right, result_kind=result_kind)
         # policy-inventory-exempt: mechanism-internal; reason=set and dict are the mapping-like result species whose relational Atom image must be reconstructed after Python dispatch; evidence=extensions/python/metta/_compile/expressions.py:_restore_mapping_container
         if left_kind in {"set", "dict"} or right_kind in {"set", "dict"}:
             return self._restore_mapping_container(applied)
@@ -590,6 +596,7 @@ class ExpressionCompilerMixin(CompilerContext):
         *,
         left_kind: str | None = None,
         right_kind: str | None = None,
+        result_kind: str | None = None,
     ) -> Atom:
         """Apply Python's in-place protocol, preserving a returned replacement."""
         selector = _INPLACE_BINOPS.get(type(op))
@@ -600,13 +607,13 @@ class ExpressionCompilerMixin(CompilerContext):
                 construct="augmented assignment",
                 line=line,
             )
-        applied = self._python_operator(selector, left, right)
+        applied = self._python_operator(selector, left, right, result_kind=result_kind)
         # policy-inventory-exempt: mechanism-internal; reason=set and dict are the mapping-like result species whose relational Atom image must be reconstructed after in-place Python dispatch; evidence=extensions/python/metta/_compile/expressions.py:_restore_mapping_container
         if left_kind in {"set", "dict"} or right_kind in {"set", "dict"}:
             return self._restore_mapping_container(applied)
         return applied
 
-    def _python_operator(self, selector: str, *operands: Atom) -> Expression:
+    def _python_operator(self, selector: str, *operands: Atom, result_kind: str | None = None) -> Expression:
         """Evaluate operand computations once, then pass one native data frame."""
         self.runtime_ops.add("py-operator")
         values: list[Atom] = []
@@ -620,6 +627,12 @@ class ExpressionCompilerMixin(CompilerContext):
                 values.append(operand)
         frame = Expression([Symbol("noeval"), Expression(values)])
         body = Expression([Symbol("py-operator"), Symbol(selector), frame])
+        # A container proof belongs to the compiled source, not the generic
+        # operator service: a reflected Python method may return any value.
+        # policy-inventory-exempt: mechanism-internal; reason=list and tuple share the established structural sequence image; evidence=extensions/python/metta/_catalog/containers.py:_sequence_project
+        if result_kind in {"list", "tuple"}:
+            self.runtime_ops.add("py-sequence-image")
+            body = Expression([Symbol("py-sequence-image"), body])
         for value, source in reversed(bindings):
             body = Expression([Symbol("let"), value, source, body])
         return body

@@ -46,6 +46,9 @@ Guarantees:
   - the host helpers return Python results; the caller selects Janus
     object-reference transport [source:
     extensions/python/metta/_binding/surface.pl:metta_py_opts/1; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
+  - container construction unwraps carried elements after their final crossing,
+    preserving borrowed values inside call frames [tested:
+    test_host_call_frames_preserve_borrowed_value_identity; commit=WORKTREE]
   - a py-atom type declaration follows a weak-referenceable Python object
     without owning it; values that cannot be weakly referenced carry their
     declaration in a weakly interned transparent envelope [tested:
@@ -837,17 +840,17 @@ def unboxed(value: Any) -> Any:
 
 
 def build_list(items: list) -> list:
-    return list(items)
+    return list(_unwrap(items))
 
 
 def build_tuple(items: list) -> tuple:
-    return tuple(items)
+    return tuple(_unwrap(items))
 
 
 def build_dict(pairs: list) -> dict:
     """Build a mapping from pairs, as in `(py-dict (("a" 1) ("b" 2)))`."""
     out = {}
-    for pair in pairs:
+    for pair in _unwrap(pairs):
         try:
             key, value = pair
         except (TypeError, ValueError) as exc:

@@ -15,6 +15,9 @@
 % Guarantees: grounded_length/2 reads tuple arity or Python's Sized protocol
 %   without enumerating elements [tested:
 %   test_host_length_refinements_do_not_read_elements; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
+% Guarantees: grounded applications retain borrowed argument identities through
+%   the framed Python helper [tested:
+%   test_host_call_frames_preserve_borrowed_value_identity; commit=WORKTREE].
 
 provides_declaration(engine, user, grounded_apply/3).
 
@@ -171,7 +174,7 @@ seam:grounded_apply(Obj, Args, Result) :-
     metta_py_bridge,
     py_call('metta._binding.host':is_callable(Obj), @true),
     metta_py_split_kwargs(Args, Positional0, Kwargs),
-    maplist(py_arg_norm, Positional0, Positional),
+    maplist(py_frame_arg_norm, Positional0, Positional),
     metta_py_opts(Opts),
     metta_py_guard([Obj|Args],
                    py_call('metta._binding.host':apply(Obj, Positional, Kwargs), Raw, Opts)),

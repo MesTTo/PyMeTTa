@@ -1,5 +1,7 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
+  - augmented assignments share binary expression result-image proofs
+    [tested: test_native_sequence_operator_results_retain_images; commit=WORKTREE]
   - lifted definitions and continuations retain Python underscore binders
     [tested: test_python_underscore_bindings_retain_their_values,
     test_generator_underscore_bindings_cross_branches_and_iterations; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
@@ -1584,6 +1586,9 @@ class StatementCompilerMixin(CompilerContext):
                         head.lineno,
                         left_kind=left_kind,
                         right_kind=right_kind,
+                        result_kind=self._container_kind(ast.BinOp(
+                            left=head.target, op=head.op, right=head.value,
+                        )),
                     )
                 target = target_name
         elif isinstance(head, ast.AnnAssign):

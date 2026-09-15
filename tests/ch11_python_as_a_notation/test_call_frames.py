@@ -8,6 +8,9 @@ Guarantees:
   - reflected host applications read their current native argument frames
     [tested: test_reflected_host_application_frames_remain_editable;
     commit=86756da11eade288973b0dfaab7486a29e598cfd]
+  - borrowed values remain identical through positional and keyword calls,
+    including argument expansion [tested:
+    test_host_call_frames_preserve_borrowed_value_identity; commit=WORKTREE]
 """
 
 from collections.abc import Callable
@@ -128,6 +131,22 @@ def test_host_call_frames_do_not_inspect_callable_signatures():
         assert invoke(Receiver(), S.Kwargs()).one() == _received(
             ["Kwargs"], ["Kwargs"], payload=["Kwargs"],
         )
+
+
+@pytest.mark.parametrize("source", [_direct, _expanded, _keyword, _mixed])
+def test_host_call_frames_preserve_borrowed_value_identity(scratch_space, source):
+    """A Python value leaves its envelope only after reaching its callee."""
+    invoke = scratch_space.define(source, name=f"identity-frame-{source.__name__}")
+    for value in ((1, 2), [], {}, set(), object(), S.Borrowed(S.payload)):
+        seen = []
+
+        def observe(*args, expected=value, seen=seen, **kwargs):
+            items = (*args, *kwargs.values())
+            seen.extend(items)
+            return bool(items) and all(item is expected for item in items)
+
+        assert invoke(observe, G(value)).one() is True, (source.__name__, type(value), seen)
+        assert seen and all(item is value for item in seen)
 
 
 def test_arbitrary_keyword_shaped_data_keeps_its_argument_place():
