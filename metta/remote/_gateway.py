@@ -3,6 +3,8 @@
 Guarantees: context exit preserves body and cleanup failures together, and
 single failures retain their identity [tested:
 test_owned_exit_zero_one_or_two_failures; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
+Gateway removal delegates every decoded atom species to the local store
+[tested: test_remote_removal_preserves_the_local_atom_domain; commit=WORKTREE].
 Owns resources: Server.close stops the HTTP server and its engine worker;
 Gateway.close releases retained cursors
 [source: extensions/python/metta/remote/_gateway.py:1464, Gateway.close; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -1119,12 +1121,6 @@ class Gateway:
 
     def _remove(self, payload: dict) -> dict:
         pattern = _atom_of(payload, "atom")
-        if not isinstance(pattern, (Expression, Variable)):
-            # A stored atom is always an expression; a symbol or a
-            # grounded value can unify with none of them.
-            return {"removed": False}
-        # A bare variable is the remove-everything reading, and the
-        # engine owns it now, each atom leaving through its own path.
         return {"removed": self._space(payload).remove(pattern)}
 
     def _health(self) -> dict:
