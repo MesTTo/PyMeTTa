@@ -11,6 +11,10 @@ Guarded by:
     [tested: test_concurrent_reconstruction_publishes_one_python_proxy,
     test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
+  - kept mutable receivers retain their current native field dependencies
+    after scope children finish [tested:
+    test_kept_fields_follow_the_last_stored_value,
+    test_kept_native_field_graphs_preserve_exact_reachability; commit=WORKTREE]
   - constructor and method parameters use the same native packing while
     constructor defaults remain source computations [tested:
     test_constructor_defaults_follow_the_native_callable_contract;
@@ -600,7 +604,15 @@ class ClassDeclaration:
         internal = [S["owned-by"], S["_python-proxy"]]
         equations: list[Atom] = []
         if self.grain != "value":
-            deferred = _expr(S["scope-defer"], ctor, _expr(S.evalc, _expr(Symbol(f"retire-{self.name}"), ctor), home))
+            dependency_field, dependency_value = Variable("field"), Variable("value")
+            storage = part if self.grain == "prototype" else home
+            prefix = () if self.grain == "prototype" else (ctor,)
+            dependencies = _expr(S.chain,
+                _expr(S.superpose, Expression([self.storage_head(item.name) for item in self.stored_fields])),
+                dependency_field,
+                _expr(S.match, storage, _expr(dependency_field, *prefix, dependency_value), dependency_value))
+            deferred = _expr(S["scope-defer"], ctor,
+                _expr(S.evalc, _expr(Symbol(f"retire-{self.name}"), ctor), home), dependencies)
             internal.append(Symbol(f"_mint-{self.name}"))
             created = _expr(S["add-atom"], home, _expr(S["owned-by"], ctor))
             if self.grain == "entity":

@@ -4,6 +4,9 @@ A frozen dataclass is a value. A mutable dataclass shares its class population.
 A Space subclass owns private facts and rules. Both notations query those rows.
 [tested: examples/ch17-concurrency-and-the-loop/08-class_grains.metta and its
 Python twin; commit=518e67bc11d72ed28dfda7dd0646d1f48d14ac24]
+Guarantees: the returned native value retains its current stored Space field
+  [tested: examples/ch17-concurrency-and-the-loop/08-class_grains.metta and its
+  Python twin; commit=WORKTREE].
 Owns resources:
   - the scope releases the declaring space, classes and their instances.
 """
@@ -96,6 +99,23 @@ def twin(m):
     released_longhand = m.fn["space_drop"](other).one()
     assert (during, after, released, released_longhand) == (True, [], True, True)
 
+    with m.scope():
+        store = m.metta.space()
+        with m.scope() as inner:
+            child = m.metta.space()
+            child += S.payload(9)
+            store += S.field(S["scoped-value"], child)
+            # rung: this value declares its edges and cleanup as native queries.
+            m.fn["scope-defer"](
+                S["scoped-value"],
+                S.remove_atom(store, S.field(S["scoped-value"], V.old)),
+                S.match(store, S.field(S["scoped-value"], V.current), V.current),
+            ).one()
+            root = inner.keep(S["scoped-value"])
+        child_name = store[S.field(root, V.current)].one().current
+        retained = m.metta.space(child_name)
+        assert [row.value.value for row in retained[S.payload(V.value)]] == [9]
+
 
 #: The complete twin declares three Python classes, including their constructor
 #: signatures, checked writers and proxy ownership, then releases those programs.
@@ -128,10 +148,24 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
 #: fixture=built native engine after deleting engine/lib QLF; commit=89084b43ff1a758f703ce77cd96b026f56510116]
-BUDGET = 14262547
+#: RE-PINNED 2026-09-15, 14262547 to 10400240 (-3862307). The added current-
+#: field dependency claim uses public matching. Intervening reference repairs
+#: and singleton memo retirement also contribute to the measured change.
+#: [measured: 10400240 twin inferences, min-of-10 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin --rounds 10
+#: --reason 'The current-field dependency claim and intervening reference repairs now use deterministic singleton memo retirement'
+#: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+BUDGET = 10400240
 #: The minimum measurements give a declaration and crossing gap of 11729673.
 #: [measured: 14262547 twin and 2532874 native inferences;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
 #: fixture=serial fresh processes after deleting engine/lib QLF; commit=89084b43ff1a758f703ce77cd96b026f56510116].
-OVERRUN = 11729673
+#: Re-measured 2026-09-15 after the current-dependency claim and intervening
+#: reference repairs. The full declaration and crossing gap is now 7710698.
+#: [measured: 10400240 twin and 2689542 native inferences;
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 10
+#: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+OVERRUN = 7710698
