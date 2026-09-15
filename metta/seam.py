@@ -1135,6 +1135,7 @@ frame = point(
     "frame",
     "declaration",
     fields=("module", "accessor", "build"),
+    optional=("rows",),
     extra="dataframes",
     doc=(
         "A dataframe library. `accessor(module, name, door)` installs "
@@ -1143,7 +1144,9 @@ frame = point(
         "projection, taking the Arrow view instead when the library reads one "
         "and there is a builder. `rows.to(<module>)` is the general spelling "
         "every registrant gets. Short receiver methods are separate contracts "
-        "on the door point, fixing that conversion's library argument."
+        "on the door point, fixing that conversion's library argument. "
+        "Optional `rows(source)` returns this provider's row iterator, or "
+        "None when it does not own the source."
     ),
 )
 
