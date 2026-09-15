@@ -1,6 +1,9 @@
 """Purpose: rebuild native callable values with their lexical space.
 
 Guarantees:
+  - the call consumer domain names immediate application or iteration,
+    independently of the refusal vocabulary [tested:
+    test_call_consumer_source.CallConsumerSourceTests; commit=WORKTREE]
   - compiled parameter slots hold fixed values, positional expressions and
     ordered keyword-pair expressions through one packing operation [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
@@ -66,7 +69,7 @@ from __future__ import annotations
 import inspect
 import typing
 from collections.abc import Callable, Collection, Mapping, Sequence
-from typing import Any
+from typing import Any, Literal
 
 from metta._atoms.factories import (
     Atom,
@@ -85,6 +88,11 @@ from metta._atoms.factories import (
 from metta._catalog import call_signatures
 from metta._catalog.containers import runtime_annotation
 from metta._lazy import lazy
+
+# The consumer chooses how a caller uses the published result contract.
+# An explicit stream remains a stream when its consumer is "value".
+# policy-inventory-exempt: mechanism-internal; reason=callers select application or iteration of the published result contract; evidence=extensions/python/metta/_declare/call_syntax.py:bind_call
+type CallConsumer = Literal["value", "iterable"]
 
 
 def argument(value: Any) -> Atom:

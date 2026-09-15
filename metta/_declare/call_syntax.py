@@ -1,6 +1,9 @@
 """Purpose: link Python call-argument binding into native compiled programs.
 
 Guarantees:
+  - native consumer validation derives from CallConsumer and retains its
+    existing wire values [tested:
+    test_call_consumer_source.CallConsumerSourceTests; commit=WORKTREE]
   - canonical keyword terms become one fresh dictionary per body activation
     [tested: test_compiled_collectors_match_native_equation_heads;
     test_compiled_generator_answers_share_one_keyword_dictionary; commit=1796cf0f581aa767db9289b807f66238cb747065]
@@ -41,7 +44,7 @@ from __future__ import annotations
 
 import ctypes
 import inspect
-from typing import Any
+from typing import Any, get_args
 
 from metta._atoms.factories import (
     Atom,
@@ -124,7 +127,7 @@ def bind_call(home: Atom, function: Atom, positional: Atom, keywords: Atom, cons
     if not isinstance(positional, Expression) or not isinstance(keywords, Grounded) or not isinstance(keywords.value, dict):
         msg = "call binding requires evaluated positional and keyword arguments"
         raise TypeError(msg)
-    if not isinstance(consumer, Grounded) or consumer.value not in ("value", "iterable"):
+    if not isinstance(consumer, Grounded) or consumer.value not in get_args(call_values.CallConsumer.__value__):
         msg = "call binding requires its value or iterable consumer"
         raise TypeError(msg)
     if any(not isinstance(name, str) for name in keywords.value):

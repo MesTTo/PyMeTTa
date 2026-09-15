@@ -1,6 +1,9 @@
 """Purpose: construct native applications in Python's argument evaluation order.
 
 Guarantees:
+  - result consumers use the call-values domain, preserving its native
+    strings [tested: test_call_consumer_source.CallConsumerSourceTests;
+    commit=WORKTREE]
   - carried values and host-island locals remain data inside independent call
     frames [tested: test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_carried_native_calls_hold_completed_operand_values; commit=86756da11eade288973b0dfaab7486a29e598cfd]
@@ -20,6 +23,7 @@ import ast
 
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
 from metta._catalog import call_signatures
+from metta._catalog.call_values import CallConsumer
 from metta._compile.context import CompilerContext
 
 
@@ -41,7 +45,7 @@ def value_source(value: Atom) -> Atom:
 
 
 def bound_application(compiler: CompilerContext, function: Atom, positional: Atom,
-                      keywords: Atom, *, consumer: str = "value") -> Atom:
+                      keywords: Atom, *, consumer: CallConsumer = "value") -> Atom:
     """Execute the live application described by independent argument frames."""
     compiler.runtime_ops.update(("_python-bind-call", "py-dict"))
     assembled = Variable(compiler._temp("call-application"))
@@ -49,7 +53,7 @@ def bound_application(compiler: CompilerContext, function: Atom, positional: Ato
     return _expr(S.let, assembled, binding, _expr(S.eval, assembled))
 
 
-def application(compiler: CompilerContext, node: ast.Call, *, consumer: str = "value", callee: Atom | None = None) -> Atom:
+def application(compiler: CompilerContext, node: ast.Call, *, consumer: CallConsumer = "value", callee: Atom | None = None) -> Atom:
     """Evaluate operands, bind their syntax, then execute the assembled term."""
     compiler.runtime_ops.update(("_python-bind-call", "_python-merge-keywords", "py-dict"))
     if consumer == "iterable":
