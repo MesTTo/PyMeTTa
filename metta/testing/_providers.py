@@ -40,7 +40,7 @@ Guarantees:
     caught nested failure while the outer transaction can still commit
     [tested: test_savepoint_compliance_accepts_native_nested_rollback,
     test_savepoint_compliance_rejects_an_outer_transaction_only_provider;
-    commit=WORKTREE]
+    commit=6268f13fe7735c34b7487f9394d8db388bc52b6c]
   - optional exact mutations return a fresh token and remove that occurrence
     while retaining equal predecessors [tested: TestMutableTokenRowsComply;
     commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
