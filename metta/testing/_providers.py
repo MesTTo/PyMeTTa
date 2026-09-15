@@ -36,6 +36,11 @@ Assumes:
     them through the `stored` fixture; the suite does not choose the data,
     because it cannot know what the backend can hold
 Guarantees:
+  - savepoint declarations must restore the provider occurrence bag after a
+    caught nested failure while the outer transaction can still commit
+    [tested: test_savepoint_compliance_accepts_native_nested_rollback,
+    test_savepoint_compliance_rejects_an_outer_transaction_only_provider;
+    commit=WORKTREE]
   - optional exact mutations return a fresh token and remove that occurrence
     while retaining equal predecessors [tested: TestMutableTokenRowsComply;
     commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
@@ -86,6 +91,7 @@ Open Obligations:
 from __future__ import annotations
 
 import itertools
+from collections import Counter
 from collections.abc import Sized
 from typing import Any
 
@@ -563,6 +569,41 @@ class SpaceComplianceSuite:
         assert space.match(atom), "an added atom did not match"
         if before is not None:
             assert len(space.atoms()) == before
+
+    def test_a_nested_transaction_restores_its_provider_savepoint(
+        self, provider, exercised, space, stored
+    ):
+        """A caught nested failure restores its entry bag before outer commit."""
+        self.requires(provider, exercised, "savepoint")
+        self.restore_or_skip(provider, exercised, "add")
+        self.restore_or_skip(provider, exercised, "remove")
+        self.restore_or_skip(provider, exercised, "enumerate")
+        atom = self.restorable_or_skip(stored)[0]
+        before = Counter(provider.atoms())
+        space.atomicity("transactional")
+        failure = ValueError("injected nested savepoint failure")
+
+        def outer():
+            space.remove(atom)
+            entered = Counter(provider.atoms())
+
+            def inner():
+                space.add(atom)
+                raise failure
+
+            with pytest.raises(ValueError, match="injected nested savepoint failure") as raised:
+                space.transaction(inner)
+            assert raised.value is failure
+            assert Counter(provider.atoms()) == entered, (
+                "a nested transaction retained provider writes after its failure"
+            )
+            space.add(atom)
+            return "outer committed"
+
+        assert space.transaction(outer) == "outer committed"
+        assert Counter(provider.atoms()) == before, (
+            "the savepoint compliance case changed the provider's occurrence bag"
+        )
 
     def test_a_batch_add_stores_every_atom(
         self, provider, exercised, space, stored
