@@ -4,16 +4,16 @@ Guarantees:
   - a withdrawn source token remains resolved through recompilation and
     successive fast-image generations
     [tested: test_fast_images_keep_withdrawn_bindings_across_generations;
-    commit=WORKTREE]
+    commit=717bc55f36a78559e84bd5c7ab099eb10e0ab31a]
   - an equation reads the space it is stored in through either door, reader
     or native, and reader, native and mixed occurrences retain their answer
     bags, source atoms and later recompilation behavior after relocation
     [tested: test_fast_images_preserve_each_equations_binding;
-    commit=WORKTREE]
+    commit=717bc55f36a78559e84bd5c7ab099eb10e0ab31a]
   - a removal retires the clause of the occurrence it takes, whichever door
     wrote it, and a fast image carries that ownership
     [tested: test_removal_retires_the_same_stored_equation_after_recompilation;
-    commit=WORKTREE]
+    commit=717bc55f36a78559e84bd5c7ab099eb10e0ab31a]
 """
 
 import hashlib
