@@ -11,7 +11,7 @@ Guarantees:
     supplied argument count, retaining defaults and both variadic segments
     [tested: test_named_callable_uses_its_complete_signature,
     test_named_callable_binding_agrees_with_python,
-    test_named_callable_observes_signature_replacement; commit=WORKTREE]
+    test_named_callable_observes_signature_replacement; commit=6d91840990d95e72b88c946b36b9c8babe7f768a]
   - exact positional ports precede overlapping variadic layouts, whose
     ambiguity requires an explicit native image [tested:
     test_an_exact_positional_port_precedes_variadic_ports,
@@ -41,7 +41,7 @@ Guarantees:
     and explicit contracts [tested:
     test_expanded_partial_references_preserve_capture_and_parameter_names;
     test_forwarding_contracts_preserve_explicit_cardinality_and_bound_captures;
-    test_native_references_observe_later_arity_changes; commit=WORKTREE]
+    test_native_references_observe_later_arity_changes; commit=6d91840990d95e72b88c946b36b9c8babe7f768a]
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
     commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
