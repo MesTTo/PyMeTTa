@@ -16,18 +16,18 @@ Guarantees:
   - full container parameters survive as matchable annotation atoms while
     one runtime alternative admits their structural and borrowed images
     [tested: test_container_parameters_accept_both_representations;
-     commit=f56380690de29cf449cd42ef1471151a3a3f27f9]
+     commit=WORKTREE]
   - abstract container membership and outer refinements use native Predicate
     and Annotated types [tested:
     test_abstract_container_parameters_use_python_membership,
-    test_container_refinements_guard_each_representation; commit=f56380690de29cf449cd42ef1471151a3a3f27f9]
+    test_container_refinements_guard_each_representation; commit=WORKTREE]
   - callable parameters and results compose the same runtime representation
     contract [tested: test_callable_parameters_admit_container_representations,
-    test_callable_results_admit_container_representations; commit=f56380690de29cf449cd42ef1471151a3a3f27f9]
+    test_callable_results_admit_container_representations; commit=WORKTREE]
   - a container's native-space alternative is admitted only when its hook
     supplies the inverse image [tested:
     test_native_mapping_result_contract_composes_through_callable_types;
-    commit=a8e3fc42306377adf7cae0a331f3d92fbf190304]
+    commit=WORKTREE]
   - advanced typing constructs retain a target type and a full annotation
     claim rather than collapsing to an undefined type
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
@@ -362,7 +362,9 @@ def runtime_type_atoms(annotation: Any) -> list[Atom]:
         if alternatives != type_atoms_for(base) and len(alternatives) > 1:
             alternatives = [_expr(S["|"], *alternatives)]
         refinements = [atom for item in metadata if (atom := refinement_atom(item)) is not None]
-        return [_expr(S.Annotated, atom, *refinements) for atom in alternatives] if refinements else alternatives
+        if refinements:
+            return [_expr(S.Annotated, atom, *refinements) for atom in alternatives]
+        return alternatives
     if origin in (typing.Union, types.UnionType):
         return list(dict.fromkeys(atom for member in typing.get_args(annotation)
                                   for atom in runtime_type_atoms(member)))
