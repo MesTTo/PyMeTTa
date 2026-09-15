@@ -16,18 +16,18 @@ Guarantees:
   - full container parameters survive as matchable annotation atoms while
     one runtime alternative admits their structural and borrowed images
     [tested: test_container_parameters_accept_both_representations;
-     commit=WORKTREE]
+     commit=96514c9cf77e7dd2895b9822956ef1d2779ecd83]
   - abstract container membership and outer refinements use native Predicate
     and Annotated types [tested:
     test_abstract_container_parameters_use_python_membership,
-    test_container_refinements_guard_each_representation; commit=WORKTREE]
+    test_container_refinements_guard_each_representation; commit=96514c9cf77e7dd2895b9822956ef1d2779ecd83]
   - callable parameters and results compose the same runtime representation
     contract [tested: test_callable_parameters_admit_container_representations,
-    test_callable_results_admit_container_representations; commit=WORKTREE]
+    test_callable_results_admit_container_representations; commit=96514c9cf77e7dd2895b9822956ef1d2779ecd83]
   - a container's native-space alternative is admitted only when its hook
     supplies the inverse image [tested:
     test_native_mapping_result_contract_composes_through_callable_types;
-    commit=WORKTREE]
+    commit=96514c9cf77e7dd2895b9822956ef1d2779ecd83]
   - advanced typing constructs retain a target type and a full annotation
     claim rather than collapsing to an undefined type
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
