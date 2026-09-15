@@ -19,7 +19,7 @@ Guarantees:
     keeps its canonical image [tested:
     test_operator_words_precede_the_mechanical_name_map,
     test_compiled_operator_word_calls_preserve_composite_images;
-    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
+    commit=WORKTREE]
   - mapped generator calls remain nondeterministic in definition effects
     [tested: test_mapped_nondeterministic_calls_keep_their_call_role;
     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
@@ -212,7 +212,7 @@ def test_operator_words_precede_the_mechanical_name_map(m):
     assert "neg" in dir(fn)
     assert "neg" in dir(m.fn)
     assert S["neg"] != S.neg
-    with pytest.raises(AttributeError, match=r"floordiv.*floor-math.* /"):
+    with pytest.raises(AttributeError, match=r"floordiv.*\(floor-math \(/ x1 x2\)\)"):
         _ = m.fn.floordiv
 
 

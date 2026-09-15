@@ -7,7 +7,10 @@ use monkeypatch or mypy shadow files; checked-in artifacts are never changed.
 from __future__ import annotations
 
 import ast
+import builtins
 import json
+import math
+import operator
 import subprocess
 import sys
 from pathlib import Path
@@ -182,12 +185,27 @@ def test_vocabulary_new_member_and_stale_type_fact_are_distinct(vocabulary_files
     assert "never wrote (: layout-violet FixtureColour)" in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("defect", ("refusal", "longhand", "count"))
+def test_door_documents_build_each_atom_operator():
+    """Every generated Python spelling constructs its complete documented term."""
+    from metta import Symbol
+    from metta._atoms.operators import OPERATOR_LOWERINGS
+
+    table = [line for line in doorgen.atom_operator_table() if line.startswith("| `")]
+    assert len(table) == len(OPERATOR_LOWERINGS)
+    for line, entry in zip(table, OPERATOR_LOWERINGS, strict=True):
+        syntax, expected = line.removeprefix("| `").removesuffix("` |").split("` | `")
+        names = {f"x{index}": Symbol(f"x{index}") for index in range(1, entry.arity + 1)}
+        built = eval(syntax.replace("\\|", "|"), {"builtins": builtins, "math": math, "operator": operator, **names})
+        assert str(built) == expected.replace("\\|", "|"), entry
+
+
+@pytest.mark.parametrize("defect", ("refusal", "longhand", "count", "atom-operator"))
 def test_door_documents_reject_semantic_drift(defect, monkeypatch, capsys):
-    """Omit a refusal, change a fixed point, or falsify the core door count."""
+    """Changed refusals, fixed points, counts and operator images are refused."""
     rows = doorgen.all_rows()
     path = {"refusal": ROOT / "website/reference/python-door-contracts.md",
-            "longhand": ROOT / "llms.txt", "count": ledger.PAGE}[defect]
+            "longhand": ROOT / "llms.txt", "count": ledger.PAGE,
+            "atom-operator": ROOT / "website/guide/atoms-terms.md"}[defect]
     original = path.read_text(encoding="utf-8")
     if defect == "refusal":
         refusal = next(row.refuses[0] for row in rows if row.refuses)
@@ -195,6 +213,10 @@ def test_door_documents_reject_semantic_drift(defect, monkeypatch, capsys):
     elif defect == "longhand":
         row = next(row for row in rows if row.sugar_of and row.owner is doorgen.Owner.space)
         planted = original.replace(doorgen.sugar_longhand(row), "wrong-door(...)", 1)
+    elif defect == "atom-operator":
+        line = next(line for line in doorgen.atom_operator_table() if line.startswith("| `"))
+        syntax, _image = line.removeprefix("| `").removesuffix("` |").split("` | `")
+        planted = original.replace(line, f"| `{syntax}` | `(wrong-operator x1)` |", 1)
     else:
         count = sum(row.owner is doorgen.Owner.space and doorgen.Tier.sync in row.tiers for row in rows)
         planted = original.replace(f"declares {count} core doors", f"declares {count + 1} core doors", 1)

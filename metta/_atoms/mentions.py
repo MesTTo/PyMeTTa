@@ -1,16 +1,12 @@
-"""Purpose: map standard Python callables to the MeTTa functions they mention.
+"""Purpose: bind source-described standard callables to their MeTTa mentions.
 
-Guarantees:
-  - encoding, compiled attribute calls, and Python-protocol adapters consult
-    identity tables derived from the same standard-callable inventory
-    [tested: test_callable_mentions_share_operator_and_fourteen_math_names,
-    test_callable_mentions_require_identity_even_when_equality_is_spoofed,
-    test_compiled_callable_mentions_preserve_python_call_semantics;
-    commit=e3787593132a7ece2d300397045f7415709847c9]
-Decides:
-  - the fourteen math names are the declarations in
-    ``lib/lib_builtin_types/lib_builtin_types.metta`` from ``pow-math`` through ``atan-math``
-    [source: lib/lib_builtin_types/lib_builtin_types.metta:45; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+Guarantees: callable identity, aliases and accepted positional shapes are
+projections of the locked source inventory [source:
+extensions/python/metta/_atoms/_python_protocols.py:CALLABLES; commit=WORKTREE].
+Decides: the math table names the engine's fourteen math meanings. Operator
+term mentions use the joined atom policy; exact Python calls use the existing
+py-operator service. Runtime bindings contain only exported module attributes,
+so the pinned reference does not raise the package's supported Python floor.
 """
 
 from __future__ import annotations
@@ -18,40 +14,30 @@ from __future__ import annotations
 import builtins
 import math
 import operator
+from collections.abc import Callable, Mapping
+from types import MappingProxyType
 from typing import Any, Final
 
-from metta._atoms.operators import OPERATOR_LOWERINGS
+from metta._atoms._python_protocols import BY_CALLABLE, CALLABLES, PythonCallable
+from metta._atoms.operators import OPERATOR_LOWERINGS, selector
 
-# closed-set: decides; policy=which `operator` function each dunder IS, for a compiled body that mentions one by value rather than by syntax; reads=none, the dunders are the operator table's own rows and this is the callable each names
-_OPERATOR_CALLABLES: Final[dict[str, Any]] = {
-    "__abs__": operator.abs,
-    "__add__": operator.add,
-    "__and__": operator.and_,
-    "__ge__": operator.ge,
-    "__gt__": operator.gt,
-    "__invert__": operator.invert,
-    "__le__": operator.le,
-    "__lt__": operator.lt,
-    "__matmul__": operator.matmul,
-    "__mod__": operator.mod,
-    "__mul__": operator.mul,
-    "__or__": operator.or_,
-    "__pow__": operator.pow,
-    "__sub__": operator.sub,
-    "__truediv__": operator.truediv,
-    "__xor__": operator.xor,
-}
+_EXPORTED_OPERATORS = vars(operator)
+OPERATOR_CALLABLES: Final[Mapping[str, Callable[..., Any]]] = MappingProxyType({
+    row.selector: _EXPORTED_OPERATORS[row.id[1]]
+    for row in CALLABLES
+    if row.id[0] == operator.__name__ and not row.id[1].startswith("__")
+    and row.id[1] in _EXPORTED_OPERATORS
+})
 
 _SYMBOL_OPERATOR_MENTIONS: Final[dict[Any, str]] = {
-    _OPERATOR_CALLABLES[entry.dunder]: entry.form
+    getattr(operator, entry.source.callable[1]): entry.form
     for entry in OPERATOR_LOWERINGS
-    if entry.dunder in _OPERATOR_CALLABLES
-    # policy-inventory-exempt: mechanism-internal; reason=only table rows whose form is one callable head can be mentioned as one Symbol; evidence=extensions/python/metta/_atoms/operators.py:OperatorLowering
-    and entry.kind in {"symbol", "provided"}
-    and isinstance(entry.form, str)
+    if entry.source.callable[0] == operator.__name__
+    # policy-inventory-exempt: mechanism-internal; reason=these atom policy shapes denote one callable head; evidence=extensions/python/metta/_atoms/model.py:_operator_method
+    and entry.kind in {"symbol", "provided"} and isinstance(entry.form, str)
 }
 
-# closed-set: decides; policy=which `math` function has a MeTTa head of the same meaning, which the engine's `-math` family is; reads=none, it is the source
+# closed-set: decides; policy=which Python math function has the same meaning as each engine math head; reads=extensions/python/metta/_atoms/_python_protocols.py:BY_CALLABLE supplies its Python signature
 MATH_CALLABLE_MENTIONS: Final[dict[Any, str]] = {
     math.pow: "pow-math",
     math.sqrt: "sqrt-math",
@@ -70,63 +56,51 @@ MATH_CALLABLE_MENTIONS: Final[dict[Any, str]] = {
 }
 
 CALLABLE_MENTIONS: Final[dict[Any, str]] = _SYMBOL_OPERATOR_MENTIONS | MATH_CALLABLE_MENTIONS
-
 _CALLABLE_MENTIONS_BY_ID: Final[dict[int, tuple[Any, str]]] = {
     id(value): (value, mention) for value, mention in CALLABLE_MENTIONS.items()
 }
-
-_CALLABLE_ARITIES_BY_ID: Final[dict[int, tuple[Any, tuple[int, ...]]]] = {
-    # policy-inventory-exempt: mechanism-internal; reason=abs and invert are the two unary callables in the closed operator mention table and every other mentioned operator is binary; evidence=extensions/python/metta/_atoms/operators.py:OperatorLowering
-    id(value): (value, (1,) if dunder in {"__abs__", "__invert__"} else (2,))
-    for dunder, value in _OPERATOR_CALLABLES.items()
-    if value in CALLABLE_MENTIONS
+_CALLABLE_SHAPES_BY_ID: Final[dict[int, tuple[Any, PythonCallable]]] = {
+    id(_EXPORTED_OPERATORS[row.id[1]]): (_EXPORTED_OPERATORS[row.id[1]], row)
+    for row in CALLABLES
+    if row.id[0] == operator.__name__ and row.id[1] in _EXPORTED_OPERATORS
 }
-_CALLABLE_ARITIES_BY_ID.update(
-    {
-        id(value): (
-            value,
-            # policy-inventory-exempt: mechanism-internal; reason=log and round are the two mentioned standard callables with both one- and two-argument Python forms; evidence=extensions/python/metta/_compile/expressions.py:_adapt_mentioned_call
-            (1, 2) if value in {math.log, builtins.round} else (2,) if value is math.pow else (1,),
-        )
-        for value in MATH_CALLABLE_MENTIONS
-    }
-)
-
+_CALLABLE_SHAPES_BY_ID.update({
+    id(value): (value, BY_CALLABLE[(value.__module__, value.__name__)])
+    for value in MATH_CALLABLE_MENTIONS
+})
 _OPERATOR_SELECTORS_BY_ID: Final[dict[int, tuple[Any, str]]] = {
-    id(value): (value, dunder.removeprefix("__").removesuffix("__"))
-    for dunder, value in _OPERATOR_CALLABLES.items()
+    id(value): (value, name) for name, value in OPERATOR_CALLABLES.items()
 }
+# Several exported aliases can denote one object. The atom operation's exact
+# source alias supplies its canonical selector. Distinct C wrappers keep
+# distinct identities even when their fallback Python bodies were aliases.
+_OPERATOR_SELECTORS_BY_ID.update({
+    id(value): (value, selector(entry))
+    for entry in OPERATOR_LOWERINGS
+    if entry.source.callable[0] == operator.__name__
+    for value in (getattr(operator, entry.source.callable[1]),)
+})
 
 
 def callable_mention(value: Any) -> str | None:
     """Return the MeTTa symbol named by one exact standard callable."""
-    if not callable(value):
-        return None
     entry = _CALLABLE_MENTIONS_BY_ID.get(id(value))
-    if entry is None or entry[0] is not value:
-        return None
-    return entry[1]
+    return entry[1] if entry is not None and entry[0] is value else None
 
 
-def callable_arities(value: Any) -> tuple[int, ...] | None:
-    """Return accepted positional arities for one exact mentioned callable."""
-    entry = _CALLABLE_ARITIES_BY_ID.get(id(value))
-    if entry is None or entry[0] is not value:
-        return None
-    return entry[1]
+def callable_accepts_positional(value: Any, count: int) -> bool:
+    """Recognize a source call shape without introducing an argument binder."""
+    entry = _CALLABLE_SHAPES_BY_ID.get(id(value))
+    return entry is not None and entry[0] is value and entry[1].accepts_positional(count)
 
 
 def operator_callable_selector(value: Any) -> str | None:
-    """Return the ``operator`` protocol selector for one exact callable."""
+    """Return the existing runtime selector for one exact operator callable."""
     entry = _OPERATOR_SELECTORS_BY_ID.get(id(value))
-    if entry is None or entry[0] is not value:
-        return None
-    return entry[1]
+    return entry[1] if entry is not None and entry[0] is value else None
 
 
 __all__ = [
-    "CALLABLE_MENTIONS",
-    "MATH_CALLABLE_MENTIONS",
-    "callable_mention",
-    "operator_callable_selector",
+    "CALLABLE_MENTIONS", "MATH_CALLABLE_MENTIONS", "OPERATOR_CALLABLES",
+    "callable_accepts_positional", "callable_mention", "operator_callable_selector",
 ]

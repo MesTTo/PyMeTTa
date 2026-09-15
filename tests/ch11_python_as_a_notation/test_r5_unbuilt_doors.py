@@ -36,6 +36,7 @@ import pytest
 import metta as pymetta
 from metta import Expression, Grounded, S, V, equation
 from metta._atoms.factories import order_key
+from metta._atoms.mentions import MATH_CALLABLE_MENTIONS
 
 
 def test_solve_retires_the_five_relational_let_workarounds(metta):
@@ -168,25 +169,7 @@ def test_state_retires_three_state_function_strings(metta):
     assert metta.type(state) == S.StateMonad(S.Number)
 
 
-MATH_MENTIONS = (
-    (math.pow, "pow-math"),
-    (math.sqrt, "sqrt-math"),
-    (math.fabs, "abs-math"),
-    (math.log, "log-math"),
-    (math.trunc, "trunc-math"),
-    (math.ceil, "ceil-math"),
-    (math.floor, "floor-math"),
-    (builtins.round, "round-math"),
-    (math.sin, "sin-math"),
-    (math.asin, "asin-math"),
-    (math.cos, "cos-math"),
-    (math.acos, "acos-math"),
-    (math.tan, "tan-math"),
-    (math.atan, "atan-math"),
-)
-
-
-@pytest.mark.parametrize(("callable_value", "head"), MATH_MENTIONS)
+@pytest.mark.parametrize(("callable_value", "head"), MATH_CALLABLE_MENTIONS.items())
 def test_callable_mentions_share_operator_and_fourteen_math_names(metta, callable_value, head):
     """R5.7: operator.add and the builtin-types math family become mentions."""
     assert pymetta.convert.encode(operator.add) == S["+"]

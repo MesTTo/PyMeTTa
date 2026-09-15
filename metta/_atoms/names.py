@@ -12,7 +12,7 @@ Guarantees:
     the mechanical name map, and ``neg`` builds its canonical composite image
     through the same generated roster [tested:
     test_operator_words_precede_the_mechanical_name_map;
-    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
+    commit=WORKTREE]
   - ``python_name`` is ``attribute_name``'s inverse and lives beside it, so
     the stub renderer and the import hook's module answer one rule for one
     head and a name Python cannot spell is refused by both [tested:
@@ -39,9 +39,21 @@ class OperatorRecipe:
     """A Python operator word whose MeTTa image has more than one child."""
 
     word: str
-    head: str
-    leading: tuple[object, ...]
-    image: str
+    lowering: _lowerings.OperatorLowering
+
+    @property
+    def arity(self) -> int:
+        """The operand count supplied by the source operation."""
+        return self.lowering.arity
+
+    @property
+    def image(self) -> str:
+        """Display the canonical template with visible operand positions."""
+        from metta._atoms.factories import (  # noqa: PLC0415 -- resolve the atom factory after its name grammar initializes
+            Symbol,
+        )
+
+        return str(self(*(Symbol(f"x{index + 1}") for index in range(self.arity))))
 
     def __call__(self, *args: object, **kwargs: object):
         """Build the canonical term while retaining a normal callable door."""
@@ -49,40 +61,39 @@ class OperatorRecipe:
             names = ", ".join(sorted(kwargs))
             msg = f"operator word {self.word!r} takes no keyword arguments: {names}"
             raise TypeError(msg)
-        if len(args) != 1:
-            msg = f"operator word {self.word!r} takes exactly one operand"
+        if len(args) != self.arity:
+            msg = f"operator word {self.word!r} takes exactly {self.arity} operand(s)"
             raise TypeError(msg)
-        from metta._atoms.factories import (  # noqa: PLC0415 -- factories reads the name grammar while initializing
-            Expression,
-            Symbol,
+        from metta._atoms.model import (  # noqa: PLC0415 -- the shared atom image emitter reads the name grammar while initializing
+            _apply_operator_lowering,
+            encode,
         )
 
-        return Expression(Symbol(self.head), *self.leading, args[0])
+        return _apply_operator_lowering(self.lowering, encode(args[0]), *args[1:])
 
     def __repr__(self) -> str:
         return f"<operator word {self.word}: {self.image}>"
 
 
-_NEG: Final[OperatorRecipe] = OperatorRecipe("neg", "-", (0,), "(- 0 x)")
-
 # Python's operator module owns these public words, and WHICH words is the one
 # operator table's `word` column: a row marked there opens `S.<selector>` onto
 # that row's own MeTTa head, so the head is spelled once. `neg`'s settled image
-# is composite, which is what the recipe above carries; `floordiv`'s composite
-# image has not been settled, so its row is not marked and the door stays
-# refused [source: https://docs.python.org/3.14/library/operator.html;
-# extensions/python/metta/_atoms/operators.py:84, OperatorLowering.word;
-# commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
+# is composite, which is what its policy row carries. A composite row without
+# a word door is refused with that row's canonical image [source:
+# extensions/python/metta/_atoms/operators.py:OPERATOR_LOWERINGS;
+# commit=WORKTREE].
 OPERATOR_WORDS: Final[dict[str, str | OperatorRecipe]] = {
     _lowerings.selector(entry): (
-        _NEG if entry.dunder == "__neg__" else entry.word_head or str(entry.form)
+        OperatorRecipe(_lowerings.selector(entry), entry)
+        if entry.kind == "template" else entry.word_head or str(entry.form)
     )
     for entry in _lowerings.OPERATOR_LOWERINGS
     if entry.word
 }
 
-_COMPOSITE_OPERATOR_IMAGES: Final[dict[str, str]] = {
-    "floordiv": "floor-math over /",
+_COMPOSITE_OPERATOR_IMAGES: Final[dict[str, OperatorRecipe]] = {
+    _lowerings.selector(entry): OperatorRecipe(_lowerings.selector(entry), entry)
+    for entry in _lowerings.OPERATOR_LOWERINGS if entry.kind == "template" and not entry.word
 }
 
 
@@ -92,7 +103,7 @@ def operator_attribute_target(identifier: str) -> str | OperatorRecipe | None:
     if image is not None:
         msg = (
             f"operator word {identifier!r} has no single engine head; "
-            f"its image is {image}"
+            f"its image is {image.image}"
         )
         #No obj: the refusal names the image rather than a near miss, so there
         #is nothing for the interpreter to suggest and no receiver to draw one

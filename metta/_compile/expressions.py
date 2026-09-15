@@ -27,12 +27,13 @@ Guarantees:
   - a None literal denotes the existing grounded singleton, preserving its
     type and one-answer cardinality [tested:
     test_none_return_spellings_have_one_typed_answer; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
-  - calls through standard ``math`` and ``operator`` module attributes lower
-    through the shared callable mentions while adapters preserve Python call
-    order and result kinds [tested:
+  - exact standard callables reached through module attributes or imported
+    aliases share source-derived positional contracts; unsupported call shapes
+    retain Python's binding errors [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names,
     test_compiled_callable_mentions_preserve_python_call_semantics;
-    commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+    test_every_available_source_callable_uses_the_operator_frame;
+    test_bare_alias_arity_errors_keep_the_exact_python_call; commit=WORKTREE]
   - supported expression lowerings preserve Python value and short-circuit
     semantics [tested test_boolean_operators_answer_the_operand,
     test_fstrings_str_round_range_slices]
@@ -44,7 +45,7 @@ Guarantees:
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - the composite operator word ``neg`` lowers to ``(- 0 x)`` at both S and
     fn call forms [tested: test_compiled_operator_word_calls_preserve_composite_images;
-    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
+    commit=WORKTREE]
   - a host-bound Defined mention lowers to the sibling's declared MeTTa name
     [tested: test_compiled_body_calls_renamed_defined_sibling;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -59,7 +60,7 @@ Guarantees:
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - imported ``functools.reduce`` lowers named reducers to ``foldl-atom`` and
     lambdas to its explicit accumulator/item template [tested:
-    test_reduce_lowers_named_and_lambda_reducers; commit=2815d86074116a7b0f7d44277e708dd73c574049]
+    test_reduce_lowers_named_and_lambda_reducers; commit=WORKTREE]
   - a four-argument bare unify call lowers to the engine's protected special
     form rather than resolving as a host closure [tested:
     test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
@@ -116,7 +117,11 @@ from collections.abc import Callable
 import metta._atoms.operators as _lowerings
 from metta._atoms.calls import bind_positional_call, refuse_unknown_keywords
 from metta._atoms.factories import Atom, Expression, Grounded, Handle, Symbol, Variable
-from metta._atoms.mentions import callable_arities, callable_mention, operator_callable_selector
+from metta._atoms.mentions import (
+    callable_accepts_positional,
+    callable_mention,
+    operator_callable_selector,
+)
 from metta._atoms.names import (
     OperatorRecipe,
     attribute_name,
@@ -214,8 +219,8 @@ _SOURCE_COMPARE = (
     | _MEMBERSHIP
 )
 
-#: `x += y` reaches `operator.iadd`, whose name is the selector with an `i` in
-#: front: Python's own rule, applied rather than restated.
+#: In-place selectors join their direct AugAssign source form to the ordinary
+#: operator and require the in-place C slot role.
 _INPLACE_BINOPS = _by_node(
     lambda entry: _lowerings.augmented_selector(entry) if _binary(entry) else None
 )
@@ -437,7 +442,7 @@ class ExpressionCompilerMixin(CompilerContext):
             if isinstance(operator_target, OperatorRecipe):
                 msg = (
                     f"{ast.unparse(node)} is the composite image "
-                    f"{operator_target.image}; call it with one operand"
+                    f"{operator_target.image}; call it with {operator_target.arity} operand(s)"
                 )
                 raise CompileError(
                     msg,
@@ -1036,6 +1041,9 @@ class ExpressionCompilerMixin(CompilerContext):
             return composite
         if call_syntax.expanded(node) or call_syntax.dynamic(self, node):
             return call_syntax.application(self, node)
+        standard = self._mentioned_call(node)
+        if standard is not None:
+            return standard
         if node.keywords:
             return self._keyword_call(node)
         mentioned = self._mention(node.func)
@@ -1045,7 +1053,7 @@ class ExpressionCompilerMixin(CompilerContext):
             dict_method = self._dict_method_call(node)
             if dict_method is not None:
                 return dict_method
-            return self._mentioned_attribute_call(node)
+            return self._implicit_island(node)
         func = self._plain_call_name(node)
         if func.id == "match":
             return self._match_call(node)
@@ -1279,25 +1287,14 @@ class ExpressionCompilerMixin(CompilerContext):
         target = self._operator_word_target(func)
         if not isinstance(target, OperatorRecipe):
             return None
-        if node.keywords or len(node.args) != 1:
-            msg = f"{ast.unparse(func)} compiles with exactly one positional operand"
+        if node.keywords or len(node.args) != target.arity:
+            msg = f"{ast.unparse(func)} compiles with exactly {target.arity} positional operand(s)"
             raise CompileError(msg, construct="operator word", line=node.lineno)
-        return target(self.expression(node.args[0]))
+        return target(*(self.expression(argument) for argument in node.args))
 
     def _is_functools_reduce(self, node: ast.expr) -> bool:
         """Recognize the imported callable by identity, including an alias."""
-        if isinstance(node, ast.Name):
-            return node.id not in self.scope and self.host_value(node.id) is functools.reduce
-        if not (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.value, ast.Name)
-            and node.value.id not in self.scope
-        ):
-            return False
-        owner = self.host_value(node.value.id)
-        return (
-            isinstance(owner, types.ModuleType) and vars(owner).get(node.attr) is functools.reduce
-        )
+        return self._host_callable_value(node) is functools.reduce
 
     def _reduce_call(self, node: ast.Call) -> Atom:
         """Lower Python's seeded left fold to foldl-atom's two forms."""
@@ -1341,50 +1338,51 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _reduce_function(self, node: ast.expr) -> Atom:
         """Resolve a named engine reducer or an exact standard callable mention."""
-        value: object | None = None
+        mention = callable_mention(self._host_callable_value(node))
+        return Symbol(mention) if mention is not None else self.expression(node)
+
+    def _host_callable_value(self, node: ast.expr) -> object | None:
+        """Read an unshadowed host name or one actual module attribute."""
         if isinstance(node, ast.Name) and node.id not in self.scope:
-            value = self.host_value(node.id)
-        elif (
+            return self.host_value(node.id)
+        if (
             isinstance(node, ast.Attribute)
             and isinstance(node.value, ast.Name)
             and node.value.id not in self.scope
         ):
             owner = self.host_value(node.value.id)
             if isinstance(owner, types.ModuleType):
-                value = vars(owner).get(node.attr)
-        mention = callable_mention(value)
-        return Symbol(mention) if mention is not None else self.expression(node)
+                return vars(owner).get(node.attr)
+        return None
 
-    def _mentioned_attribute_call(self, node: ast.Call) -> Atom:
-        """Lower a standard callable reached through its actual host module.
+    def _mentioned_call(self, node: ast.Call) -> Atom | None:
+        """Lower one exact standard callable, including bare imported aliases.
 
-        Anything outside the standard-mention table is host behavior the
-        author wrote and islands whole: a third-party call, keywords, a
-        chained owner, an arity the mention cannot carry. The island runs
-        the exact call at application time, so Python's own errors arrive
-        where Python would raise them.
+        Exact operator identities and math mentions accept their source
+        positional shapes. An unaccepted arity or keyword call retains the
+        exact host expression, so Python supplies its own binding error even
+        when the callable's source name also names a native catalog entry.
         """
-        func = node.func
-        if not node.keywords and isinstance(func, ast.Attribute):
-            root = func.value
-            if isinstance(root, ast.Name):
-                owner = self.host_value(root.id)
-                if isinstance(owner, types.ModuleType):
-                    value = vars(owner).get(func.attr)
-                    mention = callable_mention(value)
-                    arities = callable_arities(value)
-                    if mention is not None and arities is not None and len(node.args) in arities:
-                        arguments = [self.expression(argument) for argument in node.args]
-                        return self._adapt_mentioned_call(value, mention, arguments)
-        return self._implicit_island(node)
+        value = self._host_callable_value(node.func)
+        mention = callable_mention(value)
+        selector = operator_callable_selector(value)
+        if mention is None and selector is None:
+            return None
+        if node.keywords or not callable_accepts_positional(value, len(node.args)):
+            return self._implicit_island(node)
+        if selector is not None:
+            arguments = [
+                self._operator_operand(self.expression(argument), self._container_kind(argument))
+                for argument in node.args
+            ]
+            return self._python_operator(selector, *arguments)
+        assert mention is not None
+        return self._adapt_mentioned_call(value, mention, [self.expression(argument) for argument in node.args])
 
     def _adapt_mentioned_call(
         self, value: object, mention: str, arguments: list[Atom]
     ) -> Expression:
         """Preserve Python semantics where an engine mention orders or types differently."""
-        selector = operator_callable_selector(value)
-        if selector is not None:
-            return self._python_operator(selector, *arguments)
         if value is math.log:
             arguments = (
                 [Grounded(math.e), arguments[0]]

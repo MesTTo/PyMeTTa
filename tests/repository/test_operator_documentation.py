@@ -1,33 +1,12 @@
-"""Purpose: pin Phase 9 item P9.6: every atom operator is documented in one
-table, derived from the class rather than maintained by hand, with rich
-comparisons reserved for ordering and their terms built through explicit
-heads. Before this, `S.x + S.y` built a
-term and no page in website/ showed the form at all [measured 2026-08-19].
-Guarantees:
-    - all atom rich comparisons use standard ordering and comparison terms
-      remain explicitly buildable [tested:
-      test_every_operator_is_documented_including_non_symbolic_comparisons;
-      commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-    - one immutable 22-entry table generates every symbolic, templated,
-      provided, or refusing operator method [tested:
-      test_the_operator_table_is_generated_from_one_source_with_no_holes;
-      commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-    - and every OTHER table for the same relation is a projection of it: the
-      runtime dispatch map, the word door, and the compiler's five
-      `ast`-keyed tables [tested:
-      test_every_operator_projection_is_this_table; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
-Owns resources: scratch_space drops the temporary matmul equation after the
-    operator test [tested: test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
-Assumes:
-    - Python's operator dunders are a closed universe, so enumerating a
-      fixed list of them IS deriving the surface: a new overload lands in
-      this list or it is not an operator
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
-"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+"""Purpose: verify every joined atom operation and its documented MeTTa image.
+
+Guarantees: the source-derived inventory supplies protocol identities while
+operators.py alone supplies MeTTa policy. Method, word, compiler and runtime
+projections retain those meanings [source:
+extensions/python/metta/_atoms/operators.py:OPERATOR_LOWERINGS;
+commit=WORKTREE].
+Owns resources: scratch_space retires the temporary matmul equation.
+"""
 
 from __future__ import annotations
 
@@ -43,50 +22,22 @@ from metta import (
     V,
 )
 from metta._atoms.factories import OPERATOR_LOWERINGS, order_key
+from metta._atoms.operators import selector
 
 DOC = Path(__file__).resolve().parents[4] / "website" / "guide" / "atoms-terms.md"
-
-BINARY_DUNDERS = [
-    "__add__", "__sub__", "__mul__", "__truediv__", "__mod__", "__pow__",
-    "__matmul__", "__and__", "__or__", "__xor__",
-    "__le__", "__gt__", "__ge__",
-    "__floordiv__", "__lshift__", "__rshift__",
-]
-
 
 def _head(expr) -> str:
     return str(next(iter(expr)))
 
 
 def test_every_operator_is_documented_including_non_symbolic_comparisons():
-    """Build each operator's term live and require its MeTTa symbol in the
-    doc's table, so the table cannot drift from the class: an operator
-    added tomorrow is in Python's fixed dunder universe, builds a term
-    here, and fails this test until the table names it.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """Build every policy row's term and require its documented MeTTa head."""
     text = DOC.read_text(encoding="utf-8")
     built: dict[str, str] = {}
-    entries = {entry.dunder: entry for entry in OPERATOR_LOWERINGS}
-    for dunder in BINARY_DUNDERS:
-        method = getattr(type(S.x), dunder, None)
-        if method is None or getattr(object, dunder, None) is method:
-            continue
-        if entries[dunder].kind == "taken":
-            continue
-        term = method(S.x, V.y)
-        built[dunder] = _head(term)
-    # The unary forms and the two spelled methods.
-    for dunder in ("__invert__", "__neg__", "__abs__"):
-        built[dunder] = _head(getattr(type(S.x), dunder)(S.x))
-    # The six spelled comparison methods. Ordering is a method for exactly the
-    # reason equality is: the operator is already engine sort order, so the
-    # term needs its own name rather than an overload that could mean either.
-    built["lt"] = _head(S.x.lt(V.y))
-    built["le"] = _head(S.x.le(V.y))
-    built["gt"] = _head(S.x.gt(V.y))
-    built["ge"] = _head(S.x.ge(V.y))
-    built["eq"] = _head(S.x.eq(V.y))
-    built["ne"] = _head(S.x.ne(V.y))
+    for entry in OPERATOR_LOWERINGS:
+        name = selector(entry) if entry.kind == "taken" else entry.dunder
+        operands = [S.x, *(V.y for _ in range(entry.arity - 1))]
+        built[name] = _head(getattr(type(S.x), name)(*operands))
 
     undocumented = sorted(
         f"{dunder} -> {symbol}"
@@ -109,7 +60,10 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
     # this message was written, and it went on pointing at the bracket door
     # below them, which is the ladder rule read backwards: every convenience
     # names its longhand, so the message shows both and leads with the method.
-    for symbol, method in (("<", "lt"), ("<=", "le"), (">", "gt"), (">=", "ge")):
+    for entry in OPERATOR_LOWERINGS:
+        if entry.method != "order_key":
+            continue
+        symbol, method = entry.form, selector(entry)
         with pytest.raises(TypeError) as refused:
             getattr(type(S.x), f"__{method}__")(S.x, 1)
         message = str(refused.value)
@@ -118,17 +72,12 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
 
 
 def test_the_operator_table_is_generated_from_one_source_with_no_holes(scratch_space):
-    """Prove the immutable 26-entry table is the single source from which every operator method is generated."""
-    expected = {
-        "__abs__", "__add__", "__and__", "__ceil__", "__eq__",
-        "__floor__", "__floordiv__", "__ge__", "__gt__", "__invert__",
-        "__le__", "__lshift__", "__lt__", "__matmul__", "__mod__",
-        "__mul__", "__ne__", "__neg__", "__or__", "__pow__",
-        "__round__", "__rshift__", "__sub__", "__truediv__",
-        "__trunc__", "__xor__",
-    }
-    assert len(OPERATOR_LOWERINGS) == 26
-    assert {entry.dunder for entry in OPERATOR_LOWERINGS} == expected
+    """Every atom policy joins a source operation and installs its methods."""
+    from metta._atoms._python_protocols import BY_OPERATOR
+    from metta._atoms.operators import _POLICIES
+
+    assert {entry.dunder for entry in OPERATOR_LOWERINGS} == set(_POLICIES)
+    assert all(entry.source is BY_OPERATOR[("object", entry.dunder)] for entry in OPERATOR_LOWERINGS)
     # Four kinds, not five. "absent" was the vocabulary for an operator with
     # no MeTTa lowering, and `<<` and `>>` were its only two rows; giving MeTTa
     # bit-shift-left and bit-shift-right left it with none, so the kind, its
@@ -191,6 +140,7 @@ def test_every_operator_projection_is_this_table():
     """
     import ast
 
+    from metta._atoms.mentions import OPERATOR_CALLABLES
     from metta._atoms.names import OPERATOR_WORDS, OperatorRecipe
     from metta._atoms.operators import OPERATOR_LOWERINGS, augmented_selector, selector
     from metta._compile.expressions import (
@@ -246,11 +196,6 @@ def test_every_operator_projection_is_this_table():
         entry = rows[name]
         assert target == (entry.word_head or str(entry.form))
 
-    # The runtime dispatch map is every selector `operator` has a function
-    # for, every augmented selector, and the five that no operator covers.
-    assert set(_PYTHON_OPERATORS) - set(_EXTRA_OPERATORS) == {
-        name
-        for name in rows
-        if getattr(operator, name, None) is not None
-        or getattr(operator, f"{name}_", None) is not None
-    } | {augmented_selector(entry) for entry in binary.values()}
+    # Exact runtime callable dispatch is a projection of all source exports,
+    # independent of the subset that has a MeTTa atom meaning.
+    assert _PYTHON_OPERATORS == dict(OPERATOR_CALLABLES) | _EXTRA_OPERATORS

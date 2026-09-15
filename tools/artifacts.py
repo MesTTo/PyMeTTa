@@ -2,7 +2,7 @@
 
 Guarantees: graphlib orders producers before consumers; the same declaration
 generates gate selection, literal commands and the contributor table [tested:
-tests/checks/check_generated_artifact_group_selftest.py; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+tests/checks/check_generated_artifact_group_selftest.py; commit=WORKTREE].
 Fails when: an input, output or command is missing, output ownership overlaps,
 dependencies cycle, or any generated projection drifts.
 Decides: observed outputs require their explicit remeasurement command.
@@ -97,6 +97,20 @@ ARTIFACTS = (
         (("@python", "@root/tests/checks/check_generated_artifact_group_selftest.py"),),
     ),
     Artifact(
+        "protocol-sync", ("extensions/python/tools/protocol_sources/**",
+                          "extensions/python/tools/protocol_source.py",
+                          "extensions/python/tools/protocolgen.py", SEAT + "_atoms/operators.py"),
+        tool("protocolgen", "--write"),
+        (Output(SEAT + "_atoms/_python_protocols.py"),
+         Output("extensions/python/tests/ch11_python_as_a_notation/_protocol_programs.py")),
+        tool("protocolgen"),
+        (suite("tests/repository/test_protocol_projections.py",
+               "tests/repository/test_protocol_source.py",
+               "tests/repository/test_operator_documentation.py",
+               "tests/ch11_python_as_a_notation/test_protocol_programs.py"),),
+        requires=("locked CPython source; engine for compiled differential witnesses",),
+    ),
+    Artifact(
         "layer-sync", (SEAT + "_layers.py",), tool("layergen", "--write"),
         (Output("pyproject.toml", ("# begin generated package layers", "# end generated package layers")),
          Output("DEVELOPING.md", ("<!-- begin generated package layers", "<!-- end generated package layers -->"))),
@@ -124,13 +138,13 @@ ARTIFACTS = (
                     "extensions/python/tools/phrasebook_entries.py"), tool("fngen", "--write"),
         (Output(SEAT + "_catalog/fn.py"),), tool("fngen"),
         (suite("tests/ch11_python_as_a_notation/test_mention_doors.py", "tests/repository/test_doc_emission.py"),),
-        depends=("vocab-sync",), requires=("engine",),
+        depends=("vocab-sync", "protocol-sync"), requires=("engine",),
     ),
     Artifact(
         "aio-mirror", (SEAT + "**/*.py", "extensions/python/ext/metta-*/*.py"), tool("aiogen", "--write"),
         (Output(SEAT + "_faces/space.py"), Output(SEAT + "_faces/metta.py"), Output(SEAT + "aio/_mirror.py")),
         tool("aiogen"), (suite("tests/repository/test_async_mirror.py"),),
-        depends=("layer-sync", "vocab-sync"),
+        depends=("layer-sync", "vocab-sync", "protocol-sync"),
     ),
     Artifact(
         "init-stub", (SEAT + "__init__.pyi", SEAT + "vocabularies.py", SEAT + "_faces/*.py"),
@@ -169,6 +183,7 @@ ARTIFACTS = (
            for name in ("Rows", "Answers")),
          Output(SEAT + "_spaces/execution.py", ("# begin generated evaluation keywords", "# end generated evaluation keywords")),
          Output("website/reference/python-door-contracts.md"),
+         Output("website/guide/atoms-terms.md", ("<!-- begin generated atom operators -->", "<!-- end generated atom operators -->")),
          Output("llms.txt", ("<!-- begin generated door contracts -->", "<!-- end generated door contracts -->"))),
         tool("doorgen"), (suite("tests/repository/test_door_rows.py", "tests/repository/test_door_marks.py"), tool("doorgen", "--refusals")),
         depends=("init-stub", "bounds-sync"), requires=("engine for behavior and refusal witnesses",),

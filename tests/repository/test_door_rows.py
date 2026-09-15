@@ -2,7 +2,7 @@
 
 Guarantees: catalog publication, registry replacement, generated protocols,
   and the projection gate are exercised through their observable boundaries
-  [tested: this file; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+  [tested: this file; commit=WORKTREE].
   Typed body order metadata preserves the existing outer catalog query
   [tested: test_boot_publishes_complete_typed_door_rows,
   test_nested_door_records_have_declared_types; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
@@ -802,6 +802,7 @@ def test_door_sync_detects_a_planted_change_in_each_projection(monkeypatch, caps
     generated.update({
         doorgen.CORE / "remote/_schemas.py": doorgen.SCHEMA_END,
         doorgen.ROOT / "llms.txt": doorgen.SHEET_END,
+        doorgen.ROOT / "website/guide/atoms-terms.md": doorgen.ATOM_OPERATORS_END,
         doorgen.CORE / "__init__.pyi": "# end generated root declarations",
         doorgen.CORE / "_spaces/results.py": "    # end generated extension declarations: Rows",
         doorgen.CORE / "_spaces/execution.py": "# end generated evaluation keywords",

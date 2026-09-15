@@ -168,7 +168,7 @@ from typing import TYPE_CHECKING, Any, Self, cast, overload
 
 from metta._atoms.calls import refuse_unknown_keywords
 from metta._atoms.mentions import callable_mention
-from metta._atoms.operators import OPERATOR_LOWERINGS, OperatorLowering
+from metta._atoms.operators import OPERATOR_LOWERINGS, OperatorLowering, selector
 from metta._errors.errors import (
     _PYTHON_COMPARISON_GROUND,
     _PYTHON_RICH_COMPARISON_GROUND,
@@ -1700,8 +1700,10 @@ _install_operator_lowerings()
 #: The term-building method for each comparison operator. A refusal names this
 #: concise method first and the exact bracket form second, so callers see the
 #: method that exists without losing the fallback.
-# closed-set: decides; policy=which term-building method a refused comparison names first; reads=none, it is the four comparison rows of the operator table read as their method names
-_ORDER_METHOD = {"<": "lt", "<=": "le", ">": "gt", ">=": "ge"}
+# Project comparison method names from the joined operator policy.
+_ORDER_METHOD = {
+    entry.form: selector(entry) for entry in OPERATOR_LOWERINGS if entry.method == "order_key"
+}
 
 
 def _atom_plain_order_error(atom: Atom, other: Any, operator: str) -> TypeError:

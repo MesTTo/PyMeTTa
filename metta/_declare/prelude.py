@@ -9,6 +9,9 @@ itself, so the compiled equations and the Python twin cannot disagree; a
 Defined lists the ones it leans on as runtime_ops, so the dependency on
 this runtime is visible rather than ambient.
 Guarantees:
+  - runtime operator selectors retain the exact exported callable identities
+    supplied by the pinned source inventory [tested:
+    test_every_available_source_callable_uses_the_operator_frame; commit=WORKTREE]
   - the operator service consumes a structural operand frame and has one
     fixed native signature regardless of Python operand count [tested:
     test_operator_frames_accept_many_operands_and_retain_values; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
@@ -54,14 +57,13 @@ from __future__ import annotations
 
 import builtins
 import functools
-import operator
 from collections.abc import Callable
 from typing import Any
 
-import metta._atoms.operators as _lowerings
 import metta._declare.operations as _ops_module
 from metta._atoms.designation import _OperationName
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, _expr
+from metta._atoms.mentions import OPERATOR_CALLABLES
 from metta._catalog.call_values import argument
 from metta._catalog.project import explicit_projection
 
@@ -96,46 +98,17 @@ NAMES = (
 # The compiler's spelling for an absent slice bound; never user-visible.
 _NO_BOUND = Symbol("py-no-bound")
 
-#: Which Python callable each `py-operator` selector dispatches to. DERIVED
-#: from the one operator table: the protocol selectors and their augmented
-#: forms are its rows, `operator` owns every function of those names, and the
-#: five below are the ones no operator protocol covers.
-#:
-#: `pos` has a dunder Python defines and this library's atom surface does not
-#: lower, so it has no row in that table and reaches the runtime through here;
-#: the four builtins are functions a compiled body calls rather than operators
-#: at all, and `_PYBUILTIN_CALLS` in the compiler is where their lowering is
-#: decided.
+# The source inventory supplies operator callables. These four compiler
+# builtin meanings use the same operand frame.
 _EXTRA_OPERATORS: dict[str, Callable[..., Any]] = {
-    "pos": operator.pos,
     "max": builtins.max,
     "min": builtins.min,
     "sorted": builtins.sorted,
     "sum": builtins.sum,
 }
 
-
-def _operator_function(name: str) -> Callable[..., Any]:
-    """One selector's `operator` function, with Python's own keyword escape.
-
-    `and`, `or` and `not` are keywords, so `operator` spells them with a
-    trailing underscore; every other selector is the function's own name
-    [source: https://docs.python.org/3/library/operator.html].
-    """
-    return getattr(operator, name, None) or getattr(operator, f"{name}_")
-
-
 _PYTHON_OPERATORS: dict[str, Callable[..., Any]] = {
-    **{
-        name: _operator_function(name)
-        for name in _lowerings.selectors()
-        if getattr(operator, name, None) is not None
-        or getattr(operator, f"{name}_", None) is not None
-    },
-    **{
-        name: _operator_function(name)
-        for name in _lowerings.selectors(augmented=True)
-    },
+    **OPERATOR_CALLABLES,
     **_EXTRA_OPERATORS,
 }
 
