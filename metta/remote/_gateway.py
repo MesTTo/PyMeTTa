@@ -5,6 +5,8 @@ single failures retain their identity [tested:
 test_owned_exit_zero_one_or_two_failures; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
 Gateway removal delegates every decoded atom species to the local store
 [tested: test_remote_removal_preserves_the_local_atom_domain; commit=7a8f8c25bfeb84eb3f1cdea2621170b9ef3bbf6d].
+HTTP authorization names the resolved home when serving a context or space
+[tested: test_serving_a_context_authorizes_its_resolved_home; commit=WORKTREE].
 Owns resources: Server.close stops the HTTP server and its engine worker;
 Gateway.close releases retained cursors
 [source: extensions/python/metta/remote/_gateway.py:1464, Gateway.close; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -1658,7 +1660,7 @@ def serve(
                 held = gateway.cursor_space(payload.get("cursor"))
                 if held is not None:
                     return held
-            return str(payload.get("space", m.name))
+            return str(payload.get("space", gateway._metta.name))
 
         def do_GET(self) -> None:
             # A GET path is one word, except the document paths, whose spelling
@@ -1680,7 +1682,7 @@ def serve(
             # the connection and answers the client nothing
             # [tested test_a_failing_authorize_hook_answers_json_on_health].
             try:
-                request = Request(operation, m.name, headers)
+                request = Request(operation, gateway._metta.name, headers)
                 if authorize is not None and not authorize(request):
                     self._refuse_unauthorized(operation)
                     return
