@@ -9,6 +9,9 @@ Guarantees:
     minimum of three instructions:u runs]
   - definite atom boundaries reject undefined truth wrappers [tested
     test_atom_from_wire_rejects_undefined_truth]
+  - nested undefined wrappers are refused before descending into their
+    payload, independently of nesting depth [tested:
+    test_nested_undefined_wire_is_refused_before_descent; commit=WORKTREE]
   - undefined truth has one value-and-delay frame with no optional constraint
     payload [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -313,26 +316,30 @@ def _expression_from_wire(payload: Any) -> Expression:
 
 
 def _from_wire(wire: Any) -> Atom | Undefined:
-    """Rebuild an atom from the tagged wire form janus delivered.
+    """Decode a complete evaluation answer, including its undefined truth."""
+    # Undefined truth belongs to the complete answer. Its payload, like every
+    # ordinary answer, crosses through the definite atom decoder below.
+    if isinstance(wire, (list, tuple)) and len(wire) == 3 and wire[0] == "u":
+        return Undefined(_atom_from_wire(wire[1]), str(wire[2]))
+    return _atom_from_wire(wire)
 
-    Iterative, because expression depth is data and must not meet Python's
-    recursion ceiling; strict, because a malformed payload is a boundary
-    bug that must surface rather than coerce.
 
-    One decoder, because the tag now carries the whole species decision. An
-    engine mode used to exist beside this one and re-derived a space from an
-    s payload against a Python-side registry of names Space had built, which
-    was a THIRD answer to a question the engine already answers and missed
-    every space MeTTa itself made.
-    """
+def _atom_from_wire(wire: Any) -> Atom:
+    """Decode a definite atom, with expression depth handled iteratively."""
     if not isinstance(wire, (list, tuple)):
         msg = f"malformed wire term: {wire!r}"
         raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-    # The u tag wraps a whole answer whose truth is undefined; it never
-    # nests inside expressions, so it is handled at the entry alone.
+    # A leaf symbol is the dominant eval result (py-method-call crosses ten
+    # thousand of them), so it interns without entering the match below.
+    if len(wire) == 2 and wire[0] == "s":
+        return _wire_sym(_text_payload(wire[1], "symbol"))
     match wire:
-        case ["u", value, why]:
-            return Undefined(_atom_from_wire(value), str(why))
+        case ["u", _, _]:
+            msg = (
+                "undefined truth is valid only as a complete evaluation answer, "
+                "not where the wire protocol requires an atom"
+            )
+            raise ValueError(msg)
         case ["e", payload]:
             return _expression_from_wire(payload)
         case ["h", ident, text]:
@@ -342,21 +349,3 @@ def _from_wire(wire: Any) -> Atom | Undefined:
         case _:
             msg = f"malformed wire term: {wire!r}"
             raise ValueError(msg)
-
-
-def _atom_from_wire(wire: Any) -> Atom:
-    """Decode a wire value where the protocol requires a definite atom."""
-    # A leaf symbol is the dominant eval result (py-method-call crosses ten
-    # thousand of them), so it interns without entering the match below.
-    if isinstance(wire, (list, tuple)) and len(wire) == 2 and wire[0] == "s":
-        return _wire_sym(_text_payload(wire[1], "symbol"))
-    value = _from_wire(wire)
-    if isinstance(value, Undefined):
-        msg = (
-            "undefined truth is valid only as a complete evaluation answer, "
-            "not where the wire protocol requires an atom"
-        )
-        raise ValueError(  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-            msg
-        )
-    return value
