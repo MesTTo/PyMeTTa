@@ -4,6 +4,10 @@ A Rows is a mutable sequence of Row tuples, one per query answer, while
 Answers progressively caches one evaluation source for replay, projections,
 and exact-cardinality reads.
 Guarantees:
+  - Answers preserves broad sequence equality and is unhashable, so equal
+    strings, bytes, ranges and tuples cannot become inconsistent dictionary
+    keys [tested: test_audit_a3_broad_sequence_equality_is_unhashable;
+    commit=WORKTREE]
   - one immutable record retains each value and caller row through replay,
     slicing, source failure and asynchronous projection after close [tested:
     test_answer_record_survives_replay_slice_and_async_projection,
@@ -2144,9 +2148,6 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         if isinstance(other, Sequence):
             return self._materialize() == tuple(other)
         return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self._materialize())
 
     def __repr__(self) -> str:
         shown: list[Any] = []
