@@ -8,6 +8,9 @@ spelling; and a free identifier must be a parameter, a known function, or
 read as a data constructor. A compiled body is a complete atom tree, and any
 runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
+  - local annotation claims and source type aliases admit the same container
+    images as runtime_type_atoms at call boundaries, preserving scalar claims
+    [tested: test_local_annotation_images; commit=WORKTREE].
   - keyword collectors materialize once before a generator's shared answers
     [tested: test_compiled_generator_answers_share_one_keyword_dictionary;
     commit=1796cf0f581aa767db9289b807f66238cb747065]
@@ -146,7 +149,7 @@ from metta._atoms.factories import (
     _variables,
 )
 from metta._atoms.names import binding_name, resolve_known_name
-from metta._catalog.annotations import type_atoms_for
+from metta._catalog.annotations import runtime_type_atoms
 from metta._catalog.call_values import apply_sources
 from metta._catalog.fn import fn as fn_namespace
 from metta._compile import records as _records
@@ -213,9 +216,9 @@ def _annotation_resolver(
 ]:
     """Resolve local annotation syntax without executing arbitrary source.
 
-    Two readers over one resolver: the single-type reader every in-place
-    claim uses, and the alternatives reader a `type` alias uses to write
-    one equation per union member.
+    The single-claim and source-alias readers use runtime_type_atoms, as call
+    signatures do, so a container's structural image satisfies its claim.
+    Written Python types still supply optional static proofs separately.
     """
     namespace = _function_namespace(fn)
     # PEP 649 gives annotation-only local names their own closure. Reading its
@@ -311,7 +314,7 @@ def _annotation_resolver(
         )
 
     def to_atom(node: ast.expr) -> Atom:
-        alternatives = type_atoms_for(resolve(node))
+        alternatives = runtime_type_atoms(resolve(node))
         if len(alternatives) != 1:
             msg = (
                 f"the local annotation {ast.unparse(node)!r} names "
@@ -325,7 +328,7 @@ def _annotation_resolver(
         return alternatives[0]
 
     def to_alternatives(node: ast.expr) -> list[Atom]:
-        return type_atoms_for(resolve(node))
+        return runtime_type_atoms(resolve(node))
 
     return to_atom, to_alternatives, resolve
 
