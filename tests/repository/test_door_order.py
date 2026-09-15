@@ -5,9 +5,9 @@ have independent witnesses [tested: this file; commit=cd62330ceacc8f1254eed9791c
 Declared supplied contracts, undeclared operations and dependent verdicts
 have independent planted controls [tested: this file; commit=07976cf8b415390449863d803277b73102673b51].
 Literal object fields, descriptor binding and declaration propagation have
-positive and planted-negative controls [tested: this file; commit=WORKTREE].
+positive and planted-negative controls [tested: this file; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
 Transparent attribute forwarders have paired-field, alias, native-statement,
-descriptor, dynamic-name and self-recursion controls [tested: this file; commit=WORKTREE].
+descriptor, dynamic-name and self-recursion controls [tested: this file; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
 """
 
 from __future__ import annotations

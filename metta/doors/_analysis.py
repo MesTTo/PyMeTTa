@@ -20,11 +20,11 @@ delegating setters; class descriptors and instance-held callbacks keep
 their different binding laws [tested:
 test_literal_field_names_flow_through_a_declared_setter,
 test_object_attribute_access_keeps_descriptor_crossings,
-test_instance_callback_fields_are_not_bound_like_class_methods; commit=WORKTREE].
+test_instance_callback_fields_are_not_bound_like_class_methods; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
 Caller propagation settles before missing helper annotations are completed;
 broad annotations retain actual returned callables [tested:
 test_late_values_do_not_seed_helper_annotation_alternatives,
-test_annotations_do_not_replace_returned_or_assigned_callbacks; commit=WORKTREE].
+test_annotations_do_not_replace_returned_or_assigned_callbacks; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
 A body that only forwards its own parameters to an attribute intrinsic is
 that intrinsic at every caller, so field names stay paired with their values;
 a wrapper with another statement, a class data descriptor and a dynamic name
@@ -32,15 +32,15 @@ keep their effects [tested: test_transparent_setter_keeps_each_field_paired_with
 test_transparent_setter_is_recognised_through_its_resolved_declaration,
 test_setter_with_a_native_statement_keeps_its_crossing,
 test_transparent_setter_still_invokes_a_class_data_descriptor,
-test_transparent_setter_keeps_a_dynamic_member_name_open; commit=WORKTREE].
+test_transparent_setter_keeps_a_dynamic_member_name_open; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
 Memoized declaration lookups replay their slot reads, so the report of the
 shipped tree is identical with and without them and under two hash seeds
 [measured 2026-09-15: doororder.py 41s before, 17.8s after, PYTHONHASHSEED 123
-and 456 equal; commit=WORKTREE].
+and 456 equal; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
 Fails when: a setter carries statements beside its intrinsic call; its
 callers' names and values are then joined across all call sites, which
 reports every assigned value as a possible receiver [tested:
-test_setter_with_a_native_statement_keeps_its_crossing; commit=WORKTREE].
+test_setter_with_a_native_statement_keeps_its_crossing; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
 [source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
