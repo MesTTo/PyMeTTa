@@ -10,6 +10,11 @@ Declared container contents and alias writes retain callable targets; type
 qualifiers do not replace their initializers [tested:
 test_declared_callable_mapping_retains_every_door_target,
 test_mapping_mutation_cannot_hide_a_supplied_callback; commit=15e4ceec343bc2523a1d34a391054948c0b1b3bf].
+Calls through declared supplied parameters carry their source contract;
+undeclared members and registry callbacks remain defects [tested:
+test_parameter_contracts_follow_declared_protocols,
+test_undeclared_parameter_members_remain_defects,
+test_registry_callable_is_a_defect_open_boundary; commit=WORKTREE].
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
 [source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -24,6 +29,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import collections.abc
 import sys
 from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping
@@ -37,10 +43,21 @@ class Reference:
     kind: str
     name: str
     receiver: str = ""
+    member: str = ""
+    operations: frozenset[str] = frozenset()
 
 
 type Values = frozenset[Reference]
 type Slot = tuple[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class ContractCall:
+    """An open call tied to a declared parameter of a public door."""
+
+    site: str
+    parameter: str
+    annotation: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +67,7 @@ class Calls:
     targets: frozenset[str] = frozenset()
     native: frozenset[str] = frozenset()
     open: frozenset[str] = frozenset()
+    contracts: frozenset[ContractCall] = frozenset()
 
 
 @dataclass(slots=True)
@@ -99,6 +117,7 @@ class CallGraph:
         self.targets: set[str] = set()
         self.native: set[str] = set()
         self.open: set[str] = set()
+        self.contracts: set[ContractCall] = set()
         self.lambdas: dict[int, str] = {}
         self.generators: set[str] = set()
         self.containers: dict[str, Reference] = {}
@@ -262,6 +281,43 @@ class CallGraph:
             return self._attribute(self._annotation_symbols(node.value, scope), node.attr, None)
         return frozenset()
 
+    def _parameter_contract(self, node: ast.expr | None, scope: _Scope) -> frozenset[str]:
+        """Read a caller-implemented contract from an entry's own annotation."""
+        if node is None:
+            return frozenset()
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            try:
+                return self._parameter_contract(ast.parse(node.value, mode="eval").body, scope)
+            except SyntaxError:
+                return frozenset()
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return self._parameter_contract(node.left, scope) | self._parameter_contract(node.right, scope)
+        if isinstance(node, ast.Subscript):
+            names = {reference.name for reference in self._annotation_symbols(node.value, scope)}
+            # policy-inventory-exempt: mechanism-internal; reason=union and qualifier annotations wrap the declared parameter contract; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._parameter_contract
+            if names.intersection({"typing.Optional", "typing.Union", "typing.Final", "typing.Annotated"}):
+                arguments = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+                if "typing.Annotated" in names:
+                    arguments = arguments[:1]
+                return frozenset().union(*(self._parameter_contract(argument, scope) for argument in arguments))
+            return self._parameter_contract(node.value, scope)
+        operations: set[str] = set()
+        for reference in self._annotation_symbols(node, scope):
+            module, _, name = reference.name.rpartition(".")
+            # policy-inventory-exempt: mechanism-internal; reason=these standard protocols declare behavior implemented by the caller; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._parameter_contract
+            if module in {"typing", "collections.abc"} and name in {
+                "Callable", "Iterable", "Iterator", "AsyncIterable", "AsyncIterator",
+            }:
+                protocol = getattr(collections.abc, name)
+                operations.update(member for base in protocol.__mro__ if base is not object
+                                  for member, value in vars(base).items() if callable(value))
+            bases = self._bases(reference.name)
+            if {"typing.Protocol", "typing_extensions.Protocol"}.intersection(bases):
+                operations.update(member for base in bases if base in self.classes
+                                  for member in self.scopes[base].locals
+                                  if base + "." + member in self.functions)
+        return frozenset(operations)
+
     def _bases(self, name: str, seen: frozenset[str] = frozenset()) -> tuple[str, ...]:
         if name in seen or name not in self.classes:
             return (name,)
@@ -311,6 +367,12 @@ class CallGraph:
                     result.add(Reference("container_method", member, reference.name))
                 elif self._final:
                     result.add(Reference("unknown", reference.receiver + "." + member))
+            elif reference.kind == "parameter":
+                if member in reference.operations:
+                    result.add(Reference("parameter", reference.name, reference.receiver, member,
+                                         reference.operations))
+                else:
+                    result.add(Reference("unknown", f"undeclared member {reference.name}.{member}"))
             elif reference.kind == "unknown":
                 result.add(reference)
             else:
@@ -490,6 +552,14 @@ class CallGraph:
         if not references and self._final:
             self.open.add(self._where(node, "unresolved call target"))
         for reference in references:
+            if reference.kind == "parameter":
+                reason = reference.name + ("." + reference.member if reference.member else "")
+                site = self._where(node, reason)
+                self.open.add(site)
+                if reference.member or "__call__" in reference.operations:
+                    self.contracts.add(ContractCall(site, reference.name, reference.receiver))
+                result.add(Reference("unknown", "result of " + reason))
+                continue
             if reference.kind == "container_method":
                 result.update(self._container_call(reference, positional, keywords, node))
                 continue
@@ -723,7 +793,7 @@ class CallGraph:
                     return bool(classes.intersection(self._bases(reference.receiver if reference.kind == "container" else reference.name)))
                 values = self._get(slot)
                 self.narrowed[slot] = frozenset(reference for reference in values
-                                               if reference.kind == "unknown" or matches(reference) == truth)
+                                               if reference.kind in {"unknown", "parameter"} or matches(reference) == truth)
         if isinstance(test, ast.Compare) and len(test.ops) == 1 and isinstance(test.left, ast.Name):
             right = test.comparators[0]
             if isinstance(right, ast.Constant) and right.value is None and isinstance(test.ops[0], (ast.Is, ast.IsNot)):
@@ -800,9 +870,20 @@ class CallGraph:
     def _evaluate(self, scope: _Scope) -> None:
         self.current = scope.name
         self.narrowed = {}
-        self.targets, self.native, self.open = set(), set(), set()
+        self.targets, self.native, self.open, self.contracts = set(), set(), set(), set()
         for index, parameter in enumerate(scope.parameters):
-            values = self._annotation(parameter.annotation, scope)
+            supplied = self._get((scope.name, parameter.arg))
+            operations = self._parameter_contract(parameter.annotation, scope)
+            if self._final and scope.name in self.entries and operations:
+                assert parameter.annotation is not None  # nosec B101 # _parameter_contract refuses an absent annotation
+                values = frozenset({Reference("parameter", f"supplied parameter {scope.name}.{parameter.arg}",
+                                              ast.unparse(parameter.annotation), operations=operations)})
+            elif not self._final or operations or any(
+                reference.kind == "parameter" for reference in supplied
+            ):
+                values = frozenset()
+            else:
+                values = self._annotation(parameter.annotation, scope)
             # policy-inventory-exempt: mechanism-internal; reason=Python method receiver conventions seed the enclosing class identity; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._evaluate
             if index == 0 and scope.owner and parameter.arg in {"self", "cls"}:
                 values |= frozenset({Reference("instance" if parameter.arg == "self" else "class", scope.owner)})
@@ -818,7 +899,8 @@ class CallGraph:
                     for protocol in ("__enter__", "__exit__", "__iter__", "__next__", "close"):
                         if any(self._get((base, protocol)) for base in self._bases(reference.name)):
                             self._protocol(frozenset({reference}), protocol, scope.node)
-        self.facts[scope.name] = Calls(frozenset(self.targets), frozenset(self.native), frozenset(self.open))
+        self.facts[scope.name] = Calls(frozenset(self.targets), frozenset(self.native), frozenset(self.open),
+                                      frozenset(self.contracts))
         self.current = ""
 
     def solve(self) -> Mapping[str, Calls]:

@@ -3,6 +3,10 @@
 Guarantees: strongly connected components are enumerated before longest paths;
 mixed crossings, recursion and open dependencies remain separate findings
 [tested: tests/repository/test_door_order.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Caller-implemented contracts remain open, including through helper arguments;
+combining a contract call with a native crossing is mixed [tested:
+test_supplied_callable_with_native_crossing_is_mixed,
+test_composition_of_contract_open_door_is_unordered_by_dependency; commit=WORKTREE].
 Owns resources: source files are read and closed during snapshot acquisition;
 the last source snapshot and its immutable report are cached in this process.
 Guarded by: functools.lru_cache protects publication; duplicate concurrent
@@ -21,7 +25,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 from metta.doors import AnswersAs, Door
-from metta.doors._analysis import CallGraph, Calls
+from metta.doors._analysis import CallGraph, Calls, ContractCall
 from metta.doors._scan import core_paths
 
 
@@ -82,11 +86,17 @@ class Order:
     open: frozenset[str]
     cycles: tuple[tuple[str, ...], ...]
     blocked_by: frozenset[str] = frozenset()
+    contracts: frozenset[ContractCall] = frozenset()
+
+    @property
+    def defect_open(self) -> frozenset[str]:
+        """Open calls with no declared caller-implemented parameter contract."""
+        return self.open - {call.site for call in self.contracts}
 
     @property
     def mixed(self) -> bool:
-        """Whether this implementation crosses locally and composes a door."""
-        return bool(self.native and self.calls)
+        """Whether a native crossing composes a door or invokes a supplied contract."""
+        return bool(self.native and (self.calls or self.contracts))
 
 
 def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Order]:
@@ -112,6 +122,7 @@ def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Ord
                                for key in bodies.get(target, ()))
         native = frozenset(site for fact in facts for site in fact.native)
         opened = frozenset(site for fact in facts for site in fact.open)
+        contracts = frozenset(call for fact in facts for call in fact.contracts)
         cycle = (members,) if len(members) > 1 or members[0] in helper_graph[members[0]] else ()
         summaries[group] = Order(
             None,
@@ -119,6 +130,7 @@ def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Ord
             native.union(*(item.native for item in dependencies)),
             opened.union(*(item.open for item in dependencies)),
             tuple(sorted(set(cycle).union(*(item.cycles for item in dependencies)))),
+            contracts=contracts.union(*(item.contracts for item in dependencies)),
         )
     initial = {}
     for row in records:
@@ -136,6 +148,7 @@ def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Ord
             native.union(*(item.native for item in dependencies)),
             opened.union(*(item.open for item in dependencies)),
             tuple(sorted(set().union(*(item.cycles for item in dependencies)))),
+            contracts=fact.contracts.union(*(item.contracts for item in dependencies)),
         )
     graph = {name: value.calls for name, value in initial.items()}
     groups = components(graph)
@@ -154,7 +167,7 @@ def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Ord
             if not (current.open or current.mixed or cycles or blocked):
                 callee_orders = [result[target].number for target in current.calls]
                 number = 1 if current.native else max((value + 1 for value in callee_orders if value is not None), default=0)
-            result[name] = Order(number, current.calls, current.native, current.open, cycles, blocked)
+            result[name] = Order(number, current.calls, current.native, current.open, cycles, blocked, current.contracts)
     return MappingProxyType({row.key: result[row.key] for row in records})
 
 

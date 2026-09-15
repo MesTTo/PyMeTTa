@@ -2,6 +2,8 @@
 
 Guarantees: aliases, helper calls, native crossings, open callbacks and SCCs
 have independent witnesses [tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Declared supplied contracts, undeclared operations and dependent verdicts
+have independent planted controls [tested: this file; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -527,13 +529,165 @@ def test_binding_metadata_and_open_helper_cycles_are_independent(tmp_path):
     assert result.native == {"Runtime.must"}
 
 
-@pytest.mark.parametrize("defect", ["mixed", "open_dependencies", "recursive"])
+def _gate_report(monkeypatch, result):
+    """Run the actual report and verdict over one planted source graph."""
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "tools"))
+    import doororder
+
+    monkeypatch.setattr(doororder.doorgen, "all_rows", lambda _root: ())
+    monkeypatch.setattr(doororder, "core_paths", lambda _root: ())
+    monkeypatch.setattr(doororder, "analyse", lambda *_: result)
+    return doororder.report(), doororder.main(["--json"])
+
+
+def test_registry_callable_is_a_defect_open_boundary(tmp_path, monkeypatch):
+    """A registry result has no supplied-parameter contract to close its call."""
+    _, result = _program(tmp_path, '''
+        from plugins import registry
+        class Space:
+            @marked
+            def selected(self):
+                """Invoke the current plugin."""
+                operations = {"current": registry.get("current")}
+                return operations["current"]()
+    ''')
+    assert result["space:selected"].number is None
+    report, status = _gate_report(monkeypatch, result)
+    assert status == 1
+    assert report["open_dependencies"] == ["space:selected"]
+    assert report["defect_open_dependencies"] == ["space:selected"]
+    assert report["unordered_by_contract"] == []
+
+
+def test_supplied_callable_with_native_crossing_is_mixed(tmp_path, monkeypatch):
+    """An open callback cannot hide a native crossing in the same body."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def apply(self, callback: Callable):
+                """Cross and invoke the supplied operation."""
+                Runtime().must("value")
+                return callback()
+    ''')
+    assert result["space:apply"].number is None
+    assert result["space:apply"].mixed
+    _, status = _gate_report(monkeypatch, result)
+    assert status == 1
+
+
+def test_declared_supplied_callable_is_unordered_by_contract(tmp_path, monkeypatch):
+    """A declared callback remains open while the gate accepts its contract."""
+    _, result = _program(tmp_path, '''
+        from collections.abc import Callable
+        class Space:
+            @marked
+            def apply(self, callback: Callable[[], int]) -> int:
+                """Invoke the caller's operation."""
+                return callback()
+    ''')
+    assert result["space:apply"].number is None
+    assert result["space:apply"].open
+    report, status = _gate_report(monkeypatch, result)
+    assert status == 0
+    assert report["unordered_by_contract"] == ["space:apply"]
+
+
+def test_composition_of_contract_open_door_is_unordered_by_dependency(tmp_path, monkeypatch):
+    """A composition keeps its dependency instead of receiving an integer."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        class Space:
+            @marked
+            def apply(self, callback: Callable):
+                """Invoke the caller's operation."""
+                return callback()
+            @marked
+            def compose(self, callback: Callable):
+                """Forward the declared callback."""
+                return self.apply(callback)
+    ''')
+    assert result["space:compose"].number is None
+    assert result["space:compose"].blocked_by == {"space:apply"}
+    report, status = _gate_report(monkeypatch, result)
+    assert status == 0
+    assert report["unordered_by_dependency"] == ["space:compose"]
+
+
+@pytest.mark.parametrize(("annotation", "body"), [
+    ("Iterable[int]", "return [item for item in source]"),
+    ("Iterator[int]", "return next(source)"),
+    ("Optional[Callable[[], int]]", "return source() if source is not None else 0"),
+    ("Annotated[Callable[[], int], 'public callback']", "return source()"),
+    ("Reader", "return source.read()"),
+])
+def test_parameter_contracts_follow_declared_protocols(tmp_path, monkeypatch, annotation, body):
+    """Forward and qualified annotations preserve the public operation."""
+    _, result = _program(tmp_path, f'''
+        from typing import Annotated, Callable, Iterable, Iterator, Optional, Protocol
+        class Reader(Protocol):
+            def read(self) -> int: ...
+        class Space:
+            @marked
+            def use(self, source: {annotation!r}):
+                """Use the declared caller operation."""
+                {body}
+    ''')
+    report, status = _gate_report(monkeypatch, result)
+    assert status == 0
+    assert report["unordered_by_contract"] == ["space:use"]
+    assert all(call["annotation"] for call in report["rows"]["space:use"]["contracts"])
+
+
+@pytest.mark.parametrize("annotation", ["Iterable[int]", "Reader", "Any"])
+def test_undeclared_parameter_members_remain_defects(tmp_path, monkeypatch, annotation):
+    """One declared protocol does not grant arbitrary dynamic attributes."""
+    _, result = _program(tmp_path, f'''
+        from typing import Any, Iterable, Protocol
+        class Reader(Protocol):
+            def read(self) -> int: ...
+        class Space:
+            @marked
+            def use(self, source: {annotation}):
+                """Invoke an undeclared operation."""
+                return source.hidden()
+    ''')
+    report, status = _gate_report(monkeypatch, result)
+    assert status == 1
+    assert report["defect_open_dependencies"] == ["space:use"]
+
+
+def test_contract_does_not_hide_a_separate_defect_or_its_dependents(tmp_path, monkeypatch):
+    """A supplied callback cannot exempt a second unresolved call."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        from plugins import registry
+        class Space:
+            @marked
+            def apply(self, callback: Callable):
+                """Invoke both known-contract and unknown operations."""
+                callback()
+                return registry.current()
+            @marked
+            def compose(self, callback: Callable):
+                """Depend on the unresolved operation."""
+                return self.apply(callback)
+    ''')
+    report, status = _gate_report(monkeypatch, result)
+    assert status == 1
+    assert report["defect_open_dependencies"] == ["space:apply"]
+    assert report["unordered_by_contract"] == []
+    assert report["unordered_by_dependency"] == []
+
+
+@pytest.mark.parametrize("defect", ["mixed", "defect_open_dependencies", "recursive"])
 def test_door_order_gate_refuses_each_boundary_defect(monkeypatch, capsys, defect):
     """Each unresolved boundary independently changes the command's exit."""
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "tools"))
     import doororder
 
-    clean = {"mixed": [], "open_dependencies": [], "recursive": [], "rows": {}}
+    clean = {"mixed": [], "defect_open_dependencies": [], "recursive": [], "rows": {}}
     monkeypatch.setattr(doororder, "report", lambda: {**clean, defect: ["space:planted"]})
     assert doororder.main([]) == 1
     assert "space:planted" in capsys.readouterr().out
