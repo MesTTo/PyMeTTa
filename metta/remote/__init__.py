@@ -1,5 +1,6 @@
 """Purpose: expose remote clients, serving lifetimes and transports lazily."""
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from metta._lazy import package as _package
@@ -18,4 +19,6 @@ if TYPE_CHECKING:
 
 __all__ = ['Gateway', 'OutcomeUnknown', 'ProtocolError', 'RemoteCursor', 'RemoteSpace', 'Request', 'Server', 'connect', 'serve']
 
+__getattr__: Callable[[str], object]
+__dir__: Callable[[], list[str]]
 __getattr__, __dir__ = _package(__name__)

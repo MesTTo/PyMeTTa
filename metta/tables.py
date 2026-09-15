@@ -144,6 +144,7 @@ from metta._atoms.factories import (
     substitute,
 )
 from metta._atoms.wire import _atom_from_wire
+from metta._catalog.arrow import Projection
 from metta._catalog.bounds import config
 from metta._errors.errors import EngineError, refuse
 from metta._spaces.results import _raise_exit_errors
@@ -726,7 +727,7 @@ class TableBridge(SpaceProvider):
 
     # -- the rows as an Arrow stream -----------------------------------------
 
-    def _projection(self):
+    def _projection(self) -> Projection:
         """Every declared shape's rows as one typed projection.
 
         The declaration fixes the columns and their order, which is what makes
@@ -737,8 +738,6 @@ class TableBridge(SpaceProvider):
         image catalog, so the stream carries exactly the values `atoms()`
         would have built atoms from.
         """
-        from metta._catalog.arrow import Projection  # noqa: PLC0415  -- the one projection
-
         names = self._shapes[0].column_names()
         for shape in self._shapes[1:]:
             if shape.column_names() != names:
@@ -756,7 +755,7 @@ class TableBridge(SpaceProvider):
         ]
         return Projection.of(names, rows)
 
-    def __arrow_c_schema__(self):
+    def __arrow_c_schema__(self) -> object:
         """The declared columns as an "arrow_schema" PyCapsule."""
         from metta._catalog.arrow import (  # noqa: PLC0415 -- the optional Arrow extra
             schema_capsule,
@@ -764,7 +763,7 @@ class TableBridge(SpaceProvider):
 
         return schema_capsule(self._projection())
 
-    def __arrow_c_stream__(self, requested_schema=None):
+    def __arrow_c_stream__(self, requested_schema: object | None = None) -> object:
         """This bridge's rows as an "arrow_array_stream" PyCapsule.
 
             pl.DataFrame(bridge)

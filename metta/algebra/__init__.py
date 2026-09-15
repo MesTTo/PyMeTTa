@@ -2029,17 +2029,17 @@ class _AlgebraModule(ModuleType):
         )
 
 
-bool = replace(_PRESETS["bool"])  # noqa: A001 -- the catalog spelling is public
-visibility = replace(_PRESETS["visibility"])
-bag = replace(_PRESETS["bag"])
-counting = replace(_PRESETS["counting"])
-set = replace(_PRESETS["set"])  # noqa: A001 -- the catalog spelling is public
-ranked = replace(_PRESETS["ranked"])
-tropical = replace(_PRESETS["tropical"])
-prob = replace(_PRESETS["prob"])
-prov = replace(_PRESETS["prov"])
-budget = replace(_PRESETS["budget"])
-amplitude = replace(_PRESETS["amplitude"])
+bool: DeclaredAlgebra = replace(_PRESETS["bool"])  # noqa: A001 -- the catalog spelling is public
+visibility: DeclaredAlgebra = replace(_PRESETS["visibility"])
+bag: DeclaredAlgebra = replace(_PRESETS["bag"])
+counting: DeclaredAlgebra = replace(_PRESETS["counting"])
+set: DeclaredAlgebra = replace(_PRESETS["set"])  # noqa: A001 -- the catalog spelling is public
+ranked: DeclaredAlgebra = replace(_PRESETS["ranked"])
+tropical: DeclaredAlgebra = replace(_PRESETS["tropical"])
+prob: DeclaredAlgebra = replace(_PRESETS["prob"])
+prov: DeclaredAlgebra = replace(_PRESETS["prov"])
+budget: DeclaredAlgebra = replace(_PRESETS["budget"])
+amplitude: DeclaredAlgebra = replace(_PRESETS["amplitude"])
 
 # PEP 562 preserves lazy import identity at the package; changing the real
 # module object's class adds construction without introducing a proxy.

@@ -398,16 +398,16 @@ class Point:
         validator: Callable[[Row, tuple[Row, ...]], None] | None,
     ) -> None:
         """Record one declaration; `seam.point` validates before calling this."""
-        self.name = name
-        self.kind = kind
-        self.fields = fields
-        self.optional = optional
-        self.doc = doc
-        self.shipped = shipped
-        self.extra = extra
-        self.reader = reader
-        self.adder = adder
-        self.validator = validator
+        self.name: str = name
+        self.kind: str = kind
+        self.fields: tuple[str, ...] = fields
+        self.optional: tuple[str, ...] = optional
+        self.doc: str = doc
+        self.shipped: str | None = shipped
+        self.extra: str | None = extra
+        self.reader: Callable[[], Iterable[Row]] | None = reader
+        self.adder: Callable[[Row], Callable[[], None] | None] | None = adder
+        self.validator: Callable[[Row, tuple[Row, ...]], None] | None = validator
 
     def register(
         self,
@@ -886,8 +886,8 @@ def _register(
 class _Inverse:
     """An ordered rollback whose successful actions are consumed under _LOCK."""
 
-    def __init__(self, actions: Iterable[Callable[[], None]]) -> None:
-        self.actions: list[Callable[[], None]] = list(actions)
+    def __init__(self, actions: Iterable[Callable[[], object]]) -> None:
+        self.actions: list[Callable[[], object]] = list(actions)
 
     def __call__(self) -> None:
         failures: list[BaseException] = []
@@ -902,7 +902,8 @@ class _Inverse:
         if len(failures) == 1:
             raise failures[0]
         if failures:
-            raise BaseExceptionGroup("registration inverse actions failed", failures)
+            msg = "registration inverse actions failed"
+            raise BaseExceptionGroup(msg, failures)
 
 
 def _both(first: Callable[[], None] | None, second: Callable[[], None]) -> _Inverse:
@@ -946,6 +947,25 @@ def on_registration(callback: _RegistrationListener) -> None:
         _LISTENERS.append(callback)
 
 
+def _registration_compensator(
+    callback: _RegistrationListener, declared: str, name: str, undo: _Inverse,
+) -> Callable[[], object]:
+    """Publish one registration to one listener and return its compensation.
+
+    A callable is the listener's exact compensation; None declares a projection
+    that reconciles from the registry when called again after rollback, so the
+    same publication call is its compensation. Anything else is a contract
+    violation caught here, before the listener's receipt joins the inverse.
+    """
+    compensate = callback(declared, name, undo)
+    if compensate is None:
+        return functools.partial(callback, declared, name, undo)
+    if not callable(compensate):
+        msg = "a registration listener returns a compensation callable or None"
+        raise TypeError(msg)
+    return compensate
+
+
 def _enlist(declared: str, name: str, undo: _Inverse | None) -> None:
     """Publish atomically with completed observers' rollback receipts."""
     if undo is None:
@@ -954,19 +974,13 @@ def _enlist(declared: str, name: str, undo: _Inverse | None) -> None:
         restored = len(undo.actions)
         try:
             for callback in tuple(_LISTENERS):
-                compensate = callback(declared, name, undo)
-                if compensate is not None and not callable(compensate):
-                    raise TypeError("a registration listener returns a compensation callable or None")
-                undo.actions.insert(
-                    restored,
-                    functools.partial(callback, declared, name, undo)
-                    if compensate is None else compensate,
-                )
-        except BaseException as error:  # noqa: BLE001 -- rollback also covers interrupted publication
+                undo.actions.insert(restored, _registration_compensator(callback, declared, name, undo))
+        except BaseException as error:  # rollback also covers interrupted publication
             try:
                 undo()
             except BaseException as cleanup:  # noqa: BLE001 -- retain both publication and rollback failures
-                raise BaseExceptionGroup("registration publication and rollback failed", [error, cleanup]) from None
+                msg = "registration publication and rollback failed"
+                raise BaseExceptionGroup(msg, [error, cleanup]) from None
             raise
 
 
@@ -1131,7 +1145,7 @@ def _load_entries(group: str) -> list[str]:
 # extra that installs the packages this repository ships for the point, which is
 # what a refusal ends in.
 
-frame = point(
+frame: Point = point(
     "frame",
     "declaration",
     fields=("module", "accessor", "build"),
@@ -1150,7 +1164,7 @@ frame = point(
     ),
 )
 
-sql = point(
+sql: Point = point(
     "sql",
     "ownership",
     fields=("claims", "define"),
@@ -1166,7 +1180,7 @@ sql = point(
     ),
 )
 
-array = point(
+array: Point = point(
     "array",
     "declaration",
     fields=("module", "default"),
@@ -1184,7 +1198,7 @@ array = point(
     ),
 )
 
-index = point(
+index: Point = point(
     "index",
     "declaration",
     fields=("available", "build", "search"),
@@ -1201,7 +1215,7 @@ index = point(
     ),
 )
 
-arrow = point(
+arrow: Point = point(
     "arrow",
     "ownership",
     fields=("claims", "schema", "stream", "batches"),
@@ -1217,7 +1231,7 @@ arrow = point(
     ),
 )
 
-ipc = point(
+ipc: Point = point(
     "ipc",
     "ownership",
     fields=("claims", "schema", "stream", "read", "concat"),
@@ -1236,7 +1250,7 @@ ipc = point(
     ),
 )
 
-transport_error = point(
+transport_error: Point = point(
     "transport-error",
     "declaration",
     fields=("module", "classes"),
@@ -1249,7 +1263,7 @@ transport_error = point(
     ),
 )
 
-image = point(
+image: Point = point(
     "image",
     "ownership",
     fields=("claims",),
@@ -1266,7 +1280,7 @@ image = point(
     ),
 )
 
-law = point(
+law: Point = point(
     "law",
     "declaration",
     fields=("arity", "sides"),
@@ -1284,7 +1298,7 @@ law = point(
     ),
 )
 
-typing = point(
+typing: Point = point(
     "typing",
     "declaration",
     fields=("equations", "doc"),
@@ -1305,7 +1319,7 @@ typing = point(
     ),
 )
 
-graphql = point(
+graphql: Point = point(
     "graphql",
     "ownership",
     fields=("claims", "schema", "execute"),
@@ -1522,7 +1536,7 @@ def _validate_door_registration(row: Row, standing: tuple[Row, ...]) -> None:
     _root.doors.validate_registration(row, standing)
 
 
-door = point(
+door: Point = point(
     "door", "declaration", fields=("doors",),
     doc="Typed host doors contributed as namespace members or declared receiver sugars.",
     validator=_validate_door_registration,

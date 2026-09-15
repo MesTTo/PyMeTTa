@@ -31,6 +31,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from itertools import islice
+from ssl import SSLContext
 from types import MappingProxyType, TracebackType
 from typing import Any, NamedTuple, Self
 
@@ -556,7 +557,7 @@ class Gateway:
 
     def __init__(
         self,
-        m,
+        m: object,
         spaces: list[str] | None = None,
         *,
         cursor_idle: float = _CURSOR_IDLE,
@@ -576,7 +577,7 @@ class Gateway:
         self._allowed = None if spaces is None else set(spaces)
         self._cursors = _Cursors(cursor_idle, cursor_limit)
 
-    def __call__(self, operation: str, payload: dict) -> dict:
+    def __call__(self, operation: str, payload: dict[str, object]) -> dict[str, object]:
         if operation in _MUTATIONS and "idempotency" in payload:
             return self._mutate(operation, payload)
         if operation == "match":
@@ -657,7 +658,7 @@ class Gateway:
             raise MettaError(msg)
         # Reserve before execution. Reentrancy or a partially applied provider
         # failure must never create an opportunity to execute this key twice.
-        answer = {"error": "mutation did not complete", "outcome": "unknown"}
+        answer: dict[str, object] = {"error": "mutation did not complete", "outcome": "unknown"}
         reservation = (token["expires"], digest, answer)
         self._mutations[key] = reservation
         heapq.heappush(self._mutation_expiries, (token["expires"], key))
@@ -672,7 +673,7 @@ class Gateway:
             self._mutations[key] = (token["expires"], digest, dict(answer))
         return answer
 
-    def health(self) -> dict:
+    def health(self) -> dict[str, object]:
         """The transport-side spelling of GET /health, so a Gateway is a
         drop-in Transport and RemoteSpace.server_capabilities() can ask
         one the same question it asks a connected server.
@@ -696,7 +697,7 @@ class Gateway:
             for name in names
         }
 
-    def openapi(self, *, secured: bool = False) -> dict:
+    def openapi(self, *, secured: bool = False) -> dict[str, object]:
         """This gateway as an OpenAPI 3.1.1 document, `GET /openapi.json`.
 
             print(metta._binding.json.dumps(gateway.openapi()))
@@ -735,7 +736,7 @@ class Gateway:
         """
         return _schemas.graphql_sdl(self.served())
 
-    def graphql(self, request: dict) -> dict:
+    def graphql(self, request: dict[str, object]) -> dict[str, object]:
         """Execute one GraphQL request, `POST /graphql`.
 
             gateway.graphql({"query": "{ users { x1 x2 } }"})
@@ -1166,7 +1167,7 @@ class _RemoteWorker:
         self._current: _RemoteRequest | None = None
         self._swi_thread: Any = None
         self._work: queue.Queue[_RemoteRequest | None] = queue.Queue()
-        self.thread = threading.Thread(
+        self.thread: threading.Thread = threading.Thread(
             target=self._run,
             name="metta-remote-engine",
             daemon=True,
@@ -1204,7 +1205,7 @@ class _RemoteWorker:
             if self._state == "starting":
                 self._state = "live"
 
-    def call(self, operation: str, payload: dict, timeout: float) -> tuple[str, Any]:
+    def call(self, operation: str, payload: dict[str, object], timeout: float) -> tuple[str, Any]:
         with self._lock:
             if self._state != "live" or not self.thread.is_alive():
                 msg = f"remote engine worker is {self._state}"
@@ -1453,9 +1454,10 @@ class Server:
         self._gateway = gateway
         self._close_lock = threading.Lock()
         self._closed = False
-        raw_host, self.port = httpd.server_address[:2]
-        self.host = raw_host.decode("ascii") if isinstance(raw_host, bytes) else raw_host
-        self.url = f"{scheme}://{self.host}:{self.port}"
+        raw_host, raw_port = httpd.server_address[:2]
+        self.port: int = raw_port
+        self.host: str = raw_host.decode("ascii") if isinstance(raw_host, (bytes, bytearray)) else raw_host
+        self.url: str = f"{scheme}://{self.host}:{self.port}"
         # attach() reads this to refuse the one configuration that cannot
         # work, so the entry has to exist for as long as the socket does.
         # str(): server_address carries bytes on some families, and the
@@ -1553,14 +1555,14 @@ class Server:
         return []
 
 def serve(
-    m,
+    m: object,
     host: str = "127.0.0.1",
     port: int = 0,
     spaces: list[str] | None = None,
     *,
     token: str | None = None,
     authorize: Callable[[Request], bool] | None = None,
-    ssl_context: Any = None,
+    ssl_context: SSLContext | None = None,
     cursor_idle: float = _CURSOR_IDLE,
     cursor_limit: int = _CURSOR_LIMIT,
     mutation_ttl: float = _MUTATION_TTL,

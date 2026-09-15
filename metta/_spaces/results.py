@@ -25,6 +25,10 @@ Guarantees:
     test_dataclass_factory_and_initvar_are_constructor_inputs,
     test_namedtuple_constructor_defaults_are_optional_columns,
     test_typed_mapping_keeps_omitted_optional_keys_absent; commit=c07bb08a0553f5e4e542baf7913b548327277bde]
+  - a downstream checker reads a positional index as the value kind, a
+    Variable or column projection as Answers, a record replay as the same
+    value kind and Answers as unhashable, under mypy and ty alike [tested:
+    test_audit_owned_type_surface; commit=WORKTREE]
   - Answers positions and slice bounds use Python's lossless index protocol
     without pulling beyond the selected prefix [tested:
     test_answers_accepts_index_protocol_like_rows,
@@ -164,7 +168,17 @@ from collections.abc import Callable, Iterable, Iterator, Sequence
 from difflib import get_close_matches
 from functools import lru_cache
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Final,
+    NamedTuple,
+    Self,
+    SupportsIndex,
+    cast,
+    overload,
+)
 
 import metta.doors as _doors
 from metta import seam
@@ -1269,16 +1283,31 @@ class Rows(UserList[Row], _doors.DoorOwner):
 
 
 
-def _into_fields(cls: type) -> tuple[dict[str, Any], inspect.Signature | None]:
+class _Into(NamedTuple):
+    """How a row becomes one instance: its named inputs, the ones a row must supply, and the call."""
+
+    fields: dict[str, Any]
+    required: frozenset[str]
+    build: Callable[[dict[str, Any]], Any]
+
+
+def _into_fields(cls: type) -> _Into:
     """Named constructor inputs, or the independently declared TypedDict keys."""
     if typing.is_typeddict(cls):
-        return typing.get_type_hints(cls), None
+        # The TypedDict metaclass writes the required/optional split into the
+        # class namespace; `type` itself declares no such attribute.
+        return _Into(
+            typing.get_type_hints(cls),
+            frozenset(vars(cls)["__required_keys__"]),
+            lambda kwargs: cls(**kwargs),
+        )
     named_tuple = isinstance(cls, type) and issubclass(cls, tuple) and hasattr(cls, "_fields")
     if not dataclasses.is_dataclass(cls) and not named_tuple:
         _importlib.import_module("metta.convert").ensure_registered(cls)
     signature = inspect.signature(cls, eval_str=True)
     hints = typing.get_type_hints(cls)
     fields = {}
+    required = set()
     for parameter in signature.parameters.values():
         if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
             continue
@@ -1288,7 +1317,18 @@ def _into_fields(cls: type) -> tuple[dict[str, Any], inspect.Signature | None]:
         if isinstance(annotation, dataclasses.InitVar):
             annotation = annotation.type
         fields[parameter.name] = annotation
-    return fields, signature
+        if parameter.default is inspect.Parameter.empty:
+            required.add(parameter.name)
+
+    def build(kwargs: dict[str, Any]) -> Any:
+        # BoundArguments retains positional-only slots when an earlier
+        # omitted input has a default. Python owns the final call shape.
+        # https://docs.python.org/3.12/library/inspect.html#inspect.BoundArguments
+        bound = inspect.BoundArguments(signature, kwargs)
+        bound.apply_defaults()
+        return cls(*bound.args, **bound.kwargs)
+
+    return _Into(fields, frozenset(required), build)
 
 
 def rows_into(rows: Rows, cls: type) -> list:
@@ -1302,13 +1342,7 @@ def rows_into(rows: Rows, cls: type) -> list:
     constructor_rows: list[Any] | None = _constructor_rows(rows, cls)
     if constructor_rows is not None:
         return constructor_rows
-    fields, signature = _into_fields(cls)
-    required = (
-        cls.__required_keys__ if signature is None else {
-            name for name in fields
-            if signature.parameters[name].default is inspect.Parameter.empty
-        }
-    )
+    fields, required, build = _into_fields(cls)
     missing = [name for name in fields if name in required and name not in rows.columns]
     if missing:
         msg = (
@@ -1351,15 +1385,7 @@ def rows_into(rows: Rows, cls: type) -> list:
                 kwargs[name] = _importlib.import_module(
                     "metta.convert"
                 ).build(atom, annotation)
-        if signature is None:
-            built.append(cls(**kwargs))
-        else:
-            # BoundArguments retains positional-only slots when an earlier
-            # omitted input has a default. Python owns the final call shape.
-            # https://docs.python.org/3.12/library/inspect.html#inspect.BoundArguments
-            bound = inspect.BoundArguments(signature, kwargs)
-            bound.apply_defaults()
-            built.append(cls(*bound.args, **bound.kwargs))
+        built.append(build(kwargs))
     return built
 
 
@@ -1390,6 +1416,10 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
     it reaches the frontier. The sequence has no mutation methods.
     """
 
+    # None is how the data model spells unhashable, and typeshed's own
+    # unhashable classes (list, dict, set) carry this same assignment ignore.
+    __hash__: ClassVar[None] = None  # type: ignore[assignment]
+
     __slots__ = (
         "_bound_source",
         "_cache",
@@ -1416,8 +1446,8 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         count: Callable[..., int | None] | None = None,
         query: _QueryContext | None = None,
         bound_source: Callable[
-            [int, Iterable[T | _AnswerItem[T]]],
-            Iterable[T | _AnswerItem[T]] | None,
+            [int, Iterable[_AnswerItem[T]]],
+            Iterable[_AnswerItem[T]] | None,
         ]
         | None = None,
     ) -> None:
@@ -1443,6 +1473,25 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         # overhead rather than answer differently.
         self._values_demanded = False
         self._lock = threading.RLock()
+
+    @classmethod
+    def _from_records(
+        cls,
+        records: Iterable[_AnswerItem[T]],
+        *,
+        columns: Iterable[str],
+        space: str | None,
+        target: object,
+        query: _QueryContext | None = None,
+    ) -> Self:
+        """A view replaying records already paired with their rows.
+
+        The constructor admits bare values beside records, and a checker that
+        collects every union member's constraint reads a record source as
+        widening the value kind. Rebuilding from the cache is the one place a
+        record source is known statically, so it names the record type alone.
+        """
+        return cls(records, columns=columns, space=space, target=target, query=query)
 
     @property
     @_doors.door(
@@ -1610,16 +1659,16 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             raise
 
     @overload
-    def __getitem__(self, key: SupportsIndex) -> T: ...
+    def __getitem__(self, key: Variable | str) -> Answers[Any]: ...
+
+    @overload
+    def __getitem__(self, key: int) -> T: ...
 
     @overload
     def __getitem__(self, key: slice) -> Answers[T]: ...
 
     @overload
-    def __getitem__(self, key: Variable) -> Answers[Any]: ...
-
-    @overload
-    def __getitem__(self, key: str) -> Answers[Any]: ...
+    def __getitem__(self, key: SupportsIndex) -> T | Answers[Any]: ...
 
     def __getitem__(
         self, key: SupportsIndex | slice | Variable | str
@@ -1679,7 +1728,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         ):
             replacement = self._bound_source(stop, self._items())
             if replacement is not None:
-                base = Answers(
+                base = self._from_records(
                     replacement,
                     columns=self._columns,
                     space=self._space,
@@ -1704,7 +1753,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                     return
                 yield base._cache[index]
 
-        return Answers(
+        return self._from_records(
             selected(), columns=self._columns, space=self._space, target=self._target
         )
 
