@@ -48,7 +48,7 @@ Guarantees:
     extensions/python/metta/_binding/surface.pl:metta_py_opts/1; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - container construction unwraps carried elements after their final crossing,
     preserving borrowed values inside call frames [tested:
-    test_host_call_frames_preserve_borrowed_value_identity; commit=WORKTREE]
+    test_host_call_frames_preserve_borrowed_value_identity; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - a py-atom type declaration follows a weak-referenceable Python object
     without owning it; values that cannot be weakly referenced carry their
     declaration in a weakly interned transparent envelope [tested:

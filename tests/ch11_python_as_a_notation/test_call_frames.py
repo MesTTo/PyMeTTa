@@ -10,7 +10,7 @@ Guarantees:
     commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - borrowed values remain identical through positional and keyword calls,
     including argument expansion [tested:
-    test_host_call_frames_preserve_borrowed_value_identity; commit=WORKTREE]
+    test_host_call_frames_preserve_borrowed_value_identity; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
 """
 
 from collections.abc import Callable

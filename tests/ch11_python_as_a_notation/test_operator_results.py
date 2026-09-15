@@ -3,9 +3,9 @@
 Guarantees: a successful None is one answer; container and Atom results retain
 their identity when returned and when another callable consumes them
 [tested: test_compiled_operator_results_retain_identity_and_later_use;
-commit=WORKTREE].
+commit=fb170a48db042c9a002e06f6cb47389af7fd66fc].
 Guarantees: declared instance and class results retain their native images
-[tested: test_compiled_operator_results_keep_declared_images; commit=WORKTREE].
+[tested: test_compiled_operator_results_keep_declared_images; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc].
 Owns resources: isolated fixture spaces retire plain functions; MeTTa contexts
 retire class programs, instances and their grounded values.
 """

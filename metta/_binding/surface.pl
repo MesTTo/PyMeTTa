@@ -47,7 +47,7 @@
 %     [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 %   - Python call and construction frames retain borrowed object references
 %     until the Python helper unwraps them [tested:
-%     test_host_call_frames_preserve_borrowed_value_identity; commit=WORKTREE].
+%     test_host_call_frames_preserve_borrowed_value_identity; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.

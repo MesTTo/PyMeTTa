@@ -11,15 +11,15 @@ this runtime is visible rather than ambient.
 Guarantees:
   - the operator service consumes a structural operand frame and has one
     fixed native signature regardless of Python operand count [tested:
-    test_operator_frames_accept_many_operands_and_retain_values; commit=WORKTREE]
+    test_operator_frames_accept_many_operands_and_retain_values; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - successful operator results preserve None and borrowed object identity,
     while explicit declarations retain their chosen native image [tested:
     test_compiled_operator_results_retain_identity_and_later_use;
-    test_compiled_operator_results_keep_declared_images; commit=WORKTREE]
+    test_compiled_operator_results_keep_declared_images; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - the compiler can explicitly restore a proved native sequence image
     without changing arbitrary operator result values [tested:
     test_native_sequence_operator_results_retain_images;
-    test_unknown_reflected_sequence_result_remains_borrowed; commit=WORKTREE]
+    test_unknown_reflected_sequence_result_remains_borrowed; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - Python exception classification leaves the engine's `except` reference map
     available [tested: test_reference_except_and_compiled_exception_dispatch_coexist;
     commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
@@ -43,7 +43,7 @@ Guarantees:
   - compiled operators invoke the corresponding Python protocol exactly once
     and accept native set and dictionary images as operands [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=WORKTREE]
+    commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
 Open Obligations:
   To Do: None
   Hacks: None

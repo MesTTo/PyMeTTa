@@ -3,7 +3,7 @@ Guarantees:
   - proved native sequence results retain their structural image while
     unknown protocol results keep the borrowed value boundary [tested:
     test_native_sequence_operator_results_retain_images;
-    test_unknown_reflected_sequence_result_remains_borrowed; commit=WORKTREE]
+    test_unknown_reflected_sequence_result_remains_borrowed; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - ordinary carried calls and host islands keep completed values separate
     from keyword control [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control; commit=86756da11eade288973b0dfaab7486a29e598cfd]

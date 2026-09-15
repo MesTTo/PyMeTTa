@@ -1,7 +1,7 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
   - augmented assignments share binary expression result-image proofs
-    [tested: test_native_sequence_operator_results_retain_images; commit=WORKTREE]
+    [tested: test_native_sequence_operator_results_retain_images; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - lifted definitions and continuations retain Python underscore binders
     [tested: test_python_underscore_bindings_retain_their_values,
     test_generator_underscore_bindings_cross_branches_and_iterations; commit=69d1511c099eb6aa80c38d898da49487c42470f0]

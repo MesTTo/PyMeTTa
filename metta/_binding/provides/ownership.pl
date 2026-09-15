@@ -17,7 +17,7 @@
 %   test_host_length_refinements_do_not_read_elements; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 % Guarantees: grounded applications retain borrowed argument identities through
 %   the framed Python helper [tested:
-%   test_host_call_frames_preserve_borrowed_value_identity; commit=WORKTREE].
+%   test_host_call_frames_preserve_borrowed_value_identity; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc].
 
 provides_declaration(engine, user, grounded_apply/3).
 

@@ -5,7 +5,7 @@ Guarantees: the public testing contracts survive the package partition
 Guarantees: borrowed results compare through their public structural image,
 including nested containers, while scalar species remain distinct [tested:
 test_operator_result_twins_compare_nested_value_projections;
-test_check_twin_distinguishes_integer_float_and_boolean_answers; commit=WORKTREE].
+test_check_twin_distinguishes_integer_float_and_boolean_answers; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc].
 """
 
 from __future__ import annotations

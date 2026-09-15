@@ -1,7 +1,7 @@
 """Purpose: describe the state shared by compiler lowering bands.
 Guarantees:
   - operator lowering receives the source-derived result container proof
-    [tested: test_native_sequence_operator_results_retain_images; commit=WORKTREE]
+    [tested: test_native_sequence_operator_results_retain_images; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - nested compiler scopes retain the method's receiver and declared field
     types [tested:
     test_method_field_projection_preserves_captures_and_rebinding; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
