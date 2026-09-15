@@ -20,7 +20,9 @@ Assumes:
 Guarantees:
   - every stdlib name has exactly one row, so the coverage denominator cannot
     quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name;
-    commit=2d09b82e3ea1565d10fd8206e3b3cc9808ce6cb1]
+    commit=WORKTREE]
+  - eval-one's row has matched native and Python results, 7 on both surfaces
+    [tested: python extensions/python/tools/phrasebook.py --gate; commit=WORKTREE]
   - on-unwind's native failure outcome reaches an editable handler on both
     language surfaces [tested: python extensions/python/tools/phrasebook.py --gate;
     commit=2d09b82e3ea1565d10fd8206e3b3cc9808ce6cb1]
@@ -1840,6 +1842,13 @@ ENTRIES: list[Entry] = [
         "ONE step. `m.eval(term)` is the same one step and answers every result, "
         "and `space.eval(term)` is `evalc`, the same step in a named space.",
         metta="!(eval (+ 1 2))", python="m.eval(S['+'](1, 2))",
+    ),
+    Entry(
+        "eval-one", ("(-> Atom Atom)",), "Symbol", "instructions", "instruction",
+        "Evaluate held source, count at most two answers and return the sole "
+        "answer as data. Failed alternatives do not count. Zero or multiple "
+        "answers raise a cardinality error before the caller can filter them.",
+        metta="!(eval-one (superpose (7)))", python="m.eval(S.eval_one(S.superpose((7,))))",
     ),
     Entry(
         "evalc", ("(-> Atom SpaceType Atom)",), "Symbol", "instructions", "method",

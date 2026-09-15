@@ -666,6 +666,16 @@
   ],
   "python_inferences": 140
  },
+ "eval-one": {
+  "metta": [
+   "7"
+  ],
+  "metta_inferences": 1019,
+  "python": [
+   "7"
+  ],
+  "python_inferences": 295
+ },
  "eval-via-match": {
   "metta": null,
   "python": null

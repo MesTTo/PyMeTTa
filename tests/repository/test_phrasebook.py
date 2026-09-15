@@ -6,9 +6,9 @@ without a spelling, a residue row that secretly carries one, and a stale page,
 and require the lane to answer correctly about each. The coverage claim itself
 is checked the other way round: every stdlib name has exactly one row, so the
 denominator cannot quietly shrink.
-The native unwind instruction has an executable row in that closed set
+The native unwind and one-answer instructions have executable rows in that closed set
 [tested: test_the_phrasebook_carries_one_row_per_name,
-test_every_answered_row_has_a_recorded_answer; commit=2d09b82e3ea1565d10fd8206e3b3cc9808ce6cb1].
+test_every_answered_row_has_a_recorded_answer; commit=WORKTREE].
 The supplemental table separately pins Python-first faces that have no stdlib
 name of their own [tested: test_python_first_public_faces_are_in_the_phrasebook;
 commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
@@ -65,7 +65,7 @@ def test_the_phrasebook_carries_one_row_per_name():
     """
     names = [entry.name for entry in ENTRIES]
     assert len(names) == len(set(names)), "a name carries more than one row"
-    assert len(names) == 382, f"382 distinct names were declared, the rows carry {len(names)}"
+    assert len(names) == 383, f"383 distinct names were declared, the rows carry {len(names)}"
 
 
 def test_a_duplicate_row_is_caught():

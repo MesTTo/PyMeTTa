@@ -131,6 +131,8 @@ if TYPE_CHECKING:
         error_payload: Symbol
         eval: Symbol
         "eval: (-> Atom Atom)\n\nONE step. `m.eval(term)` is the same one step and answers every result, and `space.eval(term)` is `evalc`, the same step in a named space."
+        eval_one: Symbol
+        "eval-one: (-> Atom Atom)\n\nEvaluate held source, count at most two answers and return the sole answer as data. Failed alternatives do not count. Zero or multiple answers raise a cardinality error before the caller can filter them."
         evalc: Symbol
         "evalc: (-> Atom SpaceType Atom)\n\nOne step WITH an explicit context space, which is `space.eval(term)`: the signature IS term plus space."
         except_: Symbol
@@ -521,6 +523,7 @@ _NAMES = frozenset(
         "empty",
         "error-payload",
         "eval",
+        "eval-one",
         "evalc",
         "except",
         "exclude-item",
@@ -805,6 +808,7 @@ _ALIASES.update(
         ("eq", "=="),
         ("error_payload", "error-payload"),
         ("eval", "eval"),
+        ("eval_one", "eval-one"),
         ("evalc", "evalc"),
         ("except_", "except"),
         ("exclude_item", "exclude-item"),
@@ -1063,6 +1067,7 @@ _DOCUMENTATION = {
     "cos-math": "cos-math: (-> Number Number)\n\n`math.cos`.",
     "decons-atom": "decons-atom: (-> Expression Atom)\n\nStarred unpacking, which is the same act in one line: `head, *tail = e`.",
     "eval": "eval: (-> Atom Atom)\n\nONE step. `m.eval(term)` is the same one step and answers every result, and `space.eval(term)` is `evalc`, the same step in a named space.",
+    "eval-one": "eval-one: (-> Atom Atom)\n\nEvaluate held source, count at most two answers and return the sole answer as data. Failed alternatives do not count. Zero or multiple answers raise a cardinality error before the caller can filter them.",
     "evalc": "evalc: (-> Atom SpaceType Atom)\n\nOne step WITH an explicit context space, which is `space.eval(term)`: the signature IS term plus space.",
     "filter-atom": "filter-atom: (-> Expression Variable Atom Expression)\nfilter-atom: (-> Expression Expression Expression)\n\nA comprehension with an `if`, or `filter`.",
     "floor-math": "floor-math: (-> Number Number)\n\n`math.floor`, the same integer-against-float difference as `ceil-math`.",
