@@ -4,6 +4,10 @@ A Rows is a mutable sequence of Row tuples, one per query answer, while
 Answers progressively caches one evaluation source for replay, projections,
 and exact-cardinality reads.
 Guarantees:
+  - context exit retains body and cleanup failures together, including
+    cancellation, while single failures keep their identity [tested:
+    test_owned_views_preserve_body_and_cleanup_errors,
+    test_owned_exit_zero_one_or_two_failures; commit=WORKTREE]
   - row conversion follows named constructor inputs and native defaults,
     including positional-only, keyword-only and InitVar parameters, while
     omitted optional TypedDict keys stay absent [tested:
@@ -126,6 +130,9 @@ Guarantees:
     library's sentence agree about the same mistake [tested:
     test_a_row_offers_its_own_columns,
     test_a_projection_answers_its_columns_from_dir; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+Owns resources: Answers closes its source; a failed close keeps that source
+  available for another attempt [tested:
+  test_failed_answer_exit_retains_its_source_for_retry; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -147,6 +154,7 @@ from collections import UserList
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from difflib import get_close_matches
 from functools import lru_cache
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
 
 import metta.doors as _doors
@@ -453,6 +461,22 @@ def _array_library(what: str) -> Any:
             )
             return require_module(row.module, guidance)
     raise TypeError(seam.array.refusal(what))
+
+
+def _raise_exit_errors(
+    message: str,
+    body: BaseException | None,
+    cleanup_failures: Iterable[BaseException],
+) -> None:
+    """Preserve each exit failure and let successful cleanup propagate the body."""
+    failures = list(cleanup_failures)
+    if not failures:
+        return
+    if body is not None:
+        failures.insert(0, body)
+    if len(failures) == 1:
+        raise failures[0]
+    raise BaseExceptionGroup(message, failures) from None
 
 
 class _AnswerItem(NamedTuple):
@@ -2174,8 +2198,16 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_exception: object) -> None:
-        self.close()
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        try:
+            self.close()
+        except BaseException as cleanup:  # noqa: BLE001 -- retain cancellation and failed release together
+            _raise_exit_errors("answer scope and cleanup failed", exc, (cleanup,))
 
     def __del__(self) -> None:
         # The backstop under close(). The source owns everything the engine

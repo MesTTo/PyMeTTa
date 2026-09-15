@@ -1,5 +1,8 @@
 """Purpose: represent remote spaces and retained answer streams.
 
+Guarantees: context exit retains the body failure together with a failed
+stop, and propagates either failure unchanged alone [tested:
+test_owned_exit_zero_one_or_two_failures; commit=WORKTREE].
 Owns resources: RemoteCursor.close releases its server token. A failed stop
 retains the token so the caller can retry
 [source: extensions/python/metta/remote/_client.py:220; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -10,12 +13,14 @@ from __future__ import annotations
 import warnings
 from collections import deque
 from collections.abc import Iterator
+from types import TracebackType
 from typing import Any, Self
 
 import metta._catalog.arrow as _arrow
 import metta.doors as _doors
 from metta._atoms.factories import Atom
 from metta._errors.errors import MettaError
+from metta._spaces.results import _raise_exit_errors
 from metta.foreign import SpaceProvider
 from metta.remote._defaults import _DEFAULT_BATCH
 from metta.remote._transport import (
@@ -258,23 +263,22 @@ class RemoteCursor(_doors.DoorOwner):
         evidence=('extensions/python/tests/repository/test_door_rows.py::test_remote_generated_doors_release_their_cursor',),
         state=_doors.State.any,
     )
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         """Stop the server's cursor without letting the stop displace the
         diagnosis: a transport that broke mid-stream breaks the /stop too,
         and the failure a caller needs to read is the first one. Both are
         raised together, the same shape serve()'s own startup path uses.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if exc is None:
-            self.close()
-            return
         try:
             self.close()
         except BaseException as stop_failure:  # noqa: BLE001
             msg = "the remote cursor failed and could not be stopped"
-            raise BaseExceptionGroup(
-                msg,
-                [exc, stop_failure],
-            ) from None
+            _raise_exit_errors(msg, exc, (stop_failure,))
 
     def __del__(self) -> None:
         if not getattr(self, "_closed", True) and getattr(self, "_token", None) is not None:

@@ -1,5 +1,8 @@
 """Purpose: serve spaces through retained cursors, HTTP threads and engine workers.
 
+Guarantees: context exit preserves body and cleanup failures together, and
+single failures retain their identity [tested:
+test_owned_exit_zero_one_or_two_failures; commit=WORKTREE].
 Owns resources: Server.close stops the HTTP server and its engine worker;
 Gateway.close releases retained cursors
 [source: extensions/python/metta/remote/_gateway.py:1464, Gateway.close; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -24,7 +27,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from itertools import islice
-from types import MappingProxyType
+from types import MappingProxyType, TracebackType
 from typing import Any, NamedTuple, Self
 
 import metta._binding.json as _json
@@ -38,6 +41,7 @@ from metta._catalog.declarations import declared
 from metta._errors.errors import Interrupted, MettaError
 from metta._faces.space import Space as MeTTa
 from metta._spaces.cursor import Cursor
+from metta._spaces.results import _raise_exit_errors
 from metta.remote import _schemas
 from metta.remote._defaults import (
     _CURSOR_IDLE,
@@ -850,9 +854,17 @@ class Gateway:
         """
         return self
 
-    def __exit__(self, *_exception: object) -> None:
-        """Release the cursors, whether the block ended well or not."""
-        self.close()
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Release the cursors and retain every exit failure."""
+        try:
+            self.close()
+        except BaseException as cleanup:  # noqa: BLE001 -- retain the body and failed release together
+            _raise_exit_errors("gateway scope and cleanup failed", exc, (cleanup,))
 
     # ------------------------------------------------------------ operations
 
@@ -1458,9 +1470,17 @@ class Server:
         """The server itself, so `with serve(m) as server:` names it."""
         return self
 
-    def __exit__(self, *_exception: object) -> None:
-        """Close on the way out, on the exception path too."""
-        self.close()
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Close on exit and retain both body and cleanup failures."""
+        try:
+            self.close()
+        except BaseException as cleanup:  # noqa: BLE001 -- retain the body and failed release together
+            _raise_exit_errors("server scope and cleanup failed", exc, (cleanup,))
 
     def close(self, timeout: float = _SERVER_TIMEOUT) -> None:
         """Stop accepting, detach the engine worker, join both threads, and

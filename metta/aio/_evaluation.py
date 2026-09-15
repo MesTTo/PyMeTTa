@@ -4,6 +4,9 @@ Assumes: an evaluation returns Answers or a closable stream for each target.
 Guarantees: iteration, refusal and cleanup run on the owning worker; Answers
   replay their cached prefix while streams consume once [tested:
   test_async_evaluation_choices_preserve_demand_and_replay; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+  Context exit retains the body error, including cancellation, together
+  with a failed release [tested:
+  test_async_exit_preserves_cancellation_and_normal_exit; commit=WORKTREE].
 Owns resources: one tracked group owns every source in an acquired batch.
   Closing a view releases its source; closing the parent releases the group.
   Failed cleanup remains tracked for retry [tested:
@@ -17,10 +20,11 @@ from __future__ import annotations
 import asyncio
 import threading
 from collections.abc import AsyncIterator, Callable
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, Self
 
 from metta._errors.errors import MettaError
-from metta._spaces.results import Answers
+from metta._spaces.results import Answers, _raise_exit_errors
 from metta.aio._worker import _acquire, _raise_lifecycle_failures, _shielded
 
 _END = object()
@@ -147,7 +151,7 @@ class _EvaluationGroup:
                 await self.close(index)
             except BaseException as cleanup:  # noqa: BLE001 -- preserve cancellation and its cleanup failure
                 msg = "asynchronous evaluation and cleanup failed"
-                raise BaseExceptionGroup(msg, [error, cleanup]) from None
+                _raise_exit_errors(msg, error, (cleanup,))
             raise
 
     async def close(self, index: int) -> None:
@@ -213,8 +217,16 @@ class EvaluationView:
     async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, exc_type, exc, traceback) -> None:
-        await self.aclose()
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        try:
+            await self.aclose()
+        except BaseException as cleanup:  # noqa: BLE001 -- retain cancellation and failed release together
+            _raise_exit_errors("asynchronous answer scope and cleanup failed", exc, (cleanup,))
 
 # Resolve annotations after definitions so peer imports can finish.
 from metta._lazy import lazy  # noqa: E402 -- deferred annotation bindings
