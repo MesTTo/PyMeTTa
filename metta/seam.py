@@ -48,6 +48,9 @@ Assumes:
     the finder `extensions/python/_workspace.py` installs [source 2026-09-07:
     https://docs.python.org/3/library/importlib.metadata.html#entry-points]
 Guarantees:
+  - inverse sequences attempt both actions and retain every failure,
+    including control exceptions [tested:
+    test_inverse_sequence_attempts_every_action; commit=WORKTREE]
   - registration listeners receive the exact point and registrant names,
     including quotes and the words " registration " [tested:
     test_registration_identity_is_not_parsed_from_prose; commit=56a8207a945675056312e206a000442b857ced03]
@@ -843,8 +846,16 @@ def _both(first: Callable[[], None] | None, second: Callable[[], None]) -> Calla
         return second
 
     def undo() -> None:
-        first()
-        second()
+        failures: list[BaseException] = []
+        for action in (first, second):
+            try:
+                action()
+            except BaseException as error:  # noqa: BLE001 -- every inverse runs even after interruption
+                failures.append(error)
+        if len(failures) == 1:
+            raise failures[0]
+        if failures:
+            raise BaseExceptionGroup("registration inverse actions failed", failures)
 
     return undo
 
