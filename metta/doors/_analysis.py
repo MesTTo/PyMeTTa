@@ -15,6 +15,32 @@ undeclared members and registry callbacks remain defects [tested:
 test_parameter_contracts_follow_declared_protocols,
 test_undeclared_parameter_members_remain_defects,
 test_registry_callable_is_a_defect_open_boundary; commit=07976cf8b415390449863d803277b73102673b51].
+Literal field names retain their declarations through object access and
+delegating setters; class descriptors and instance-held callbacks keep
+their different binding laws [tested:
+test_literal_field_names_flow_through_a_declared_setter,
+test_object_attribute_access_keeps_descriptor_crossings,
+test_instance_callback_fields_are_not_bound_like_class_methods; commit=WORKTREE].
+Caller propagation settles before missing helper annotations are completed;
+broad annotations retain actual returned callables [tested:
+test_late_values_do_not_seed_helper_annotation_alternatives,
+test_annotations_do_not_replace_returned_or_assigned_callbacks; commit=WORKTREE].
+A body that only forwards its own parameters to an attribute intrinsic is
+that intrinsic at every caller, so field names stay paired with their values;
+a wrapper with another statement, a class data descriptor and a dynamic name
+keep their effects [tested: test_transparent_setter_keeps_each_field_paired_with_its_value,
+test_transparent_setter_is_recognised_through_its_resolved_declaration,
+test_setter_with_a_native_statement_keeps_its_crossing,
+test_transparent_setter_still_invokes_a_class_data_descriptor,
+test_transparent_setter_keeps_a_dynamic_member_name_open; commit=WORKTREE].
+Memoized declaration lookups replay their slot reads, so the report of the
+shipped tree is identical with and without them and under two hash seeds
+[measured 2026-09-15: doororder.py 41s before, 17.8s after, PYTHONHASHSEED 123
+and 456 equal; commit=WORKTREE].
+Fails when: a setter carries statements beside its intrinsic call; its
+callers' names and values are then joined across all call sites, which
+reports every assigned value as a possible receiver [tested:
+test_setter_with_a_native_statement_keeps_its_crossing; commit=WORKTREE].
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
 [source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -32,8 +58,9 @@ import builtins
 import collections.abc
 import sys
 from collections import defaultdict, deque
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from typing import cast
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,10 +72,34 @@ class Reference:
     receiver: str = ""
     member: str = ""
     operations: frozenset[str] = frozenset()
+    literal: str | None = None
+    _hash: int = field(init=False, repr=False, compare=False, default=0)
+
+    def __post_init__(self) -> None:
+        # Set algebra hashes every member on each union and difference; the
+        # six-field tuple hash is computed once per reference instead.
+        object.__setattr__(self, "_hash", hash((self.kind, self.name, self.receiver, self.member,
+                                                self.operations, self.literal)))
+
+    def __hash__(self) -> int:
+        return self._hash
 
 
 type Values = frozenset[Reference]
 type Slot = tuple[str, str]
+
+# These builtins read or write the member named by their second argument.
+# A body that only forwards its own parameters to one of them is that
+# intrinsic under an argument permutation, so its callers apply the intrinsic
+# to their own paired actuals. Joining every caller's arguments in the
+# forwarder's parameter slots instead pairs every field name with every
+# value, the context-insensitive loss that Hybrid Inlining removes by
+# propagating context-critical statements to their callers:
+# https://arxiv.org/abs/2210.14436
+_ATTRIBUTE_INTRINSICS = frozenset({
+    "builtins.getattr", "builtins.hasattr", "builtins.object.__getattribute__",
+    "builtins.setattr", "builtins.object.__setattr__",
+})
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +130,7 @@ class _Scope:
     owner: str | None = None
     locals: set[str] = field(default_factory=set)
     redirects: dict[str, str] = field(default_factory=dict)
+    decorators: frozenset[str] = frozenset()
 
     @property
     def statements(self) -> list[ast.stmt]:
@@ -121,31 +173,81 @@ class CallGraph:
         self.lambdas: dict[int, str] = {}
         self.generators: set[str] = set()
         self.containers: dict[str, Reference] = {}
+        self.positioned: set[str] = set()
         self.container_keys: dict[object, int] = {}
         self.narrowed: dict[Slot, Values] = {}
+        self.forwarders: dict[str, tuple[ast.expr, tuple[int, ...]] | None] = {}
+        self.forwarding: set[str] = set()
+        self.memos: dict[str, tuple[object, frozenset[Slot]]] = {}
+        self.memo_readers: dict[Slot, set[str]] = defaultdict(set)
+        self.collecting: list[set[Slot]] = []
+        # Keyed by node identity and holding the node, so a synthetic node
+        # freed and reallocated at the same address cannot hit a stale entry.
+        self.unparsed: dict[int, tuple[ast.AST, str]] = {}
+        self.literal_keys: dict[int, tuple[ast.AST, str]] = {}
         self._final = False
+        self._reporting = False
         for module, text in sources.items():
             self._index(_Scope(module, module, ast.parse(text), None))
-        for name in self.modules | self.classes | self.entries.intersection(self.scopes):
+        self._schedule_declarations()
+
+    def _schedule_declarations(self) -> None:
+        """Bind module declarations before any class body or entry reads them."""
+        for name in (*sorted(self.modules), *sorted(self.classes), *sorted(self.entries.intersection(self.scopes))):
             self._schedule(name)
 
     def _schedule(self, name: str) -> None:
-        if name not in self.queued:
+        if not self._reporting and name not in self.queued:
             self.queue.append(name)
             self.queued.add(name)
 
     def _get(self, slot: Slot) -> Values:
         if self.current:
             self.readers[slot].add(self.current)
+        for reads in self.collecting:
+            reads.add(slot)
         return self.narrowed.get(slot, self.values.get(slot, frozenset()))
 
     def _put(self, slot: Slot, values: Values) -> None:
+        if self._reporting:
+            return
         previous = self.values.get(slot, frozenset())
         added = values - previous
         if added:
             self.values[slot] = previous | added
             for reader in self.readers[slot]:
                 self._schedule(reader)
+            for key in self.memo_readers.pop(slot, ()):
+                self.memos.pop(key, None)
+
+    def _memo[T](self, key: str, compute: Callable[[], T]) -> T:
+        """Reuse a pure store lookup until one of the slots it read grows.
+
+        A hit replays the reader registration the computation would have
+        made, so the current scope is still rescheduled by later growth. A
+        result that read a narrowed slot is not kept: narrowing is local to
+        one evaluation.
+        """
+        hit = self.memos.get(key)
+        if hit is not None:
+            cached, read = hit
+            if self.current:
+                for slot in read:
+                    self.readers[slot].add(self.current)
+            for outer in self.collecting:
+                outer.update(read)
+            return cast("T", cached)
+        reads: set[Slot] = set()
+        self.collecting.append(reads)
+        try:
+            value = compute()
+        finally:
+            self.collecting.pop()
+        if not any(slot in self.narrowed for slot in reads):
+            self.memos[key] = value, frozenset(reads)
+            for slot in reads:
+                self.memo_readers[slot].add(key)
+        return value
 
     def _index(self, scope: _Scope) -> None:
         self.scopes[scope.name] = scope
@@ -159,7 +261,8 @@ class CallGraph:
                 self._put((scope.name, node.name), frozenset({Reference(kind, name)}))
                 (self.classes if kind == "class" else self.functions).add(name)
                 owner = scope.name if isinstance(scope.node, ast.ClassDef) else None
-                self._index(_Scope(name, scope.module, node, scope.name, owner))
+                decorators = frozenset(ast.unparse(item).rsplit(".", 1)[-1] for item in node.decorator_list)
+                self._index(_Scope(name, scope.module, node, scope.name, owner, decorators=decorators))
                 return
             if isinstance(node, ast.Lambda):
                 name = f"{scope.name}.<lambda@{node.lineno}:{node.col_offset}>"
@@ -210,6 +313,8 @@ class CallGraph:
     def _symbol(self, name: str, seen: frozenset[str] = frozenset()) -> Values:
         if name in seen:
             return frozenset({Reference("unknown", f"cyclic alias {name}")})
+        if not seen:
+            return self._memo("symbol:" + name, lambda: self._symbol(name, frozenset({""})))
         if name in self.functions:
             return frozenset({Reference("function", name)})
         if name in self.classes:
@@ -230,6 +335,11 @@ class CallGraph:
         return frozenset()
 
     def _references(self, values: Values) -> Values:
+        for reference in values:
+            if reference.kind == "symbol":
+                break
+        else:
+            return values
         return frozenset(value for reference in values for value in (
             self._symbol(reference.name) if reference.kind == "symbol" else (reference,)
         ))
@@ -237,6 +347,9 @@ class CallGraph:
     def _annotation(self, node: ast.expr | None, scope: _Scope) -> Values:
         if node is None:
             return frozenset()
+        return self._memo(f"annotation:{id(node)}", lambda: self._annotation_of(node, scope))
+
+    def _annotation_of(self, node: ast.expr, scope: _Scope) -> Values:
         if isinstance(node, ast.Constant):
             if isinstance(node.value, str):
                 try:
@@ -281,10 +394,20 @@ class CallGraph:
             return self._attribute(self._annotation_symbols(node.value, scope), node.attr, None)
         return frozenset()
 
+    def _declared_values(self, values: Values, annotation: ast.expr | None, scope: _Scope) -> Values:
+        """Refine opaque external results without replacing source values."""
+        declared = self._annotation(annotation, scope)
+        return frozenset(value for reference in values for value in (
+            declared if reference.kind == "opaque" and declared else (reference,)
+        ))
+
     def _parameter_contract(self, node: ast.expr | None, scope: _Scope) -> frozenset[str]:
         """Read a caller-implemented contract from an entry's own annotation."""
         if node is None:
             return frozenset()
+        return self._memo(f"contract:{id(node)}", lambda: self._parameter_contract_of(node, scope))
+
+    def _parameter_contract_of(self, node: ast.expr, scope: _Scope) -> frozenset[str]:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             try:
                 return self._parameter_contract(ast.parse(node.value, mode="eval").body, scope)
@@ -321,6 +444,8 @@ class CallGraph:
     def _bases(self, name: str, seen: frozenset[str] = frozenset()) -> tuple[str, ...]:
         if name in seen or name not in self.classes:
             return (name,)
+        if not seen:
+            return self._memo("bases:" + name, lambda: self._bases(name, frozenset({""})))
         scope = self.scopes[name]
         assert isinstance(scope.node, ast.ClassDef)  # nosec B101 # _bases only receives indexed class scopes
         assert scope.parent is not None  # nosec B101 # every indexed class has an enclosing scope
@@ -348,6 +473,14 @@ class CallGraph:
         for reference in self._references(values):
             if reference.kind == "module":
                 result.update(self._symbol(reference.name + "." + member))
+            elif reference.kind == "function":
+                declared = self._get((reference.name, member))
+                if declared:
+                    result.update(declared)
+                elif member == "__call__":
+                    result.add(reference)
+                elif self._reporting:
+                    result.add(Reference("instance", "builtins.object"))
             elif reference.kind == "external":
                 builtin = getattr(builtins, reference.name.removeprefix("builtins."), None)
                 if node is None or reference.name in self.module_prefixes or (
@@ -365,7 +498,7 @@ class CallGraph:
                 kind = getattr(builtins, reference.receiver.removeprefix("builtins."))
                 if hasattr(kind, member):
                     result.add(Reference("container_method", member, reference.name))
-                elif self._final:
+                elif self._reporting:
                     result.add(Reference("unknown", reference.receiver + "." + member))
             elif reference.kind == "parameter":
                 if member in reference.operations:
@@ -373,7 +506,7 @@ class CallGraph:
                                          reference.operations))
                 else:
                     result.add(Reference("unknown", f"undeclared member {reference.name}.{member}"))
-            elif reference.kind == "unknown":
+            elif reference.kind in {"unknown", "opaque"}:
                 result.add(reference)
             else:
                 result.add(Reference("instance", "builtins.object"))
@@ -381,13 +514,19 @@ class CallGraph:
 
     def _class_attribute(self, reference: Reference, member: str, node: ast.AST | None, result: set[Reference]) -> None:
         """Resolve the first MRO member and apply Python's descriptor binding."""
-        for base in self._bases(reference.name):
+        bases = self._bases(reference.name)
+        fields = frozenset().union(*(self._get((base, f"<field:{member}>")) for base in bases)) \
+            if reference.kind == "instance" else frozenset()
+        for base in bases:
             initializer = base + ".__init__"
             if initializer in self.functions and initializer not in self.facts:
                 self._schedule(initializer)
             members = self._references(self._get((base, member)))
             if not members:
                 if base not in self.classes:
+                    if fields:
+                        result.update(fields)
+                        return
                     builtin = getattr(builtins, base.removeprefix("builtins."), None)
                     if (base.startswith("builtins.") and hasattr(builtin, member)) or (
                         base.split(".", 1)[0] in sys.stdlib_module_names
@@ -395,40 +534,99 @@ class CallGraph:
                     ):
                         result.add(Reference("external", base + "." + member))
                         return
-                    if self._final:
+                    if self._reporting:
                         result.add(Reference("unknown", base + "." + member))
                         return
                 continue
             for value in members:
+                descriptor = value.kind == "instance" and self._has_method(value, "__get__")
+                data = descriptor and (self._has_method(value, "__set__") or self._has_method(value, "__delete__"))
+                decorators = self.scopes[value.name].decorators if value.kind == "function" else frozenset()
+                property_ = "property" in decorators
+                # A function or descriptor held on the instance is data. Only
+                # class descriptors bind, with data descriptors taking priority.
+                # https://docs.python.org/3.14/howto/descriptor.html#invocation-from-an-instance
+                if fields and not data and not property_:
+                    result.update(fields)
+                    continue
+                if descriptor:
+                    if node is not None:
+                        receiver = reference if reference.kind == "instance" else Reference("instance", "builtins.NoneType")
+                        result.update(self._call(
+                            self._attribute(frozenset({value}), "__get__", node),
+                            [frozenset({receiver}), frozenset({Reference("class", reference.name)})], {}, node,
+                        ))
+                    continue
                 if value.kind != "function" or reference.kind != "instance":
                     result.add(value)
                     continue
-                scope = self.scopes[value.name]
-                decorators = getattr(scope.node, "decorator_list", ())
-                if any(ast.unparse(item).rsplit(".", 1)[-1] == "property" for item in decorators):
+                if property_:
                     if node is not None:
                         result.update(self._call(frozenset({Reference("bound", value.name, reference.name)}), [], {}, node))
-                elif any(ast.unparse(item).rsplit(".", 1)[-1] == "staticmethod" for item in decorators):
+                elif "staticmethod" in decorators:
                     result.add(value)
                 else:
                     result.add(Reference("bound", value.name, reference.name))
             return
-        if self._final and not any(value.name.startswith(reference.name) for value in result):
+        if fields:
+            result.update(fields)
+            return
+        if self._reporting and not any(value.name.startswith(reference.name) for value in result):
             result.add(Reference("unknown", f"attribute on {reference.name}"))
 
+    def _has_method(self, reference: Reference, member: str) -> bool:
+        """Whether an indexed class declares this protocol in its MRO."""
+        return any(self._get((base, member)) for base in self._bases(reference.name)
+                   if base in self.classes)
+
+    def _set_attribute(self, receivers: Values, member: str, values: Values, node: ast.AST,
+                       *, base: bool = False) -> None:
+        """Follow a declared setter, or retain an ordinary instance field."""
+        for receiver in self._references(receivers):
+            if receiver.kind in {"module", "function"}:
+                self._put((receiver.name, member), values)
+                continue
+            if receiver.kind not in {"class", "instance"} or receiver.name not in self.classes:
+                if self._reporting:
+                    self.open.add(self._where(node, "unresolved attribute receiver"))
+                continue
+            if receiver.kind == "instance" and not base and self._has_method(receiver, "__setattr__"):
+                self._call(self._attribute(frozenset({receiver}), "__setattr__", node),
+                           [frozenset({Reference("instance", "builtins.str", literal=member)}), values], {}, node)
+                continue
+            setters: set[Reference] = set()
+            for owner in self._bases(receiver.name):
+                members = self._references(self._get((owner, member)))
+                if members:
+                    for descriptor in members:
+                        if descriptor.kind == "instance" and self._has_method(descriptor, "__set__"):
+                            setters.update(self._attribute(frozenset({descriptor}), "__set__", node))
+                    break
+            if receiver.kind == "instance" and setters:
+                self._call(frozenset(setters), [frozenset({receiver}), values], {}, node)
+            else:
+                slot = f"<field:{member}>" if receiver.kind == "instance" else member
+                self._put((receiver.name, slot), values)
+
     def _where(self, node: ast.AST, reason: str) -> str:
-        return f"{self.current}:{getattr(node, 'lineno', 0)}: {reason} ({ast.unparse(node)})"
+        cached = self.unparsed.get(id(node))
+        if cached is None or cached[0] is not node:
+            cached = self.unparsed[id(node)] = node, ast.unparse(node)
+        return f"{self.current}:{getattr(node, 'lineno', 0)}: {reason} ({cached[1]})"
 
     def _key(self, node: ast.AST | None) -> str:
         """Join equal literal keys using Python's own mapping equality."""
-        try:
-            value = ast.literal_eval(node) if node is not None else None
-            if node is None:
-                return "<unknown-items>"
-            index = self.container_keys.setdefault(value, len(self.container_keys))
-        except (ValueError, TypeError):
+        if node is None:
             return "<unknown-items>"
-        return f"<key:{index}>"
+        cached = self.literal_keys.get(id(node))
+        if cached is None or cached[0] is not node:
+            try:
+                index = self.container_keys.setdefault(ast.literal_eval(node), len(self.container_keys))
+                key = f"<key:{index}>"
+            except (ValueError, TypeError):
+                key = "<unknown-items>"
+            cached = self.literal_keys[id(node)] = node, key
+        return cached[1]
 
     def _container(self, node: ast.AST, kind: str, elements: Iterable[Values] = (),
                    *, keys: Values = frozenset(), positions: bool = False) -> Values:
@@ -438,13 +636,15 @@ class CallGraph:
         name = f"{self.current}.<container@{getattr(node, 'lineno', 0)}:{getattr(node, 'col_offset', 0)}:{kind}>"
         reference = Reference("container", name, "builtins." + kind)
         self.containers[name] = reference
+        if positions:
+            self.positioned.add(name)
         elements = tuple(elements)
         for index, values in enumerate(elements):
             self._put((name, "<items>"), values)
             if positions:
                 self._put((name, str(index)), values)
-                self._put((name, self._key(ast.Constant(value=index))), values)
-                self._put((name, self._key(ast.Constant(value=index - len(elements)))), values)
+                for offset in (index, index - len(elements)):
+                    self._put((name, f"<key:{self.container_keys.setdefault(offset, len(self.container_keys))}>"), values)
             else:
                 self._put((name, "<unknown-items>"), values)
         self._put((name, "<keys>"), keys)
@@ -534,6 +734,31 @@ class CallGraph:
             self.open.add(unknown.name)
         return frozenset({unknown})
 
+    def _forwarder(self, scope: _Scope) -> tuple[str, tuple[int, ...]] | None:
+        """The attribute intrinsic a body only forwards its parameters to."""
+        if scope.name not in self.forwarders:
+            self.forwarders[scope.name] = None
+            statements = [statement for statement in scope.statements
+                          if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant))]
+            parameters = [parameter.arg for parameter in scope.parameters]
+            call = statements[0].value if len(statements) == 1 and isinstance(statements[0], (ast.Expr, ast.Return)) else None
+            root = call.func if isinstance(call, ast.Call) else None
+            while isinstance(root, ast.Attribute):
+                root = root.value
+            names = [argument.id for argument in call.args if isinstance(argument, ast.Name)] if isinstance(call, ast.Call) else []
+            if (isinstance(call, ast.Call) and isinstance(root, ast.Name) and root.id not in parameters
+                    and not call.keywords and len(names) == len(call.args)
+                    and all(name in parameters for name in names)):
+                self.forwarders[scope.name] = call.func, tuple(parameters.index(name) for name in names)
+        shape = self.forwarders[scope.name]
+        if shape is None:
+            return None
+        callee, indices = shape
+        resolved = {reference.name for reference in self._value(callee, scope)}
+        if len(resolved) != 1 or not resolved <= _ATTRIBUTE_INTRINSICS:
+            return None
+        return next(iter(resolved)), indices
+
     def _protocol(self, values: Values, name: str, node: ast.AST) -> Values:
         yielded: set[Reference] = set()
         for reference in values:
@@ -542,14 +767,18 @@ class CallGraph:
                 yielded.update(self._get((reference.name, "<yield>")))
         concrete = frozenset(reference for reference in values
                              if reference.kind != "generator" and (reference.kind != "instance" or not reference.name.startswith("builtins.")))
-        if not concrete:
-            return frozenset(yielded) or frozenset({Reference("instance", "builtins.object")})
-        return frozenset(yielded) | self._call(self._attribute(concrete, name, node), [], {}, node)
+        # Bottom means no fact yet. It must not become an object that survives
+        # after a generator's actual yielded receivers arrive at the fixed point.
+        if any(reference.kind == "instance" and reference.name.startswith("builtins.") for reference in values):
+            yielded.add(Reference("instance", "builtins.object"))
+        if concrete:
+            yielded.update(self._call(self._attribute(concrete, name, node), [], {}, node))
+        return frozenset(yielded)
 
     def _call(self, values: Values, positional: list[Values], keywords: dict[str, Values], node: ast.AST) -> Values:
         result: set[Reference] = set()
         references = self._references(values)
-        if not references and self._final:
+        if not references and self._reporting:
             self.open.add(self._where(node, "unresolved call target"))
         for reference in references:
             if reference.kind == "parameter":
@@ -578,14 +807,28 @@ class CallGraph:
                 scope = self.scopes[name]
                 arguments = ([frozenset({Reference("instance", reference.receiver)})]
                              if reference.kind == "bound" else []) + positional
-                for parameter, supplied in zip(scope.parameters, arguments, strict=False):
-                    self._put((name, parameter.arg), supplied)
-                for parameter_name, supplied in keywords.items():
-                    self._put((name, parameter_name), supplied)
-                if name.startswith(("metta._binding.runtime.Runtime.", "metta._binding.runtime.JanusBridge.")):
+                forwarded = self._forwarder(scope) if name not in self.forwarding else None
+                if forwarded is not None:
+                    intrinsic, indices = forwarded
+                    parameters = [parameter.arg for parameter in scope.parameters]
+                    supplied = [arguments[index] if index < len(arguments)
+                                else keywords.get(parameters[index], frozenset()) for index in indices]
+                    self.forwarding.add(name)
+                    try:
+                        result.update(self._call(frozenset({Reference("external", intrinsic)}), supplied, {}, node))
+                    finally:
+                        self.forwarding.discard(name)
+                    continue
+                for parameter, actual in zip(scope.parameters, arguments, strict=False):
+                    self._put((name, parameter.arg), actual)
+                for parameter_name, actual in keywords.items():
+                    self._put((name, parameter_name), actual)
+                native = name.startswith(("metta._binding.runtime.Runtime.", "metta._binding.runtime.JanusBridge."))
+                abstract = any(isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant)
+                               and statement.value.value is Ellipsis for statement in scope.statements)
+                if native:
                     self.native.add(self._where(node, name))
-                elif any(isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant)
-                         and statement.value.value is Ellipsis for statement in scope.statements):
+                elif abstract:
                     self.open.add(self._where(node, f"abstract or external body {name}"))
                 else:
                     self.targets.add(name)
@@ -596,8 +839,8 @@ class CallGraph:
                 else:
                     returns = getattr(scope.node, "returns", None)
                     returned = self._get((name, "<return>"))
-                    result.update(returned if any(value.kind == "container" for value in returned)
-                                  else self._annotation(returns, scope) or returned)
+                    result.update(self._annotation(returns, scope) if native or abstract
+                                  else self._declared_values(returned, returns, scope))
                 continue
             if reference.kind == "external":
                 name = reference.name
@@ -625,11 +868,20 @@ class CallGraph:
                     if isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
                         result.update(self._symbol(node.args[0].value))
                 # policy-inventory-exempt: mechanism-internal; reason=both attribute helpers access the member named by their second argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
-                elif name in {"builtins.getattr", "builtins.hasattr"} and len(positional) > 1:
-                    if isinstance(node, ast.Call) and isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str):
-                        result.update(self._attribute(positional[0], node.args[1].value, node))
-                    else:
-                        result.add(Reference("unknown", self._where(node, "dynamic attribute")))
+                elif name in {"builtins.getattr", "builtins.hasattr", "builtins.object.__getattribute__",
+                              "builtins.setattr", "builtins.object.__setattr__"} and len(positional) > 1:
+                    names = {value.literal for value in positional[1] if value.literal is not None}
+                    for member in names:
+                        if name in {"builtins.setattr", "builtins.object.__setattr__"} and len(positional) > 2:
+                            self._set_attribute(positional[0], member, positional[2], node,
+                                                base=name == "builtins.object.__setattr__")
+                            result.add(Reference("instance", "builtins.NoneType"))
+                        else:
+                            result.update(self._attribute(positional[0], member, node))
+                    if any(value.literal is None for value in positional[1]):
+                        reason = self._where(node, "dynamic attribute")
+                        self.open.add(reason)
+                        result.add(Reference("unknown", reason))
                 else:
                     protocols = {"builtins.len": "__len__", "builtins.bool": "__bool__",
                                  "builtins.iter": "__iter__", "builtins.next": "__next__",
@@ -646,9 +898,9 @@ class CallGraph:
                     if isinstance(target, type):
                         result.add(Reference("instance", name))
                     else:
-                        result.add(Reference("instance", "builtins.object"))
+                        result.add(Reference("opaque", "result of " + name))
                 continue
-            if reference.kind == "unknown":
+            if reference.kind in {"unknown", "opaque"}:
                 self.open.add(self._where(node, reference.name))
                 result.add(reference)
             # policy-inventory-exempt: mechanism-internal; reason=callable reference cases already handled above must not become unresolved calls; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
@@ -665,7 +917,8 @@ class CallGraph:
                 return frozenset({Reference("external", "builtins." + node.id)})
             return values
         if isinstance(node, ast.Constant):
-            return frozenset({Reference("instance", "builtins." + type(node.value).__name__)})
+            return frozenset({Reference("instance", "builtins." + type(node.value).__name__,
+                                        literal=node.value if isinstance(node.value, str) else None)})
         if isinstance(node, ast.Attribute):
             return self._attribute(self._value(node.value, scope), node.attr, node)
         if isinstance(node, ast.Lambda):
@@ -752,14 +1005,11 @@ class CallGraph:
         if isinstance(node, ast.Name):
             self._put(self._slot(scope, node.id), values)
         elif isinstance(node, ast.Attribute):
-            for reference in self._value(node.value, scope):
-                # policy-inventory-exempt: mechanism-internal; reason=only class and instance references own indexed attribute assignments; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._assign
-                if reference.kind in {"class", "instance"} and reference.name in self.classes:
-                    self._put((reference.name, node.attr), values)
+            self._set_attribute(self._value(node.value, scope), node.attr, values, node)
         elif isinstance(node, (ast.Tuple, ast.List)):
             for index, element in enumerate(node.elts):
                 members = frozenset(value for reference in values for value in (
-                    ((self._get((reference.name, str(index))) or self._get((reference.name, "<items>")))
+                    (self._get((reference.name, str(index) if reference.name in self.positioned else "<items>"))
                      | self._get((reference.name, "<unknown-items>")))
                     if reference.kind == "container" else self._protocol(frozenset({reference}), "__iter__", node)
                 ))
@@ -822,13 +1072,19 @@ class CallGraph:
                     else:
                         imported = node.module or ""
                     local = alias.asname or alias.name
-                    value = Reference("symbol", imported + "." + alias.name)
+                    qualified = imported + "." + alias.name
+                    resolved = self._symbol(qualified)
+                    # A store-dependent re-export stays symbolic until it resolves.
+                    value = next(iter(resolved)) if len(resolved) == 1 and next(iter(resolved)).kind in {
+                        "function", "class", "module", "external"} else Reference("symbol", qualified)
                 self._put(self._slot(scope, local), frozenset({value}))
             return
         if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-            values = self._value(node.value, scope)
-            if isinstance(node, ast.AnnAssign) and not any(value.kind == "container" for value in values):
-                values = self._annotation(node.annotation, scope) or values
+            values = (self._annotation(node.annotation, scope)
+                      if isinstance(node, ast.AnnAssign) and node.value is None
+                      else self._value(node.value, scope))
+            if isinstance(node, ast.AnnAssign) and node.value is not None:
+                values = self._declared_values(values, node.annotation, scope)
             for target in node.targets if isinstance(node, ast.Assign) else (node.target,):
                 self._assign(target, values, scope)
             return
@@ -872,15 +1128,12 @@ class CallGraph:
         self.narrowed = {}
         self.targets, self.native, self.open, self.contracts = set(), set(), set(), set()
         for index, parameter in enumerate(scope.parameters):
-            supplied = self._get((scope.name, parameter.arg))
             operations = self._parameter_contract(parameter.annotation, scope)
             if self._final and scope.name in self.entries and operations:
                 assert parameter.annotation is not None  # nosec B101 # _parameter_contract refuses an absent annotation
                 values = frozenset({Reference("parameter", f"supplied parameter {scope.name}.{parameter.arg}",
                                               ast.unparse(parameter.annotation), operations=operations)})
-            elif not self._final or operations or any(
-                reference.kind == "parameter" for reference in supplied
-            ):
+            elif not self._final or operations or scope.name not in self.entries:
                 values = frozenset()
             else:
                 values = self._annotation(parameter.annotation, scope)
@@ -903,14 +1156,50 @@ class CallGraph:
                                       frozenset(self.contracts))
         self.current = ""
 
+    def _complete_annotations(self) -> bool:
+        """Complete absent helper values only after caller propagation settles."""
+        pending: list[tuple[Slot, Values]] = []
+        for name in tuple(self.facts):
+            scope = self.scopes[name]
+            if name not in self.entries:
+                for parameter in scope.parameters:
+                    slot = name, parameter.arg
+                    if not self._get(slot) and not self._parameter_contract(parameter.annotation, scope):
+                        values = self._annotation(parameter.annotation, scope)
+                        if values:
+                            pending.append((slot, values))
+            slot = name, "<return>"
+            if name in self.functions and name not in self.generators and not self._get(slot):
+                values = self._annotation(getattr(scope.node, "returns", None), scope)
+                if values:
+                    pending.append((slot, values))
+        # A batch is one declaration frontier. Filling an earlier scope cannot
+        # change which later scope was empty at this same fixed point.
+        for slot, values in pending:
+            self._put(slot, values)
+        return bool(pending or self.queue)
+
     def solve(self) -> Mapping[str, Calls]:
         """Resolve available targets, then propagate explicit entry-point unknowns."""
         for final in (False, True):
             self._final = final
-            for name in set(self.facts) | self.modules | self.classes | self.entries.intersection(self.scopes):
+            self.memos.clear()
+            self.memo_readers.clear()
+            self._schedule_declarations()
+            for name in sorted(self.facts):
                 self._schedule(name)
-            while self.queue:
-                name = self.queue.popleft()
-                self.queued.remove(name)
-                self._evaluate(self.scopes[name])
+            while True:
+                while self.queue:
+                    name = self.queue.popleft()
+                    self.queued.remove(name)
+                    self._evaluate(self.scopes[name])
+                if not final or not self._complete_annotations():
+                    break
+        # Report missing declarations against the completed graph. A missing
+        # field during propagation is not a permanent possible receiver.
+        self._reporting = True
+        self.memos.clear()
+        self.memo_readers.clear()
+        for name in tuple(self.facts):
+            self._evaluate(self.scopes[name])
         return {name: self.facts[name] for name in sorted(self.functions.intersection(self.facts))}

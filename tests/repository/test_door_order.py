@@ -4,6 +4,10 @@ Guarantees: aliases, helper calls, native crossings, open callbacks and SCCs
 have independent witnesses [tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Declared supplied contracts, undeclared operations and dependent verdicts
 have independent planted controls [tested: this file; commit=07976cf8b415390449863d803277b73102673b51].
+Literal object fields, descriptor binding and declaration propagation have
+positive and planted-negative controls [tested: this file; commit=WORKTREE].
+Transparent attribute forwarders have paired-field, alias, native-statement,
+descriptor, dynamic-name and self-recursion controls [tested: this file; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -17,7 +21,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from metta.doors import AnswersAs, Sugar
-from metta.doors._analysis import Calls
+from metta.doors._analysis import CallGraph, Calls
 from metta.doors._order import analyse, components, derive
 from metta.doors._scan import scan
 
@@ -693,3 +697,341 @@ def test_door_order_gate_refuses_each_boundary_defect(monkeypatch, capsys, defec
     assert "space:planted" in capsys.readouterr().out
     monkeypatch.setattr(doororder, "report", lambda: clean)
     assert doororder.main([]) == 0
+
+
+def test_empty_generator_facts_do_not_invent_a_receiver(tmp_path):
+    """A producer's later yield resolves its consumer without a phantom object."""
+    _, result = _program(tmp_path, '''
+        class Reader:
+            def read(self) -> int:
+                return 1
+        def source():
+            yield Reader()
+        class Space:
+            @marked
+            def read(self):
+                """Read every declared receiver."""
+                return [reader.read() for reader in source()]
+    ''')
+    assert result["space:read"].number == 0
+    assert not result["space:read"].open
+
+
+def test_declared_receiver_resolution_is_independent_of_worklist_order():
+    """A late constructor annotation is a declaration, not a missing field."""
+    source = dedent('''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self, runtime: Runtime):
+                self._rt = runtime
+            def read(self):
+                return self._rt.must("value")
+    ''')
+
+    class ReversedGraph(CallGraph):
+        def _schedule(self, name):
+            if name not in self.queued:
+                self.queue.appendleft(name)
+                self.queued.add(name)
+
+    inputs = {"example": source, "metta._binding.runtime": RUNTIME}
+    entry = "example.Space.read"
+    forward = CallGraph(inputs, (entry,)).solve()
+    reverse = ReversedGraph(inputs, (entry,)).solve()
+    assert forward == reverse
+    assert forward[entry].native
+    assert not forward[entry].open
+
+
+def test_literal_object_attributes_preserve_declared_callable_fields(tmp_path):
+    """Immutable objects may declare fields through object.__setattr__."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                assign = object.__setattr__
+                assign(self, "operations", {"first": self.first})
+            def __setattr__(self, name, value):
+                raise AttributeError("immutable")
+            @marked
+            def first(self):
+                """Read one native value."""
+                return Runtime().must("value")
+            @marked
+            def selected(self):
+                """Read the immutable declaration through an alias."""
+                read = object.__getattribute__
+                operations = read(self, "operations")
+                return operations["first"]()
+    ''')
+    assert result["space:selected"].calls == {"space:first"}
+    assert result["space:selected"].number == 2
+
+
+@pytest.mark.parametrize("operation", [
+    "return object.__getattribute__(self, 'value')",
+    "object.__setattr__(self, 'value', 1)",
+])
+def test_object_attribute_access_keeps_descriptor_crossings(tmp_path, operation):
+    """Bypassing an override still invokes a declared data descriptor."""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Field:
+            def __get__(self, instance, owner):
+                return Runtime().must("get")
+            def __set__(self, instance, value):
+                Runtime().must("set")
+        class Space:
+            value = Field()
+            @marked
+            def access(self):
+                """Use the descriptor through the base object protocol."""
+                {operation}
+    ''')
+    assert result["space:access"].number == 1
+    assert result["space:access"].native
+
+
+@pytest.mark.parametrize("operation", [
+    "object.__getattribute__(self, name)()",
+    "getattr(self, name)()",
+])
+def test_dynamic_attribute_names_stay_open(tmp_path, operation):
+    """A literal-member rule cannot accept runtime member selection."""
+    _, result = _program(tmp_path, f'''
+        class Space:
+            @marked
+            def selected(self, name: str):
+                """Select a member whose declaration is not known."""
+                return {operation}
+    ''')
+    assert result["space:selected"].number is None
+    assert result["space:selected"].defect_open
+
+
+def test_literal_field_names_flow_through_a_declared_setter(tmp_path):
+    """A delegating setter keeps its caller's literal attribute declaration."""
+    _, result = _program(tmp_path, '''
+        from typing import Final
+        from metta._binding.runtime import Runtime
+        NAME: Final[str] = "runtime"
+        class Space:
+            def __init__(self):
+                self.runtime = Runtime()
+            def __setattr__(self, name: str, value):
+                object.__setattr__(self, name, value)
+            @marked
+            def read(self):
+                """Use the declared field name through its constant alias."""
+                return object.__getattribute__(self, NAME).must("value")
+    ''')
+    assert result["space:read"].number == 1
+
+
+def test_instance_callback_fields_are_not_bound_like_class_methods(tmp_path):
+    """A function stored on an instance keeps its own first argument."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        def read(runtime):
+            return runtime.must("value")
+        class Space:
+            def __init__(self):
+                self.callback = read
+            @marked
+            def selected(self):
+                """Supply the callback's actual receiver."""
+                return self.callback(Runtime())
+    ''')
+    assert result["space:selected"].number == 1
+    assert not result["space:selected"].open
+
+
+@pytest.mark.parametrize("placement", ["instance", "class"])
+def test_only_class_descriptor_fields_invoke_get(tmp_path, placement):
+    """A descriptor stored as an instance value is ordinary data."""
+    initializer = "self.value = Field()" if placement == "instance" else "pass"
+    declaration = "value = Field()" if placement == "class" else ""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Field:
+            def __get__(self, instance, owner):
+                return Runtime().must("get")
+        class Space:
+            {declaration}
+            def __init__(self):
+                {initializer}
+            @marked
+            def selected(self):
+                """Read the field at its declared ownership location."""
+                return self.value
+    ''')
+    assert result["space:selected"].number == (1 if placement == "class" else 0)
+
+
+def test_late_values_do_not_seed_helper_annotation_alternatives():
+    """Caller values settle before missing helper declarations are completed."""
+    source = dedent('''
+        from metta._binding.runtime import Runtime
+        def invoke(runtime: Runtime | None):
+            return runtime.must("value")
+        def relay(runtime):
+            return invoke(runtime)
+        def entry(runtime: Runtime):
+            return relay(runtime)
+    ''')
+
+    class ReversedGraph(CallGraph):
+        def _schedule(self, name):
+            if not self._reporting and name not in self.queued:
+                self.queue.appendleft(name)
+                self.queued.add(name)
+
+    inputs = {"example": source, "metta._binding.runtime": RUNTIME}
+    forward = CallGraph(inputs, ("example.entry",)).solve()
+    reverse = ReversedGraph(inputs, ("example.entry",)).solve()
+    assert forward == reverse
+    assert forward["example.invoke"].native
+    assert not forward["example.invoke"].open
+
+
+def test_annotations_do_not_replace_returned_or_assigned_callbacks(tmp_path):
+    """A declared initializer and return retain their actual callable values."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        def factory() -> object:
+            return lambda: Runtime().must("value")
+        class Space:
+            @marked
+            def selected(self):
+                """Call a value without hiding it behind its broad type."""
+                callback: object = factory()
+                return callback()
+    ''')
+    assert result["space:selected"].number == 1
+    assert result["space:selected"].native
+
+
+@pytest.mark.parametrize("scheduler", ["forward", "reverse"])
+def test_transparent_setter_keeps_each_field_paired_with_its_value(scheduler):
+    """A setter that only forwards to object.__setattr__ pairs name with value."""
+    source = dedent('''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self.runtime = Runtime()
+                self.label = None
+            def __setattr__(self, name: str, value):
+                object.__setattr__(self, name, value)
+            def read(self):
+                return self.runtime.must("value")
+    ''')
+
+    class ReversedGraph(CallGraph):
+        def _schedule(self, name):
+            if not self._reporting and name not in self.queued:
+                self.queue.appendleft(name)
+                self.queued.add(name)
+
+    inputs = {"example": source, "metta._binding.runtime": RUNTIME}
+    graph = (CallGraph if scheduler == "forward" else ReversedGraph)(inputs, ("example.Space.read",))
+    facts = graph.solve()
+    assert facts["example.Space.read"].native
+    assert not facts["example.Space.read"].open
+    fields = {member: {value.name for value in graph.values[("example.Space", f"<field:{member}>")]}
+              for member in ("runtime", "label")}
+    assert fields == {"runtime": {"metta._binding.runtime.Runtime"}, "label": {"builtins.NoneType"}}
+
+
+def test_transparent_setter_is_recognised_through_its_resolved_declaration(tmp_path):
+    """A module alias of object.__setattr__ and keyword actuals still pair."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        assign = object.__setattr__
+        class Space:
+            def __init__(self):
+                self.__setattr__(value=Runtime(), name="runtime")
+                self.label = None
+            def __setattr__(self, name: str, value):
+                assign(self, name, value)
+            @marked
+            def read(self):
+                """Read the engine field, not the label."""
+                return self.runtime.must("value")
+    ''')
+    assert result["space:read"].number == 1
+    assert not result["space:read"].open
+
+
+def test_setter_with_a_native_statement_keeps_its_crossing(tmp_path):
+    """A wrapper that also crosses natively is a body, not a forwarder."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self.runtime = Runtime()
+            def __setattr__(self, name: str, value):
+                Runtime().must("audit")
+                object.__setattr__(self, name, value)
+            @marked
+            def write(self):
+                """Assign through the auditing setter."""
+                self.label = None
+    ''')
+    assert result["space:write"].number == 1
+    assert result["space:write"].native
+
+
+def test_transparent_setter_still_invokes_a_class_data_descriptor(tmp_path):
+    """Forwarding to object.__setattr__ keeps the descriptor's own crossing."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Field:
+            def __get__(self, instance, owner):
+                return 1
+            def __set__(self, instance, value):
+                Runtime().must("set")
+        class Space:
+            value = Field()
+            def __setattr__(self, name: str, value):
+                object.__setattr__(self, name, value)
+            @marked
+            def write(self):
+                """Assign a descriptor-managed field through the setter."""
+                self.value = 1
+    ''')
+    assert result["space:write"].number == 1
+    assert result["space:write"].native
+
+
+def test_transparent_setter_keeps_a_dynamic_member_name_open(tmp_path):
+    """A caller-selected name reaches the intrinsic as a dynamic attribute."""
+    _, result = _program(tmp_path, '''
+        class Space:
+            def __setattr__(self, name: str, value):
+                object.__setattr__(self, name, value)
+            @marked
+            def write(self, name: str):
+                """Assign a member whose name the caller chooses."""
+                self.__setattr__(name, 1)
+    ''')
+    assert result["space:write"].number is None
+    assert any("dynamic attribute" in site for site in result["space:write"].defect_open)
+
+
+def test_setter_forwarding_to_setattr_terminates_as_an_ordinary_body(tmp_path):
+    """A setter re-entering itself through setattr never writes, and the analysis ends."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self.runtime = Runtime()
+            def __setattr__(self, name: str, value):
+                setattr(self, name, value)
+            @marked
+            def read(self):
+                """Read a field the recursive setter never stores."""
+                return self.runtime.must("value")
+    ''')
+    assert result["space:read"].number is None
+    assert not result["space:read"].native
+    assert result["space:read"].defect_open
