@@ -3,7 +3,7 @@
 Guarantees:
   - canonical keyword-pair terms remain matchable before initialization binds
     its dictionary [tested: test_constructor_keyword_terms_reach_native_initializers;
-    test_packed_constructor_parameters_keep_their_container_shapes; commit=WORKTREE]
+    test_packed_constructor_parameters_keep_their_container_shapes; commit=1796cf0f581aa767db9289b807f66238cb747065]
   - constructor parameters retain Python underscore identity [tested:
     test_class_underscore_fields_receivers_and_packed_parameters; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - default computations finish before field input contracts inspect their

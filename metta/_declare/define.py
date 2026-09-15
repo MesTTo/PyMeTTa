@@ -10,7 +10,7 @@ runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
   - keyword collectors materialize once before a generator's shared answers
     [tested: test_compiled_generator_answers_share_one_keyword_dictionary;
-    commit=WORKTREE]
+    commit=1796cf0f581aa767db9289b807f66238cb747065]
   - literal head parameters remain values in body scopes and independent
     generator equations [tested: test_literal_head_values_reach_compiled_bodies;
     test_each_generator_equation_binds_its_literal_head; commit=5e3e9bce79f9ad71d61096256bbda8b249f8de8c]

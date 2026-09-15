@@ -3,7 +3,7 @@
 Guarantees:
   - canonical constructor collectors are structural expressions before their
     body allocates a dictionary [tested:
-    test_packed_constructor_parameters_keep_their_container_shapes; commit=WORKTREE]
+    test_packed_constructor_parameters_keep_their_container_shapes; commit=1796cf0f581aa767db9289b807f66238cb747065]
   - constructor defaults and field writes share rollback, while declaration
     references keep their providers alive [tested: sh extensions/python/test.sh
     tests/ch09_types/test_class_construction.py -n 0; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]

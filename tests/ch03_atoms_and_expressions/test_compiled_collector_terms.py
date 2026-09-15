@@ -3,14 +3,14 @@
 Guarantees:
   - native method and constructor heads match positional and ordered keyword
     terms [tested: test_compiled_collectors_match_native_equation_heads;
-    test_constructor_keyword_terms_reach_native_initializers; commit=WORKTREE]
+    test_constructor_keyword_terms_reach_native_initializers; commit=1796cf0f581aa767db9289b807f66238cb747065]
   - every answer of one activation shares its fresh keyword dictionary
     [tested: test_compiled_generator_answers_share_one_keyword_dictionary;
-    commit=WORKTREE]
+    commit=1796cf0f581aa767db9289b807f66238cb747065]
   - Atom result syntax remains held after dictionary allocation [tested:
-    test_compiled_collector_entry_preserves_held_result_syntax; commit=WORKTREE]
+    test_compiled_collector_entry_preserves_held_result_syntax; commit=1796cf0f581aa767db9289b807f66238cb747065]
   - refused method bodies receive the same native collector values as compiled
-    bodies [tested: test_refused_method_collectors_enter_the_host_body; commit=WORKTREE]
+    bodies [tested: test_refused_method_collectors_enter_the_host_body; commit=1796cf0f581aa767db9289b807f66238cb747065]
 Owns resources: each context releases its program and collected dictionaries.
 """
 

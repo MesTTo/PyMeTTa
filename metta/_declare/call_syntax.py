@@ -3,13 +3,13 @@
 Guarantees:
   - canonical keyword terms become one fresh dictionary per body activation
     [tested: test_compiled_collectors_match_native_equation_heads;
-    test_compiled_generator_answers_share_one_keyword_dictionary; commit=WORKTREE]
+    test_compiled_generator_answers_share_one_keyword_dictionary; commit=1796cf0f581aa767db9289b807f66238cb747065]
   - Atom results retain held syntax after entry work executes [tested:
-    test_compiled_collector_entry_preserves_held_result_syntax; commit=WORKTREE]
+    test_compiled_collector_entry_preserves_held_result_syntax; commit=1796cf0f581aa767db9289b807f66238cb747065]
   - compiled parameter binding reads its home, image and frames as native
     data and returns source without evaluating the body [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
-    test_native_parameter_binding_observes_graph_rewrites; commit=WORKTREE]
+    test_native_parameter_binding_observes_graph_rewrites; commit=1796cf0f581aa767db9289b807f66238cb747065]
   - host applications retain editable native argument frames and the existing
     raw host codec [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
@@ -231,7 +231,7 @@ def parameter_body(body: Atom, bindings: dict[Variable, Atom], result_types: tup
         # The native function frame executes entry work while return retains
         # the ordinary Atom-result quotation. Preserve an existing frame.
         # [source: engine/translator/analysis.pl:translate_equation_body_result/4;
-        # commit=WORKTREE]
+        # commit=1796cf0f581aa767db9289b807f66238cb747065]
         body = (body.args[0] if isinstance(body, Expression) and body.head == S.function and len(body.args) == 1
                 else _expr(S["return"], body))
     for variable, source in reversed(tuple(bindings.items())):

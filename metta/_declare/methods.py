@@ -8,7 +8,7 @@ Guarantees:
   - compiled and refused bodies receive one dictionary after the canonical
     head has matched ordered keyword terms [tested:
     test_compiled_collectors_match_native_equation_heads;
-    test_refused_method_collectors_enter_the_host_body; commit=WORKTREE]
+    test_refused_method_collectors_enter_the_host_body; commit=1796cf0f581aa767db9289b807f66238cb747065]
   - one canonical image owns the live parameter contract used by bound and
     unbound entries, whose shared binder captures no Python method [tested:
     test_method_defaults_are_read_from_one_native_signature;

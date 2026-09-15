@@ -19,7 +19,7 @@ Guarantees:
     constructor defaults remain source computations [tested:
     test_constructor_defaults_follow_the_native_callable_contract;
     test_class_methods_keep_full_python_signatures_and_native_bodies;
-    commit=WORKTREE]
+    commit=1796cf0f581aa767db9289b807f66238cb747065]
   - Python field setters preserve computed syntax values at typed native
     writers [tested: test_field_assignment_keeps_computed_syntax_values;
     commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
