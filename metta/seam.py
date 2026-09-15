@@ -48,6 +48,9 @@ Assumes:
     the finder `extensions/python/_workspace.py` installs [source 2026-09-07:
     https://docs.python.org/3/library/importlib.metadata.html#entry-points]
 Guarantees:
+  - colliding entry-point names refuse before any provider loads and name
+    both distribution origins in a stable order [tested:
+    test_entry_point_collision_reports_both_owners; commit=WORKTREE]
   - inverse sequences attempt both actions and retain every failure,
     including control exceptions [tested:
     test_inverse_sequence_attempts_every_action; commit=93d72737c8d84e5883520fafaf4cba9a50ea4fc4]
@@ -114,6 +117,7 @@ from __future__ import annotations
 import functools
 import importlib
 import inspect
+import re
 import threading
 from collections.abc import Callable, Iterable, Mapping
 from importlib import metadata
@@ -714,9 +718,33 @@ def advertised(group: str = GROUP) -> dict[str, metadata.EntryPoint]:
 
     Asking imports nothing, so a program can list what is installed without
     paying for any of it. Loading is what `discover()` does explicitly and what
-    a dispatch does on demand.
+    a dispatch does on demand. A name identifies one distribution and target;
+    competing declarations refuse before that identity becomes a dictionary key.
     """
-    return {entry.name: entry for entry in metadata.entry_points(group=group)}
+    found: dict[str, metadata.EntryPoint] = {}
+    for entry in metadata.entry_points(group=group):
+        previous = found.get(entry.name)
+        if previous is not None:
+            origins = []
+            for candidate in (previous, entry):
+                dist = candidate.dist
+                owner = (
+                    (re.sub(r"[-_.]+", "-", dist.name).lower(), dist.version)
+                    if dist is not None else ("<unknown distribution>", "")
+                )
+                origins.append((*owner, candidate.group, candidate.name, candidate.value))
+            if previous.dist is not None and origins[0] == origins[1]:
+                continue
+            descriptions = [
+                f"{owner!r} {version!r}: {target!r}"
+                for owner, version, _, _, target in sorted(origins)
+            ]
+            raise ValueError(
+                f"competing entry point {entry.name!r} in {group!r}: "
+                + "; ".join(descriptions)
+            )
+        found[entry.name] = entry
+    return found
 
 
 def discover(group: str = GROUP) -> tuple[str, ...]:
