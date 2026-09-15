@@ -4,7 +4,7 @@ Guarantees:
   - local claims share the existing call boundary's structural and borrowed
     images while scalar and late-alias constraints remain observable
     [tested: sh extensions/python/test.sh tests/ch11_python_as_a_notation/test_local_annotation_images.py
-    -n 0, eleven cases; commit=WORKTREE].
+    -n 0, eleven cases; commit=f5bfd15c1dee2b5a42ac3e0f2c6ef48688c5753c].
 Owns resources:
   - pytest's metta fixture owns declarations; monkeypatch restores the
     annotation alias after every parameterized case.

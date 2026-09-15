@@ -10,7 +10,8 @@ runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
   - local annotation claims and source type aliases admit the same container
     images as runtime_type_atoms at call boundaries, preserving scalar claims
-    [tested: test_local_annotation_images; commit=WORKTREE].
+    [tested: test_local_alias_accepts_its_structural_and_borrowed_images;
+    commit=f5bfd15c1dee2b5a42ac3e0f2c6ef48688c5753c].
   - keyword collectors materialize once before a generator's shared answers
     [tested: test_compiled_generator_answers_share_one_keyword_dictionary;
     commit=1796cf0f581aa767db9289b807f66238cb747065]
