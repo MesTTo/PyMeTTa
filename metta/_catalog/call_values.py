@@ -11,7 +11,7 @@ Guarantees:
     supplied argument count, retaining defaults and both variadic segments
     [tested: test_named_callable_uses_its_complete_signature,
     test_named_callable_binding_agrees_with_python,
-    test_named_callable_observes_signature_replacement; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
+    test_named_callable_observes_signature_replacement; commit=WORKTREE]
   - exact positional ports precede overlapping variadic layouts, whose
     ambiguity requires an explicit native image [tested:
     test_an_exact_positional_port_precedes_variadic_ports,
@@ -41,7 +41,7 @@ Guarantees:
     and explicit contracts [tested:
     test_expanded_partial_references_preserve_capture_and_parameter_names;
     test_forwarding_contracts_preserve_explicit_cardinality_and_bound_captures;
-    test_native_references_observe_later_arity_changes; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
+    test_native_references_observe_later_arity_changes; commit=WORKTREE]
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
     commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
@@ -411,7 +411,9 @@ def _forwarded(atom: Atom, arity: int) -> tuple[Symbol, tuple[Atom, ...]] | None
     binders = (*fixed, *((rest,) if rest is not None else ()))
     if arity < len(fixed) or (rest is None and arity != len(fixed)):
         return None
-    if not all(isinstance(value, Variable) for value in binders) or len(set(binders)) != len(binders):
+    # Equal cardinality proves every binder is a distinct variable.
+    bound_names = {value.name for value in binders if isinstance(value, Variable)}
+    if len(bound_names) != len(binders):
         return None
     if isinstance(body, Expression) and body.head == S.evalc and len(body.args) == 2:
         body = body.args[0]
@@ -423,9 +425,9 @@ def _forwarded(atom: Atom, arity: int) -> tuple[Symbol, tuple[Atom, ...]] | None
         if body.head != S.chain or len(body.args) != 3:
             return None
         assembled, result, evaluated = body.args
-        if not isinstance(result, Variable) or result in binders or evaluated != _expr(S.eval, result):
+        if not isinstance(result, Variable) or result.name in bound_names or evaluated != _expr(S.eval, result):
             return None
-        binders = (*binders, result)
+        bound_names.add(result.name)
         prefix = []
         while isinstance(assembled, Expression) and assembled.head == S["cons-atom"] and len(assembled.args) == 2:
             item, assembled = assembled.args
@@ -443,7 +445,7 @@ def _forwarded(atom: Atom, arity: int) -> tuple[Symbol, tuple[Atom, ...]] | None
     # Eta contraction is valid only when the removed binders are absent
     # from the retained expression. GHC 9.12.2, Core/Opt/Arity.hs:tryEtaReduce
     # applies the same free-variable condition; the journal pins that source.
-    if set(_variables(Expression(captures))) & {value.name for value in binders}:
+    if set(_variables(Expression(captures))) & bound_names:
         return None
     return source, captures
 
