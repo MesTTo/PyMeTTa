@@ -23,7 +23,8 @@ def test_registration_failure_restores_all_required_views(monkeypatch, failed, o
         def observer(index):
             def publish(_point, _name, _undo):
                 if index == failed:
-                    raise ValueError(f"listener {index} failure")
+                    msg = f"listener {index} failure"
+                    raise ValueError(msg)
                 prior = views[index]
                 views[index] = tuple(seam._ROWS[point.name])
 
@@ -49,7 +50,8 @@ def test_validated_points_refuse_external_storage():
     calls = []
 
     def refuse(_row, _standing):
-        raise ValueError("invalid row")
+        msg = "invalid row"
+        raise ValueError(msg)
 
     with pytest.raises(ValueError, match="a validated point owns its rows"):
         seam.point("audit-validation", "declaration", fields=("value",),
@@ -67,7 +69,8 @@ def test_registration_reconciles_stateless_observers_after_failure(monkeypatch):
         snapshots.append(tuple(seam._ROWS[point.name]))
 
     def fail(_point, _name, _undo):
-        raise ValueError("publication failed")
+        msg = "publication failed"
+        raise ValueError(msg)
 
     try:
         monkeypatch.setattr(seam, "_LISTENERS", [reconcile, fail])
@@ -170,7 +173,8 @@ def test_registration_retry_inside_a_caught_failure_retains_its_inverse(monkeypa
 
     def observer(_point, _name, _undo):
         if refuse:
-            raise ValueError("publication failed")
+            msg = "publication failed"
+            raise ValueError(msg)
 
     try:
         monkeypatch.setattr(seam, "_LISTENERS", [operations._record_seam_undo, observer])
@@ -181,7 +185,8 @@ def test_registration_retry_inside_a_caught_failure_retains_its_inverse(monkeypa
                 assert seam._ROWS[point.name] == []
                 refuse = False
                 point.register("held", value="second")
-            raise RuntimeError("outer rollback")
+            msg = "outer rollback"
+            raise RuntimeError(msg)
         assert seam._ROWS[point.name] == []
     finally:
         seam.withdraw(point.name)
@@ -200,7 +205,8 @@ def test_transaction_rollback_replays_each_seam_mutation(monkeypatch, nested):
                 point.unregister("held")
                 point.register("held", value="reinserted")
                 point.register("other", value=1)
-            raise RuntimeError("rollback")
+            msg = "rollback"
+            raise RuntimeError(msg)
         assert seam._ROWS[point.name] == before
     finally:
         seam.withdraw(point.name)

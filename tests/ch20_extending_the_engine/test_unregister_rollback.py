@@ -9,7 +9,7 @@ from metta import seam
 def test_unregister_rollback_restores_each_position(monkeypatch, size):
     """Removal's inverse inserts every position, including the empty case."""
     inverses = []
-    monkeypatch.setattr(seam, "_LISTENERS", [lambda point, name, undo: inverses.append(undo)])
+    monkeypatch.setattr(seam, "_LISTENERS", [lambda _point, _name, undo: inverses.append(undo)])
     point = seam.point("audit-removal", "declaration", fields=("value",), doc="ordered removal")
     try:
         original = tuple(point.register(str(index), value=index) for index in range(size))

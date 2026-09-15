@@ -129,7 +129,7 @@ def _store(metta, *, foreign, backing=None, atomicity="transactional"):
 @pytest.mark.parametrize("representation", ["iterable", "frame", "arrow", "columns"])
 @pytest.mark.parametrize("failure", ["reader", "encoding", "close", "reader_and_close"])
 def test_table_ingestion_has_one_declared_failure_boundary(
-    metta, monkeypatch, tabular, representation, foreign, failure
+    *, metta, monkeypatch, tabular, representation, foreign, failure
 ):
     """Reading, conversion and release all precede the single commit decision."""
     reader_error = ValueError("late row failure") if "reader" in failure else None

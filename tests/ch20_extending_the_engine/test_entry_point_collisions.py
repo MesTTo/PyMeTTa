@@ -9,6 +9,11 @@ import pytest
 from metta import seam
 
 
+def _advertising(entries):
+    """An `entry_points` stand-in answering the same entries for any group."""
+    return lambda **_: entries
+
+
 def test_entry_point_collision_reports_both_owners(monkeypatch):
     """Two distributions cannot silently share one entry-point identity."""
     entries = [
@@ -19,7 +24,7 @@ def test_entry_point_collision_reports_both_owners(monkeypatch):
     ]
     messages = []
     for permutation in itertools.permutations(entries):
-        monkeypatch.setattr(importlib.metadata, "entry_points", lambda **_: permutation)
+        monkeypatch.setattr(importlib.metadata, "entry_points", _advertising(permutation))
         with pytest.raises(ValueError) as failure:
             seam.advertised()
         messages.append(str(failure.value))
@@ -30,17 +35,18 @@ def test_entry_point_collision_reports_both_owners(monkeypatch):
 @pytest.mark.parametrize("change", ["target", "version", "owner"])
 def test_discovery_refuses_collisions_before_loading_any_entry(monkeypatch, change):
     """A partial load cannot make an ambiguous provider list look complete."""
-    entries = []
-    for number in range(2):
-        entries.append(importlib.metadata.EntryPoint(
+    entries = [
+        importlib.metadata.EntryPoint(
             name="same", value=f"module{number if change == 'target' else 0}:install",
             group="audit.collision",
         )._for(SimpleNamespace(
             name=f"owner{number if change == 'owner' else 0}",
             version=str(number if change == "version" else 0),
-        )))
+        ))
+        for number in range(2)
+    ]
     loaded = []
-    monkeypatch.setattr(importlib.metadata, "entry_points", lambda **_: entries)
+    monkeypatch.setattr(importlib.metadata, "entry_points", _advertising(entries))
     monkeypatch.setattr(importlib.metadata.EntryPoint, "load", lambda self: loaded.append(self))
     with pytest.raises(ValueError, match="competing entry point"):
         seam.discover("audit.collision")
@@ -55,5 +61,5 @@ def test_duplicate_metadata_for_one_distribution_is_one_advertisement(monkeypatc
         )
         for name in ("Owner_One", "owner.one")
     ]
-    monkeypatch.setattr(importlib.metadata, "entry_points", lambda **_: entries)
+    monkeypatch.setattr(importlib.metadata, "entry_points", _advertising(entries))
     assert seam.advertised() == {"same": entries[0]}
