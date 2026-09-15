@@ -14,7 +14,7 @@ Calls through declared supplied parameters carry their source contract;
 undeclared members and registry callbacks remain defects [tested:
 test_parameter_contracts_follow_declared_protocols,
 test_undeclared_parameter_members_remain_defects,
-test_registry_callable_is_a_defect_open_boundary; commit=WORKTREE].
+test_registry_callable_is_a_defect_open_boundary; commit=07976cf8b415390449863d803277b73102673b51].
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
 [source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].

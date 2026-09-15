@@ -6,7 +6,7 @@ mixed crossings, recursion and open dependencies remain separate findings
 Caller-implemented contracts remain open, including through helper arguments;
 combining a contract call with a native crossing is mixed [tested:
 test_supplied_callable_with_native_crossing_is_mixed,
-test_composition_of_contract_open_door_is_unordered_by_dependency; commit=WORKTREE].
+test_composition_of_contract_open_door_is_unordered_by_dependency; commit=07976cf8b415390449863d803277b73102673b51].
 Owns resources: source files are read and closed during snapshot acquisition;
 the last source snapshot and its immutable report are cached in this process.
 Guarded by: functools.lru_cache protects publication; duplicate concurrent

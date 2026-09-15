@@ -3,7 +3,7 @@
 Guarantees: aliases, helper calls, native crossings, open callbacks and SCCs
 have independent witnesses [tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Declared supplied contracts, undeclared operations and dependent verdicts
-have independent planted controls [tested: this file; commit=WORKTREE].
+have independent planted controls [tested: this file; commit=07976cf8b415390449863d803277b73102673b51].
 """
 
 from __future__ import annotations

@@ -5,7 +5,7 @@ recursive and undeclared open boundaries fail. Supplied parameter contracts
 and their dependent doors stay unordered and remain visible
 [tested: test_door_order_gate_refuses_each_boundary_defect,
 test_declared_supplied_callable_is_unordered_by_contract,
-test_composition_of_contract_open_door_is_unordered_by_dependency; commit=WORKTREE].
+test_composition_of_contract_open_door_is_unordered_by_dependency; commit=07976cf8b415390449863d803277b73102673b51].
 """
 
 from __future__ import annotations
