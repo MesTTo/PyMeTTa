@@ -4,6 +4,14 @@ A Rows is a mutable sequence of Row tuples, one per query answer, while
 Answers progressively caches one evaluation source for replay, projections,
 and exact-cardinality reads.
 Guarantees:
+  - row conversion follows named constructor inputs and native defaults,
+    including positional-only, keyword-only and InitVar parameters, while
+    omitted optional TypedDict keys stay absent [tested:
+    test_rows_into_uses_constructor_inputs,
+    test_registered_constructor_binds_positional_only_and_keyword_only_inputs,
+    test_dataclass_factory_and_initvar_are_constructor_inputs,
+    test_namedtuple_constructor_defaults_are_optional_columns,
+    test_typed_mapping_keeps_omitted_optional_keys_absent; commit=WORKTREE]
   - Answers positions and slice bounds use Python's lossless index protocol
     without pulling beyond the selected prefix [tested:
     test_answers_accepts_index_protocol_like_rows,
@@ -946,15 +954,13 @@ class Rows(UserList[Row], _doors.DoorOwner):
         state=_doors.State.any,
     )
     def into(self, cls: type) -> list:
-        """Each row as one ``cls``, matched by field name.
+        """Each row as one ``cls``, matched to named constructor inputs.
 
-        ``match(..., into=cls)`` is sugar for this and says so: the
-        conversion was only ever reachable through that keyword, so a
-        prepared query's solve(), or any other Rows, could not ask for it
-        even though rows_into() never cared where the rows came from
-        [measured 2026-08-31]. build(cls) is the neighbouring method and a
-        different question: it rebuilds ONE column of complete constructor
-        expressions, where this maps every column onto a field.
+        Dataclasses, NamedTuples and registered classes use their constructor
+        defaults for omitted inputs. TypedDicts preserve omitted optional
+        keys. Extra query columns are ignored. ``match(..., into=cls)`` uses
+        this conversion too. A single column of complete constructor
+        expressions rebuilds through ``build(cls)``.
         """
         return rows_into(self, cls)
 
@@ -1230,26 +1236,26 @@ class Rows(UserList[Row], _doors.DoorOwner):
 
 
 
-def _into_fields(cls: type) -> dict[str, Any]:
-    """Field name to resolved annotation for a dataclass, NamedTuple, or
-    TypedDict; anything else is refused naming the three.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if dataclasses.is_dataclass(cls):
-        hints = typing.get_type_hints(cls)
-        return {field.name: hints.get(field.name) for field in dataclasses.fields(cls)}
-    named_fields = getattr(cls, "_fields", None)
-    if isinstance(cls, type) and issubclass(cls, tuple) and named_fields is not None:
-        hints = typing.get_type_hints(cls)
-        return {name: hints.get(name) for name in named_fields}
-    if hasattr(cls, "__annotations__") and hasattr(cls, "__total__"):
-        return dict(typing.get_type_hints(cls))
-    msg = (
-        f"into= takes a dataclass, NamedTuple, or TypedDict; "
-        f"{getattr(cls, '__name__', cls)!r} is none of those"
-    )
-    raise TypeError(
-        msg
-    )
+def _into_fields(cls: type) -> tuple[dict[str, Any], inspect.Signature | None]:
+    """Named constructor inputs, or the independently declared TypedDict keys."""
+    if typing.is_typeddict(cls):
+        return typing.get_type_hints(cls), None
+    named_tuple = isinstance(cls, type) and issubclass(cls, tuple) and hasattr(cls, "_fields")
+    if not dataclasses.is_dataclass(cls) and not named_tuple:
+        _importlib.import_module("metta.convert").ensure_registered(cls)
+    signature = inspect.signature(cls, eval_str=True)
+    hints = typing.get_type_hints(cls)
+    fields = {}
+    for parameter in signature.parameters.values():
+        if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            continue
+        annotation = parameter.annotation
+        if annotation is inspect.Parameter.empty:
+            annotation = hints.get(parameter.name)
+        if isinstance(annotation, dataclasses.InitVar):
+            annotation = annotation.type
+        fields[parameter.name] = annotation
+    return fields, signature
 
 
 def rows_into(rows: Rows, cls: type) -> list:
@@ -1263,8 +1269,14 @@ def rows_into(rows: Rows, cls: type) -> list:
     constructor_rows: list[Any] | None = _constructor_rows(rows, cls)
     if constructor_rows is not None:
         return constructor_rows
-    fields = _into_fields(cls)
-    missing = [name for name in fields if name not in rows.columns]
+    fields, signature = _into_fields(cls)
+    required = (
+        cls.__required_keys__ if signature is None else {
+            name for name in fields
+            if signature.parameters[name].default is inspect.Parameter.empty
+        }
+    )
+    missing = [name for name in fields if name in required and name not in rows.columns]
     if missing:
         msg = (
             f"{cls.__name__} needs column(s) {missing}; the query answered "
@@ -1273,13 +1285,14 @@ def rows_into(rows: Rows, cls: type) -> list:
         raise TypeError(
             msg
         )
-    indices = {name: rows.columns.index(name) for name in fields}
+    indices = {name: rows.columns.index(name) for name in fields if name in rows.columns}
     primitives = (str, int, float, bool)
     built = []
     for row in rows:
         kwargs = {}
-        for name, annotation in fields.items():
-            atom = row[indices[name]]
+        for name, index in indices.items():
+            annotation = fields[name]
+            atom = row[index]
             if annotation in (None, Any):
                 kwargs[name] = _plain(atom)
             elif annotation in primitives:
@@ -1305,7 +1318,15 @@ def rows_into(rows: Rows, cls: type) -> list:
                 kwargs[name] = _importlib.import_module(
                     "metta.convert"
                 ).build(atom, annotation)
-        built.append(cls(**kwargs))
+        if signature is None:
+            built.append(cls(**kwargs))
+        else:
+            # BoundArguments retains positional-only slots when an earlier
+            # omitted input has a default. Python owns the final call shape.
+            # https://docs.python.org/3.12/library/inspect.html#inspect.BoundArguments
+            bound = inspect.BoundArguments(signature, kwargs)
+            bound.apply_defaults()
+            built.append(cls(*bound.args, **bound.kwargs))
     return built
 
 
