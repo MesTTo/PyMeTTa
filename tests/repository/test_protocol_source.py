@@ -4,7 +4,7 @@ Purpose: guard exact inventory coverage, source contracts and parser rejection.
 Assumes: the adjacent protocol_source.py and protocol_sources inputs are present.
 Guarantees: missing continuations, slot roles, aliases, arities and required
     identities fail independently of row counts; source bytes are checked first.
-[source: extensions/python/tools/protocol_source.py:validate_inventory; commit=WORKTREE]
+[source: extensions/python/tools/protocol_source.py:validate_inventory; commit=f88b11ae305c4e1bfafa8387d1f24e51d0d8cb92]
 """
 from __future__ import annotations
 

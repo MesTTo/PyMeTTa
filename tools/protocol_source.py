@@ -9,7 +9,7 @@ Fails when: a hash, retained source grammar, alias or required identity drifts.
 Owns resources: refresh() stages a complete checked directory before publishing
     it to a previously absent destination; normal reads retain no resources.
 Decides: source inventory describes facts, never native implementation status.
-[source: extensions/python/tools/protocol_sources/manifest.json; commit=WORKTREE]
+[source: extensions/python/tools/protocol_sources/manifest.json; commit=f88b11ae305c4e1bfafa8387d1f24e51d0d8cb92]
 """
 from __future__ import annotations
 
