@@ -11,7 +11,7 @@ Guarantees:
     test_registered_constructor_binds_positional_only_and_keyword_only_inputs,
     test_dataclass_factory_and_initvar_are_constructor_inputs,
     test_namedtuple_constructor_defaults_are_optional_columns,
-    test_typed_mapping_keeps_omitted_optional_keys_absent; commit=WORKTREE]
+    test_typed_mapping_keeps_omitted_optional_keys_absent; commit=c07bb08a0553f5e4e542baf7913b548327277bde]
   - Answers positions and slice bounds use Python's lossless index protocol
     without pulling beyond the selected prefix [tested:
     test_answers_accepts_index_protocol_like_rows,
