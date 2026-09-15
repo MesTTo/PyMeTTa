@@ -37,13 +37,13 @@ Guarantees:
     iterator release across every row representation [tested:
     test_table_ingestion_has_one_declared_failure_boundary,
     test_table_writer_failure_rolls_back_and_closes_input;
-    commit=WORKTREE]
+    commit=01b2a9b3dfb721804cd8378610566e1985502289]
   - unsupported foreign stores refuse before input acquisition, and a nested
     foreign ingestion requires the declared savepoint capability [tested:
     test_unsupported_table_store_refuses_before_input_acquisition,
     test_table_provider_protocol_is_checked_before_input_acquisition,
     test_nested_foreign_table_ingestion_refuses_without_a_provider_savepoint;
-    commit=WORKTREE]
+    commit=01b2a9b3dfb721804cd8378610566e1985502289]
   - tagged atom cells preserve explicit s and p species instead of applying
     process-local engine provenance [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -108,7 +108,7 @@ Owns resources: add releases acquired row, column and Arrow batch iterators
   failure and every cleanup failure [tested:
   test_partial_column_acquisition_releases_every_acquired_iterator,
   test_table_cleanup_attempts_every_column_and_preserves_each_failure;
-  commit=WORKTREE].
+  commit=01b2a9b3dfb721804cd8378610566e1985502289].
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in
