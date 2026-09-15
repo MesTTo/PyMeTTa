@@ -266,6 +266,8 @@ if TYPE_CHECKING:
         not_: Symbol
         "not: (-> Bool Bool)\n\nPython's own keyword; `~` is the operator form on atoms."
         not_provable: Symbol
+        on_unwind: Symbol
+        "on-unwind: (-> Atom Atom Atom)\n\nEvaluate a held source and apply a held native handler once on failure, cut or exception. The handler receives the native catcher as a product, such as `(fail)` or `(exception Ball)`. Deterministic completion leaves the handler untouched; cleanup exceptions follow SWI's urgency rules."
         once: Symbol
         only: Symbol
         or_: Symbol
@@ -610,6 +612,7 @@ _NAMES = frozenset(
         "noreduce-eq",
         "not",
         "not-provable",
+        "on-unwind",
         "once",
         "only",
         "or",
@@ -896,6 +899,7 @@ _ALIASES.update(
         ("noreduce_eq", "noreduce-eq"),
         ("not_", "not"),
         ("not_provable", "not-provable"),
+        ("on_unwind", "on-unwind"),
         ("once", "once"),
         ("only", "only"),
         ("or_", "or"),
@@ -1101,6 +1105,7 @@ _DOCUMENTATION = {
     "nop": "nop: (-> (:seg %Undefined%) (->))\n\nPython's `pass`, or simply not writing the call. It answers the unit.",
     "noreduce-eq": "noreduce-eq: (-> Atom Atom Bool)\n\nComparing two atoms WITHOUT reducing them is what Python's `==` on atoms already does: building a term never evaluates it.",
     "not": "not: (-> Bool Bool)\n\nPython's own keyword; `~` is the operator form on atoms.",
+    "on-unwind": "on-unwind: (-> Atom Atom Atom)\n\nEvaluate a held source and apply a held native handler once on failure, cut or exception. The handler receives the native catcher as a product, such as `(fail)` or `(exception Ball)`. Deterministic completion leaves the handler untouched; cleanup exceptions follow SWI's urgency rules.",
     "or": "or: (-> Bool Bool Bool)\n\nPython's own keyword; `|` is the operator form on atoms.",
     "pow-math": "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float.",
     "println!": "println!: (-> %Undefined% Bool)\n\nPython's `print`. It answers True rather than unit, which is upstream's own answer: `'println!'(Arg, true)` [source: PeTTa@ae66fa8 src/metta.pl:212].",

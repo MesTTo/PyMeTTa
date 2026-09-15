@@ -4,8 +4,8 @@ what you write in Python instead, and which bucket the translation falls in.
 The nop and arrow entries use the same final splice as the runtime catalog
 [tested: extensions/python/tools/phrasebook.py; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 
-The rows are the MeTTa standard-library surface: 380 distinct names with their
-types and metatypes. They were transcribed once from a mechanised stdlib
+The rows are the MeTTa standard-library surface, with each name's types and
+metatypes. They were transcribed once from a mechanised stdlib
 manifest and are this repository's own from here, checked against what this
 engine answers rather than against another implementation. The oracle
 comparison that used to sit beside them is gone by the user's 2026-08-31
@@ -19,7 +19,11 @@ Assumes:
     unique per row before running it here
 Guarantees:
   - every stdlib name has exactly one row, so the coverage denominator cannot
-    quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name]
+    quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name;
+    commit=WORKTREE]
+  - on-unwind's native failure outcome reaches an editable handler on both
+    language surfaces [tested: python extensions/python/tools/phrasebook.py --gate;
+    commit=WORKTREE]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     methods [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the matching, nondeterminism, fold, and state rows execute every public
@@ -1842,6 +1846,20 @@ ENTRIES: list[Entry] = [
         "One step WITH an explicit context space, which is `space.eval(term)`: the "
         "signature IS term plus space.",
         metta="!(evalc (+ 1 2) &self)", python="space.eval(S['+'](1, 2))",
+    ),
+    Entry(
+        "on-unwind", ("(-> Atom Atom Atom)",), "Symbol", "instructions", "instruction",
+        "Evaluate a held source and apply a held native handler once on failure, "
+        "cut or exception. The handler receives the native catcher as a product, "
+        "such as `(fail)` or `(exception Ball)`. Deterministic completion leaves "
+        "the handler untouched; cleanup exceptions follow SWI's urgency rules.",
+        metta="!(bind! &pb (new-space))\n"
+              "!(on-unwind (superpose ()) "
+              "(|-> ($outcome) (add-atom &pb (unwound $outcome))))\n"
+              "!(match &pb (unwound $result) $result)",
+        python="space.eval(S.on_unwind(S.superpose(()), "
+               "S['|->']((V.outcome,), S['add-atom'](space, S.unwound(V.outcome)))))\n"
+               "[row.result for row in space[S.unwound(V.result)]]",
     ),
     Entry(
         "metta", ("(-> Atom Type SpaceType Atom)",), "Symbol", "instructions", "method",
