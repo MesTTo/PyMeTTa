@@ -6,6 +6,10 @@ call site [tested: test_door_order_retains_unresolved_callbacks; commit=cd62330c
 Guarantees: aliases and helper arguments propagate to a fixed point before
 call facts are returned [tested: test_door_order_follows_aliases_and_helpers;
 commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]. No analyzed source is imported or executed.
+Declared container contents and alias writes retain callable targets; type
+qualifiers do not replace their initializers [tested:
+test_declared_callable_mapping_retains_every_door_target,
+test_mapping_mutation_cannot_hide_a_supplied_callback; commit=WORKTREE].
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
 [source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -97,6 +101,8 @@ class CallGraph:
         self.open: set[str] = set()
         self.lambdas: dict[int, str] = {}
         self.generators: set[str] = set()
+        self.containers: dict[str, Reference] = {}
+        self.container_keys: dict[object, int] = {}
         self.narrowed: dict[Slot, Values] = {}
         self._final = False
         for module, text in sources.items():
@@ -222,6 +228,13 @@ class CallGraph:
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
             return self._annotation(node.left, scope) | self._annotation(node.right, scope)
         if isinstance(node, ast.Subscript):
+            names = {reference.name for reference in self._annotation_symbols(node.value, scope)}
+            # These qualifiers describe a binding, not a runtime receiver.
+            # https://docs.python.org/3.14/library/typing.html#typing.Final
+            # policy-inventory-exempt: mechanism-internal; reason=Python type qualifiers carry their underlying type in the first argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._annotation
+            if names.intersection({"typing.Final", "typing.ClassVar", "typing.Annotated"}):
+                value = node.slice.elts[0] if isinstance(node.slice, ast.Tuple) else node.slice
+                return self._annotation(value, scope)
             return self._annotation(node.value, scope)
         if isinstance(node, ast.Name):
             references = self._references(self._get(self._slot(scope, node.id)))
@@ -234,7 +247,8 @@ class CallGraph:
         result = set()
         for reference in references:
             # policy-inventory-exempt: mechanism-internal; reason=abstract typing forms do not identify a concrete receiver class; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._annotation
-            if reference.name in {"typing.Any", "typing.Self", "typing.Callable", "collections.abc.Callable"}:
+            if reference.name in {"typing.Any", "typing.Self", "typing.Callable", "collections.abc.Callable",
+                                  "typing.Final", "typing.ClassVar", "typing.Annotated"}:
                 continue
             # policy-inventory-exempt: mechanism-internal; reason=these reference variants carry a class identity usable as an annotation; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._annotation
             if reference.kind in {"class", "external", "instance"}:
@@ -291,6 +305,12 @@ class CallGraph:
                 self._class_attribute(reference, member, node, result)
             elif reference.kind == "generator":
                 result.add(Reference("function", reference.name))
+            elif reference.kind == "container":
+                kind = getattr(builtins, reference.receiver.removeprefix("builtins."))
+                if hasattr(kind, member):
+                    result.add(Reference("container_method", member, reference.name))
+                elif self._final:
+                    result.add(Reference("unknown", reference.receiver + "." + member))
             elif reference.kind == "unknown":
                 result.add(reference)
             else:
@@ -337,6 +357,121 @@ class CallGraph:
     def _where(self, node: ast.AST, reason: str) -> str:
         return f"{self.current}:{getattr(node, 'lineno', 0)}: {reason} ({ast.unparse(node)})"
 
+    def _key(self, node: ast.AST | None) -> str:
+        """Join equal literal keys using Python's own mapping equality."""
+        try:
+            value = ast.literal_eval(node) if node is not None else None
+            if node is None:
+                return "<unknown-items>"
+            index = self.container_keys.setdefault(value, len(self.container_keys))
+        except (ValueError, TypeError):
+            return "<unknown-items>"
+        return f"<key:{index}>"
+
+    def _container(self, node: ast.AST, kind: str, elements: Iterable[Values] = (),
+                   *, keys: Values = frozenset(), positions: bool = False) -> Values:
+        """Keep one finite allocation site and the values that can flow into it."""
+        # PyCG keeps container allocations and content pointers in its assignment graph:
+        # https://github.com/vitsalis/PyCG/blob/8d5dc40837803beef1d8d379fbf2cdad6cd94641/pycg/processing/postprocessor.py
+        name = f"{self.current}.<container@{getattr(node, 'lineno', 0)}:{getattr(node, 'col_offset', 0)}:{kind}>"
+        reference = Reference("container", name, "builtins." + kind)
+        self.containers[name] = reference
+        elements = tuple(elements)
+        for index, values in enumerate(elements):
+            self._put((name, "<items>"), values)
+            if positions:
+                self._put((name, str(index)), values)
+                self._put((name, self._key(ast.Constant(value=index))), values)
+                self._put((name, self._key(ast.Constant(value=index - len(elements)))), values)
+            else:
+                self._put((name, "<unknown-items>"), values)
+        self._put((name, "<keys>"), keys)
+        return frozenset({reference})
+
+    def _container_call(self, reference: Reference, positional: list[Values],
+                        keywords: dict[str, Values], node: ast.AST) -> Values:
+        """Transfer builtin container contents; unmodeled operations stay open."""
+        container = self.containers[reference.receiver]
+        name, method = container.name, reference.name
+        items = self._get((name, "<items>"))
+        keys = self._get((name, "<keys>"))
+        none = frozenset({Reference("instance", "builtins.NoneType")})
+        if method == "__iter__":
+            return keys if container.receiver == "builtins.dict" else items
+        key = self._key(node.slice if isinstance(node, ast.Subscript) else
+                        node.args[0] if isinstance(node, ast.Call) and node.args else None)
+        selected = items if key == "<unknown-items>" else self._get((name, key)) | self._get((name, "<unknown-items>"))
+        # policy-inventory-exempt: mechanism-internal; reason=these builtin methods read a stored element; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
+        if method in {"__getitem__", "pop"}:
+            if method == "pop" and container.receiver != "builtins.dict":
+                self._put((name, "<unknown-items>"), items)
+                selected = items
+            return selected | (positional[1] if len(positional) > 1 else frozenset())
+        # policy-inventory-exempt: mechanism-internal; reason=mapping defaults remain possible values and setdefault may publish one; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
+        if method in {"get", "setdefault"}:
+            default = positional[1] if len(positional) > 1 else none
+            if method == "setdefault":
+                self._put((name, "<items>"), default)
+                self._put((name, key), default)
+                if positional:
+                    self._put((name, "<keys>"), positional[0])
+            return selected | default
+        # policy-inventory-exempt: mechanism-internal; reason=builtin views expose dictionary contents without replacing callable identities; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
+        if method in {"keys", "values", "items"}:
+            values = keys if method == "keys" else items
+            if method == "items":
+                values = self._container(node, "tuple", (keys, items), positions=True)
+            return self._container(node, "list", (values,))
+        # policy-inventory-exempt: mechanism-internal; reason=these builtin mutations insert one element at the declared argument position; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
+        if method in {"append", "add", "insert", "__setitem__"}:
+            index = int(method in {"insert", "__setitem__"})
+            if len(positional) > index:
+                self._put((name, "<items>"), positional[index])
+                self._put((name, key if method == "__setitem__" and container.receiver == "builtins.dict"
+                           else "<unknown-items>"), positional[index])
+            if method == "insert":
+                self._put((name, "<unknown-items>"), items)
+            if method == "__setitem__" and positional:
+                self._put((name, "<keys>"), positional[0])
+            return none
+        # policy-inventory-exempt: mechanism-internal; reason=bulk builtin mutations propagate every supplied element; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
+        if method in {"extend", "update", "__ior__", "__iadd__"}:
+            for argument in positional:
+                for value in argument:
+                    if container.receiver == "builtins.dict" and value.kind == "container" and value.receiver == "builtins.dict":
+                        self._put((name, "<items>"), self._get((value.name, "<items>")))
+                        self._put((name, "<unknown-items>"), self._get((value.name, "<items>")))
+                        self._put((name, "<keys>"), self._get((value.name, "<keys>")))
+                    else:
+                        values = self._protocol(frozenset({value}), "__iter__", node)
+                        if container.receiver == "builtins.dict":
+                            values = self._protocol(values, "__iter__", node)
+                        self._put((name, "<items>"), values)
+                        self._put((name, "<unknown-items>"), values)
+            for values in keywords.values():
+                self._put((name, "<items>"), values)
+                self._put((name, "<unknown-items>"), values)
+            if keywords:
+                self._put((name, "<keys>"), frozenset({Reference("instance", "builtins.str")}))
+            return frozenset({container}) if method.startswith("__i") else none
+        if method == "copy":
+            return self._container(node, container.receiver.removeprefix("builtins."), (items,), keys=keys)
+        # Removing or reordering values cannot remove a possible call from a
+        # flow-insensitive graph. sort still invokes its declared key function.
+        # policy-inventory-exempt: mechanism-internal; reason=these builtin mutations add no elements but sort invokes its key callback; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
+        if method in {"clear", "remove", "discard", "reverse", "sort", "__delitem__"}:
+            self._put((name, "<unknown-items>"), items)
+            if "key" in keywords:
+                self._call(keywords["key"], [items], {}, node)
+            return none
+        # policy-inventory-exempt: mechanism-internal; reason=these builtin queries return scalar values rather than stored callables; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
+        if method in {"__len__", "count", "index", "__contains__"}:
+            return frozenset({Reference("instance", "builtins.int")})
+        unknown = Reference("unknown", self._where(node, f"unresolved container operation {container.receiver}.{method}"))
+        if self._final:
+            self.open.add(unknown.name)
+        return frozenset({unknown})
+
     def _protocol(self, values: Values, name: str, node: ast.AST) -> Values:
         yielded: set[Reference] = set()
         for reference in values:
@@ -350,11 +485,14 @@ class CallGraph:
         return frozenset(yielded) | self._call(self._attribute(concrete, name, node), [], {}, node)
 
     def _call(self, values: Values, positional: list[Values], keywords: dict[str, Values], node: ast.AST) -> Values:
-        result = set()
+        result: set[Reference] = set()
         references = self._references(values)
         if not references and self._final:
             self.open.add(self._where(node, "unresolved call target"))
         for reference in references:
+            if reference.kind == "container_method":
+                result.update(self._container_call(reference, positional, keywords, node))
+                continue
             if reference.kind == "class":
                 instance = Reference("instance", reference.name)
                 result.add(instance)
@@ -387,7 +525,9 @@ class CallGraph:
                     result.add(Reference("generator", name))
                 else:
                     returns = getattr(scope.node, "returns", None)
-                    result.update(self._annotation(returns, scope) or self._get((name, "<return>")))
+                    returned = self._get((name, "<return>"))
+                    result.update(returned if any(value.kind == "container" for value in returned)
+                                  else self._annotation(returns, scope) or returned)
                 continue
             if reference.kind == "external":
                 name = reference.name
@@ -396,6 +536,17 @@ class CallGraph:
                     self.native.add(self._where(node, name))
                 elif root not in sys.stdlib_module_names and root != "builtins":
                     self.open.add(self._where(node, f"external call {name}"))
+                # policy-inventory-exempt: mechanism-internal; reason=builtin container constructors retain the elements supplied by their input iterable; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
+                if name in {"builtins.list", "builtins.tuple", "builtins.set", "builtins.frozenset", "builtins.dict"}:
+                    kind = name.removeprefix("builtins.")
+                    container = self._container(node, kind)
+                    if kind == "dict":
+                        self._call(self._attribute(container, "update", node), positional, keywords, node)
+                    elif positional:
+                        items = self._protocol(positional[0], "__iter__", node)
+                        container = self._container(node, kind, (items,))
+                    result.update(container)
+                    continue
                 # policy-inventory-exempt: mechanism-internal; reason=typing identity helpers return their second argument unchanged; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
                 if name in {"typing.cast", "typing.assert_type"} and len(positional) > 1:
                     result.update(positional[1])
@@ -500,9 +651,27 @@ class CallGraph:
                 self._assign(generator.target, values, scope)
                 for condition in generator.ifs:
                     self._value(condition, scope)
-            for element in ((node.key, node.value) if isinstance(node, ast.DictComp) else (node.elt,)):
-                self._value(element, scope)
-            return frozenset({Reference("instance", "builtins.dict" if isinstance(node, ast.DictComp) else "builtins.list")})
+            if isinstance(node, ast.DictComp):
+                return self._container(node, "dict", (self._value(node.value, scope),), keys=self._value(node.key, scope))
+            return self._container(node, "set" if isinstance(node, ast.SetComp) else "list", (self._value(node.elt, scope),))
+        if isinstance(node, ast.Dict):
+            reference = self._container(node, "dict")
+            container = next(iter(reference))
+            for key, value in zip(node.keys, node.values, strict=True):
+                if key is None:
+                    self._call(self._attribute(reference, "update", node), [self._value(value, scope)], {}, node)
+                else:
+                    self._put((container.name, "<keys>"), self._value(key, scope))
+                    values = self._value(value, scope)
+                    self._put((container.name, "<items>"), values)
+                    self._put((container.name, self._key(key)), values)
+            return reference
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            elements = [self._protocol(self._value(item.value, scope), "__iter__", item)
+                        if isinstance(item, ast.Starred) else self._value(item, scope) for item in node.elts]
+            kind = "tuple" if isinstance(node, ast.Tuple) else "list" if isinstance(node, ast.List) else "set"
+            return self._container(node, kind, elements,
+                                   positions=isinstance(node, (ast.Tuple, ast.List)) and not any(isinstance(item, ast.Starred) for item in node.elts))
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.expr):
                 self._value(child, scope)
@@ -518,8 +687,16 @@ class CallGraph:
                 if reference.kind in {"class", "instance"} and reference.name in self.classes:
                     self._put((reference.name, node.attr), values)
         elif isinstance(node, (ast.Tuple, ast.List)):
-            for element in node.elts:
-                self._assign(element, values, scope)
+            for index, element in enumerate(node.elts):
+                members = frozenset(value for reference in values for value in (
+                    ((self._get((reference.name, str(index))) or self._get((reference.name, "<items>")))
+                     | self._get((reference.name, "<unknown-items>")))
+                    if reference.kind == "container" else self._protocol(frozenset({reference}), "__iter__", node)
+                ))
+                self._assign(element, members, scope)
+        elif isinstance(node, ast.Subscript):
+            self._call(self._attribute(self._value(node.value, scope), "__setitem__", node),
+                       [self._value(node.slice, scope), values], {}, node)
         elif isinstance(node, ast.Starred):
             self._assign(node.value, values, scope)
 
@@ -535,11 +712,15 @@ class CallGraph:
             functions = self._value(test.func, scope)
             if {reference.name for reference in functions} == {"builtins.isinstance"}:
                 slot = self._slot(scope, test.args[0].id)
-                classes = {reference.name for reference in self._value(test.args[1], scope)
+                declared = self._value(test.args[1], scope)
+                declared = frozenset(value for reference in declared for value in (
+                    self._get((reference.name, "<items>")) if reference.kind == "container" else (reference,)
+                ))
+                classes = {reference.name for reference in declared
                            # policy-inventory-exempt: mechanism-internal; reason=isinstance narrowing reads locally indexed or external class objects; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._narrow
                            if reference.kind in {"class", "external"}}
                 def matches(reference: Reference) -> bool:
-                    return bool(classes.intersection(self._bases(reference.name)))
+                    return bool(classes.intersection(self._bases(reference.receiver if reference.kind == "container" else reference.name)))
                 values = self._get(slot)
                 self.narrowed[slot] = frozenset(reference for reference in values
                                                if reference.kind == "unknown" or matches(reference) == truth)
@@ -576,7 +757,7 @@ class CallGraph:
             return
         if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
             values = self._value(node.value, scope)
-            if isinstance(node, ast.AnnAssign):
+            if isinstance(node, ast.AnnAssign) and not any(value.kind == "container" for value in values):
                 values = self._annotation(node.annotation, scope) or values
             for target in node.targets if isinstance(node, ast.Assign) else (node.target,):
                 self._assign(target, values, scope)

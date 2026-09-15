@@ -127,6 +127,164 @@ def test_door_order_retains_unresolved_callbacks(tmp_path):
     assert result["space:compose"].blocked_by == {"space:apply"}
 
 
+@pytest.mark.parametrize("qualifier", ["Final", "ClassVar", "Annotated"])
+def test_declared_mapping_keeps_its_values_through_type_qualifiers(tmp_path, qualifier):
+    """A type qualifier cannot replace the mapping declared by its initializer."""
+    annotation = f"{qualifier}[Mapping[str, str]" + (", 'description']" if qualifier == "Annotated" else "]")
+    _, result = _program(tmp_path, f'''
+        from collections.abc import Mapping
+        from typing import Annotated, ClassVar, Final
+        DISPATCH: {annotation} = {{"read": "table()", "call": "call()"}}
+        class Space:
+            @marked
+            def describe(self, kind: str) -> str:
+                """Read a source-declared string table."""
+                return DISPATCH[kind].upper()
+    ''')
+    assert result["space:describe"].number == 0
+    assert not result["space:describe"].open
+
+
+@pytest.mark.parametrize("lookup", ["operations[key]", "operations.get(key, first)"])
+def test_declared_callable_mapping_retains_every_door_target(tmp_path, lookup):
+    """Runtime keys join the declared callees instead of inventing a host result."""
+    _, result = _program(tmp_path, f'''
+        from collections.abc import Callable, Mapping
+        from typing import Final
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Runtime().must("first")
+            @marked
+            def second(self) -> int:
+                """Cross once on another path."""
+                return Runtime().must("second")
+            @marked
+            def dispatch(self, key: str) -> int:
+                """Select either declared door."""
+                first = self.first
+                operations: Final[Mapping[str, Callable]] = {{"a": first, "b": self.second}}
+                return {lookup}()
+    ''')
+    assert result["space:dispatch"].calls == {"space:first", "space:second"}
+    assert result["space:dispatch"].number == 2
+    assert not result["space:dispatch"].native
+
+
+@pytest.mark.parametrize("mutation", [
+    "operations[key] = callback",
+    "alias = operations; alias[key] = callback",
+    "operations.update({key: callback})",
+    "operations.setdefault(key, callback)",
+])
+def test_mapping_mutation_cannot_hide_a_supplied_callback(tmp_path, mutation):
+    """Aliases and mutating calls retain an externally supplied implementation."""
+    _, result = _program(tmp_path, f'''
+        from typing import Callable, Final
+        class Space:
+            @marked
+            def apply(self, key: str, callback: Callable) -> int:
+                """Dispatch a callback inserted into a declared mapping."""
+                operations: Final[dict] = {{}}
+                {mutation}
+                return operations[key]()
+    ''')
+    assert result["space:apply"].number is None
+    assert any("callback" in site for site in result["space:apply"].open)
+
+
+@pytest.mark.parametrize("operation", ["native", "recursive"])
+def test_mapping_dispatch_exposes_planted_native_and_recursive_bodies(tmp_path, operation):
+    """A table edge keeps a hidden crossing or recursion visible to the gate."""
+    body = 'return Runtime().must("value")' if operation == "native" else 'return operations[key](key)'
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        def target(key: str) -> int:
+            {body}
+        operations = {{"call": target}}
+        class Space:
+            @marked
+            def apply(self, key: str) -> int:
+                """Dispatch the selected helper."""
+                return operations[key](key)
+    ''')
+    value = result["space:apply"]
+    if operation == "native":
+        assert value.number == 1
+        assert value.native
+    else:
+        assert value.number is None
+        assert value.cycles
+
+
+def test_tuple_unpacking_retains_each_declared_receiver(tmp_path):
+    """Tuple fields retain their own receiver even when the other field differs."""
+    _, result = _program(tmp_path, '''
+        class First:
+            def read(self) -> int:
+                return 1
+        class Second:
+            def write(self) -> int:
+                return 2
+        class Space:
+            @marked
+            def pair(self) -> int:
+                """Use each member's declared method."""
+                first, second = (First(), Second())
+                return first.read() + second.write()
+    ''')
+    assert result["space:pair"].number == 0
+
+
+def test_sequence_mutation_keeps_callable_targets(tmp_path):
+    """A list append cannot erase the door reached through its item."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Read one native value."""
+                return Runtime().must("value")
+            @marked
+            def collect(self) -> list:
+                """Invoke a declared callback list."""
+                operations = []
+                operations.append(self.first)
+                return [operation() for operation in operations]
+    ''')
+    assert result["space:collect"].calls == {"space:first"}
+    assert result["space:collect"].number == 2
+
+
+@pytest.mark.parametrize("container, key", [
+    ("[42, first]", "1"),
+    ("[42, first]", "-1"),
+    ("{'data': 42, 'call': first}", "'call'"),
+    ("{False: first, 'data': 42}", "0"),
+    ("{1.0: first, 'data': 42}", "1"),
+])
+def test_literal_container_keys_select_the_declared_callable(tmp_path, container, key):
+    """A literal key does not acquire an unrelated value or lose equal keys."""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Runtime().must("value")
+            @marked
+            def selected(self) -> int:
+                """Read one declared member."""
+                first = self.first
+                operations = {container}
+                return operations[{key}]()
+    ''')
+    assert result["space:selected"].calls == {"space:first"}
+    assert result["space:selected"].number == 2
+
+
 def test_door_order_resolves_inherited_properties_and_distinguishes_foreign_names(tmp_path):
     """A marked property is a dependency; a foreign same-named method is not."""
     _, result = _program(tmp_path, '''
@@ -171,6 +329,33 @@ def test_door_order_keeps_supplied_iterator_open(tmp_path):
     ''')
     assert result["space:consume"].number is None
     assert any("__iter__" in site for site in result["space:consume"].open)
+
+
+@pytest.mark.parametrize("construction,selection", [
+    ("list([self.first])", "operations[0]()"),
+    ("tuple([self.first])", "operations[0]()"),
+    ("set([self.first])", "[operation() for operation in operations]"),
+    ("frozenset([self.first])", "[operation() for operation in operations]"),
+    ("dict(first=self.first)", "operations['first']()"),
+    ("dict({'first': self.first})", "operations['first']()"),
+])
+def test_container_constructors_preserve_callable_contents(tmp_path, construction, selection):
+    """Copying a declared container cannot erase its callable dependencies."""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Runtime().must("value")
+            @marked
+            def selected(self):
+                """Read the copied declaration."""
+                operations = {construction}
+                return {selection}
+    ''')
+    assert result["space:selected"].calls == {"space:first"}
+    assert result["space:selected"].number == 2
 
 
 def test_wrapper_unwrapping_has_a_finite_abstract_domain(tmp_path):
