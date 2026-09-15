@@ -7,7 +7,7 @@ Guarantees:
   - Answers positions and slice bounds use Python's lossless index protocol
     without pulling beyond the selected prefix [tested:
     test_answers_accepts_index_protocol_like_rows,
-    test_answers_slices_use_lossless_indices_without_extra_pulls; commit=WORKTREE]
+    test_answers_slices_use_lossless_indices_without_extra_pulls; commit=e882171509ff90183b34f24da3189e6136695312]
   - Rows with the same columns share one bounded cached Row subclass [tested
     test_row_classes_are_reused_and_bounded]
   - slicing, copying, concatenation, and repetition preserve Rows and its
