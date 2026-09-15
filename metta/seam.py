@@ -59,7 +59,7 @@ Guarantees:
     test_a_failed_entry_point_can_be_retried; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a withdrawal notifies every registration listener with the inverse that
     inserts the removed row at its original position [tested:
-    test_unregister_rollback_restores_each_position; commit=WORKTREE]
+    test_unregister_rollback_restores_each_position; commit=0be728864c734f8ac470ff5795398307984dff20]
   - frame builders and accessor door contracts are separate registrations
     [tested: test_the_row_is_registered_against_the_frame_point; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a point is declared once with one kind, and a second declaration of the
