@@ -21,6 +21,8 @@ Guarantees:
   - every stdlib name has exactly one row, so the coverage denominator cannot
     quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name;
     commit=eec241dcf822db6c4c1d1ecdb6092a6a9f3c7851]
+  - owned-record-read's row reads the same one-row record on both surfaces
+    [tested: python extensions/python/tools/phrasebook.py --gate; commit=WORKTREE]
   - eval-one's row has matched native and Python results, 7 on both surfaces
     [tested: python extensions/python/tools/phrasebook.py --gate; commit=eec241dcf822db6c4c1d1ecdb6092a6a9f3c7851]
   - on-unwind's native failure outcome reaches an editable handler on both
@@ -947,6 +949,19 @@ ENTRIES: list[Entry] = [
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(add-atom &pb (f 1))\n"
               "!(subtract-atom &pb (f 1))\n!(get-atoms &pb)",
         python="space += S.f(1)\nspace += S.f(1)\nspace -= S.f(1)\nspace.atoms()",
+    ),
+    Entry(
+        "owned-record-read", ("(-> Atom Atom)",), "Grounded", "spaces", "instruction",
+        "Read a native owned record as data: the held `@owned-record` key names the "
+        "home, the owner, the storage and the row prefix; the answer is the record's "
+        "zero or one complete rows, with a stored expression left unevaluated. "
+        "A retired owner or a second value refuses.",
+        metta="!(bind! &pb (new-space))\n!(add-atom &metta (@owned-record &pb $a &pb (balance $a)))\n"
+              "!(add-atom &pb (owned-by (Account 1)))\n!(add-atom &pb (balance (Account 1) 12))\n"
+              "!(owned-record-read (@owned-record &pb (Account 1) &pb (balance (Account 1))))",
+        python="metta.space('&metta').add(S['@owned-record'](space, V.a, space, S.balance(V.a)))\n"
+               "space += S.owned_by(S.Account(1))\nspace += S.balance(S.Account(1), 12)\n"
+               "m.eval(S.owned_record_read(S['@owned-record'](space, S.Account(1), space, S.balance(S.Account(1)))))",
     ),
     Entry(
         "get-atoms", ("(-> SpaceType Atom)",), "Grounded", "spaces", "method",

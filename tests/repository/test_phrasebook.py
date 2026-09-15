@@ -65,7 +65,7 @@ def test_the_phrasebook_carries_one_row_per_name():
     """
     names = [entry.name for entry in ENTRIES]
     assert len(names) == len(set(names)), "a name carries more than one row"
-    assert len(names) == 383, f"383 distinct names were declared, the rows carry {len(names)}"
+    assert len(names) == 384, f"384 distinct names were declared, the rows carry {len(names)}"
 
 
 def test_a_duplicate_row_is_caught():

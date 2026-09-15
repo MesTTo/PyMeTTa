@@ -1210,6 +1210,16 @@
   ],
   "python_inferences": 0
  },
+ "owned-record-read": {
+  "metta": [
+   "((balance (Account 1) 12))"
+  ],
+  "metta_inferences": 3425,
+  "python": [
+   "((balance (Account 1) 12))"
+  ],
+  "python_inferences": 1846
+ },
  "pow-math": {
   "metta": [
    "8.0"
