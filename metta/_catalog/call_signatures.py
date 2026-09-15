@@ -5,7 +5,7 @@ Guarantees:
     each constructor's own refusal [tested:
     test_callable_annotation_records_preserve_subscription_arity;
     test_callable_annotation_records_preserve_constructor_refusals;
-    commit=f196706a3899127600c9eee3892067b40996bdfa]
+    commit=WORKTREE]
   - callable images keep underscore parameters named while retaining the
     original keyword label [tested:
     test_underscore_callable_parameters_keep_python_keyword_labels; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
@@ -29,6 +29,7 @@ import sys
 import types
 import typing
 from collections.abc import Callable
+from operator import getitem
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
@@ -115,9 +116,11 @@ def annotation_value(atom: Atom) -> Any:
                 return value
     if head in (S["host-literal"], S["host-union"]) and len(arguments) == 1 and isinstance(arguments[0], Expression):
         values = tuple(annotation_value(item) for item in arguments[0].children)
-        return typing.Literal[values] if head == S["host-literal"] else typing.Union[values]  # noqa: UP007 -- construct an arbitrary number of reflected alternatives
+        # Runtime subscription delegates to each annotation constructor:
+        # https://github.com/python/cpython/blob/v3.14.4/Modules/_operator.c#L528-L542
+        return getitem(typing.Literal if head == S["host-literal"] else typing.Union, values)
     if head == S.Annotated and len(arguments) >= 2:
-        return typing.Annotated[tuple(annotation_value(item) for item in arguments)]
+        return getitem(typing.Annotated, tuple(annotation_value(item) for item in arguments))
     if head == S["host-apply"] and len(arguments) == 2 and isinstance(arguments[1], Expression):
         origin = annotation_value(arguments[0])
         parameters = tuple(annotation_value(item) for item in arguments[1].children)
