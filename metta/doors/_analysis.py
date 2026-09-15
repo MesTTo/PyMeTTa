@@ -9,7 +9,7 @@ commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]. No analyzed source is imported
 Declared container contents and alias writes retain callable targets; type
 qualifiers do not replace their initializers [tested:
 test_declared_callable_mapping_retains_every_door_target,
-test_mapping_mutation_cannot_hide_a_supplied_callback; commit=WORKTREE].
+test_mapping_mutation_cannot_hide_a_supplied_callback; commit=15e4ceec343bc2523a1d34a391054948c0b1b3bf].
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
 [source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
