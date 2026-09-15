@@ -50,7 +50,7 @@ Assumes:
 Guarantees:
   - inverse sequences attempt both actions and retain every failure,
     including control exceptions [tested:
-    test_inverse_sequence_attempts_every_action; commit=WORKTREE]
+    test_inverse_sequence_attempts_every_action; commit=93d72737c8d84e5883520fafaf4cba9a50ea4fc4]
   - registration listeners receive the exact point and registrant names,
     including quotes and the words " registration " [tested:
     test_registration_identity_is_not_parsed_from_prose; commit=56a8207a945675056312e206a000442b857ced03]
