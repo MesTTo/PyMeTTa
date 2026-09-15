@@ -6,7 +6,7 @@ Guarantees: iteration, refusal and cleanup run on the owning worker; Answers
   test_async_evaluation_choices_preserve_demand_and_replay; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
   Context exit retains the body error, including cancellation, together
   with a failed release [tested:
-  test_async_exit_preserves_cancellation_and_normal_exit; commit=WORKTREE].
+  test_async_exit_preserves_cancellation_and_normal_exit; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
 Owns resources: one tracked group owns every source in an acquired batch.
   Closing a view releases its source; closing the parent releases the group.
   Failed cleanup remains tracked for retry [tested:

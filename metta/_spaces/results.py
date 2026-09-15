@@ -7,7 +7,7 @@ Guarantees:
   - context exit retains body and cleanup failures together, including
     cancellation, while single failures keep their identity [tested:
     test_owned_views_preserve_body_and_cleanup_errors,
-    test_owned_exit_zero_one_or_two_failures; commit=WORKTREE]
+    test_owned_exit_zero_one_or_two_failures; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6]
   - row conversion follows named constructor inputs and native defaults,
     including positional-only, keyword-only and InitVar parameters, while
     omitted optional TypedDict keys stay absent [tested:
@@ -132,7 +132,7 @@ Guarantees:
     test_a_projection_answers_its_columns_from_dir; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Owns resources: Answers closes its source; a failed close keeps that source
   available for another attempt [tested:
-  test_failed_answer_exit_retains_its_source_for_retry; commit=WORKTREE].
+  test_failed_answer_exit_retains_its_source_for_retry; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
 Open Obligations:
   To Do: None
   Hacks: None

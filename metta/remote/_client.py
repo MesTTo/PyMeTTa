@@ -2,7 +2,7 @@
 
 Guarantees: context exit retains the body failure together with a failed
 stop, and propagates either failure unchanged alone [tested:
-test_owned_exit_zero_one_or_two_failures; commit=WORKTREE].
+test_owned_exit_zero_one_or_two_failures; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
 Owns resources: RemoteCursor.close releases its server token. A failed stop
 retains the token so the caller can retry
 [source: extensions/python/metta/remote/_client.py:220; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].

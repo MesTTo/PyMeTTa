@@ -2,7 +2,7 @@
 
 Guarantees: context exit preserves body and cleanup failures together, and
 single failures retain their identity [tested:
-test_owned_exit_zero_one_or_two_failures; commit=WORKTREE].
+test_owned_exit_zero_one_or_two_failures; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
 Owns resources: Server.close stops the HTTP server and its engine worker;
 Gateway.close releases retained cursors
 [source: extensions/python/metta/remote/_gateway.py:1464, Gateway.close; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
