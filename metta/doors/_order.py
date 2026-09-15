@@ -7,6 +7,12 @@ Caller-implemented contracts remain open, including through helper arguments;
 combining a contract call with a native crossing is mixed [tested:
 test_supplied_callable_with_native_crossing_is_mixed,
 test_composition_of_contract_open_door_is_unordered_by_dependency; commit=07976cf8b415390449863d803277b73102673b51].
+A shipped door's verdict is read from the generated table
+metta/doors/_orders.py, which doororder.py derives from the same analysis and
+whose drift the door-order lane refuses; only rows outside the table are
+analysed in the running process [tested:
+test_shipped_rows_publish_from_the_table_without_analysis,
+test_rows_outside_the_table_are_analysed_at_runtime; commit=WORKTREE].
 Owns resources: source files are read and closed during snapshot acquisition;
 the last source snapshot and its immutable report are cached in this process.
 Guarded by: functools.lru_cache protects publication; duplicate concurrent
@@ -77,6 +83,17 @@ def components(graph: Mapping[str, Iterable[str]]) -> tuple[tuple[str, ...], ...
 
 
 @dataclass(frozen=True, slots=True)
+class Verdict:
+    """The catalog's projection of one order: a number, or why there is none."""
+
+    number: int | None
+    mixed: bool = False
+    open: bool = False
+    recursive: bool = False
+    dependency: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class Order:
     """A numeric order only when every reachable boundary permits one."""
 
@@ -97,6 +114,11 @@ class Order:
     def mixed(self) -> bool:
         """Whether a native crossing composes a door or invokes a supplied contract."""
         return bool(self.native and (self.calls or self.contracts))
+
+    @property
+    def verdict(self) -> Verdict:
+        """The five facts the catalog publishes about this order."""
+        return Verdict(self.number, self.mixed, bool(self.open), bool(self.cycles), bool(self.blocked_by))
 
 
 def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Order]:
@@ -199,8 +221,8 @@ def _snapshot(rows: tuple[Door, ...], sources: tuple[tuple[str, str], ...]) -> M
     return analyse(rows, dict(sources))
 
 
-def orders(rows: Iterable[Door]) -> Mapping[str, Order]:
-    """Derive a catalog snapshot from the shipped core and loaded providers."""
+def live(rows: Iterable[Door]) -> Mapping[str, Order]:
+    """Analyse the shipped core and the loaded providers' own source files."""
     records = tuple(rows)
     paths = {module: path for path, module in core_paths()}
     for row in records:
@@ -211,3 +233,16 @@ def orders(rows: Iterable[Door]) -> Mapping[str, Order]:
                 paths[row.body.module] = Path(filename)
     sources = tuple(source_text(paths).items())
     return _snapshot(records, sources)
+
+
+def orders(rows: Iterable[Door]) -> Mapping[str, Verdict]:
+    """Read shipped verdicts from the generated table; analyse only rows outside it."""
+    # The generated table imports this module's Verdict, so it is read here.
+    from metta.doors._orders import VERDICTS  # noqa: PLC0415
+
+    records = tuple(rows)
+    result = {row.key: VERDICTS[row.key] for row in records if row.key in VERDICTS}
+    if len(result) < len(records):
+        derived = live(records)
+        result.update((row.key, derived[row.key].verdict) for row in records if row.key not in VERDICTS)
+    return MappingProxyType(result)

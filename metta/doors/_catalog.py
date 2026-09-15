@@ -8,6 +8,10 @@ Guarantees: each row's arguments, axes, implementation, refusals, tiers,
   test_nested_door_records_have_declared_types; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
   Body order metadata preserves the outer door record's storage arity
   [tested: test_boot_publishes_complete_typed_door_rows; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+  Body orders come from metta.doors._order.orders, which reads the generated
+  verdict table for shipped rows, so a boot publishes without analysing source
+  [measured 2026-09-15: Space() plus one run 34.58s before, 0.61s after;
+  commit=WORKTREE].
 Owns resources: none. atoms() constructs values; door_catalog.pl owns the
   transactional publication and its previous snapshot.
 """
@@ -34,7 +38,7 @@ from metta.doors import (
     Tier,
     Wire,
 )
-from metta.doors._order import Order, orders
+from metta.doors._order import Verdict, orders
 
 
 def _term(head: str, *parts: Any) -> Expression:
@@ -66,7 +70,7 @@ def _evaluation_value(value: object) -> Atom:
     return Symbol("none" if value is None else str(value))
 
 
-def _contract(row: Door, order: Order) -> Atom:
+def _contract(row: Door, order: Verdict) -> Atom:
     args = _term("door-arguments", Expression(tuple(
         _term(
             "door-argument", arg.name.replace('_', '-'), arg.type.to_atom(),
@@ -83,8 +87,8 @@ def _contract(row: Door, order: Order) -> Atom:
     # Order describes the body; nesting it keeps those existing arities stable.
     body_order = _term("door-order", Grounded(order.number)) if order.number is not None else _term(
         "door-unordered", Expression(tuple(Symbol(name) for name, present in (
-            ("mixed", order.mixed), ("open", bool(order.open)),
-            ("recursive", bool(order.cycles)), ("dependency", bool(order.blocked_by)),
+            ("mixed", order.mixed), ("open", order.open),
+            ("recursive", order.recursive), ("dependency", order.dependency),
         ) if present)),
     )
     return _term(

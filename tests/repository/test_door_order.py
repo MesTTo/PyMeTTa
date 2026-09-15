@@ -12,6 +12,8 @@ descriptor, dynamic-name and self-recursion controls [tested: this file; commit=
 
 from __future__ import annotations
 
+import sys
+import types
 from dataclasses import replace
 from pathlib import Path
 from textwrap import dedent
@@ -20,9 +22,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from metta.doors import AnswersAs, Sugar
+from metta.doors import AnswersAs, Sugar, _order
 from metta.doors._analysis import CallGraph, Calls
-from metta.doors._order import analyse, components, derive
+from metta.doors._order import Order, Verdict, analyse, components, derive, orders
 from metta.doors._scan import scan
 
 MARK = "@door(Kind.query, answers=AnswersAs.value, effect=EffectClass.pureStructural, determinism=Determinism.det, tiers=(Tier.sync,), evidence=('fixture',))"
@@ -533,15 +535,23 @@ def test_binding_metadata_and_open_helper_cycles_are_independent(tmp_path):
     assert result.native == {"Runtime.must"}
 
 
-def _gate_report(monkeypatch, result):
+def _gate_report(monkeypatch, tmp_path, result):
     """Run the actual report and verdict over one planted source graph."""
-    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "tools"))
-    import doororder
-
+    doororder = _tool(monkeypatch)
     monkeypatch.setattr(doororder.doorgen, "all_rows", lambda _root: ())
     monkeypatch.setattr(doororder, "core_paths", lambda _root: ())
     monkeypatch.setattr(doororder, "analyse", lambda *_: result)
+    table = tmp_path / "_orders.py"
+    table.write_text(doororder.render({name: value.verdict for name, value in result.items()}))
+    monkeypatch.setattr(doororder, "TABLE", table)
     return doororder.report(), doororder.main(["--json"])
+
+
+def _tool(monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "tools"))
+    import doororder
+
+    return doororder
 
 
 def test_registry_callable_is_a_defect_open_boundary(tmp_path, monkeypatch):
@@ -556,7 +566,7 @@ def test_registry_callable_is_a_defect_open_boundary(tmp_path, monkeypatch):
                 return operations["current"]()
     ''')
     assert result["space:selected"].number is None
-    report, status = _gate_report(monkeypatch, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result)
     assert status == 1
     assert report["open_dependencies"] == ["space:selected"]
     assert report["defect_open_dependencies"] == ["space:selected"]
@@ -577,7 +587,7 @@ def test_supplied_callable_with_native_crossing_is_mixed(tmp_path, monkeypatch):
     ''')
     assert result["space:apply"].number is None
     assert result["space:apply"].mixed
-    _, status = _gate_report(monkeypatch, result)
+    _, status = _gate_report(monkeypatch, tmp_path, result)
     assert status == 1
 
 
@@ -593,7 +603,7 @@ def test_declared_supplied_callable_is_unordered_by_contract(tmp_path, monkeypat
     ''')
     assert result["space:apply"].number is None
     assert result["space:apply"].open
-    report, status = _gate_report(monkeypatch, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result)
     assert status == 0
     assert report["unordered_by_contract"] == ["space:apply"]
 
@@ -614,7 +624,7 @@ def test_composition_of_contract_open_door_is_unordered_by_dependency(tmp_path, 
     ''')
     assert result["space:compose"].number is None
     assert result["space:compose"].blocked_by == {"space:apply"}
-    report, status = _gate_report(monkeypatch, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result)
     assert status == 0
     assert report["unordered_by_dependency"] == ["space:compose"]
 
@@ -638,7 +648,7 @@ def test_parameter_contracts_follow_declared_protocols(tmp_path, monkeypatch, an
                 """Use the declared caller operation."""
                 {body}
     ''')
-    report, status = _gate_report(monkeypatch, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result)
     assert status == 0
     assert report["unordered_by_contract"] == ["space:use"]
     assert all(call["annotation"] for call in report["rows"]["space:use"]["contracts"])
@@ -657,7 +667,7 @@ def test_undeclared_parameter_members_remain_defects(tmp_path, monkeypatch, anno
                 """Invoke an undeclared operation."""
                 return source.hidden()
     ''')
-    report, status = _gate_report(monkeypatch, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result)
     assert status == 1
     assert report["defect_open_dependencies"] == ["space:use"]
 
@@ -678,7 +688,7 @@ def test_contract_does_not_hide_a_separate_defect_or_its_dependents(tmp_path, mo
                 """Depend on the unresolved operation."""
                 return self.apply(callback)
     ''')
-    report, status = _gate_report(monkeypatch, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result)
     assert status == 1
     assert report["defect_open_dependencies"] == ["space:apply"]
     assert report["unordered_by_contract"] == []
@@ -686,17 +696,89 @@ def test_contract_does_not_hide_a_separate_defect_or_its_dependents(tmp_path, mo
 
 
 @pytest.mark.parametrize("defect", ["mixed", "defect_open_dependencies", "recursive"])
-def test_door_order_gate_refuses_each_boundary_defect(monkeypatch, capsys, defect):
+def test_door_order_gate_refuses_each_boundary_defect(monkeypatch, tmp_path, capsys, defect):
     """Each unresolved boundary independently changes the command's exit."""
-    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "tools"))
+    doororder = _tool(monkeypatch)
+    none: frozenset[str] = frozenset()
+    planted = {
+        "mixed": Order(None, frozenset({"space:other"}), frozenset({"Runtime.must"}), none, ()),
+        "defect_open_dependencies": Order(None, none, none, frozenset({"space:planted:1: registry"}), ()),
+        "recursive": Order(None, none, none, none, (("space:planted",),)),
+    }[defect]
+    table = tmp_path / "_orders.py"
+    monkeypatch.setattr(doororder, "TABLE", table)
+    for orders_, status in (({"space:planted": planted}, 1), ({"space:planted": Order(0, none, none, none, ())}, 0)):
+        monkeypatch.setattr(doororder, "derived", lambda orders_=orders_: orders_)
+        table.write_text(doororder.render({name: value.verdict for name, value in orders_.items()}))
+        assert doororder.main([]) == status
+        assert "space:planted" in capsys.readouterr().out
+
+
+def test_door_order_gate_refuses_a_stale_verdict_table(monkeypatch, tmp_path, capsys):
+    """A missing or disagreeing table fails the gate until it is regenerated."""
+    doororder = _tool(monkeypatch)
+    none: frozenset[str] = frozenset()
+    monkeypatch.setattr(doororder, "derived", lambda: {"space:first": Order(1, none, frozenset({"Runtime.must"}), none, ())})
+    table = tmp_path / "_orders.py"
+    monkeypatch.setattr(doororder, "TABLE", table)
+    assert doororder.main([]) == 1
+    assert "missing verdict table" in capsys.readouterr().out
+    assert doororder.main(["--write"]) == 0
+    assert table.read_text() == doororder.render({"space:first": Verdict(1)})
+    table.write_text(table.read_text().replace("Verdict(1)", "Verdict(2)"))
+    assert doororder.main([]) == 1
+    assert "stale verdict table" in capsys.readouterr().out
+
+
+@given(st.dictionaries(st.from_regex(r"[a-z]+:[a-z_]+", fullmatch=True), st.builds(
+    Verdict, st.one_of(st.none(), st.integers(min_value=0, max_value=9)),
+    mixed=st.booleans(), open=st.booleans(), recursive=st.booleans(), dependency=st.booleans(),
+), max_size=8))
+def test_verdict_table_round_trips_every_verdict(verdicts):
+    """The rendered module evaluates back to exactly the verdicts it was rendered from."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
     import doororder
 
-    clean = {"mixed": [], "defect_open_dependencies": [], "recursive": [], "rows": {}}
-    monkeypatch.setattr(doororder, "report", lambda: {**clean, defect: ["space:planted"]})
-    assert doororder.main([]) == 1
-    assert "space:planted" in capsys.readouterr().out
-    monkeypatch.setattr(doororder, "report", lambda: clean)
-    assert doororder.main([]) == 0
+    namespace: dict[str, object] = {"__name__": "rendered"}
+    exec(compile(doororder.render(verdicts), "<rendered>", "exec"), namespace)
+    assert dict(namespace["VERDICTS"]) == verdicts
+
+
+def test_shipped_rows_publish_from_the_table_without_analysis(monkeypatch):
+    """Every declared door reads its verdict from the table; no source is analysed."""
+    doororder = _tool(monkeypatch)
+    rows = doororder.doorgen.all_rows(doororder.doorgen.ROOT)
+
+    def refuse(_rows):
+        message = "the shipped rows must not be analysed at boot"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(_order, "live", refuse)
+    verdicts = orders(rows)
+    assert set(verdicts) == {row.key for row in rows}
+    assert all(isinstance(verdict, Verdict) for verdict in verdicts.values())
+
+
+def test_rows_outside_the_table_are_analysed_at_runtime(tmp_path, monkeypatch):
+    """A door registered from a package the table does not know is analysed live."""
+    rows, expected = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self._rt = Runtime()
+            @marked
+            def planted_probe(self) -> int:
+                """Read one engine value from a door the shipped table cannot know."""
+                return self._rt.must("value")
+    ''')
+    runtime = tmp_path / "runtime.py"
+    runtime.write_text(RUNTIME)
+    monkeypatch.setattr(_order, "core_paths", lambda: ((runtime, "metta._binding.runtime"),))
+    module = types.ModuleType("example")
+    module.__file__ = str(tmp_path / "example.py")
+    monkeypatch.setitem(sys.modules, "example", module)
+    verdicts = orders(rows)
+    assert verdicts["space:planted-probe"] == expected["space:planted-probe"].verdict == Verdict(1)
 
 
 def test_empty_generator_facts_do_not_invent_a_receiver(tmp_path):
