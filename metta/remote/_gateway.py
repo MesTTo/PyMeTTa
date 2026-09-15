@@ -4,7 +4,7 @@ Guarantees: context exit preserves body and cleanup failures together, and
 single failures retain their identity [tested:
 test_owned_exit_zero_one_or_two_failures; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
 Gateway removal delegates every decoded atom species to the local store
-[tested: test_remote_removal_preserves_the_local_atom_domain; commit=WORKTREE].
+[tested: test_remote_removal_preserves_the_local_atom_domain; commit=7a8f8c25bfeb84eb3f1cdea2621170b9ef3bbf6d].
 Owns resources: Server.close stops the HTTP server and its engine worker;
 Gateway.close releases retained cursors
 [source: extensions/python/metta/remote/_gateway.py:1464, Gateway.close; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
