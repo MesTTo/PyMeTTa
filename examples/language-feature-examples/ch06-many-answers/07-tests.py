@@ -382,4 +382,13 @@ BUDGET = 12738
 #: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
 #: side; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-DIVERGENCE = "ea385a20e7ec45d6f908cf981c0c01ca3c56ea80583beb9bb835e38b4f18b872"
+#: DIVERGED 2026-09-16, the example holds 4 atoms the twin does not (4 =) and
+#: the twin holds 6 atoms the example does not (2 :, 4 =): The twin's compiled
+#: Python functions publish their annotated arrow rows, (: program1 (-> Number
+#: %Undefined%)) and (: program3 (-> Number %Undefined%)), beside their
+#: equations, and compile let-chains to let* frames, while the MeTTa example
+#: declares no types and writes let; the stored multisets differ by exactly
+#: those rows [measured 2026-09-16: the two stored-atom surpluses, one fresh
+#: process per side; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+DIVERGENCE = "8a99ddbe21d55a6efb5f5d6d547b4e65d9607303ed8c8a5f99e9a2917b7e2fce"
