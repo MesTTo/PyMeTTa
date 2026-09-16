@@ -11,6 +11,11 @@ The original's `and` is a Python keyword, so the compiled body takes the exact
 static-function escape, `fn["and"]`, while each comparison uses Python's
 operator spelling and lowers to the corresponding engine relation.
 
+A compiled Python function receives VALUES: Python supplies computed values
+and a term it hands over is data, not a call to run, so each random draw is
+evaluated in the caller before it crosses. The library's `log-math` above is
+different: the engine evaluates that nested `exp-math` itself.
+
 The historical stored-equation divergence is lifted. The annotation publishes
 its type declaration, `(: in-range (-> Number Number Number Bool))`, so the
 whole-space digest deliberately differs even though the equation agrees.
@@ -39,10 +44,11 @@ def twin(m):
             lo <= x, x <= hi
         )  # rung: `and` is a keyword, while fn names its engine relation
 
-    # The random generators answer inside their bounds, every draw.
-    assert in_range(1, 6, fn.random_int(1, 6)) == [True]
-    assert in_range(0.0, 1.0, fn.random_float(0.0, 1.0)) == [True]
-    assert in_range(5, 5, fn.random_int(5, 5)) == [True]
+    # The random generators answer inside their bounds, every draw; a draw is
+    # evaluated here and crosses as the value it produced.
+    assert in_range(1, 6, m.eval(fn.random_int(1, 6))[0]) == [True]
+    assert in_range(0.0, 1.0, m.eval(fn.random_float(0.0, 1.0))[0]) == [True]
+    assert in_range(5, 5, m.eval(fn.random_int(5, 5))[0]) == [True]
 
 
 #: Inferences this twin spends, its own tripwire.
@@ -344,7 +350,16 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 9352
+#: RE-PINNED 2026-09-16, 9352 to 9737 (+385), The compiled in-range receives
+#: its random draws as values: since 9ea1ccd58 Python supplies computed values
+#: and a term handed to a direct application is data rather than a call to run,
+#: so each draw is evaluated in the caller with m.eval and crosses as the
+#: number it produced; the twin had failed since that commit with the nested
+#: call arriving unevaluated, and its two extra crossings replace the compiled
+#: body's evaluation of the draw [measured 2026-09-16: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 9737
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:
