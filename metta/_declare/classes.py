@@ -5,12 +5,18 @@ Owns resources:
     home or a kept Scope value; entity occurrences and private spaces follow
     explicit retirement and Scope cleanup [tested: test_class_grain_lifetimes;
     commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+  - mutable class programs own exact catalog occurrences of their field and
+    proxy record patterns [source: extensions/python/metta/_declare/classes.py:
+    ClassDeclaration.install_storage; release; commit=WORKTREE]
 Guarded by:
   - definitions._DEFINE_LOCK serializes declaration, instrumentation and proxy
     reconstruction; outer commit checks reject stale proxy publications
     [tested: test_concurrent_reconstruction_publishes_one_python_proxy,
     test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
+  - mutable field and proxy reads validate original native occurrences through
+    the shared owned-record reader [source: engine/spaces/owned_records.pl:
+    'owned-record-read'/2; commit=WORKTREE]
   - kept mutable receivers retain their current native field dependencies
     after scope children finish [tested:
     test_kept_fields_follow_the_last_stored_value,
@@ -78,6 +84,7 @@ from metta._catalog.call_values import NativeCallable, apply_sources, argument
 from metta._catalog.documentation import attribute_docstrings, documentation_atom
 from metta._catalog.project import declarations, project
 from metta._declare import field_values, operations
+from metta._declare.owned_records import OwnedRecord
 from metta._errors.errors import EngineError
 from metta._lazy import lazy
 from metta._spaces.handle import SpaceHandle
@@ -282,6 +289,7 @@ class ClassDeclaration:
         self.bases: tuple[ClassDeclaration, ...] = ()
         self.references: tuple[ClassDeclaration, ...] = ()
         self.reference_rows: list[tuple[str, int]] = []
+        self.record_rows: list[tuple[str, int]] = []
         self.inherited_rows: dict[ClassDeclaration, list[tuple[str, int]]] = {}
         self.methods: dict[str, Any] = {}
         self.method_rows: dict[tuple[str, Atom], list[tuple[str, int]]] = {}
@@ -498,12 +506,30 @@ class ClassDeclaration:
         if len(answers) != 1 or not isinstance(answers[0], Expression):
             msg = f"{self.name} instance has retired or its construction rolled back"
             raise ReferenceError(msg)
+        self.answer(_expr(S["owned-record-read"], self.proxy_record(answers[0]).declaration))
         return answers[0]
 
     def require_live(self, receiver: Expression) -> None:
-        if not self.space.eval(_expr(S.match, Symbol(self.space.name), _expr(S["owned-by"], receiver), Grounded(value=True))):
+        found = self.space.eval(_expr(S.match, Symbol(self.space.name),
+                                     self.proxy_record(receiver).owner_row, Grounded(value=True)))
+        if not found:
             msg = f"{receiver} has retired or its construction rolled back"
             raise ReferenceError(msg)
+        if len(found) != 1:
+            msg = f"{receiver} has multiple owner occurrences"
+            raise EngineError(msg)
+
+    def field_record(self, receiver: Expression, head: Atom) -> OwnedRecord:
+        """Derive field storage from the receiver's existing grain and prefix."""
+        home = Symbol(self.space.name)
+        if self.grain == "prototype":
+            return OwnedRecord(home, receiver, receiver.args[0], _expr(head))
+        return OwnedRecord(home, receiver, home, _expr(head, receiver))
+
+    def proxy_record(self, receiver: Expression) -> OwnedRecord:
+        """Every mutable proxy belongs to its class home, including prototypes."""
+        home = Symbol(self.space.name)
+        return OwnedRecord(home, receiver, home, _expr(S["_python-proxy"], receiver))
 
     def project_parts(self, instance: Any) -> tuple[Any, ...]:
         if self.enum:
@@ -527,10 +553,16 @@ class ClassDeclaration:
 
         def attach() -> Any:
             self.require_live(receiver)
-            result = Variable("class-proxy")
-            found = self.space.eval(_expr(S.match, Symbol(self.space.name), _expr(S["_python-proxy"], receiver, result), result))
-            if found:
-                return found[0].value
+            rows = self.answer(_expr(S["owned-record-read"], self.proxy_record(receiver).declaration))
+            if not isinstance(rows, Expression):
+                msg = f"the proxy record for {receiver} did not return an expression"
+                raise EngineError(msg)
+            if rows.children:
+                proxy = typing.cast(Expression, rows.children[0]).children[-1]
+                if not isinstance(proxy, Grounded) or type(proxy.value) is not self.cls:
+                    msg = f"the proxy record for {receiver} does not contain a {self.name} instance"
+                    raise EngineError(msg)
+                return proxy.value
             instance: Any = object.__new__(self.cls)
             self.attach(instance, receiver)
             return instance
@@ -600,13 +632,16 @@ class ClassDeclaration:
         internal = [S["owned-by"], S["_python-proxy"]]
         equations: list[Atom] = []
         if self.grain != "value":
-            dependency_field, dependency_value = Variable("field"), Variable("value")
-            storage = part if self.grain == "prototype" else home
-            prefix = () if self.grain == "prototype" else (ctor,)
+            catalog = lazy('metta._faces.space').Space("&metta", _runtime=self.space._rt)
+            records = [self.proxy_record(ctor), *(self.field_record(ctor, self.storage_head(field.name))
+                                                for field in self.stored_fields)]
+            for record in records:
+                self.record_rows.extend(_owned_add(catalog, record.declaration))
+            dependency_field = Variable("field")
             dependencies = _expr(S.chain,
                 _expr(S.superpose, Expression([self.storage_head(item.name) for item in self.stored_fields])),
                 dependency_field,
-                _expr(S.match, storage, _expr(dependency_field, *prefix, dependency_value), dependency_value))
+                self.field_record(ctor, dependency_field).dependencies())
             deferred = _expr(S["scope-defer"], ctor,
                 _expr(S.evalc, _expr(Symbol(f"retire-{self.name}"), ctor), home), dependencies)
             internal.append(Symbol(f"_mint-{self.name}"))
@@ -656,17 +691,15 @@ class ClassDeclaration:
     def install_accessors(self, owner: ClassDeclaration) -> list[tuple[str, int]]:
         """Compile this receiver layout for its defining class's field names."""
         retained = []
-        part, value, new = Variable("identity"), Variable("value"), Variable("new-value")
+        part, new = Variable("identity"), Variable("new-value")
         values = {field.name: Variable(f"field-{index}") for index, field in enumerate(self.stored_fields)}
         pattern = self.term(*values.values()) if self.grain == "value" else self.term(part)
-        home = part if self.grain == "prototype" else Symbol(self.space.name)
         for field in self.stored_fields:
             if owner.field(field.name) is None:
                 continue
             getter, writer = owner.accessor(field.name), owner.accessor(field.name, write=True)
-            prefix = (self.storage_head(field.name),) if self.grain == "prototype" else (self.storage_head(field.name), pattern)
-            row = _expr(*prefix, value)
-            body = values[field.name] if self.grain == "value" else _expr(S.match, home, row, value)
+            record = self.field_record(pattern, self.storage_head(field.name))
+            body = values[field.name] if self.grain == "value" else record.read(_expr(S.superpose, Expression([])))
             rows = [_expr(S["="], _expr(getter, pattern), body)]
             result_types = self.field_types(field.annotation)
             if self.grain != "value":
@@ -675,19 +708,7 @@ class ClassDeclaration:
                         for type_ in result_types)
             if self.grain != "value":
                 adopted = field_values.adopted(self, field, new)
-                stored = Variable("stored-value") if adopted is not new else new
-                written = _sequence([
-                    _expr(S["remove-atom"], home, row),
-                    _expr(S["add-atom"], home, _expr(*prefix, stored)),
-                ], Grounded(value=True))
-                if adopted is not new:
-                    written = _expr(S.chain, adopted, stored, written)
-                live = _expr(S.collapse, _expr(S.match, Symbol(self.space.name),
-                                             _expr(S["owned-by"], pattern), Grounded(value=True)))
-                refusal = _expr(S.Error, _expr(writer, pattern, new),
-                                _expr(S.ReferenceError, Grounded(
-                                    f"{self.name} receiver has retired; construct a new instance before writing fields")))
-                body = _expr(S.transaction, _expr(S["if"], _expr(S["=="], live, Expression([])), refusal, written))
+                body = record.write(_expr(S.noeval, new) if adopted is new else adopted)
                 rows.append(_expr(S["="], _expr(writer, pattern, new), body))
                 rows.extend(_expr(S[":"], writer, _expr(S["->"], Symbol(self.name), type_, S.Bool))
                             for type_ in self.field_types(field.annotation))
@@ -858,6 +879,7 @@ def release(space: Any) -> None:
         pending.update({*plan.bases, *plan.references} - retained)
     retired = plans - retained
     for plan in retired:
+        _withdraw_rows(plan.space._rt, plan.record_rows)
         for rows in plan.method_rows.values():
             _withdraw_rows(plan.space._rt, [row for row in rows if row[0] != space._name])
         for rows in plan.inherited_rows.values():

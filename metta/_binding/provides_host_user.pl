@@ -61,11 +61,6 @@
 
 :- multifile seam:segment_committed/1.
 
-:- multifile seam:transaction_constraint/1.
-
-seam:transaction_constraint(user:metta_py_validate_proxy(Space, Receiver, Token)) :-
-    metta_py_pending_proxy(Space, Receiver, Token).
-
 seam:foreign_capability(Space, Capability) :-
     metta_py_foreign(Space),
     metta_py_capability(Space, Capability).

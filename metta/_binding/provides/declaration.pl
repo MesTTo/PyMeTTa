@@ -4,13 +4,6 @@
 % Guarantees: every supplied head has this file's engine kind
 % [tested: test_binding_provisions_keep_audience_and_kind; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 
-provides_declaration(host, user, transaction_constraint/1).
-
-provides(host, user, (
-seam:transaction_constraint(user:metta_py_validate_proxy(Space, Receiver, Token)) :-
-    metta_py_pending_proxy(Space, Receiver, Token)
-)).
-
 provides_declaration(engine, user, grounded_extra_type/2).
 
 provides(engine, user, (

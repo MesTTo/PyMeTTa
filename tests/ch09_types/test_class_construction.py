@@ -219,7 +219,9 @@ def test_a_rolled_back_proxy_check_cannot_refuse_the_outer_commit():  # noqa: D1
         value = m.transaction(outer)
         assert value.value == 7
         assert convert.build(term, ConstructionDiscardedProxy) is value
-        assert m._rt.must("aggregate_all(count, metta_py_pending_proxy(_, _, _), Count)")["Count"] == 0
+        assert m.transaction(lambda: convert.build(term, ConstructionDiscardedProxy)) is value
+        plan = declaration(ConstructionDiscardedProxy)
+        assert len(plan.space.eval(S.match(S[plan.space.name], S["_python-proxy"](term, V.proxy), V.proxy))) == 1
         with pytest.raises(ReferenceError, match="retired or its construction rolled back"):
             convert.project(discarded[0])
 
