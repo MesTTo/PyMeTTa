@@ -758,6 +758,22 @@ def test_a_home_handle_outliving_its_context_keeps_the_world():  # noqa: D103  -
     assert len(home.match(S.kept(V.n))) == 1
 
 
+def test_a_child_handle_outliving_its_context_keeps_the_world():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    import gc
+
+    # The chained spelling that keeps a CHILD: the context and its home handle
+    # are unreferenced while the child is in use. The child holds the home
+    # handle, so the abandoned-world backstop waits for the child.
+    child = MeTTa().space()
+    gc.collect()
+    child.add(S.kept(2))  # a crossing drains whatever the collector deferred
+    assert not child.dropped
+    assert len(child.match(S.kept(V.n))) == 1
+    with MeTTa("&self") as observer:
+        assert str(child.name) in observer.self.space_names()
+    child.drop()
+
+
 def test_an_abandoned_context_releases_its_world():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import gc
 

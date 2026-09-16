@@ -256,7 +256,9 @@ def test_a_borrowed_context_leaves_its_minted_handle_with_the_caller():
         assert name in home.space_names()
         context.close()
         assert context.closed
-        assert not child.dropped
+        # The owner's close takes the world with it, and every handle of a
+        # space in that world says so.
+        assert child.dropped
         with MeTTa("&self") as observer:
             assert name not in observer.self.space_names()
     finally:

@@ -2,6 +2,10 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: anonymous space names; metta_py_release_space/1 clears and returns eligible names to the pool
 % [source: extensions/python/metta/_binding/lifecycle.pl:metta_py_release_space/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+% Guarantees: metta_py_lease/2 holds one row per live name with a Python cell,
+% asserted in the caller's transaction and retracted by retirement or by the
+% cell's deferred release [tested: test_a_handle_born_in_an_aborted_transaction_is_dead,
+% test_lease_rows_follow_outstanding_handles; commit=WORKTREE].
 % Guarantees: declaration, transport and release preserve native expression identities
 % [tested: test_parametric_names_preserve_their_native_fields,
 % test_parametric_names_follow_scope_release; commit=3f71a0b3af04a3ba4c88bf3906197a2a80d9080e].
@@ -177,6 +181,48 @@ metta_py_pool_space(Name) :-
 metta_py_space_releasable(Name0) :-
     metta_py_space_atom(Name0, Name),
     metta_assert_space_releasable(Name).
+
+% One host registration per live name, shared by every Python handle of that
+% name (metta._spaces.lease). The row is asserted in the caller's transaction,
+% so a handle born in a transaction that aborts learns at the outcome that its
+% lease is gone; a retirement retracts the rows and reports each lease to its
+% cell after the retiring handle's own completion; a collected cell releases
+% its own row through the deferred engine queue. Both reports name the lease,
+% never a Python object: janus retains a crossed object until atom GC, which
+% kept a transient cell, its handles and its row alive
+% [measured 2026-09-16: test_lease_rows_follow_outstanding_handles read one row
+% after gc.collect() while the cell's bound method was the crossed completion host].
+:- dynamic metta_py_lease/2.
+
+metta_py_lease_open(Space0, Lease) :-
+    metta_py_space_atom(Space0, Space),
+    flag('$metta_py_lease', Lease, Lease+1),
+    assertz(metta_py_lease(Space, Lease)),
+    % Only a transaction can take the row back, so only a transaction
+    % schedules the completion that reports its absence.
+    (   current_transaction(_)
+    ->  context_module(Module),
+        metta_after_foreign(lease(Space, Lease),
+                            Module:metta_py_lease_settled(Space, Lease))
+    ;   true
+    ).
+
+% After the outcome, an absent row means the birth was aborted.
+metta_py_lease_settled(Space, Lease) :-
+    (   metta_py_lease(Space, Lease)
+    ->  true
+    ;   py_call(metta_ops:lease_aborted(Lease), _)
+    ).
+
+metta_py_lease_release(Space0, Lease) :-
+    metta_py_space_atom(Space0, Space),
+    retractall(metta_py_lease(Space, Lease)).
+
+% The event seam's provision reaches this from a release's completion, after
+% the host completion of the handle that asked for the drop.
+metta_py_lease_retired(Space) :-
+    forall(retract(metta_py_lease(Space, Lease)),
+           py_call(metta_ops:space_released(Lease), _)).
 
 % Drop a named life without putting its public name in the anonymous pool.
 % The two-argument door names the handle's completion callable: the engine

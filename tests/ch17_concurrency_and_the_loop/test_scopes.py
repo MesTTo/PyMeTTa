@@ -316,9 +316,18 @@ def test_normal_exit_stops_a_repeating_timer():
 
 def test_a_repeating_child_failure_stops_the_scope(native_ops):
     """A repeating timer's failure cancels the scope that owns it."""
+    armed = threading.Event()
+
+    @native_ops.op(name="sc-armed", effect="oracleIO")
+    def sc_armed() -> bool:
+        return armed.is_set()
+
     with native_ops.self, pytest.raises(MettaError, match="scope_test_failure"):
         with native_ops.scope():
-            timer = metta.every(0.001, S['sc-test-error']())
+            # The timer passes until the handle exists, so the failure reaches
+            # the wait rather than the handle's own construction crossing.
+            timer = metta.every(0.001, S['if'](S['sc-armed'](), S['sc-test-error'](), S.unit()))
+            armed.set()
             list(timer.wait())
     assert timer.dropped
 
@@ -382,7 +391,9 @@ def test_a_rolled_back_allocation_cannot_recycle_a_revoked_name():
         children = []
 
         def rollback():
-            children.append(metta.space())
+            # The handle is dead once the transaction rolls back, so its name
+            # is read while it is live.
+            children.append(metta.space().name)
             message = "rollback"
             raise ValueError(message)
 
@@ -390,7 +401,7 @@ def test_a_rolled_back_allocation_cannot_recycle_a_revoked_name():
         with metta.scope():
             with pytest.raises(ValueError, match="rollback"):
                 borrowed.transaction(rollback)
-            name = children[0].name
+        (name,) = children
         with metta.space() as later:
             assert later.name != name
             later.add(S.item(1))
@@ -432,7 +443,7 @@ def test_cleanup_failure_revokes_aliases_attempts_all_and_can_retry(tmp_path, mo
         monkeypatch.setattr(type(journal._backing), "close", fail_once)
     assert retained.dropped
     assert alias.dropped
-    with pytest.raises(MettaError, match="released_scope_space"):
+    with pytest.raises(MettaError, match="is dead: its space was dropped"):
         alias.add(S.item(1))
     scope.close()
     assert len(attempts) == 2

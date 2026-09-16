@@ -18,6 +18,12 @@ provides_declaration(host, user, atom_removed/2).
 
 provides_declaration(host, user, segment_committed/1).
 
+provides_declaration(host, user, space_released/1).
+
+provides(host, user, (
+seam:space_released(Space) :- metta_py_lease_retired(Space)
+)).
+
 provides_template(host, user, atom_added, (
 seam:atom_added(Space, Term) :- metta_py_notify_atom_added(Space, Term)
 )).

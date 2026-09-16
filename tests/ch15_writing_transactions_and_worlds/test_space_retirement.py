@@ -74,9 +74,7 @@ def test_a_drop_inside_a_transaction_follows_its_outcome(scoped, action, abort):
             else:
                 home.transaction(body)
                 assert _storage(home, name) == {"cached": False, "rows": [], "scope_dead": scoped}
-                # A native drop of an unscoped space leaves the retained Python
-                # handle uninformed until the host registration lease lands.
-                assert holder.dropped is (action == "python" or scoped)
+                assert holder.dropped
 
 
 def test_a_pending_drop_refuses_handle_operations_until_the_outcome():

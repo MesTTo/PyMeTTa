@@ -869,21 +869,26 @@ def test_a_rolled_back_async_launch_never_starts_or_lands(metta):
     metta.op(should_not_run, name=name, effect="writesState")
     seen, _landed, subscription = _record_async_lifecycle(metta, name)
     held: list[FutureSpace] = []
+    names: list[str] = []
     try:
 
         def roll_back() -> None:
             held.extend(metta.eval(S[name]()))
+            # The future's handle is dead once the transaction rolls back,
+            # so its name is read while it is live.
+            names.extend(str(future.name) for future in held)
             msg = "discard prepared async operation"
             raise RuntimeError(msg)
 
         with pytest.raises(RuntimeError, match="discard prepared async operation"):
             metta.transaction(roll_back)
         assert len(held) == 1
+        assert held[0].dropped, "a future born in a rolled-back transaction is dead"
         assert entered.is_set() is False
         assert seen == []
         registry = runtime().once(
             "(lib_thread:metta_future(Space, _, _) -> Present = true ; Present = false)",
-            Space=held[0].name,
+            Space=names[0],
         )
         assert registry is not None
         assert registry["Present"] == "false"

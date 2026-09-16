@@ -148,4 +148,17 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 371
+#: RE-PINNED 2026-09-16, 371 to 545 (+174), Every Python handle of a live name
+#: now opens one engine lease on the first handle of that name
+#: (metta_py_lease_open/2, one crossing of 12 inferences plus the row, measured
+#: 32 for a first handle and 14 for a cached attach); this twin's named space
+#: and its transient home handles pay that once each, 524 to 545 on this tree.
+#: The pin also absorbs the interval since its last move that the twin lane had
+#: not priced: 371 to 383 at 709e556c1 with the completion and admission-law
+#: units, then 383 to 524 at 1a8c00f93 with the FROM source-origins reader,
+#: whose origin trees ride beside every written form; 524 held through the
+#: transactional release at 9d7d4164c. Measured in provisioned worktrees of
+#: each commit [measured 2026-09-16: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 545

@@ -7,6 +7,11 @@ Guarantees: a drop inside a transaction finishes this side's cleanup only when
 the engine reports the committed retirement, and an abort restores the handle
 [tested: test_a_drop_inside_a_transaction_follows_its_outcome,
 test_a_pending_drop_refuses_handle_operations_until_the_outcome; commit=f9ef614a03bce1a1878d9b43fb7618df57ccfa21].
+Guarantees: every handle of one live name shares one life through
+metta._spaces.lease, so a retirement by any party reads dropped on all of them
+and a reused name never answers an old handle [tested:
+test_a_native_drop_marks_every_retained_handle_dead,
+test_aliases_share_one_life_and_a_reused_name_starts_another; commit=WORKTREE].
 Guarantees: parametric names retain their exact native fields and immutable
 registry identity [tested: test_parametric_names_preserve_their_native_fields,
 test_parametric_aliases_share_batch_ownership,
@@ -23,6 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Never, Self, cast
 
 import metta._spaces.intents as _spaces_intents_module
+import metta._spaces.lease as _spaces_lease_module
 import metta._spaces.lifetime as _spaces_lifetime_module
 import metta._spaces.scope as _spaces_scope_module
 import metta.doors as _doors
@@ -281,7 +287,7 @@ class SpaceHandle(Handle):
         m.add(S.Parent(S.Tom, S.Bob))
         m.match(S.Parent(V.x, S.Bob))
     """
-    __slots__ = ('__weakref__', '_autodrop', '_backing', '_context_tokens', '_created_at', '_drop_engine_done', '_drop_pending', '_dropped', '_ephemeral', '_name', '_name_atom', '_owns_backing', '_rt', '_scoped')
+    __slots__ = ('__weakref__', '_autodrop', '_backing', '_cell', '_context_tokens', '_created_at', '_drop_engine_done', '_drop_pending', '_dropped', '_ephemeral', '_name', '_name_atom', '_owns_backing', '_rt', '_scoped', '_world')
     _expression_listing_snapshot = True
 
     def __setattr__(self, name: str, value: Any, /) -> None:
@@ -298,6 +304,7 @@ class SpaceHandle(Handle):
         metta_path: str | None = None,
         _runtime: Runtime | None = None,
         _created_at: tuple[str, int] | None = None,
+        _lease: bool = True,
     ) -> None:
         super().__init__()
         self._rt = _runtime or runtime(metta_path=metta_path, verbose=verbose)
@@ -381,6 +388,10 @@ class SpaceHandle(Handle):
         # The public parameter takes a plain str so a literal is writable;
         # the NewType is constructed once here and threads through inside.
         self._name = cast(_SpaceId, engine_name)
+        # Every handle of one live name shares one cell; the engine decides
+        # when that life ends. A bookkeeping handle made during cleanup passes
+        # _lease=False so it neither starts a new life nor inherits a dead one.
+        self._cell = _spaces_lease_module.attach(self._rt, self._name) if _lease else None
         self._dropped = False
         self._drop_engine_done = False
         self._drop_pending = False
@@ -389,6 +400,7 @@ class SpaceHandle(Handle):
         self._backing: Any = None
         self._owns_backing = False
         self._created_at = _created_at
+        self._world: _root.Space | None = None
         self._context_tokens: list[Any] = []
         self._scoped = _spaces_lifetime_module.attach(self)
 
@@ -419,6 +431,13 @@ class SpaceHandle(Handle):
             raise MettaError(msg)
         if self._drop_engine_done:
             msg = f"{self._name} finished engine teardown; call drop() again to finish cleanup"
+            raise MettaError(msg)
+        if self._cell is not None and self._cell.dead:
+            msg = (
+                f"{self._name} is dead: {self._cell.reason}. Its name may "
+                f"already belong to another space, so writes through this "
+                f"handle would land there. Take a new handle from space()."
+            )
             raise MettaError(msg)
         scope_context = _spaces_lifetime_module
         if not self._scoped and scope_context.current() is not None:
@@ -574,6 +593,15 @@ class SpaceHandle(Handle):
         )
         fresh._ephemeral = not fresh._scoped
         fresh._autodrop = True
+        # A space minted inside a world reads the home's equations and goes
+        # with the home when the world is torn down, so the handle keeps the
+        # home handle alive: the abandoned-world backstop watches that handle,
+        # and a reference handed out of a world may not outlive the world.
+        # `MeTTa().space()` leaves the context unreferenced while the child is
+        # in use; without this the collector dropped the world under it and
+        # the child kept writing into a revived name
+        # [tested: test_a_child_handle_outliving_its_context_keeps_the_world].
+        fresh._world = _equation_home
         return fresh
 
     @_doors.door(
@@ -617,14 +645,16 @@ class SpaceHandle(Handle):
         """
         if self._dropped or self._drop_pending:
             return
+        if self._cell is not None and self._cell.dead:
+            # Another party retired the space, or this handle's own retirement
+            # committed and its cleanup failed; only this side's cleanup remains.
+            self._drop_engine_done = True
         self._scoped = _spaces_lifetime_module.attach(self)
-        if self._scoped:
+        if self._scoped and not self._drop_engine_done:
             with _spaces_lifetime_module.suspend():
                 if not self._rt.once("lib_thread:scope_cleanup"):
                     self._rt.must("lib_thread:scope_drop_space(Name)", Name=self._name)
                     return
-                if self._rt.once("lib_thread:scope_engine_released(Name)", Name=self._name):
-                    self._drop_engine_done = True
         name = self._name
         if not self._drop_engine_done:
             self._rt.must("metta_py_space_releasable(Space)", Space=name)
@@ -695,7 +725,7 @@ class SpaceHandle(Handle):
         # A failed cleanup is retryable, but may not release the name for reuse
         # or repeat engine teardown. The bookkeeping handle carries only the
         # name/runtime needed to retire satellites; it creates no engine state.
-        cleanup = lazy('metta._faces.space').Space(name, _runtime=self._rt)
+        cleanup = lazy('metta._faces.space').Space(name, _runtime=self._rt, _lease=False)
         cleanup._scoped = False
         for subscription in subscriptions._subscriptions_for(name):
             subscription.cancel()
@@ -729,23 +759,24 @@ class SpaceHandle(Handle):
         effect=_doors.EffectClass.pureStructural,
         determinism=_doors.Determinism.det,
         tiers=(_doors.Tier.sync,),
-        evidence=('extensions/python/tests/repository/test_door_rows.py::test_space_identity_doors_follow_the_handle_lifetime',),
+        evidence=('extensions/python/tests/ch04_spaces_and_matching/test_space_leases.py::test_a_native_drop_marks_every_retained_handle_dead', 'extensions/python/tests/repository/test_door_rows.py::test_space_identity_doors_follow_the_handle_lifetime'),
         state=_doors.State.any,
         is_property=True,
     )
     def dropped(self) -> bool:
-        """Whether :meth:`drop` has released this handle's space.
+        """Whether this handle's space has been released, by any party.
 
-        A drop pending inside an open transaction reports False until that
-        transaction's outcome finishes or restores it.
+        Every handle of one live name shares that answer: a drop through
+        another handle, a lifetime scope, a native or MeTTa drop, and a
+        birth inside a transaction that did not commit all read True here. A
+        drop pending inside an open transaction reports False until that
+        transaction's outcome finishes or restores it, and a drop whose
+        engine half finished but whose own cleanup failed reports False
+        until drop() finishes it.
         """
-        if self._dropped:
-            return True
-        self._scoped = _spaces_lifetime_module.attach(self)
-        if self._scoped:
-            with _spaces_lifetime_module.suspend():
-                return bool(self._rt.once("lib_thread:scope_space_dead(Name)", Name=self._name))
-        return False
+        return self._dropped or (
+            self._cell is not None and self._cell.dead and not self._drop_engine_done
+        )
 
     def __enter__(self) -> Self:
         self._context_tokens.append(_spaces_scope_module._ACTIVE_SPACE.set(self._space))

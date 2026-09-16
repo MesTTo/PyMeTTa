@@ -57,9 +57,13 @@
 
 :- multifile seam:segment_committed/1.
 
+:- multifile seam:space_released/1.
+
 seam:foreign_capability(Space, Capability) :-
     metta_py_foreign(Space),
     metta_py_capability(Space, Capability).
+
+seam:space_released(Space) :- metta_py_lease_retired(Space).
 
 seam:host_reader_token_construct(Constructor, Text, Term) :-
     seam:host_object(Constructor),

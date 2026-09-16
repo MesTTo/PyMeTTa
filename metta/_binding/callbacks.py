@@ -70,6 +70,7 @@ _CALLBACKS = {
     'fork_contexts': ('metta._binding.task_context', 'fork_many'),
     'heartbeat_tick': ('metta._binding.runtime', 'heartbeat_tick'),
     'is_matchable': ('metta.foreign', 'is_matchable'),
+    'lease_aborted': ('metta._spaces.lease', 'aborted'),
     'match_object': ('metta.foreign', 'match_object'),
     'path_begin': ('metta.paths', '_path_begin'),
     'path_step': ('metta.paths', '_path_step'),
@@ -77,6 +78,7 @@ _CALLBACKS = {
     'release_context': ('metta._binding.task_context', 'release'),
     'release_contexts': ('metta._binding.task_context', 'release_many'),
     'segment_committed': ('metta.events', 'segment_committed'),
+    'space_released': ('metta._spaces.lease', 'released'),
     'stream_reraise': ('metta._errors.errors', 'stream_reraise'),
     'type_names': ('metta._binding.dispatch', 'type_names'),
 }
@@ -109,6 +111,7 @@ fork_context: _Any
 fork_contexts: _Any
 heartbeat_tick: _Any
 is_matchable: _Any
+lease_aborted: _Any
 match_object: _Any
 path_begin: _Any
 path_step: _Any
@@ -116,6 +119,7 @@ path_value: _Any
 release_context: _Any
 release_contexts: _Any
 segment_committed: _Any
+space_released: _Any
 stream_reraise: _Any
 type_names: _Any
 
@@ -148,6 +152,7 @@ __all__ = [
     'fork_contexts',
     'heartbeat_tick',
     'is_matchable',
+    'lease_aborted',
     'match_object',
     'path_begin',
     'path_step',
@@ -155,6 +160,7 @@ __all__ = [
     'release_context',
     'release_contexts',
     'segment_committed',
+    'space_released',
     'stream_reraise',
     'type_names',
 ]
