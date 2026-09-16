@@ -3,6 +3,10 @@
 Owns resources: SpaceHandle.drop releases owned backing state and subscriptions.
 Failed cleanup retains its state for retry before an anonymous name is pooled
 [source: extensions/python/metta/_spaces/handle.py:544; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Guarantees: a drop inside a transaction finishes this side's cleanup only when
+the engine reports the committed retirement, and an abort restores the handle
+[tested: test_a_drop_inside_a_transaction_follows_its_outcome,
+test_a_pending_drop_refuses_handle_operations_until_the_outcome; commit=WORKTREE].
 Guarantees: parametric names retain their exact native fields and immutable
 registry identity [tested: test_parametric_names_preserve_their_native_fields,
 test_parametric_aliases_share_batch_ownership,
@@ -277,7 +281,7 @@ class SpaceHandle(Handle):
         m.add(S.Parent(S.Tom, S.Bob))
         m.match(S.Parent(V.x, S.Bob))
     """
-    __slots__ = ('__weakref__', '_autodrop', '_backing', '_context_tokens', '_created_at', '_drop_engine_done', '_dropped', '_ephemeral', '_name', '_name_atom', '_owns_backing', '_rt', '_scoped')
+    __slots__ = ('__weakref__', '_autodrop', '_backing', '_context_tokens', '_created_at', '_drop_engine_done', '_drop_pending', '_dropped', '_ephemeral', '_name', '_name_atom', '_owns_backing', '_rt', '_scoped')
     _expression_listing_snapshot = True
 
     def __setattr__(self, name: str, value: Any, /) -> None:
@@ -379,6 +383,7 @@ class SpaceHandle(Handle):
         self._name = cast(_SpaceId, engine_name)
         self._dropped = False
         self._drop_engine_done = False
+        self._drop_pending = False
         self._ephemeral = False
         self._autodrop = False
         self._backing: Any = None
@@ -406,6 +411,12 @@ class SpaceHandle(Handle):
             raise MettaError(
                 msg
             )
+        if self._drop_pending:
+            msg = (
+                f"{self._name} is being dropped in the current transaction; "
+                f"commit or abort it before using this handle again"
+            )
+            raise MettaError(msg)
         if self._drop_engine_done:
             msg = f"{self._name} finished engine teardown; call drop() again to finish cleanup"
             raise MettaError(msg)
@@ -597,8 +608,14 @@ class SpaceHandle(Handle):
         If later cleanup fails, call drop() again to finish it. The handle
         refuses other operations in that state and retains its anonymous name
         until cleanup succeeds; retrying does not repeat engine teardown.
+
+        Inside a transaction the engine retires the space with the transaction
+        and this handle's cleanup waits for the outer outcome: a commit
+        finishes it, an abort restores the space and the handle, and until
+        then the handle refuses other operations. Outside a transaction the
+        drop completes before returning.
         """
-        if self._dropped:
+        if self._dropped or self._drop_pending:
             return
         self._scoped = _spaces_lifetime_module.attach(self)
         if self._scoped:
@@ -609,21 +626,39 @@ class SpaceHandle(Handle):
                 if self._rt.once("lib_thread:scope_engine_released(Name)", Name=self._name):
                     self._drop_engine_done = True
         name = self._name
-        subscriptions = lazy('metta.subscribe')
-        foreign = lazy('metta.foreign')
-        integrate = lazy('metta.integrate')
         if not self._drop_engine_done:
             self._rt.must("metta_py_space_releasable(Space)", Space=name)
+            foreign = lazy('metta.foreign')
             # Detach the engine's provider route while keeping Python ownership.
             # Drop must not clear an external journal or borrowed provider.
             provider = foreign._provider(name) if foreign.has_provider(name) else None
+            self._drop_pending = True
             try:
                 if provider is not None:
                     self._rt.must("metta_py_unregister_foreign(Space)", Space=name)
                 # Separate queries let SWI reclaim clauses erased by the clear.
                 self._rt.must("metta_py_clear_for_release(Space)", Space=name)
-                self._rt.must("metta_py_drop_space(Space)", Space=name)
+                # The engine reports the outcome to _released: before this call
+                # returns outside a transaction, after the outer outcome inside
+                # one. Python cleanup waits for that report.
+                self._rt.must("metta_py_drop_space(Space, Host)", Space=name, Host=self._released)
             except BaseException as teardown_error:
+                if self._drop_engine_done:
+                    # Engine teardown committed and the failure is Python
+                    # cleanup, which drop() retries without repeating teardown.
+                    # It crossed the engine inside the completion callback, so
+                    # raise the cleanup's own exception rather than the engine
+                    # transcript around it, as transaction() does for a body.
+                    term = getattr(teardown_error.__cause__, "term", None)
+                    original = (
+                        self._rt._original_python_error(term, base=BaseException)
+                        if term is not None
+                        else None
+                    )
+                    if original is not None and original is not teardown_error:
+                        raise original from teardown_error
+                    raise
+                self._drop_pending = False
                 if provider is not None:
                     try:
                         foreign.register_provider(self._rt, name, provider)
@@ -634,8 +669,29 @@ class SpaceHandle(Handle):
                             [teardown_error, restore_error],
                         ) from None
                 raise
-            self._drop_engine_done = True
+            return
+        self._finish_drop()
 
+    def _released(self, outcome: str) -> None:
+        """Finish the drop after a committed retirement, or unpend it after an abort.
+
+        The engine calls this with ``retired`` or ``restored`` once the outer
+        transaction's outcome and its foreign participants are settled.
+        """
+        self._drop_pending = False
+        if outcome != "retired":
+            return
+        self._drop_engine_done = True
+        self._finish_drop()
+
+    def _finish_drop(self) -> None:
+        """Release the Python side of a space the engine has retired."""
+        if self._dropped:
+            return
+        name = self._name
+        subscriptions = lazy('metta.subscribe')
+        foreign = lazy('metta.foreign')
+        integrate = lazy('metta.integrate')
         # A failed cleanup is retryable, but may not release the name for reuse
         # or repeat engine teardown. The bookkeeping handle carries only the
         # name/runtime needed to retire satellites; it creates no engine state.
@@ -678,7 +734,11 @@ class SpaceHandle(Handle):
         is_property=True,
     )
     def dropped(self) -> bool:
-        """Whether :meth:`drop` has released this handle's space."""
+        """Whether :meth:`drop` has released this handle's space.
+
+        A drop pending inside an open transaction reports False until that
+        transaction's outcome finishes or restores it.
+        """
         if self._dropped:
             return True
         self._scoped = _spaces_lifetime_module.attach(self)

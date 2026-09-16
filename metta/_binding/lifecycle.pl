@@ -179,9 +179,20 @@ metta_py_space_releasable(Name0) :-
     metta_assert_space_releasable(Name).
 
 % Drop a named life without putting its public name in the anonymous pool.
+% The two-argument door names the handle's completion callable: the engine
+% calls it with retired after the outer outcome when the retirement committed
+% and with restored when an abort kept the space, so the handle finishes or
+% unpends its own cleanup. Outside a transaction that call returns first.
 metta_py_drop_space(Name0) :-
     metta_py_space_atom(Name0, Name),
     metta_release_space(Name).
+metta_py_drop_space(Name0, Host) :-
+    metta_py_space_atom(Name0, Name),
+    context_module(Module),
+    metta_release_space(Name, Module:metta_py_space_released(Host)).
+
+metta_py_space_released(Host, Outcome) :-
+    py_call(Host:'__call__'(Outcome), _).
 
 % Release an anonymous life: drop first, then pool the minted atom name.
 metta_py_release_space(Name0) :-
