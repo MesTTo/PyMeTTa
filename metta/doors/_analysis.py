@@ -37,10 +37,35 @@ Memoized declaration lookups replay their slot reads, so the report of the
 shipped tree is identical with and without them and under two hash seeds
 [measured 2026-09-15: doororder.py 41s before, 17.8s after, PYTHONHASHSEED 123
 and 456 equal; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
+A generic annotation keeps the elements, keys, positions or class it
+declares, and admits only its own type's operations; a declaration refines
+an actual of unknown structure; a public contract is read from a door's
+overloads; the standard-library calls that invoke a supplied callback are
+the ones typeshed declares Callable; *args and **kwargs are the tuple and
+mapping Python binds; a __slots__ descriptor and an inherited UserList
+reach their fields; callable() and an early exit narrow like a type checker
+[tested: test_generic_annotations_declare_their_element_structure,
+test_declared_container_types_admit_only_their_own_operations,
+test_declared_parameter_types_refine_actuals_of_unknown_structure,
+test_callable_and_early_exit_narrowing_separate_a_union,
+test_a_callable_passed_to_the_standard_library_is_invoked_where_typeshed_declares_it,
+test_variadic_parameters_hold_a_tuple_and_a_mapping,
+test_slot_descriptors_write_and_read_the_declared_field,
+test_a_generic_base_class_names_its_class_and_holds_its_elements; commit=WORKTREE].
+A value the standard library made is host work, an attribute no
+standard-library type declares is open, and what a supplied callable
+answers carries its contract; every such value is one finite reference
+[tested: test_a_standard_library_value_is_host_work_and_an_unknown_member_is_not,
+test_a_value_a_supplied_callback_returned_carries_its_contract,
+test_wrapper_unwrapping_has_a_finite_abstract_domain; commit=WORKTREE].
 Fails when: a setter carries statements beside its intrinsic call; its
 callers' names and values are then joined across all call sites, which
 reports every assigned value as a possible receiver [tested:
 test_setter_with_a_native_statement_keeps_its_crossing; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
+A standard-library call that returns one of its arguments' elements, other
+than the container constructors, iter, next and the mapping reads modelled
+here, loses those elements: sorted(rows)[0] is host work with no door in
+it [assumed 2026-09-16; commit=WORKTREE].
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
 [source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -56,11 +81,17 @@ from __future__ import annotations
 import ast
 import builtins
 import collections.abc
+import importlib
 import sys
+import types
+import typing
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from functools import cache
 from typing import cast
+
+from metta.doors._invocations import INVOCATIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +131,76 @@ _ATTRIBUTE_INTRINSICS = frozenset({
     "builtins.getattr", "builtins.hasattr", "builtins.object.__getattribute__",
     "builtins.setattr", "builtins.object.__setattr__",
 })
+
+
+@cache
+def _stdlib_object(name: str) -> object | None:
+    """The standard-library object a qualified name denotes, or None."""
+    module, _, member = name.rpartition(".")
+    if module.split(".", 1)[0] not in sys.stdlib_module_names:
+        return None
+    try:
+        return getattr(importlib.import_module(module), member)
+    except (ImportError, AttributeError):
+        return None
+
+
+# These standard-library bases hold their elements in a documented public
+# attribute, so a source class that inherits one stores there.
+# https://docs.python.org/3.14/library/collections.html#userlist-objects
+_INHERITED_STORAGE = {"collections.UserList": "data", "collections.UserDict": "data",
+                      "collections.UserString": "data"}
+
+
+@cache
+def _members(name: str) -> frozenset[str]:
+    """The member names instances of a standard-library type provide.
+
+    Read from the MRO's own namespaces rather than through hasattr, which
+    answers about the class object: every class is callable, so
+    hasattr(str, "__call__") is True while a str is not callable.
+    https://docs.python.org/3.14/reference/datamodel.html#invoking-descriptors
+    """
+    kind = _stdlib_object(name)
+    if not isinstance(kind, type):
+        return frozenset()
+    return frozenset(member for base in kind.__mro__ for member in vars(base))
+
+
+@cache
+def _mapping(name: str) -> bool:
+    """Whether a container's own type holds keys as well as values."""
+    kind = _stdlib_object(name)
+    return isinstance(kind, type) and issubclass(kind, collections.abc.Mapping)
+
+
+@cache
+def _shape(name: str) -> tuple[str, str] | None:
+    """How a subscripted annotation head holds its arguments, and its own type.
+
+    Classified by Python's own hierarchy through typing.get_origin, as
+    metta._catalog.annotations classifies runtime annotations: a Mapping
+    holds keys and values, a tuple its positions, an Iterator and any other
+    Iterable their elements, an Awaitable the value it yields, and type the
+    class it names. The second name is the declared type itself, so the
+    operations the value admits stay exactly that type's own.
+    """
+    head = _stdlib_object(name)
+    origin = typing.get_origin(head) or head
+    if not isinstance(origin, type):
+        return None
+    receiver = f"{origin.__module__}.{origin.__qualname__}"
+    if origin is type:
+        return "class", receiver
+    if issubclass(origin, collections.abc.Mapping):
+        return "dict", receiver
+    if issubclass(origin, tuple):
+        return "tuple", receiver
+    if issubclass(origin, (collections.abc.Iterable, collections.abc.AsyncIterable)):
+        return "list", receiver
+    if issubclass(origin, collections.abc.Awaitable):
+        return "awaited", receiver
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +248,23 @@ class _Scope:
                 *([args.vararg] if args.vararg else []),
                 *([args.kwarg] if args.kwarg else [])]
 
+    @property
+    def arguments(self) -> ast.arguments | None:
+        """The signature, when this scope is a callable one."""
+        return self.node.args if isinstance(self.node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)) else None
+
+
+def _terminates(statements: list[ast.stmt]) -> bool:
+    """Whether a block always leaves its enclosing block on every path."""
+    if not statements:
+        return False
+    last = statements[-1]
+    if isinstance(last, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+        return True
+    if isinstance(last, ast.If):
+        return _terminates(last.body) and _terminates(last.orelse)
+    return False
+
 
 class CallGraph:
     """A worklist of source scopes whose finite possible values only grow."""
@@ -179,6 +297,8 @@ class CallGraph:
         self.forwarders: dict[str, tuple[ast.expr, tuple[int, ...]] | None] = {}
         self.forwarding: set[str] = set()
         self.memos: dict[str, tuple[object, frozenset[Slot]]] = {}
+        self.subclasses: dict[str, set[str]] = defaultdict(set)
+        self.overloads: dict[str, list[ast.arguments]] = defaultdict(list)
         self.memo_readers: dict[Slot, set[str]] = defaultdict(set)
         self.collecting: list[set[Slot]] = []
         # Keyed by node identity and holding the node, so a synthetic node
@@ -195,6 +315,10 @@ class CallGraph:
         """Bind module declarations before any class body or entry reads them."""
         for name in (*sorted(self.modules), *sorted(self.classes), *sorted(self.entries.intersection(self.scopes))):
             self._schedule(name)
+        # Every class's MRO is indexed once, so the reverse index is complete
+        # before a base method reads a field a subclass assigned.
+        for name in sorted(self.classes):
+            self._bases(name)
 
     def _schedule(self, name: str) -> None:
         if not self._reporting and name not in self.queued:
@@ -257,6 +381,14 @@ class CallGraph:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 name = scope.name + "." + node.name
                 kind = "class" if isinstance(node, ast.ClassDef) else "function"
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and any(
+                    ast.unparse(item).rsplit(".", 1)[-1] == "overload" for item in node.decorator_list
+                ):
+                    # An overload declares the public contract the
+                    # implementation's own annotation widens to Any.
+                    # https://docs.python.org/3.14/library/typing.html#typing.overload
+                    self.overloads[name].append(node.args)
+                    return
                 scope.locals.add(node.name)
                 self._put((scope.name, node.name), frozenset({Reference(kind, name)}))
                 (self.classes if kind == "class" else self.functions).add(name)
@@ -353,21 +485,21 @@ class CallGraph:
         if isinstance(node, ast.Constant):
             if isinstance(node.value, str):
                 try:
-                    return self._annotation(ast.parse(node.value, mode="eval").body, scope)
+                    forward = ast.parse(node.value, mode="eval").body
                 except SyntaxError:
                     return frozenset()
+                # A forward reference keeps its constant's position, so two
+                # quoted annotations in one scope allocate distinct containers.
+                for child in ast.walk(forward):
+                    if isinstance(child, (ast.expr, ast.stmt)):
+                        child.lineno = node.lineno
+                        child.col_offset += node.col_offset + 1
+                return self._annotation(forward, scope)
             return frozenset({Reference("instance", "builtins.NoneType")})
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
             return self._annotation(node.left, scope) | self._annotation(node.right, scope)
         if isinstance(node, ast.Subscript):
-            names = {reference.name for reference in self._annotation_symbols(node.value, scope)}
-            # These qualifiers describe a binding, not a runtime receiver.
-            # https://docs.python.org/3.14/library/typing.html#typing.Final
-            # policy-inventory-exempt: mechanism-internal; reason=Python type qualifiers carry their underlying type in the first argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._annotation
-            if names.intersection({"typing.Final", "typing.ClassVar", "typing.Annotated"}):
-                value = node.slice.elts[0] if isinstance(node.slice, ast.Tuple) else node.slice
-                return self._annotation(value, scope)
-            return self._annotation(node.value, scope)
+            return self._subscripted_annotation(node, scope)
         if isinstance(node, ast.Name):
             references = self._references(self._get(self._slot(scope, node.id)))
             if not references and hasattr(builtins, node.id):
@@ -378,6 +510,9 @@ class CallGraph:
             return frozenset()
         result = set()
         for reference in references:
+            if reference.name == "typing.Self" and scope.owner:
+                result.add(Reference("instance", scope.owner))
+                continue
             # policy-inventory-exempt: mechanism-internal; reason=abstract typing forms do not identify a concrete receiver class; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._annotation
             if reference.name in {"typing.Any", "typing.Self", "typing.Callable", "collections.abc.Callable",
                                   "typing.Final", "typing.ClassVar", "typing.Annotated"}:
@@ -387,19 +522,111 @@ class CallGraph:
                 result.add(Reference("instance", reference.name))
         return frozenset(result)
 
+    def _subscripted_annotation(self, node: ast.Subscript, scope: _Scope) -> Values:
+        """Keep the declared element, key, position or class structure of a generic."""
+        names = {reference.name for reference in self._annotation_symbols(node.value, scope)}
+        arguments = list(node.slice.elts) if isinstance(node.slice, ast.Tuple) else [node.slice]
+        # These qualifiers describe a binding, not a runtime receiver.
+        # https://docs.python.org/3.14/library/typing.html#typing.Final
+        if names.intersection(
+            {"typing.Final", "typing.ClassVar", "typing.Annotated"}
+        ):
+            return self._annotation(arguments[0], scope)
+        if names.intersection(
+            {"typing.Optional", "typing.Union"}
+        ):
+            values = frozenset().union(*(self._annotation(argument, scope) for argument in arguments))
+            return values | frozenset({Reference("instance", "builtins.NoneType")}) if "typing.Optional" in names else values
+        if "typing.Literal" in names:
+            literals: set[Reference] = set()
+            for argument in arguments:
+                if isinstance(argument, ast.Constant):
+                    literals.add(Reference("instance", "builtins." + type(argument.value).__name__,
+                                           literal=argument.value if isinstance(argument.value, str) else None))
+                else:
+                    literals.update(self._annotation(argument, scope))
+            return frozenset(literals)
+        shapes = {found for name in names if (found := _shape(name)) is not None}
+        if len(shapes) != 1:
+            return self._annotation(node.value, scope)
+        shape, receiver = next(iter(shapes))
+        if shape == "class":
+            return frozenset(Reference("class" if value.name in self.classes else "external", value.name)
+                             for value in self._annotation(arguments[0], scope))
+        if shape == "awaited":
+            return self._annotation(arguments[-1], scope)
+        elements = [self._annotation(argument, scope) for argument in arguments]
+        if shape == "dict":
+            return self._container(node, receiver, elements[1:2], keys=elements[0], owner=scope.name)
+        if shape == "tuple" and not (len(arguments) == 2 and isinstance(arguments[1], ast.Constant)
+                                     and arguments[1].value is Ellipsis):
+            return self._container(node, receiver, elements, positions=True, owner=scope.name)
+        return self._container(node, receiver, elements[:1], owner=scope.name)
+
     def _annotation_symbols(self, node: ast.expr, scope: _Scope) -> Values:
         if isinstance(node, ast.Name):
-            return self._references(self._get(self._slot(scope, node.id)))
+            references = self._references(self._get(self._slot(scope, node.id)))
+            if not references and hasattr(builtins, node.id):
+                references = frozenset({Reference("external", "builtins." + node.id)})
+            return references
         if isinstance(node, ast.Attribute):
             return self._attribute(self._annotation_symbols(node.value, scope), node.attr, None)
         return frozenset()
 
     def _declared_values(self, values: Values, annotation: ast.expr | None, scope: _Scope) -> Values:
-        """Refine opaque external results without replacing source values."""
+        """Refine values of unknown structure by a declaration; keep source values.
+
+        An opaque result, an external attribute value and the object
+        placeholder say nothing about their structure; the declaration the
+        type checker verified does. A source instance, function, class or
+        container keeps its exact identity.
+        """
         declared = self._annotation(annotation, scope)
+        if not declared:
+            return values
         return frozenset(value for reference in values for value in (
-            declared if reference.kind == "opaque" and declared else (reference,)
+            # policy-inventory-exempt: mechanism-internal; reason=a declaration refines a value whose structure the source does not give; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._declared_values
+            declared if reference.kind in {"opaque", "external"}
+            or (reference.kind == "instance" and reference.name == "builtins.object") else (reference,)
         ))
+
+    def _declarations(self, scope: _Scope, parameter: ast.arg) -> list[ast.expr | None]:
+        """The annotations callers see for a parameter.
+
+        With overloads those are the overloads' alone: the implementation's
+        signature is not visible to a caller, and it is where a union widens
+        to Any. https://typing.python.org/en/latest/spec/overload.html
+        """
+        signatures = self.overloads.get(scope.name)
+        if not signatures:
+            return [parameter.annotation]
+        return [other.annotation for signature in signatures for other in
+                (*signature.posonlyargs, *signature.args, *signature.kwonlyargs,
+                 *([signature.vararg] if signature.vararg else []),
+                 *([signature.kwarg] if signature.kwarg else []))
+                if other.arg == parameter.arg]
+
+    def _unstructured(self, node: ast.expr | None, scope: _Scope) -> bool:
+        """Whether a declaration admits a value of unknown structure."""
+        if node is None:
+            return False
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            try:
+                return self._unstructured(ast.parse(node.value, mode="eval").body, scope)
+            except SyntaxError:
+                return False
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return self._unstructured(node.left, scope) or self._unstructured(node.right, scope)
+        if isinstance(node, ast.Subscript):
+            names = {reference.name for reference in self._annotation_symbols(node.value, scope)}
+            if names.intersection(
+                {"typing.Optional", "typing.Union", "typing.Final", "typing.Annotated", "typing.ClassVar"}
+            ):
+                arguments = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+                return any(self._unstructured(argument, scope) for argument in arguments[:1 if "typing.Annotated" in names else None])
+            return False
+        return bool({"typing.Any", "builtins.object"}.intersection(
+            reference.name for reference in self._annotation_symbols(node, scope)))
 
     def _parameter_contract(self, node: ast.expr | None, scope: _Scope) -> frozenset[str]:
         """Read a caller-implemented contract from an entry's own annotation."""
@@ -417,8 +644,9 @@ class CallGraph:
             return self._parameter_contract(node.left, scope) | self._parameter_contract(node.right, scope)
         if isinstance(node, ast.Subscript):
             names = {reference.name for reference in self._annotation_symbols(node.value, scope)}
-            # policy-inventory-exempt: mechanism-internal; reason=union and qualifier annotations wrap the declared parameter contract; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._parameter_contract
-            if names.intersection({"typing.Optional", "typing.Union", "typing.Final", "typing.Annotated"}):
+            if names.intersection(
+                {"typing.Optional", "typing.Union", "typing.Final", "typing.Annotated"}
+            ):
                 arguments = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
                 if "typing.Annotated" in names:
                     arguments = arguments[:1]
@@ -445,11 +673,13 @@ class CallGraph:
         if name in seen or name not in self.classes:
             return (name,)
         if not seen:
-            return self._memo("bases:" + name, lambda: self._bases(name, frozenset({""})))
+            return self._memo("bases:" + name, lambda: self._indexed_bases(name))
         scope = self.scopes[name]
         assert isinstance(scope.node, ast.ClassDef)  # nosec B101 # _bases only receives indexed class scopes
         assert scope.parent is not None  # nosec B101 # every indexed class has an enclosing scope
-        bases = [reference.name for node in scope.node.bases
+        # A generic base names its class: list[Any] is list.
+        bases = [reference.name
+                 for node in (base.value if isinstance(base, ast.Subscript) else base for base in scope.node.bases)
                  for reference in self._annotation(node, self.scopes[scope.parent])]
         if not scope.node.bases:
             bases = ["builtins.object"]
@@ -468,6 +698,13 @@ class CallGraph:
                     sequence.pop(0)
         return tuple(dict.fromkeys(result))
 
+    def _indexed_bases(self, name: str) -> tuple[str, ...]:
+        """Compute a class's MRO and record it under each base it contains."""
+        result = self._bases(name, frozenset({""}))
+        for base in result:
+            self.subclasses[base].add(name)
+        return result
+
     def _attribute(self, values: Values, member: str, node: ast.AST | None) -> Values:
         result: set[Reference] = set()
         for reference in self._references(values):
@@ -482,21 +719,51 @@ class CallGraph:
                 elif self._reporting:
                     result.add(Reference("instance", "builtins.object"))
             elif reference.kind == "external":
+                # A name outside the analysed tree extends through modules,
+                # classes and builtin type members. One member that exists on
+                # any other real stdlib object is a known operation on that
+                # value. Every further attribute, and any attribute that does
+                # not exist, is a value of unknown structure, member "*",
+                # which stays itself under access and is open when called.
+                # The universe is finite: names, one member, or "*".
                 builtin = getattr(builtins, reference.name.removeprefix("builtins."), None)
-                if node is None or reference.name in self.module_prefixes or (
-                    reference.name.startswith("builtins.") and isinstance(builtin, type) and hasattr(builtin, member)
-                ):
+                stdlib = _stdlib_object(reference.name)
+                if reference.member == "*":
+                    result.add(reference)
+                elif reference.member:
+                    result.add(Reference("external", reference.name, member="*"))
+                elif node is None or reference.name in self.module_prefixes or isinstance(
+                    stdlib, (type, types.ModuleType)
+                ) or (isinstance(builtin, type) and hasattr(builtin, member)):
                     result.add(Reference("external", reference.name + "." + member))
+                elif stdlib is not None and hasattr(stdlib, member):
+                    result.add(Reference("external", reference.name, member=member))
                 else:
-                    result.add(Reference("unknown", self._where(node, "attribute of an external value")))
+                    result.add(Reference("external", reference.name, member="*"))
+            elif reference.kind == "class" and member == "__dict__" and reference.name in self.classes:
+                result.add(Reference("namespace", reference.name))
             # policy-inventory-exempt: mechanism-internal; reason=class and instance references resolve members through the MRO; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._class_attribute
             elif reference.kind in {"class", "instance"}:
                 self._class_attribute(reference, member, node, result)
+            elif reference.kind == "namespace":
+                # policy-inventory-exempt: mechanism-internal; reason=a class namespace reads a member through these two mapping operations; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._attribute
+                if member in {"__getitem__", "get"}:
+                    result.add(Reference("namespace_item", reference.name))
+                elif self._reporting:
+                    result.add(Reference("unknown", f"class namespace {reference.name}.{member}"))
+            elif reference.kind == "slot":
+                # A __slots__ member descriptor: its __set__ and __get__ reach
+                # the instance field the declaration names.
+                # https://docs.python.org/3.14/reference/datamodel.html#slots
+                # policy-inventory-exempt: mechanism-internal; reason=the descriptor protocol's own write and read for a slot member; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._attribute
+                if member in {"__set__", "__get__"}:
+                    result.add(Reference("slot_" + member.strip("_"), reference.name, member=reference.member))
+                elif self._reporting:
+                    result.add(Reference("unknown", f"slot descriptor {reference.name}.{reference.member}.{member}"))
             elif reference.kind == "generator":
                 result.add(Reference("function", reference.name))
             elif reference.kind == "container":
-                kind = getattr(builtins, reference.receiver.removeprefix("builtins."))
-                if hasattr(kind, member):
+                if hasattr(_stdlib_object(reference.receiver), member):
                     result.add(Reference("container_method", member, reference.name))
                 elif self._reporting:
                     result.add(Reference("unknown", reference.receiver + "." + member))
@@ -504,8 +771,15 @@ class CallGraph:
                 if member in reference.operations:
                     result.add(Reference("parameter", reference.name, reference.receiver, member,
                                          reference.operations))
-                else:
+                elif reference.operations:
                     result.add(Reference("unknown", f"undeclared member {reference.name}.{member}"))
+                else:
+                    # A value the contract produced declares nothing, so every
+                    # member of it is the caller's too. One derived value per
+                    # parameter, so the domain stays finite however deep the
+                    # chain of members and calls goes.
+                    result.add(reference)
+            # policy-inventory-exempt: mechanism-internal; reason=these two reference variants carry no callable identity of their own; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._attribute
             elif reference.kind in {"unknown", "opaque"}:
                 result.add(reference)
             else:
@@ -515,8 +789,11 @@ class CallGraph:
     def _class_attribute(self, reference: Reference, member: str, node: ast.AST | None, result: set[Reference]) -> None:
         """Resolve the first MRO member and apply Python's descriptor binding."""
         bases = self._bases(reference.name)
-        fields = frozenset().union(*(self._get((base, f"<field:{member}>")) for base in bases)) \
-            if reference.kind == "instance" else frozenset()
+        # A method of a base runs on instances of its subclasses too, so a
+        # field one of them assigned is a value this receiver can hold.
+        holders = (*bases, *self._descendants(reference.name)) if reference.kind == "instance" else ()
+        fields = frozenset().union(*(self._get((base, f"<field:{member}>")) for base in holders)) \
+            if holders else frozenset()
         for base in bases:
             initializer = base + ".__init__"
             if initializer in self.functions and initializer not in self.facts:
@@ -574,18 +851,56 @@ class CallGraph:
         if self._reporting and not any(value.name.startswith(reference.name) for value in result):
             result.add(Reference("unknown", f"attribute on {reference.name}"))
 
+    def _slots(self, name: str) -> frozenset[str]:
+        """The member names a class body declares in __slots__, a sequence or a documenting mapping."""
+        return frozenset(
+            item.literal for container in self._get((name, "__slots__")) if container.kind == "container"
+            for item in self._get((container.name, "<keys>" if _mapping(container.receiver) else "<items>"))
+            if item.literal is not None
+        )
+
+    def _descendants(self, name: str) -> tuple[str, ...]:
+        """Every indexed class whose MRO has been seen to contain this one.
+
+        Read from the reverse index _bases maintains rather than by walking
+        every class, whose own bases resolve through the store: that walk
+        depended on every base declaration in the tree and recursed through
+        the attribute lookups those declarations need.
+        """
+        return tuple(self.subclasses.get(name, ()))
+
     def _has_method(self, reference: Reference, member: str) -> bool:
         """Whether an indexed class declares this protocol in its MRO."""
         return any(self._get((base, member)) for base in self._bases(reference.name)
                    if base in self.classes)
 
+    def _provides(self, name: str, member: str) -> bool:
+        """Whether instances of a source or standard-library class have this member."""
+        if name in self.classes:
+            return self._has_method(Reference("class", name), member)
+        return member in _members(name)
+
+    def _contract_free(self, values: Values) -> Values:
+        """Drop protocol instances: a contract reference already stands for them."""
+        return frozenset(value for value in values if not (
+            value.kind == "instance" and value.name in self.classes
+            and {"typing.Protocol", "typing_extensions.Protocol"}.intersection(self._bases(value.name))
+        ))
+
+    def _store(self, receivers: Values, member: str, values: Values, node: ast.AST) -> None:
+        """Keep a container of the elements an inherited base stores for its instances."""
+        self._set_attribute(receivers, member, self._container(
+            node, "list", (self._protocol(values, "__iter__", node),)), node, base=True)
+
     def _set_attribute(self, receivers: Values, member: str, values: Values, node: ast.AST,
                        *, base: bool = False) -> None:
         """Follow a declared setter, or retain an ordinary instance field."""
         for receiver in self._references(receivers):
+            # policy-inventory-exempt: mechanism-internal; reason=module and function namespaces hold plain attributes, not instance fields; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._set_attribute
             if receiver.kind in {"module", "function"}:
                 self._put((receiver.name, member), values)
                 continue
+            # policy-inventory-exempt: mechanism-internal; reason=only class and instance references own indexed attribute assignments; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._set_attribute
             if receiver.kind not in {"class", "instance"} or receiver.name not in self.classes:
                 if self._reporting:
                     self.open.add(self._where(node, "unresolved attribute receiver"))
@@ -629,12 +944,19 @@ class CallGraph:
         return cached[1]
 
     def _container(self, node: ast.AST, kind: str, elements: Iterable[Values] = (),
-                   *, keys: Values = frozenset(), positions: bool = False) -> Values:
-        """Keep one finite allocation site and the values that can flow into it."""
+                   *, keys: Values = frozenset(), positions: bool = False, owner: str | None = None) -> Values:
+        """Keep one finite allocation site and the values that can flow into it.
+
+        `kind` is the value's own type: a bare builtin name for a source
+        literal, or a qualified name for a declared one, whose members then
+        decide which operations the value admits.
+        """
         # PyCG keeps container allocations and content pointers in its assignment graph:
         # https://github.com/vitsalis/PyCG/blob/8d5dc40837803beef1d8d379fbf2cdad6cd94641/pycg/processing/postprocessor.py
-        name = f"{self.current}.<container@{getattr(node, 'lineno', 0)}:{getattr(node, 'col_offset', 0)}:{kind}>"
-        reference = Reference("container", name, "builtins." + kind)
+        owner = self.current if owner is None else owner
+        receiver = kind if "." in kind else "builtins." + kind
+        name = f"{owner}.<container@{getattr(node, 'lineno', 0)}:{getattr(node, 'col_offset', 0)}:{receiver}>"
+        reference = Reference("container", name, receiver)
         self.containers[name] = reference
         if positions:
             self.positioned.add(name)
@@ -658,14 +980,15 @@ class CallGraph:
         items = self._get((name, "<items>"))
         keys = self._get((name, "<keys>"))
         none = frozenset({Reference("instance", "builtins.NoneType")})
-        if method == "__iter__":
-            return keys if container.receiver == "builtins.dict" else items
+        # policy-inventory-exempt: mechanism-internal; reason=an iterator's own two protocol members read the same stored elements; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
+        if method in {"__iter__", "__next__"}:
+            return keys if _mapping(container.receiver) else items
         key = self._key(node.slice if isinstance(node, ast.Subscript) else
                         node.args[0] if isinstance(node, ast.Call) and node.args else None)
         selected = items if key == "<unknown-items>" else self._get((name, key)) | self._get((name, "<unknown-items>"))
         # policy-inventory-exempt: mechanism-internal; reason=these builtin methods read a stored element; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
         if method in {"__getitem__", "pop"}:
-            if method == "pop" and container.receiver != "builtins.dict":
+            if method == "pop" and not _mapping(container.receiver):
                 self._put((name, "<unknown-items>"), items)
                 selected = items
             return selected | (positional[1] if len(positional) > 1 else frozenset())
@@ -685,11 +1008,12 @@ class CallGraph:
                 values = self._container(node, "tuple", (keys, items), positions=True)
             return self._container(node, "list", (values,))
         # policy-inventory-exempt: mechanism-internal; reason=these builtin mutations insert one element at the declared argument position; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
-        if method in {"append", "add", "insert", "__setitem__"}:
+        if method in {"append", "add", "insert", "set", "__setitem__"}:
+            # policy-inventory-exempt: mechanism-internal; reason=these two builtin mutations name their position in the second argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
             index = int(method in {"insert", "__setitem__"})
             if len(positional) > index:
                 self._put((name, "<items>"), positional[index])
-                self._put((name, key if method == "__setitem__" and container.receiver == "builtins.dict"
+                self._put((name, key if method == "__setitem__" and _mapping(container.receiver)
                            else "<unknown-items>"), positional[index])
             if method == "insert":
                 self._put((name, "<unknown-items>"), items)
@@ -700,13 +1024,13 @@ class CallGraph:
         if method in {"extend", "update", "__ior__", "__iadd__"}:
             for argument in positional:
                 for value in argument:
-                    if container.receiver == "builtins.dict" and value.kind == "container" and value.receiver == "builtins.dict":
+                    if _mapping(container.receiver) and value.kind == "container" and _mapping(value.receiver):
                         self._put((name, "<items>"), self._get((value.name, "<items>")))
                         self._put((name, "<unknown-items>"), self._get((value.name, "<items>")))
                         self._put((name, "<keys>"), self._get((value.name, "<keys>")))
                     else:
                         values = self._protocol(frozenset({value}), "__iter__", node)
-                        if container.receiver == "builtins.dict":
+                        if _mapping(container.receiver):
                             values = self._protocol(values, "__iter__", node)
                         self._put((name, "<items>"), values)
                         self._put((name, "<unknown-items>"), values)
@@ -717,11 +1041,11 @@ class CallGraph:
                 self._put((name, "<keys>"), frozenset({Reference("instance", "builtins.str")}))
             return frozenset({container}) if method.startswith("__i") else none
         if method == "copy":
-            return self._container(node, container.receiver.removeprefix("builtins."), (items,), keys=keys)
+            return self._container(node, container.receiver, (items,), keys=keys)
         # Removing or reordering values cannot remove a possible call from a
         # flow-insensitive graph. sort still invokes its declared key function.
         # policy-inventory-exempt: mechanism-internal; reason=these builtin mutations add no elements but sort invokes its key callback; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
-        if method in {"clear", "remove", "discard", "reverse", "sort", "__delitem__"}:
+        if method in {"clear", "remove", "discard", "reverse", "sort", "reset", "__delitem__"}:
             self._put((name, "<unknown-items>"), items)
             if "key" in keywords:
                 self._call(keywords["key"], [items], {}, node)
@@ -759,6 +1083,37 @@ class CallGraph:
             return None
         return next(iter(resolved)), indices
 
+    def _bind(self, name: str, scope: _Scope, arguments: list[Values],
+              keywords: dict[str, Values], node: ast.AST) -> None:
+        """Bind actual arguments to their parameters, as Python's call does.
+
+        The positional parameters take the leading actuals; a *args parameter
+        is the TUPLE of the rest and a **kwargs parameter the DICT of the
+        keywords no parameter names, rather than each extra actual joined
+        into the parameter itself.
+        https://docs.python.org/3.14/reference/expressions.html#calls
+        """
+        signature = scope.arguments
+        assert signature is not None  # nosec B101 # only a callable scope is called
+        positional = [*signature.posonlyargs, *signature.args]
+        annotations = {parameter.arg: parameter.annotation for parameter in scope.parameters}
+        for parameter, actual in zip(positional, arguments, strict=False):
+            self._put((name, parameter.arg), self._declared_values(actual, parameter.annotation, scope))
+        for parameter_name, actual in keywords.items():
+            # policy-inventory-exempt: mechanism-internal; reason=a variadic parameter is bound as a whole, never by a caller's keyword; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._bind
+            if parameter_name in annotations and parameter_name not in {
+                getattr(signature.vararg, "arg", None), getattr(signature.kwarg, "arg", None)}:
+                self._put((name, parameter_name), self._declared_values(actual, annotations[parameter_name], scope))
+        if signature.vararg is not None:
+            extra = [self._declared_values(actual, signature.vararg.annotation, scope)
+                     for actual in arguments[len(positional):]]
+            self._put((name, signature.vararg.arg), self._container(node, "tuple", extra, positions=True))
+        if signature.kwarg is not None:
+            rest = [self._declared_values(actual, signature.kwarg.annotation, scope)
+                    for parameter_name, actual in keywords.items() if parameter_name not in annotations]
+            self._put((name, signature.kwarg.arg), self._container(
+                node, "dict", rest, keys=frozenset({Reference("instance", "builtins.str")})))
+
     def _protocol(self, values: Values, name: str, node: ast.AST) -> Values:
         yielded: set[Reference] = set()
         for reference in values:
@@ -775,6 +1130,88 @@ class CallGraph:
             yielded.update(self._call(self._attribute(concrete, name, node), [], {}, node))
         return frozenset(yielded)
 
+    def _external_call(self, reference: Reference, positional: list[Values],
+                       keywords: dict[str, Values], node: ast.AST) -> Values:
+        """Judge a call on a value outside the analysed tree by what it names."""
+        result: set[Reference] = set()
+        name = reference.name + ("." + reference.member if reference.member else "")
+        root = name.split(".")[0]
+        owner, _, member = name.rpartition(".")
+        if member == "__init__" and owner in _INHERITED_STORAGE and positional:
+            # super().__init__(items) inside the subclass's own method.
+            self._store(self._get((self.current, "self")), _INHERITED_STORAGE[owner], positional[0], node)
+        if reference.member == "*":
+            # A member no standard-library type declares was written
+            # by something else, so what it holds is unknown.
+            reason = self._where(node, f"external value {name}")
+            self.open.add(reason)
+            return frozenset({Reference("unknown", reason)})
+        if root == "janus_swi":
+            self.native.add(self._where(node, name))
+        elif root not in sys.stdlib_module_names and root != "builtins":
+            self.open.add(self._where(node, f"external call {name}"))
+        # policy-inventory-exempt: mechanism-internal; reason=builtin container constructors retain the elements supplied by their input iterable; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._external_call
+        if name in {"builtins.list", "builtins.tuple", "builtins.set", "builtins.frozenset", "builtins.dict"}:
+            kind = name.removeprefix("builtins.")
+            container = self._container(node, kind)
+            if kind == "dict":
+                self._call(self._attribute(container, "update", node), positional, keywords, node)
+            elif positional:
+                items = self._protocol(positional[0], "__iter__", node)
+                container = self._container(node, kind, (items,))
+            return container
+        # policy-inventory-exempt: mechanism-internal; reason=typing identity helpers return their second argument unchanged; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._external_call
+        if name in {"typing.cast", "typing.assert_type"} and len(positional) > 1:
+            result.update(positional[1])
+        # policy-inventory-exempt: mechanism-internal; reason=ordinary and deferred module loaders resolve the literal module argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._external_call
+        elif name in {"importlib.import_module", "metta._lazy.lazy"}:
+            if isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                result.update(self._symbol(node.args[0].value))
+        # policy-inventory-exempt: mechanism-internal; reason=both attribute helpers access the member named by their second argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._external_call
+        elif name in {"builtins.getattr", "builtins.hasattr", "builtins.object.__getattribute__",
+                      "builtins.setattr", "builtins.object.__setattr__"} and len(positional) > 1:
+            names = {value.literal for value in positional[1] if value.literal is not None}
+            for member in names:
+                # policy-inventory-exempt: mechanism-internal; reason=these two attribute helpers write the member named by their second argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._external_call
+                if name in {"builtins.setattr", "builtins.object.__setattr__"} and len(positional) > 2:
+                    self._set_attribute(positional[0], member, positional[2], node,
+                                        base=name == "builtins.object.__setattr__")
+                    result.add(Reference("instance", "builtins.NoneType"))
+                else:
+                    result.update(self._attribute(positional[0], member, node))
+            if any(value.literal is None for value in positional[1]):
+                reason = self._where(node, "dynamic attribute")
+                self.open.add(reason)
+                result.add(Reference("unknown", reason))
+        # policy-inventory-exempt: mechanism-internal; reason=iter and next carry the iterated elements through the container model; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._external_call
+        elif name in {"builtins.iter", "builtins.next"} and positional:
+            if name == "builtins.iter":
+                result.update(self._container(node, "collections.abc.Iterator",
+                                              (self._protocol(positional[0], "__iter__", node),)))
+            else:
+                result.update(self._protocol(positional[0], "__next__", node))
+                result.update(positional[1] if len(positional) > 1 else frozenset())
+        else:
+            # A standard-library call invokes exactly the arguments
+            # typeshed declares Callable, read from the shipped table
+            # rather than listed by hand, so sorted(key=) and
+            # atexit.register run their callback and callable() does not.
+            protocols = {"builtins.len": "__len__", "builtins.bool": "__bool__",
+                         "builtins.list": "__iter__", "builtins.tuple": "__iter__",
+                         "builtins.set": "__iter__", "builtins.sorted": "__iter__"}
+            if name in protocols and positional:
+                self._protocol(positional[0], protocols[name], node)
+            positions, invoked = INVOCATIONS.get(name, (frozenset(), frozenset()))
+            for argument in (*(positional[index] for index in positions if index < len(positional)),
+                             *(keywords[parameter] for parameter in invoked if parameter in keywords)):
+                self._call(argument, [], {}, node)
+            target = getattr(builtins, name.removeprefix("builtins."), None) if root == "builtins" else None
+            if isinstance(target, type):
+                result.add(Reference("instance", name))
+            else:
+                result.add(Reference("opaque", "result of " + name))
+        return frozenset(result)
+
     def _call(self, values: Values, positional: list[Values], keywords: dict[str, Values], node: ast.AST) -> Values:
         result: set[Reference] = set()
         references = self._references(values)
@@ -787,16 +1224,43 @@ class CallGraph:
                 self.open.add(site)
                 if reference.member or "__call__" in reference.operations:
                     self.contracts.add(ContractCall(site, reference.name, reference.receiver))
-                result.add(Reference("unknown", "result of " + reason))
+                # What a supplied value answers is supplied too, so it carries
+                # the same contract rather than becoming a separate defect.
+                result.add(Reference("parameter", reference.name, reference.receiver, "*"))
                 continue
             if reference.kind == "container_method":
                 result.update(self._container_call(reference, positional, keywords, node))
+                continue
+            if reference.kind == "namespace_item":
+                key = node.slice if isinstance(node, ast.Subscript) else node.args[0] if isinstance(node, ast.Call) and node.args else None
+                if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                    if key.value in self._slots(reference.name):
+                        result.add(Reference("slot", reference.name, member=key.value))
+                    else:
+                        result.update(self._references(self._get((reference.name, key.value))))
+                else:
+                    reason = self._where(node, "dynamic attribute")
+                    self.open.add(reason)
+                    result.add(Reference("unknown", reason))
+                continue
+            if reference.kind == "slot_set":
+                if len(positional) > 1:
+                    self._set_attribute(positional[0], reference.member, positional[1], node, base=True)
+                result.add(Reference("instance", "builtins.NoneType"))
+                continue
+            if reference.kind == "slot_get":
+                if positional:
+                    result.update(self._attribute(positional[0], reference.member, node))
                 continue
             if reference.kind == "class":
                 instance = Reference("instance", reference.name)
                 result.add(instance)
                 constructors = self._attribute(frozenset({instance}), "__init__", node)
                 self._call(constructors, positional, keywords, node)
+                storage = next((_INHERITED_STORAGE[base] for base in self._bases(reference.name)
+                                if base in _INHERITED_STORAGE), None)
+                if storage is not None and positional:
+                    self._store(frozenset({instance}), storage, positional[0], node)
                 continue
             if reference.kind == "instance":
                 result.update(self._protocol(frozenset({reference}), "__call__", node))
@@ -807,7 +1271,9 @@ class CallGraph:
                 scope = self.scopes[name]
                 arguments = ([frozenset({Reference("instance", reference.receiver)})]
                              if reference.kind == "bound" else []) + positional
-                forwarded = self._forwarder(scope) if name not in self.forwarding else None
+                signature = scope.arguments
+                forwarded = (self._forwarder(scope) if name not in self.forwarding
+                             and signature is not None and not (signature.vararg or signature.kwarg) else None)
                 if forwarded is not None:
                     intrinsic, indices = forwarded
                     parameters = [parameter.arg for parameter in scope.parameters]
@@ -819,10 +1285,7 @@ class CallGraph:
                     finally:
                         self.forwarding.discard(name)
                     continue
-                for parameter, actual in zip(scope.parameters, arguments, strict=False):
-                    self._put((name, parameter.arg), actual)
-                for parameter_name, actual in keywords.items():
-                    self._put((name, parameter_name), actual)
+                self._bind(name, scope, arguments, keywords, node)
                 native = name.startswith(("metta._binding.runtime.Runtime.", "metta._binding.runtime.JanusBridge."))
                 abstract = any(isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant)
                                and statement.value.value is Ellipsis for statement in scope.statements)
@@ -843,64 +1306,15 @@ class CallGraph:
                                   else self._declared_values(returned, returns, scope))
                 continue
             if reference.kind == "external":
-                name = reference.name
-                root = name.split(".")[0]
-                if root == "janus_swi":
-                    self.native.add(self._where(node, name))
-                elif root not in sys.stdlib_module_names and root != "builtins":
-                    self.open.add(self._where(node, f"external call {name}"))
-                # policy-inventory-exempt: mechanism-internal; reason=builtin container constructors retain the elements supplied by their input iterable; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
-                if name in {"builtins.list", "builtins.tuple", "builtins.set", "builtins.frozenset", "builtins.dict"}:
-                    kind = name.removeprefix("builtins.")
-                    container = self._container(node, kind)
-                    if kind == "dict":
-                        self._call(self._attribute(container, "update", node), positional, keywords, node)
-                    elif positional:
-                        items = self._protocol(positional[0], "__iter__", node)
-                        container = self._container(node, kind, (items,))
-                    result.update(container)
-                    continue
-                # policy-inventory-exempt: mechanism-internal; reason=typing identity helpers return their second argument unchanged; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
-                if name in {"typing.cast", "typing.assert_type"} and len(positional) > 1:
-                    result.update(positional[1])
-                # policy-inventory-exempt: mechanism-internal; reason=ordinary and deferred module loaders resolve the literal module argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
-                elif name in {"importlib.import_module", "metta._lazy.lazy"}:
-                    if isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
-                        result.update(self._symbol(node.args[0].value))
-                # policy-inventory-exempt: mechanism-internal; reason=both attribute helpers access the member named by their second argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
-                elif name in {"builtins.getattr", "builtins.hasattr", "builtins.object.__getattribute__",
-                              "builtins.setattr", "builtins.object.__setattr__"} and len(positional) > 1:
-                    names = {value.literal for value in positional[1] if value.literal is not None}
-                    for member in names:
-                        if name in {"builtins.setattr", "builtins.object.__setattr__"} and len(positional) > 2:
-                            self._set_attribute(positional[0], member, positional[2], node,
-                                                base=name == "builtins.object.__setattr__")
-                            result.add(Reference("instance", "builtins.NoneType"))
-                        else:
-                            result.update(self._attribute(positional[0], member, node))
-                    if any(value.literal is None for value in positional[1]):
-                        reason = self._where(node, "dynamic attribute")
-                        self.open.add(reason)
-                        result.add(Reference("unknown", reason))
-                else:
-                    protocols = {"builtins.len": "__len__", "builtins.bool": "__bool__",
-                                 "builtins.iter": "__iter__", "builtins.next": "__next__",
-                                 "builtins.list": "__iter__", "builtins.tuple": "__iter__",
-                                 "builtins.set": "__iter__", "builtins.sorted": "__iter__"}
-                    if name in protocols and positional:
-                        self._protocol(positional[0], protocols[name], node)
-                    if "key" in keywords:
-                        self._call(keywords["key"], [], {}, node)
-                    # policy-inventory-exempt: mechanism-internal; reason=these higher-order standard operations invoke their first argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
-                    if name in {"builtins.map", "builtins.filter", "functools.reduce"} and positional:
-                        self._call(positional[0], positional[1:], {}, node)
-                    target = getattr(builtins, name.removeprefix("builtins."), None) if root == "builtins" else None
-                    if isinstance(target, type):
-                        result.add(Reference("instance", name))
-                    else:
-                        result.add(Reference("opaque", "result of " + name))
+                result.update(self._external_call(reference, positional, keywords, node))
                 continue
-            if reference.kind in {"unknown", "opaque"}:
+            if reference.kind == "opaque":
+                # A value the standard library made, of a type this analysis
+                # does not model. Nothing from the analysed tree reached it
+                # except its own arguments, which are invoked above, so
+                # operating on it is host work rather than an open boundary.
+                result.add(reference)
+            elif reference.kind == "unknown":
                 self.open.add(self._where(node, reference.name))
                 result.add(reference)
             # policy-inventory-exempt: mechanism-internal; reason=callable reference cases already handled above must not become unresolved calls; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
@@ -1020,9 +1434,31 @@ class CallGraph:
         elif isinstance(node, ast.Starred):
             self._assign(node.value, values, scope)
 
+    def _callable(self, reference: Reference) -> bool | None:
+        """Whether a value is callable; None when the analysis cannot tell."""
+        # policy-inventory-exempt: mechanism-internal; reason=these reference variants are callable by construction; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._callable
+        if reference.kind in {"function", "bound", "class", "container_method", "slot_set", "slot_get", "namespace_item"}:
+            return True
+        if reference.kind == "parameter":
+            return True if "__call__" in reference.operations else None if reference.member else False
+        if reference.kind == "instance":
+            if reference.name in self.classes:
+                return self._has_method(reference, "__call__")
+            return "__call__" in _members(reference.name) if _stdlib_object(reference.name) is not None else None
+        # policy-inventory-exempt: mechanism-internal; reason=containers, namespaces and slot descriptors are values, never callables; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._callable
+        if reference.kind in {"container", "namespace", "slot", "generator"}:
+            return False
+        return None
+
     def _narrow(self, test: ast.expr, scope: _Scope, *, truth: bool) -> None:
         if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
             self._narrow(test.operand, scope, truth=not truth)
+        elif (isinstance(test, ast.Call) and len(test.args) == 1 and isinstance(test.args[0], ast.Name)
+              and {reference.name for reference in self._value(test.func, scope)} == {"builtins.callable"}):
+            slot = self._slot(scope, test.args[0].id)
+            admitted = {truth, None}
+            self.narrowed[slot] = frozenset(reference for reference in self._get(slot)
+                                            if self._callable(reference) in admitted)
         elif isinstance(test, ast.BoolOp) and (
             (truth and isinstance(test.op, ast.And)) or (not truth and isinstance(test.op, ast.Or))
         ):
@@ -1041,9 +1477,19 @@ class CallGraph:
                            if reference.kind in {"class", "external"}}
                 def matches(reference: Reference) -> bool:
                     return bool(classes.intersection(self._bases(reference.receiver if reference.kind == "container" else reference.name)))
+
+                def admits(reference: Reference) -> bool:
+                    # A supplied contract survives a positive test only where
+                    # an instance of the tested class can implement every
+                    # operation the contract declares.
+                    if reference.kind == "unknown":
+                        return True
+                    if reference.kind == "parameter":
+                        return not truth or any(all(self._provides(name, operation) for operation in reference.operations)
+                                                for name in classes)
+                    return matches(reference) == truth
                 values = self._get(slot)
-                self.narrowed[slot] = frozenset(reference for reference in values
-                                               if reference.kind in {"unknown", "parameter"} or matches(reference) == truth)
+                self.narrowed[slot] = frozenset(reference for reference in values if admits(reference))
         if isinstance(test, ast.Compare) and len(test.ops) == 1 and isinstance(test.left, ast.Name):
             right = test.comparators[0]
             if isinstance(right, ast.Constant) and right.value is None and isinstance(test.ops[0], (ast.Is, ast.IsNot)):
@@ -1075,6 +1521,7 @@ class CallGraph:
                     qualified = imported + "." + alias.name
                     resolved = self._symbol(qualified)
                     # A store-dependent re-export stays symbolic until it resolves.
+                    # policy-inventory-exempt: mechanism-internal; reason=these four reference variants resolve to the same value at every read; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._statement
                     value = next(iter(resolved)) if len(resolved) == 1 and next(iter(resolved)).kind in {
                         "function", "class", "module", "external"} else Reference("symbol", qualified)
                 self._put(self._slot(scope, local), frozenset({value}))
@@ -1100,6 +1547,12 @@ class CallGraph:
                 for statement in branch:
                     self._statement(statement, scope)
             self.narrowed = previous
+            # A branch that always leaves the block carries the opposite test
+            # onto the statements after the if, as a type checker's early
+            # exit does; both leaving means nothing follows.
+            leaves = [_terminates(node.body), _terminates(node.orelse)]
+            if leaves.count(True) == 1:
+                self._narrow(node.test, scope, truth=leaves.index(False) == 0)
             return
         if isinstance(node, (ast.For, ast.AsyncFor)):
             values = self._protocol(self._value(node.iter, scope), "__aiter__" if isinstance(node, ast.AsyncFor) else "__iter__", node.iter)
@@ -1128,15 +1581,28 @@ class CallGraph:
         self.narrowed = {}
         self.targets, self.native, self.open, self.contracts = set(), set(), set(), set()
         for index, parameter in enumerate(scope.parameters):
-            operations = self._parameter_contract(parameter.annotation, scope)
+            declared = self._declarations(scope, parameter)
+            operations = frozenset().union(*(self._parameter_contract(node, scope) for node in declared))
+            annotated = frozenset().union(*(self._annotation(node, scope) for node in declared))
             if self._final and scope.name in self.entries and operations:
-                assert parameter.annotation is not None  # nosec B101 # _parameter_contract refuses an absent annotation
+                # A union keeps its concrete alternatives beside the contract,
+                # and an Any alternative keeps its unknown structure.
                 values = frozenset({Reference("parameter", f"supplied parameter {scope.name}.{parameter.arg}",
-                                              ast.unparse(parameter.annotation), operations=operations)})
+                                              " | ".join(dict.fromkeys(ast.unparse(node) for node in declared if node is not None)),
+                                              operations=operations)})
+                values |= self._contract_free(annotated)
+                if any(self._unstructured(node, scope) for node in declared):
+                    values |= frozenset({Reference("unknown", f"supplied parameter {scope.name}.{parameter.arg}")})
             elif not self._final or operations or scope.name not in self.entries:
                 values = frozenset()
             else:
-                values = self._annotation(parameter.annotation, scope)
+                values = annotated
+            signature = scope.arguments
+            # policy-inventory-exempt: mechanism-internal; reason=the two variadic parameters hold a container of what the caller passed; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._evaluate
+            if signature is not None and values and parameter in {signature.vararg, signature.kwarg}:
+                # A declaration on *args or **kwargs describes each element.
+                values = self._container(parameter, "tuple" if parameter is signature.vararg else "dict", (values,),
+                                         keys=frozenset({Reference("instance", "builtins.str")}))
             # policy-inventory-exempt: mechanism-internal; reason=Python method receiver conventions seed the enclosing class identity; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._evaluate
             if index == 0 and scope.owner and parameter.arg in {"self", "cls"}:
                 values |= frozenset({Reference("instance" if parameter.arg == "self" else "class", scope.owner)})
@@ -1164,8 +1630,9 @@ class CallGraph:
             if name not in self.entries:
                 for parameter in scope.parameters:
                     slot = name, parameter.arg
-                    if not self._get(slot) and not self._parameter_contract(parameter.annotation, scope):
-                        values = self._annotation(parameter.annotation, scope)
+                    declared = self._declarations(scope, parameter)
+                    if not self._get(slot) and not any(self._parameter_contract(node, scope) for node in declared):
+                        values = frozenset().union(*(self._annotation(node, scope) for node in declared))
                         if values:
                             pending.append((slot, values))
             slot = name, "<return>"
