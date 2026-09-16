@@ -292,3 +292,86 @@ def test_completed_captures_release_their_bound_methods(metta):
         handle.drop()
     assert methods() is not None
     assert calls == [("original", "begin"), ("original", "add"), ("original", "commit")]
+
+
+def test_failed_rollback_preserves_the_body_error_and_completes_every_original(metta, registered):
+    """A broken rollback cannot hide the body error or skip another provider."""
+    handle, original = registered
+    name = f"&participant-rollback-{uuid4().hex}"
+    broken = Participant("broken", original.calls)
+    primary = RuntimeError("original transaction body")
+    secondary = ValueError("broken rollback")
+
+    def refuse_rollback():
+        broken.calls.append(("broken", "rollback"))
+        raise secondary
+
+    broken.rollback = refuse_rollback
+    register_provider(metta.runtime, name, broken)
+    other = space(name=name)
+    other.atomicity("transactional")
+
+    def body():
+        handle.add(S.original_batch(1))
+        other.add(S.broken_batch(2))
+        unregister_provider(metta.runtime, str(handle.name))
+        register_provider(metta.runtime, str(handle.name), Participant("replacement", original.calls))
+        raise primary
+
+    try:
+        with pytest.raises(RuntimeError) as caught:
+            metta.transaction(body)
+        assert caught.value is primary
+        assert original.rows == []
+        assert original.calls == [
+            ("original", "begin"), ("original", "add"),
+            ("broken", "begin"), ("broken", "add"),
+            ("broken", "rollback"), ("original", "rollback"),
+        ]
+        assert PROVIDERS[str(handle.name)] is original
+        metta.runtime.must(
+            "metta_py_provider_space(BrokenName, Broken), "
+            "metta_py_provider_space(OriginalName, Original), "
+            "metta_foreign_completion(discard, "
+            "[completed(Broken, rollback, threw(_)), completed(Original, rollback, ok)])",
+            BrokenName=name, OriginalName=str(handle.name),
+        )
+    finally:
+        unregister_provider(metta.runtime, name)
+        other.drop()
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_reconciliation_runs_after_original_completion_and_attempts_every_callback(
+    metta, registered, reverse,
+):
+    """A queued host error is reported after the other retained callbacks run."""
+    handle, original = registered
+    secondary = ValueError("reconciliation refused")
+
+    def broken():
+        original.calls.append(("broken", "reconcile"))
+        raise secondary
+
+    def final():
+        original.calls.append(("last", "reconcile"))
+
+    def body():
+        handle.add(S.committed_batch(1))
+        callbacks = [("last", final), ("broken", broken)]
+        if reverse:
+            callbacks.reverse()
+        for label, callback in callbacks:
+            metta.runtime.must(
+                "metta_after_foreign(Label, user:py_call(F:'__call__'(), _))",
+                Label=label, F=callback,
+            )
+
+    with pytest.raises(ValueError) as caught:
+        metta.transaction(body)
+    assert caught.value is secondary
+    assert original.rows == [S.committed_batch(1)]
+    assert original.calls[:3] == [
+        ("original", "begin"), ("original", "add"), ("original", "commit"),
+    ]
+    assert sorted(original.calls[3:]) == [("broken", "reconcile"), ("last", "reconcile")]
