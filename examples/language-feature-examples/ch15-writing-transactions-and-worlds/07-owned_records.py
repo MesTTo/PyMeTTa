@@ -46,4 +46,9 @@ def twin(m):
 #: [measured: 6051 inferences;
 #: command=python extensions/python/tools/twin_coverage.py --measure examples/ch15-writing-transactions-and-worlds/07-owned_records.metta;
 #: fixture=SWI-Prolog 10.1.13, five assertions, one fresh space and one &metta declaration; commit=dbb95d0bff10a93f2fef0453195b2331918f92dc].
-BUDGET = 6051
+#: RE-PINNED 2026-09-16, 6051 to 6058 (+7), the reader answers a problem term
+#: and each door throws its own remedy, and every native change checks whether
+#: it admits a key [measured 2026-09-16: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 6058
