@@ -19,7 +19,7 @@ test_a_callable_passed_to_the_standard_library_is_invoked_where_typeshed_declare
 test_invocation_table_reads_versioned_stub_blocks; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
 Only the stub modules typeshed's VERSIONS file ships for the running
 interpreter enter the table [tested:
-test_invocation_table_keeps_only_modules_this_interpreter_ships; commit=WORKTREE].
+test_invocation_table_keeps_only_modules_this_interpreter_ships; commit=bd6e77b0f11a0b546bd86c3b56de8152453a145a].
 """
 
 from __future__ import annotations
