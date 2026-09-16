@@ -83,7 +83,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # the atom True. Each carries a suppression saying so, and the corpus's own
     # named-constant convention (`TRUE, FALSE = ground(value=True), ...`) is used
     # where the value is reused rather than asked about once.
-    "FBT": 67,
+    # 67 -> 68 across the seat partition and the classes work: the moved
+    # translator, arrays and runtime sites carry their suppressions with them,
+    # and the import-reuse, saga and identity-wire controls ask the engine
+    # about the atoms True and False as literals; every site states its
+    # reason inline, and RUF100 refuses one that stops being needed.
+    "FBT": 68,
     # 35 -> 37 with the compiled dict story: _x_Set and _x_DictComp join the
     # _x_<Node> translator-dispatch family, whose suffix mirrors ast class
     # names by contract.
@@ -108,7 +113,13 @@ RUFF_FAMILY_BURN_DOWN = {
     # functions. Their __len__/__iter__/mutation spellings remain exact.
     # Generated callback protocols use self and a positional body receiver,
     # so their signatures introduce no naming exemption.
-    "N": 62,
+    # 62 -> 64 with the seat partition and the classes work: the store's door
+    # bodies keep the dunder names of the protocol slots they implement, the
+    # catalog's fn namespace keeps MeTTa's own mixedCase assertion heads,
+    # LockDrift joins the engine's error vocabulary by its atom name, and the
+    # class-method controls name a first parameter the way the declared
+    # class does.
+    "N": 64,
     # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
     # strategy atoms, while each line carries the narrow A001 explanation.
     # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled
@@ -350,7 +361,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # 154 -> 152: the cursor's exception triple is a protocol method again.
     # Context-wide doors name an unused body receiver _space; their public
     # methods still expose self through the generated signature.
-    "ARG": 152,
+    # 152 -> 157 with the classes work: compiled overload, expanded-call,
+    # literal-head and twin-ownership controls declare Python functions whose
+    # parameters exist for the MeTTa signature they publish, and the codec
+    # conformance and combinator doubles implement protocol methods whose
+    # arguments the double has no use for; each carries its reason inline.
+    "ARG": 157,
     # The evaluation batch retains each acquired cursor before acquiring the
     # next one, so a failed acquisition can release the complete prefix.
     "PERF": 1,

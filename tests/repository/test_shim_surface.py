@@ -340,6 +340,31 @@ HOST_SERVICES = {
     "translate_expr/3",
     "unregister_metta_extension/1",
     "with_metta_module/2",
+    # A completion the host schedules from inside a crossing and the engine
+    # runs after the outer outcome and the captured foreign participants
+    # (engine/metta/completion.pl); the transactional space retirement and the
+    # Python handle lease both register theirs through it. The engine owns the
+    # ordering; the host only hands over the goal.
+    "metta_after_foreign/2",
+    # The completed attempts a host reads back after its crossing, so a
+    # transport can report which retained callbacks ran and how.
+    "metta_foreign_completion/2",
+    # Backtrackable atom-key indexes the wire codec binds decoded variables
+    # in (wire.pl, query.pl); the index retains the caller's original values
+    # so a shared variable decodes to one term.
+    "metta_atom_index_new/1",
+    "metta_atom_index_bind/4",
+    "metta_atom_index_get/3",
+    # The owned-record store behind class declarations: a host registration
+    # retains original native occurrences through completion, reads the raw
+    # pair by reference and asks the owned-record reader for owners and
+    # complete rows (foreign.pl). The validation is the engine's.
+    "metta_native_pair/4",
+    "metta_owned_clause/2",
+    "metta_owned_record_occurrences/3",
+    # Whether a name is a registered native or foreign namespace, asked
+    # independently of its value species.
+    "metta_space_registered/1",
 }
 
 _ROW = re.compile(r"^kind\(([a-zA-Z_'/0-9-]+/\d+),\s*host_service\)\.",
@@ -376,6 +401,15 @@ FLOOR_REASONS = {
     "metta_host_source_atoms/2": "host-orchestration",
     "metta_host_program_source/2": "host-orchestration",
     "metta_host_reference_names/2": "door",
+    "metta_after_foreign/2": "door",
+    "metta_foreign_completion/2": "door",
+    "metta_atom_index_new/1": "codec",
+    "metta_atom_index_bind/4": "codec",
+    "metta_atom_index_get/3": "codec",
+    "metta_native_pair/4": "door",
+    "metta_owned_clause/2": "door",
+    "metta_owned_record_occurrences/3": "door",
+    "metta_space_registered/1": "door",
     "metta_actor/1": "door",
     "metta_host_blame/3": "host-orchestration",
     "catch_recover/2": "host-choice",
