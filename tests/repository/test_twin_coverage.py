@@ -2135,3 +2135,19 @@ def test_the_bracket_door_is_exact_at_a_compiled_call(tmp_path):
     attribute = [f for f in findings if "proven-native operands" in f and '"add"' not in f]
     assert not bracket, findings
     assert attribute, findings
+
+
+def test_a_measurement_warms_stale_artifacts_once_per_process(monkeypatch):
+    """The first launch of a process runs the artifact warm-up child; later launches do not."""
+    calls = []
+
+    def run(command, _root, _env):
+        calls.append(command[-1])
+        return parity.Outcome([], None), ""
+
+    monkeypatch.setattr(coverage, "_WARMED", set())
+    monkeypatch.setattr(parity, "_run", run)
+    coverage._launch("print('first')", REPO)
+    coverage._launch("print('second')", REPO)
+    assert calls == [coverage._WARM_SOURCE, "print('first')", "print('second')"]
+    assert coverage._WARMED == {REPO}

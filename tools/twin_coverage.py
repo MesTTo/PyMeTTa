@@ -53,6 +53,12 @@ Guarantees:
     test_a_first_library_load_is_independent_of_file_cache_age,
     test_engines_created_at_boot_inherit_the_cache_fixture;
     commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
+  - no measured child compiles a stale Prolog artifact or pays for its
+    compilation aside: the first measurement of a process is preceded by one
+    warm-up boot that brings every claimed source's artifact up to date
+    [tested: test_a_measurement_warms_stale_artifacts_once_per_process,
+    test_a_first_library_load_is_independent_of_file_cache_age;
+    commit=WORKTREE]
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the five source-input doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
@@ -2053,7 +2059,35 @@ def _read(text: str, outcome: parity.Outcome) -> Run:
     return Run(outcome, cost, heads, digest, digest_error, content, held, available)
 
 
+#: The roots whose claimed Prolog artifacts a child of this process has already
+#: brought up to date. A stale library half is compiled aside by the engine on
+#: its first import, in a hermetic child, but the importing process still pays
+#: the check and the spawn inside whatever it was measuring: after an engine
+#: source edit the first measured child of a lane read 58,067 or 58,070
+#: inferences for 09-tabling_fib against 58,017 in every later one, and
+#: `lib_tabling.qlf` and `lib_import.qlf` were the files it wrote
+#: [measured 2026-09-16, ai-tmp probes over coverage._launch; the boot's own
+#: child regenerates the engine set but leaves the libraries to first import].
+_WARMED: set[Path] = set()
+
+#: One boot that asks the engine to compile every claimed source whose
+#: artifact is stale, aside, in the engine's own hermetic child per file.
+_WARM_SOURCE = _PREAMBLE + "janus_swi.query_once('metta_qlf_boot:qlf_compile_claimed')\n"
+
+
+def _warm(root: Path) -> None:
+    """Bring the tree's Prolog artifacts up to date once per process, outside any measurement."""
+    if root in _WARMED:
+        return
+    outcome, _ = parity._run([sys.executable, "-c", _WARM_SOURCE], root, env=_environment())
+    if outcome.error is not None:
+        msg = f"the artifact warm-up child failed: {outcome.error}"
+        raise RuntimeError(msg)
+    _WARMED.add(root)
+
+
 def _launch(source: str, root: Path) -> Run:
+    _warm(root)
     outcome, text = parity._run(
         [sys.executable, "-c", source], root, env=_environment()
     )
