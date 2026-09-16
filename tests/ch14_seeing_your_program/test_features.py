@@ -702,8 +702,14 @@ def test_define_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest di
     m.run("(= (MethodPoint-flip (MethodPoint $x $y)) (MethodPoint $y $x))")
     (flipped,) = m.run("!(MethodPoint-flip (MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0))")[0]
     assert convert.build(flipped, MethodPoint) == MethodPoint(8.0, 6.0)
-    # A live handle works through the same methods.
-    assert m.eval(Expression(S["MethodPoint-norm"], ground(MethodPoint(3.0, 4.0)))) == [5.0]
+    # A live instance works through the same methods: a value class's
+    # instance IS its constructor term, and the crossing projects it to that
+    # term, so the receiver equation destructures it as it would the written
+    # form. ground() is the opaque escape, an atom with no MeTTa structure,
+    # which no equation over the constructor can take apart.
+    assert m.eval(Expression(S["MethodPoint-norm"], MethodPoint(3.0, 4.0))) == [5.0]
+    assert m.eval(S["MethodPoint-norm"](MethodPoint(3.0, 4.0))) == [5.0]
+    assert m.eval(Expression(S["MethodPoint-norm"], ground(MethodPoint(3.0, 4.0)))) == []
 
 
 def test_enum_members_match_in_metta(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
