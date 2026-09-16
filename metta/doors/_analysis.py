@@ -73,7 +73,7 @@ test_getattr_with_a_default_answers_the_default,
 test_type_of_a_value_is_its_class_and_a_made_class_resolves_through_its_bases,
 test_a_source_iter_yields_its_elements_to_a_loop,
 test_an_inherited_container_iterates_what_it_stores,
-test_a_field_test_against_none_narrows_the_field; commit=WORKTREE].
+test_a_field_test_against_none_narrows_the_field; commit=a6874e867225cd6efb26177d803b942d0dc02dcf].
 Fails when: a setter carries statements beside its intrinsic call; its
 callers' names and values are then joined across all call sites, which
 reports every assigned value as a possible receiver [tested:

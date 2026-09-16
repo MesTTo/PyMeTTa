@@ -13,7 +13,7 @@ variadic binding, slots, inherited storage, contract results and narrowing
 have positive and planted-negative controls [tested: this file; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
 Authoritative declarations, Any narrowing, getattr defaults, type(), source
 and inherited iteration, field narrowing and unreachable branches have
-controls [tested: this file; commit=WORKTREE].
+controls [tested: this file; commit=a6874e867225cd6efb26177d803b942d0dc02dcf].
 """
 
 from __future__ import annotations
