@@ -49,7 +49,10 @@ metta_py_bound_transaction :-
       metta_py_bound_listener,
       py_call('metta._catalog.bounds':bound_transaction_started(), _) ).
 
-% Workaround: swi-query-frame-discarded-on-engine-destroy - watch the nearest live transaction and transfer its ownership on completion.
+% The mirror watches the nearest live transaction frame and transfers to the
+% enclosing one when that frame finishes, so only the outermost completion
+% retires it; a nearest-only watch would release the mirror at inner
+% completion and admit a stale fill before an outer rollback.
 metta_py_bound_watch_transaction(Finished) :-
     prolog_current_frame(Current),
     metta_py_bound_nearest_frame(Current, Finished, Frame),
