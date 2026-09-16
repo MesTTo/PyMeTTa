@@ -83,7 +83,7 @@ Guarantees:
     its frames and the handle whose drop raised it lived for the process
     through a cycle neither runtime's collector could close [tested:
     test_a_failed_close_retried_leaves_nothing_behind,
-    test_aborted_births_leave_nothing_behind; commit=WORKTREE]
+    test_aborted_births_leave_nothing_behind; commit=3aa8268da73cbbf54d382458b6cf3173175a0321]
   - the functional Janus API is selected by live thread identity, never a
     recyclable numeric identifier [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;

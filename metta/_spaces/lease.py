@@ -13,11 +13,11 @@ test_a_handle_born_in_an_aborted_transaction_is_dead,
 test_lease_rows_follow_outstanding_handles; commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
 Guarantees: a retirement the engine performed on its own reconciles the class
 programs living in or borrowing from the space through the same hook
-[tested: test_a_native_retirement_reconciles_the_class_records; commit=WORKTREE].
+[tested: test_a_native_retirement_reconciles_the_class_records; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 Guarantees: an anonymous name outside a lifetime scope returns to the pool when
 its life ends, whichever handle ended it, because `Cell.ephemeral` is the
 life's property rather than one handle's
-[tested: test_alias_release_leaves_nothing_behind; commit=WORKTREE].
+[tested: test_alias_release_leaves_nothing_behind; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 Owns resources: one engine lease row per cell, released by retirement or by the
 cell's finalizer, never by a native call from the garbage collector. No Python
 object crosses into the engine: janus retains a crossed object until atom GC, which

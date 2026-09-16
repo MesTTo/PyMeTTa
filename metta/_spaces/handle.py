@@ -28,7 +28,7 @@ drop, and their Python records change only after that outcome, so an abort or
 a refused commit restores homes, rows and records together [tested:
 test_a_python_drop_retires_the_classes_it_takes_along_in_one_outcome,
 test_a_rolled_back_drop_keeps_its_classes_and_their_rows,
-test_a_drop_refused_at_commit_keeps_its_classes; commit=WORKTREE].
+test_a_drop_refused_at_commit_keeps_its_classes; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 Guarantees: nothing of a handle crosses the engine at a drop: the completion
 is a ticket `drop_completed` resolves, an anonymous name returns to the pool
 when its life ends through any handle, a dropped minted handle leaves its
@@ -37,7 +37,7 @@ boundary that holds no engine record, so thousands of drops settle to the
 baseline [tested: test_temporary_spaces_leave_nothing_behind,
 test_committed_retirements_leave_nothing_behind,
 test_alias_release_leaves_nothing_behind,
-test_a_failed_close_retried_leaves_nothing_behind; commit=WORKTREE].
+test_a_failed_close_retried_leaves_nothing_behind; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 """
 
 from __future__ import annotations
@@ -754,7 +754,7 @@ class SpaceHandle(Handle):
         # completion callable was held by its blob until atom GC and the next
         # Prolog-to-Python call, and with it the handle, its lease cell and
         # what the handle owned [tested: test_committed_retirements_leave_nothing_behind,
-        # test_temporary_spaces_leave_nothing_behind; commit=WORKTREE].
+        # test_temporary_spaces_leave_nothing_behind; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
         ticket = id(self)
         _COMPLETIONS[ticket] = self
         try:

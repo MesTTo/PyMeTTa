@@ -14,7 +14,7 @@ Guarantees:
     rolled-back bodies leave no frame, handle or cell behind once the
     reclamation barrier runs [tested: test_aborted_births_leave_nothing_behind,
     test_a_callback_exception_is_released_at_the_reclamation_barrier;
-    commit=WORKTREE]
+    commit=3aa8268da73cbbf54d382458b6cf3173175a0321]
 """
 
 from __future__ import annotations
@@ -282,7 +282,7 @@ def assuming(space: _root.Space, *facts: Any) -> _Assuming:
 # so no callable crosses: a crossed callable is held by its blob until atom GC
 # and the next Prolog-to-Python call, and with it everything it closes over,
 # the handle a `transaction(space.drop)` names included
-# [tested: test_committed_retirements_leave_nothing_behind; commit=WORKTREE].
+# [tested: test_committed_retirements_leave_nothing_behind; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 _BODIES: dict[int, Callable[[], Any]] = {}
 
 

@@ -8,7 +8,7 @@ spaces, aborted births, committed retirements, alias releases and a failed close
 retried, and a Python object crossed as a query input or raised inside a
 callback is released at the reclamation barrier the memory benchmark names,
 atom GC followed by a Prolog-to-Python call, which every count here runs to its
-fixpoint [tested: test_reclamation; commit=WORKTREE].
+fixpoint [tested: test_reclamation; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 """
 
 import gc

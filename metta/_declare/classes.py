@@ -278,7 +278,7 @@ def _withdraw_rows(runtime: Any, rows: list[tuple[str, int]]) -> None:
 # completion [tested: test_preparation_withdraws_rows_and_leaves_every_python_record_in_place,
 # test_a_rolled_back_drop_keeps_its_classes_and_their_rows,
 # test_a_drop_refused_at_commit_keeps_its_classes,
-# test_a_native_retirement_reconciles_the_class_records; commit=WORKTREE].
+# test_a_native_retirement_reconciles_the_class_records; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 # A prototype receiver carries the instance's own space. Every handle of a
 # retired name refuses to cross, so a receiver naming one is the class layer's
 # "retired" signal before any engine crossing, not a dead-handle refusal.

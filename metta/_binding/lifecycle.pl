@@ -19,7 +19,7 @@
 %The host names the body by a TICKET; metta_ops:transaction_body runs it.
 %Nothing of the body crosses: a crossed callable was held by its blob until
 %atom GC and the next Prolog-to-Python call, and with it what it closed over
-%[tested: extensions/python/tests/ch04_spaces_and_matching/test_reclamation.py; commit=WORKTREE].
+%[tested: extensions/python/tests/ch04_spaces_and_matching/test_reclamation.py; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 metta_py_transaction(Ticket, R) :-
     metta_transaction(py_call(metta_ops:transaction_body(Ticket), R)).
 
@@ -238,7 +238,7 @@ metta_py_lease_retired(Space) :-
 % the completion callable was held by its blob until atom GC and the next
 % Prolog-to-Python call, and with it the handle, its lease cell and what the
 % handle owned [tested: extensions/python/tests/ch04_spaces_and_matching/test_reclamation.py;
-% commit=WORKTREE].
+% commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
 metta_py_drop_space(Name0) :-
     metta_py_space_atom(Name0, Name),
     metta_release_space(Name).
