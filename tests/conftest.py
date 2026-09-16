@@ -27,7 +27,7 @@ Guarantees:
     in list order and answers each commit's ``EngineError`` or ``None``
     [tested: test_a_write_loses_to_a_drop_that_committed_first,
     test_a_drop_loses_to_a_write_that_committed_first,
-    test_overlapping_field_writes_use_the_published_record_patterns; commit=WORKTREE]
+    test_overlapping_field_writes_use_the_published_record_patterns; commit=23dee6dc5b745a57ade43bd5fd2d317116634f6f]
 
 Open Obligations:
   To Do: None

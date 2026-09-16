@@ -358,7 +358,7 @@ def twin(m):
 #: call arriving unevaluated, and its two extra crossings replace the compiled
 #: body's evaluation of the draw [measured 2026-09-16: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=23dee6dc5b745a57ade43bd5fd2d317116634f6f].
 BUDGET = 9737
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

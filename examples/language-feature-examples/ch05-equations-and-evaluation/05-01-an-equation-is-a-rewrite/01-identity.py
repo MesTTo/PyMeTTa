@@ -1107,7 +1107,7 @@ def twin(m):
 #: handle lease at a9b0ddb6d and the retirement commit validation. Measured in
 #: provisioned worktrees of each commit [measured 2026-09-16: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=23dee6dc5b745a57ade43bd5fd2d317116634f6f].
 BUDGET = 4244
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06

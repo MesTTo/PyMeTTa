@@ -11,7 +11,7 @@ leaves the racing drop refused, its handle live and usable, and both rows kept;
 ordinary disjoint and multivalued writes commit in either order
 [tested: test_a_write_loses_to_a_drop_that_committed_first,
 test_a_drop_loses_to_a_write_that_committed_first,
-test_disjoint_and_multivalued_writes_commit_in_either_order; commit=WORKTREE].
+test_disjoint_and_multivalued_writes_commit_in_either_order; commit=23dee6dc5b745a57ade43bd5fd2d317116634f6f].
 """
 
 from metta import MeTTa, S, Space, V

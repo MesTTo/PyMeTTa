@@ -390,5 +390,5 @@ BUDGET = 12738
 #: declares no types and writes let; the stored multisets differ by exactly
 #: those rows [measured 2026-09-16: the two stored-atom surpluses, one fresh
 #: process per side; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=23dee6dc5b745a57ade43bd5fd2d317116634f6f].
 DIVERGENCE = "8a99ddbe21d55a6efb5f5d6d547b4e65d9607303ed8c8a5f99e9a2917b7e2fce"
