@@ -50,5 +50,5 @@ def twin(m):
 #: and each door throws its own remedy, and every native change checks whether
 #: it admits a key [measured 2026-09-16: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=e4fdf699f9dedb73f1fe0de7446334b60bd8dc36].
 BUDGET = 6058
