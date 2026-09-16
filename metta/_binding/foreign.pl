@@ -9,7 +9,7 @@
 % Assumes: spaces:metta_owned_record_occurrences/3 and metta_owned_clause/2 supply
 %   shared occurrence validation and decoding; neither a copied Python map nor
 %   a second cardinality check authorizes a provider callback
-%   [source: engine/spaces/owned_records.pl:metta_owned_record_occurrences/3; commit=WORKTREE].
+%   [source: engine/spaces/owned_records.pl:metta_owned_record_occurrences/3; commit=05fae56ad5b23baa140cb4e6454cb7b304c06f4f].
 
 %%%%%%%%%% Foreign spaces %%%%%%%%%%
 %

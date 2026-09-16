@@ -16,7 +16,7 @@ Guarantees:
     test_declining_and_not_implementing_read_differently]
   - the public provider mapping follows accepted native registration changes
     [source: extensions/python/metta/_binding/foreign.pl:metta_py_provider_reference/3;
-    commit=WORKTREE]
+    commit=05fae56ad5b23baa140cb4e6454cb7b304c06f4f]
   - the caller's bound reaches a provider that claimed exact and no other
     [tested test_a_bound_is_withheld_from_a_provider_that_claimed_nothing]
   - a provider bulk write preflights every atom's add policy before the one

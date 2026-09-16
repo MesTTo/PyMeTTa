@@ -32,7 +32,7 @@ Guarantees:
   - provider registration lives in native owned records; the public mapping
     reads the caller's native snapshot, including commit and rollback
     [source: extensions/python/metta/_binding/foreign.pl:metta_py_provider_reference/3;
-    commit=WORKTREE]
+    commit=05fae56ad5b23baa140cb4e6454cb7b304c06f4f]
   - a provider's own refusal sentence reaches the caller, and "implements it
     and declines it" reads differently from "does not have it" [tested
     test_a_provider_states_its_own_refusal,

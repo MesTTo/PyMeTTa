@@ -4,7 +4,7 @@ Owns resources: fixtures unregister their native provider rows and release
 their test handles. Worker controls attach independent native engines.
 Assumes: the shared native owned-record reader and corrected snapshot kernel
 are installed [source: engine/spaces/owned_records.pl:metta_owned_key_problem/5;
-commit=WORKTREE].
+commit=05fae56ad5b23baa140cb4e6454cb7b304c06f4f].
 """
 
 from __future__ import annotations
