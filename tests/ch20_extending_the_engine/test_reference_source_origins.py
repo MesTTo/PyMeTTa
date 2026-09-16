@@ -6,7 +6,7 @@ a compiled supplied value survives withdrawal of its FROM row, and a resolved
 import spec is never reinterpreted by a FROM alias
 [tested: test_supplied_atoms_keep_their_heads_inside_fresh_source,
 test_compiled_supplied_values_survive_reference_withdrawal,
-test_python_import_rewriter_keeps_its_resolved_module_spec; commit=WORKTREE].
+test_python_import_rewriter_keeps_its_resolved_module_spec; commit=1a8c00f93ae6c63ccabd41d39fed3f967dadd3a9].
 """
 
 import uuid

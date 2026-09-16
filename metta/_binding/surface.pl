@@ -11,7 +11,7 @@
 %     `metta` package, because the engine runs with janus alone.
 %   - form rewriters receive a separate source-origin tree; resolved Python
 %     module specs are values in that tree [source:
-%     engine/filereader/source_origins.pl:rewrite_source_form/5; commit=WORKTREE].
+%     engine/filereader/source_origins.pl:rewrite_source_form/5; commit=1a8c00f93ae6c63ccabd41d39fed3f967dadd3a9].
 % Guarantees:
 %   - values crossing this surface stay OBJECTS. Nothing is flattened, drained
 %     or stringified on the way back, so a generator keeps its laziness and a
