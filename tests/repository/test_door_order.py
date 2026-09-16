@@ -10,7 +10,7 @@ Transparent attribute forwarders have paired-field, alias, native-statement,
 descriptor, dynamic-name and self-recursion controls [tested: this file; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
 Generic, overloaded and Any-armed declarations, typeshed-declared callbacks,
 variadic binding, slots, inherited storage, contract results and narrowing
-have positive and planted-negative controls [tested: this file; commit=WORKTREE].
+have positive and planted-negative controls [tested: this file; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
 """
 
 from __future__ import annotations

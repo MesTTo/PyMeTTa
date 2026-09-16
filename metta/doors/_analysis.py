@@ -51,13 +51,13 @@ test_callable_and_early_exit_narrowing_separate_a_union,
 test_a_callable_passed_to_the_standard_library_is_invoked_where_typeshed_declares_it,
 test_variadic_parameters_hold_a_tuple_and_a_mapping,
 test_slot_descriptors_write_and_read_the_declared_field,
-test_a_generic_base_class_names_its_class_and_holds_its_elements; commit=WORKTREE].
+test_a_generic_base_class_names_its_class_and_holds_its_elements; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
 A value the standard library made is host work, an attribute no
 standard-library type declares is open, and what a supplied callable
 answers carries its contract; every such value is one finite reference
 [tested: test_a_standard_library_value_is_host_work_and_an_unknown_member_is_not,
 test_a_value_a_supplied_callback_returned_carries_its_contract,
-test_wrapper_unwrapping_has_a_finite_abstract_domain; commit=WORKTREE].
+test_wrapper_unwrapping_has_a_finite_abstract_domain; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
 Fails when: a setter carries statements beside its intrinsic call; its
 callers' names and values are then joined across all call sites, which
 reports every assigned value as a possible receiver [tested:
@@ -65,7 +65,7 @@ test_setter_with_a_native_statement_keeps_its_crossing; commit=d2a1b574173fbe576
 A standard-library call that returns one of its arguments' elements, other
 than the container constructors, iter, next and the mapping reads modelled
 here, loses those elements: sorted(rows)[0] is host work with no door in
-it [assumed 2026-09-16; commit=WORKTREE].
+it [assumed 2026-09-16; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
 [source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].

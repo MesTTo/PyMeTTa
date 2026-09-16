@@ -16,7 +16,7 @@ typeshed, the standard-library parameters declared Callable, so the analysis
 invokes a supplied callback exactly where the library declares it will and
 never where a predicate merely inspects it [tested:
 test_a_callable_passed_to_the_standard_library_is_invoked_where_typeshed_declares_it,
-test_invocation_table_reads_versioned_stub_blocks; commit=WORKTREE].
+test_invocation_table_reads_versioned_stub_blocks; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
 """
 
 from __future__ import annotations
