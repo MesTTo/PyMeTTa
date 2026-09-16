@@ -58,7 +58,7 @@ Guarantees:
     warm-up boot that brings every claimed source's artifact up to date
     [tested: test_a_measurement_warms_stale_artifacts_once_per_process,
     test_a_first_library_load_is_independent_of_file_cache_age;
-    commit=WORKTREE]
+    commit=bde3d297922bcef86e840361749bced147323977]
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the five source-input doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
