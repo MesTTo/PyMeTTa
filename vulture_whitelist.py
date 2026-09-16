@@ -411,3 +411,7 @@ _AnswersSugar
 # A provider name is a generated descriptor resolved from its live door rows.
 # [tested: tests/repository/test_door_rows.py::test_a_retained_namespace_observes_replacement_and_withdrawal; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _.arrays
+
+# The door-order gate's own verdict: read by tools/doororder.py, which is
+# outside Vulture's paths, and by its controls in tests/repository.
+_.defect_open

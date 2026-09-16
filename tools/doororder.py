@@ -17,6 +17,9 @@ invokes a supplied callback exactly where the library declares it will and
 never where a predicate merely inspects it [tested:
 test_a_callable_passed_to_the_standard_library_is_invoked_where_typeshed_declares_it,
 test_invocation_table_reads_versioned_stub_blocks; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
+Only the stub modules typeshed's VERSIONS file ships for the running
+interpreter enter the table [tested:
+test_invocation_table_keeps_only_modules_this_interpreter_ships; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -118,9 +121,34 @@ def invocations() -> dict[str, Invocation]:
                 continue
             path = Path(root) / name
             module = str(path.relative_to(base).with_suffix("")).replace(os.sep, ".").removesuffix(".__init__")
+            if not _shipped(module, base / "VERSIONS"):
+                continue
             _declared_invocations(ast.parse(path.read_text(encoding="utf-8")).body, module + ".",
                                   method=False, table=table)
     return dict(sorted(table.items()))
+
+
+def _shipped(module: str, versions: Path) -> bool:
+    """Whether typeshed's VERSIONS file says this interpreter ships the module.
+
+    Each line is `module: first-` or `module: first-last`, and a missing
+    entry inherits its parent package's range; distutils is 3.0-3.11 and
+    does not exist on the 3.14 the analysis runs under.
+    """
+    ranges = {}
+    for line in versions.read_text(encoding="utf-8").splitlines():
+        entry, _, span = line.partition("#")[0].partition(":")
+        if span.strip():
+            first, _, last = span.strip().partition("-")
+            ranges[entry.strip()] = (tuple(map(int, first.split("."))),
+                                     tuple(map(int, last.split("."))) if last else None)
+    name = module
+    while name and name not in ranges:
+        name = name.rpartition(".")[0]
+    if not name:
+        return True
+    first, last = ranges[name]
+    return first <= sys.version_info[:2] and (last is None or sys.version_info[:2] <= last)
 
 
 def render_invocations(table: Mapping[str, Invocation]) -> str:

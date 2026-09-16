@@ -1721,3 +1721,17 @@ def test_type_of_a_value_is_its_class_and_a_made_class_resolves_through_its_base
     ''')
     assert result["space:first"].number == 1
     assert not result["space:first"].open
+
+
+def test_invocation_table_keeps_only_modules_this_interpreter_ships(tmp_path, monkeypatch):
+    """The VERSIONS ranges of typeshed decide which stub modules the table reads."""
+    doororder = _tool(monkeypatch)
+    versions = tmp_path / "VERSIONS"
+    versions.write_text("# comment\nold: 3.0-3.11\nnew: 3.14-\nfuture: 3.99-\nsub.child: 3.0-\n")
+    assert not doororder._shipped("old", versions)
+    assert not doororder._shipped("old.member", versions)
+    assert doororder._shipped("new", versions)
+    assert not doororder._shipped("future", versions)
+    assert doororder._shipped("sub.child.deep", versions)
+    assert doororder._shipped("unlisted", versions)
+    assert not any(key.startswith("distutils.") for key in doororder.invocations())
