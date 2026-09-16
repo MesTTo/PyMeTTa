@@ -11,6 +11,7 @@
 
 :- module(metta_python_bounds, [metta_py_mirror_bounds/0]).
 :- use_module(library(janus), [py_call/2]).
+:- use_module(library(error), [existence_error/2]).
 :- include('provides_host_metta_python_bounds.pl').
 
 %The seat MIRRORS the `(limit <name> <value>)` bounds it reads, because a

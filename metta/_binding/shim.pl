@@ -452,6 +452,10 @@
 :- use_module(library(janus)).
 :- use_module('../../../../engine/atom_index',
               [metta_atom_index_new/1, metta_atom_index_bind/4, metta_atom_index_get/3]).
+% query.pl and evaluation.pl build a repeatable-evaluation goal from the
+% translator's goal lists with its own conjunction builder; the name was
+% called unqualified in this module and defined nowhere it could see.
+:- use_module('../../../../engine/translator', [goals_list_to_conj/2]).
 % Janus resolves maplist/2 lazily on its first failed text query. The native
 % file-search cache expires after ten seconds, making that import vary by
 % exactly 229 inferences under concurrent startup. Resolve this required
@@ -475,6 +479,7 @@
 :- use_module(library(prolog_profile)).
 :- use_module(library(prolog_wrap), [wrap_predicate/4, unwrap_predicate/2]).
 :- use_module(library(wfs)).
+:- use_module(library(error), [must_be/2]).
 
 % Resolve the name index's dependencies during bridge loading. Its first
 % insertion otherwise autoloads code during the caller's first decode

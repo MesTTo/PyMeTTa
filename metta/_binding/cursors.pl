@@ -3,6 +3,13 @@
 % Owns resources: held cursors and captured memory; metta_py_cursor_close/1 releases either cursor representation
 % [source: extensions/python/metta/_binding/cursors.pl:metta_py_cursor_close/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 
+% The captured cursor's text buffer is a memory file; declared here rather
+% than left to the library index, which the no-autoload configuration
+% (run.sh NO_AUTOLOAD=1) does not consult.
+:- autoload(library(memfile),
+            [new_memory_file/1, open_memory_file/4, memory_file_to_string/2,
+             free_memory_file/1]).
+
 %%%%%%%%%% Lazy cursors %%%%%%%%%%
 %
 % A query held open as an SWI engine: engine_next pulls one answer per
