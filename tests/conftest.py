@@ -22,6 +22,12 @@ Guarantees:
     the example, that runs ``sh run.sh`` and reads its check marks
     [tested: test_the_manifest_collects_one_item_per_row,
     test_a_listed_example_runs_as_its_own_item; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
+  - the ``overlap`` fixture runs two transactions on one home from two engine
+    threads with both snapshots open before either body writes, commits them
+    in list order and answers each commit's ``EngineError`` or ``None``
+    [tested: test_a_write_loses_to_a_drop_that_committed_first,
+    test_a_drop_loses_to_a_write_that_committed_first,
+    test_overlapping_field_writes_use_the_published_record_patterns; commit=WORKTREE]
 
 Open Obligations:
   To Do: None
@@ -34,7 +40,10 @@ from __future__ import annotations
 import importlib
 import os
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from queue import Queue
 
 import janus_swi
 import pytest
@@ -512,3 +521,60 @@ def metta(metta_path):
     """
     os.environ.setdefault("METTA_PATH", metta_path)
     return Space(metta_path=metta_path)
+
+
+@pytest.fixture
+def overlap():
+    """Run two transactions on ``home`` that overlap, committing in list order.
+
+    Each action runs inside ``home.transaction`` on its own engine thread.
+    Both bodies finish before either commits, so both snapshots predate both
+    writes; the first action's transaction then commits, then the second's.
+    The answer is the pair of ``EngineError`` each commit raised, ``None``
+    for one that committed, which is how the outer-commit validators
+    (owned records, retirements) are driven from Python.
+    """
+    from metta._binding.runtime import engine_thread
+    from metta._errors.errors import EngineError
+
+    def run(home, actions):
+        start = threading.Barrier(2)
+        ready = Queue()
+        release = [threading.Event(), threading.Event()]
+
+        def worker(index):
+            def body():
+                start.wait()
+                actions[index]()
+                ready.put((index, "ready"))
+                release[index].wait()
+
+            try:
+                with engine_thread():
+                    try:
+                        home.transaction(body)
+                    except EngineError as error:
+                        return error
+                    return None
+            finally:
+                start.abort()
+                ready.put((index, "done"))
+
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            tasks = [workers.submit(worker, index) for index in range(2)]
+            try:
+                prepared = set()
+                while len(prepared) != 2:
+                    index, stage = ready.get()
+                    assert stage == "ready", f"worker {index} failed before both snapshots were ready"
+                    prepared.add(index)
+                release[0].set()
+                first = tasks[0].result()
+                release[1].set()
+                return first, tasks[1].result()
+            finally:
+                for event in release:
+                    event.set()
+                start.abort()
+
+    return run

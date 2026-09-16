@@ -10,15 +10,11 @@ Guarantees: controls observe native rows, Python aliases, source lifetimes and
 
 from __future__ import annotations
 
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from queue import Queue
 
 import pytest
 
 from metta import Atom, Expression, Grounded, MeTTa, S, Space, V, convert
-from metta._binding.runtime import engine_thread
 from metta._declare.classes import declaration
 from metta._errors.errors import EngineError
 
@@ -26,47 +22,6 @@ from metta._errors.errors import EngineError
 def _schemas(plan):
     row = S["@owned-record"](S[plan.space._name], V.owner, V.storage, V.prefix)
     return Space("&metta", _runtime=plan.space._rt).eval(S.match(S["&metta"], row, row))
-
-
-def _overlap(home, actions):
-    start = threading.Barrier(2)
-    ready = Queue()
-    release = [threading.Event(), threading.Event()]
-
-    def worker(index):
-        def body():
-            start.wait()
-            actions[index]()
-            ready.put((index, "ready"))
-            release[index].wait()
-
-        try:
-            with engine_thread():
-                try:
-                    home.transaction(body)
-                except EngineError as error:
-                    return error
-                return None
-        finally:
-            start.abort()
-            ready.put((index, "done"))
-
-    with ThreadPoolExecutor(max_workers=2) as workers:
-        tasks = [workers.submit(worker, index) for index in range(2)]
-        try:
-            prepared = set()
-            while len(prepared) != 2:
-                index, stage = ready.get()
-                assert stage == "ready", f"worker {index} failed before both snapshots were ready"
-                prepared.add(index)
-            release[0].set()
-            first = tasks[0].result()
-            release[1].set()
-            return first, tasks[1].result()
-        finally:
-            for event in release:
-                event.set()
-            start.abort()
 
 
 @pytest.mark.parametrize("base", [object, Space])
@@ -149,7 +104,7 @@ def test_record_declarations_roll_back_with_their_class(base):
 @pytest.mark.parametrize("empty", [False, True])
 @pytest.mark.parametrize("native", [False, True])
 @pytest.mark.parametrize("same_value", [False, True])
-def test_overlapping_field_writes_use_the_published_record_patterns(base, empty, native, same_value):
+def test_overlapping_field_writes_use_the_published_record_patterns(base, empty, native, same_value, overlap):
     """Both setter routes reject the second committed occurrence, including equal values."""
     with MeTTa() as context:
         home = context.self
@@ -176,7 +131,7 @@ def test_overlapping_field_writes_use_the_published_record_patterns(base, empty,
             else:
                 holder.value = value
 
-        first, second = _overlap(home, [lambda: write(1), lambda: write(1 if same_value else 2)])
+        first, second = overlap(home, [lambda: write(1), lambda: write(1 if same_value else 2)])
         assert first is None
         assert isinstance(second, EngineError)
         assert "retry the outer transaction" in str(second)
