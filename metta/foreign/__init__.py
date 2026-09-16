@@ -33,6 +33,17 @@ Guarantees:
     reads the caller's native snapshot, including commit and rollback
     [source: extensions/python/metta/_binding/foreign.pl:metta_py_provider_reference/3;
     commit=05fae56ad5b23baa140cb4e6454cb7b304c06f4f]
+  - every door holds the provider's admission for the whole of its use, a
+    stream's until its last pull (exhaustion, a closed cursor, a backend
+    failure and an engine cut all release it) and an enlisted participant's
+    from begin to commit or rollback; a close stops new admission, waits for
+    the admitted uses, then removes the row, and a close requested inside an
+    admitted use of the same provider is retained until that use exits
+    [tested: test_a_close_waits_for_an_admitted_pull_and_refuses_new_admission,
+    test_every_way_a_stream_ends_releases_its_admission,
+    test_an_older_snapshot_cannot_invoke_a_closed_provider,
+    test_a_close_requested_inside_an_admitted_use_completes_at_the_last_release,
+    test_an_enlisted_participant_is_held_from_begin_to_commit; commit=WORKTREE]
   - a provider's own refusal sentence reaches the caller, and "implements it
     and declines it" reads differently from "does not have it" [tested
     test_a_provider_states_its_own_refusal,
@@ -86,6 +97,8 @@ Open Obligations:
 from __future__ import annotations
 
 import inspect
+import threading
+from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sized
 from contextlib import contextmanager
 from functools import cache
@@ -515,6 +528,157 @@ def has_provider(space: str) -> bool:
     return space in PROVIDERS
 
 
+# ------------------------------------------------- admission intervals
+#
+# The engine row says WHICH provider a name has; the admission record says
+# WHEN it may be used. Every door admits its use at entry and releases it
+# when the use ends, a streamed door's when its last pull is done, so a
+# close can stop new admission, wait for the admitted uses, and only then
+# remove the row and close the backing. This is a read-side critical section
+# with a grace period (RCU's shape; Go's WaitGroup behind a closed flag):
+# readers never block each other, and the writer waits for them.
+
+
+class Admission:
+    """One registration's admission interval, which a close waits on.
+
+    ``unregister_provider`` returns it once the row is gone: ``wait`` blocks
+    until no admitted use remains, ``held_by_caller`` says whether the calling
+    thread is inside one (a close that cannot wait for itself), and
+    ``after_last_release`` retains an action for the last release to run.
+    """
+
+    __slots__ = ("closing", "condition", "count", "holders", "name", "pending", "provider")
+
+    def __init__(self, name: str, provider: SpaceProvider) -> None:
+        self.name = name
+        self.provider = provider
+        self.condition = threading.Condition()
+        self.count = 0
+        # Thread ident -> admissions that thread holds, so a close requested
+        # from inside one of them is recognised as self-retirement.
+        self.holders: Counter[int] = Counter()
+        self.closing = False
+        # The physical close waiting for the last release, when the close
+        # was requested from inside an admitted use.
+        self.pending: Callable[[], None] | None = None
+
+    @property
+    def held_by_caller(self) -> bool:
+        """Whether the calling thread is inside one of this registration's uses."""
+        with self.condition:
+            return self.holders.get(threading.get_ident(), 0) > 0
+
+    def wait(self) -> None:
+        """Block until no use holds the provider."""
+        with self.condition:
+            while self.count > 0:
+                self.condition.wait()
+
+    def after_last_release(self, action: Callable[[], None]) -> None:
+        """Run ``action`` now if nothing holds the provider, else at the last release."""
+        with self.condition:
+            if self.count > 0:
+                self.pending = action
+                return
+        action()
+
+
+_Admission = Admission
+
+
+_ADMISSIONS: dict[str, _Admission] = {}
+_ADMISSIONS_LOCK = threading.Lock()
+
+
+def _admit(space: str) -> _Admission:
+    """Hold ``space``'s provider for one use; ``_release`` ends it."""
+    with _ADMISSIONS_LOCK:
+        record = _ADMISSIONS.get(space)
+    if record is None:
+        raise KeyError(space)
+    # The row this snapshot holds must name the provider the record holds: a
+    # registration rolled back leaves a record with no row, and one made
+    # outside this registry leaves a row the record never saw.
+    current = PROVIDERS.get(space)
+    if current is None:
+        with _ADMISSIONS_LOCK:
+            if _ADMISSIONS.get(space) is record and record.count == 0:
+                del _ADMISSIONS[space]
+        raise KeyError(space)
+    if current is not record.provider:
+        # The row was edited natively: the engine's row says which provider
+        # a name has, so the record follows it. The stale record admits
+        # nothing new and finishes the uses it already holds.
+        with record.condition:
+            record.closing = True
+        record = Admission(space, current)
+        with _ADMISSIONS_LOCK:
+            _ADMISSIONS[space] = record
+    with record.condition:
+        if record.closing:
+            msg = (
+                f"{space} is closing: its provider admits no new use while a "
+                f"close waits for the uses it already admitted"
+            )
+            raise MettaError(msg, space=space)
+        record.count += 1
+        record.holders[threading.get_ident()] += 1
+    return record
+
+
+def _release(record: _Admission) -> None:
+    ident = threading.get_ident()
+    with record.condition:
+        record.count -= 1
+        record.holders[ident] -= 1
+        if record.holders[ident] <= 0:
+            del record.holders[ident]
+        pending = None
+        last = record.count == 0
+        if last:
+            pending, record.pending = record.pending, None
+            record.condition.notify_all()
+    if last and record.closing:
+        with _ADMISSIONS_LOCK:
+            if _ADMISSIONS.get(record.name) is record:
+                del _ADMISSIONS[record.name]
+    if pending is not None:
+        pending()
+
+
+@contextmanager
+def _admitted(space: str) -> Iterator[SpaceProvider]:
+    """One synchronous use of ``space``'s provider."""
+    record = _admit(space)
+    try:
+        yield record.provider
+    finally:
+        _release(record)
+
+
+def _admitted_stream(record: _Admission, stream: Iterable[Any]) -> Iterator[Any]:
+    """Hold the admission until the stream is exhausted, closed or collected."""
+    try:
+        yield from stream
+    finally:
+        _release(record)
+
+
+def admitted(space: str) -> int:
+    """How many uses currently hold ``space``'s provider."""
+    with _ADMISSIONS_LOCK:
+        record = _ADMISSIONS.get(space)
+    return 0 if record is None else record.count
+
+
+def closing(space: str) -> bool:
+    """Whether a close of ``space``'s provider is waiting for admitted uses."""
+    with _ADMISSIONS_LOCK:
+        record = _ADMISSIONS.get(space)
+    return record is not None and record.closing
+
+
 def _provider_length(space: str) -> int | None:
     """A declared provider length, or None when this is not a provider space.
 
@@ -522,17 +686,17 @@ def _provider_length(space: str) -> int | None:
     an arbitrary backend here would turn an absent complexity promise into a
     potentially remote full scan merely because a caller wrote ``len(space)``.
     """
-    provider = PROVIDERS.get(space)
-    if provider is None:
+    if space not in PROVIDERS:
         return None
-    if not isinstance(provider, Sized):
-        msg = (
-            f"len({space}) is unavailable: {type(provider).__name__} does not "
-            f"implement __len__; counting by enumeration would hide the "
-            f"provider's cost"
-        )
-        raise TypeError(msg)
-    return len(provider)
+    with _admitted(space) as provider:
+        if not isinstance(provider, Sized):
+            msg = (
+                f"len({space}) is unavailable: {type(provider).__name__} does not "
+                f"implement __len__; counting by enumeration would hide the "
+                f"provider's cost"
+            )
+            raise TypeError(msg)
+        return len(provider)
 
 
 def _require_provider(
@@ -657,6 +821,8 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:  # n
         Capabilities=[word for word in _declarable(runtime) if provider.can_run(word)],
         Delivery=list(promise) if promise is not None else [],
     )
+    with _ADMISSIONS_LOCK:
+        _ADMISSIONS[name] = _Admission(name, provider)
 
 
 def _declarable(runtime) -> list[str]:
@@ -674,16 +840,38 @@ def _declarable(runtime) -> list[str]:
     )
 
 
-def unregister_provider(runtime, name: str) -> None:
+def unregister_provider(runtime, name: str) -> Admission:
     """Release a registered provider; an absent name is a KeyError.
 
     convert.unregister_type answers the same way. Removing something that
     was never there is a mistake worth hearing about.
+
+    The registration row goes at once, inside the caller's transaction, so a
+    replacement can follow in the same transaction while a batch the old
+    provider began finishes on its captured methods. The registration's
+    admission stays: it admits nothing new (a door asked for it now refuses
+    with "is closing", a transaction whose snapshot still holds the row
+    included) and is returned so the owner's PHYSICAL close can wait for the
+    uses it already admitted, a streamed match's remaining pulls and an
+    enlisted participant's commit or rollback among them, before closing the
+    backing; ``closing(name)`` reads True until the last of them releases.
     """
     if name not in PROVIDERS:
         msg = f"no provider is registered for {name!r}"
         raise KeyError(msg)
+    with _ADMISSIONS_LOCK:
+        record = _ADMISSIONS.get(name)
+    if record is None:
+        record = Admission(name, PROVIDERS[name])
     runtime.must("metta_py_unregister_foreign(Space)", Space=name)
+    with record.condition:
+        record.closing = True
+        drained = record.count == 0
+    if drained:
+        with _ADMISSIONS_LOCK:
+            if _ADMISSIONS.get(name) is record:
+                del _ADMISSIONS[name]
+    return record
 
 
 # ------------------------------------------------- called from the shim
@@ -832,8 +1020,8 @@ def foreign_refuse(space: str, capability: str) -> None:
     about what the provider provides, which is exactly the split the
     capability projection closed.
     """
-    provider = _provider(space)
-    _require_provider(provider, space, capability, capability)
+    with _admitted(space) as provider:
+        _require_provider(provider, space, capability, capability)
     msg = (
         f"{space} refused {capability} to the engine and allows it here; the "
         f"engine's capability record and this provider disagree"
@@ -847,8 +1035,8 @@ def foreign_refuse(space: str, capability: str) -> None:
 
 def foreign_pushdown(space: str, pattern_wire: list) -> str:
     """The shim asks this before pulling a bounded match's candidates."""
-    provider = _provider(space)
-    return pushdown_class(provider, _atom_from_wire(pattern_wire))
+    with _admitted(space) as provider:
+        return pushdown_class(provider, _atom_from_wire(pattern_wire))
 
 
 def _erring_stream(stream, mode: str, pattern):
@@ -928,7 +1116,23 @@ def foreign_match(
     failure crosses as data. `metta._errors.errors.stream_failure` has the
     measurements.
     """
-    provider = _provider(space)
+    record = _admit(space)
+    provider = record.provider
+    try:
+        stream = _match_stream(provider, space, pattern_wire, limit, mode)
+    except BaseException:
+        _release(record)
+        raise
+    return guarded(
+        _admitted_stream(record, stream),
+        lambda error: _provider_failure(error, space, "match", provider),
+    )
+
+
+def _match_stream(
+    provider: SpaceProvider, space: str, pattern_wire: list, limit: int | None, mode: OnError
+) -> Iterator[Any]:
+    """The candidate wire stream of one admitted match, before its first pull."""
     pattern = _atom_from_wire(pattern_wire)
     _require_provider(provider, space, "match", "match", pattern=pattern)
     if isinstance(provider, Matcher):
@@ -947,27 +1151,35 @@ def foreign_match(
     stream = _wire_stream(iter(candidates))
     if mode != "abort":
         stream = _erring_stream(stream, mode, pattern)
-    return guarded(
-        stream,
-        lambda error: _provider_failure(error, space, "match", provider),
-    )
+    return stream
 
 
 def foreign_atoms(space: str):
     """The shim's py_iter enumerates this; see foreign_match on ordering."""
-    provider = _provider(space)
-    _require_provider(provider, space, "enumerate", "get-atoms")
+    record = _admit(space)
+    provider = record.provider
+    try:
+        _require_provider(provider, space, "enumerate", "get-atoms")
+        stream = _wire_stream(iter(cast(Enumerable, provider).atoms()), answers=False)
+    except BaseException:
+        _release(record)
+        raise
     return guarded(
-        _wire_stream(iter(cast(Enumerable, provider).atoms()), answers=False),
+        _admitted_stream(record, stream),
         lambda error: _provider_failure(error, space, "get-atoms", provider),
     )
 
 
 def foreign_tokens(space: str, pattern_wire: list):
     """Serve stable occurrence pairs through the existing guarded wire stream."""
-    provider = _provider(space)
-    pattern = _atom_from_wire(pattern_wire)
-    _require_provider(provider, space, "tokens", "blame", pattern=pattern)
+    record = _admit(space)
+    provider = record.provider
+    try:
+        pattern = _atom_from_wire(pattern_wire)
+        _require_provider(provider, space, "tokens", "blame", pattern=pattern)
+    except BaseException:
+        _release(record)
+        raise
 
     def rows():
         iterator = iter(cast(TokenProvider, provider).tokens(pattern))
@@ -982,7 +1194,7 @@ def foreign_tokens(space: str, pattern_wire: list):
                 close()
 
     return guarded(
-        rows(),
+        _admitted_stream(record, rows()),
         lambda error: _provider_failure(error, space, "blame", provider),
     )
 
@@ -1009,11 +1221,35 @@ def _unwrap_box(obj: Any) -> Any:
 
 
 def foreign_participant(space: str, provider: SpaceProvider) -> list[Callable[[], Any]]:
-    """Capture the selected provider's bound operations before begin runs."""
+    """Capture the selected provider's bound operations before begin runs.
+
+    The participant holds the provider's admission from begin through the
+    commit or rollback that ends it, so a close waits for the transaction.
+    """
     if isinstance(provider, Transactional):
         operations = [provider.begin, provider.commit, provider.rollback]
         if all(map(callable, operations)):
-            return operations
+            begin, commit, rollback = operations
+            held: list[_Admission] = []
+
+            def admitted_begin() -> Any:
+                held.append(_admit(space))
+                try:
+                    return begin()
+                except BaseException:
+                    _release(held.pop())
+                    raise
+
+            def releasing(finish: Callable[[], Any]) -> Callable[[], Any]:
+                def run() -> Any:
+                    try:
+                        return finish()
+                    finally:
+                        if held:
+                            _release(held.pop())
+                return run
+
+            return [admitted_begin, releasing(commit), releasing(rollback)]
     msg = (
         f"{space} is declared (writes {space} transactional) and its "
         f"provider {type(provider).__name__} does not implement callable "
@@ -1024,33 +1260,33 @@ def foreign_participant(space: str, provider: SpaceProvider) -> list[Callable[[]
 
 
 def foreign_add(space: str, atom_wire: list) -> bool:
-    provider = _provider(space)
-    atom = _atom_from_wire(atom_wire)
-    _require_provider(provider, space, "add", "add-atom", atom=atom)
-    cast(Adder, provider).add(atom)
+    with _admitted(space) as provider:
+        atom = _atom_from_wire(atom_wire)
+        _require_provider(provider, space, "add", "add-atom", atom=atom)
+        cast(Adder, provider).add(atom)
     return True
 
 
 def foreign_add_token(space: str, atom_wire: list) -> list:
     """Return the provider's identity through the occurrence wire contract."""
-    provider = _provider(space)
-    atom = _atom_from_wire(atom_wire)
-    _require_provider(provider, space, "add-token", "add-token", atom=atom)
-    with _provider_mutation_errors(space, "add-token", provider):
-        return cast(TokenAdder, provider).add_token(atom).to_wire()
+    with _admitted(space) as provider:
+        atom = _atom_from_wire(atom_wire)
+        _require_provider(provider, space, "add-token", "add-token", atom=atom)
+        with _provider_mutation_errors(space, "add-token", provider):
+            return cast(TokenAdder, provider).add_token(atom).to_wire()
 
 
 def foreign_remove_token(space: str, token_wire: list) -> bool:
     """Keep exact removal's Boolean verdict, including an already absent row."""
-    provider = _provider(space)
-    token = _atom_from_wire(token_wire)
-    _require_provider(provider, space, "remove-token", "remove-token", token=token)
-    with _provider_mutation_errors(space, "remove-token", provider):
-        removed = cast(TokenRemover, provider).remove_token(token)
-        if not isinstance(removed, bool):
-            message = "remove_token must return a bool"
-            raise TypeError(message)
-        return removed
+    with _admitted(space) as provider:
+        token = _atom_from_wire(token_wire)
+        _require_provider(provider, space, "remove-token", "remove-token", token=token)
+        with _provider_mutation_errors(space, "remove-token", provider):
+            removed = cast(TokenRemover, provider).remove_token(token)
+            if not isinstance(removed, bool):
+                message = "remove_token must return a bool"
+                raise TypeError(message)
+            return removed
 
 
 @contextmanager
@@ -1071,13 +1307,13 @@ def foreign_plan(space: str, pattern_wires: list):
     than streamed, because a claim is answered as a whole and the engine has no
     use for a half-planned join.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    provider = _provider(space)
-    patterns = [_atom_from_wire(wire) for wire in pattern_wires]
-    if not isinstance(provider, Planner) or not provider.should_run(
-        "plan", patterns=patterns
-    ):
-        return None
-    claim = provider.plan(patterns)
+    with _admitted(space) as provider:
+        patterns = [_atom_from_wire(wire) for wire in pattern_wires]
+        if not isinstance(provider, Planner) or not provider.should_run(
+            "plan", patterns=patterns
+        ):
+            return None
+        claim = provider.plan(patterns)
     if claim is None:
         return None
     claimed, rest, rows = claim
@@ -1096,23 +1332,23 @@ def foreign_plan(space: str, pattern_wires: list):
 def foreign_add_many(space: str, atom_wires: list) -> bool:
     if not atom_wires:
         return True
-    provider = _provider(space)
-    atoms = [_atom_from_wire(wire) for wire in atom_wires]
-    for atom in atoms:
-        _require_provider(provider, space, "add", "add-atom", atom=atom)
-    cast(BulkAdder, provider).add_many(atoms)
+    with _admitted(space) as provider:
+        atoms = [_atom_from_wire(wire) for wire in atom_wires]
+        for atom in atoms:
+            _require_provider(provider, space, "add", "add-atom", atom=atom)
+        cast(BulkAdder, provider).add_many(atoms)
     return True
 
 
 def foreign_remove(space: str, atom_wire: list) -> bool:
-    provider = _provider(space)
-    atom = _atom_from_wire(atom_wire)
-    _require_provider(provider, space, "remove", "remove-atom", atom=atom)
-    return bool(cast(Remover, provider).remove(atom))
+    with _admitted(space) as provider:
+        atom = _atom_from_wire(atom_wire)
+        _require_provider(provider, space, "remove", "remove-atom", atom=atom)
+        return bool(cast(Remover, provider).remove(atom))
 
 
 def foreign_clear(space: str) -> bool:
-    provider = _provider(space)
-    _require_provider(provider, space, "clear", "clear")
-    cast(Clearer, provider).clear()
+    with _admitted(space) as provider:
+        _require_provider(provider, space, "clear", "clear")
+        cast(Clearer, provider).clear()
     return True

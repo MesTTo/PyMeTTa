@@ -85,7 +85,7 @@ def test_a_pending_drop_refuses_handle_operations_until_the_outcome():
 
         def body():
             holder.drop()
-            with pytest.raises(MettaError, match="being dropped in the current transaction"):
+            with pytest.raises(MettaError, match="is being dropped"):
                 holder.add(ROW(8))
             holder.drop()  # a second drop while pending is the documented no-op
             msg = "rollback-space-retirement"

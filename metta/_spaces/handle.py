@@ -7,6 +7,12 @@ Guarantees: a drop inside a transaction finishes this side's cleanup only when
 the engine reports the committed retirement, and an abort restores the handle
 [tested: test_a_drop_inside_a_transaction_follows_its_outcome,
 test_a_pending_drop_refuses_handle_operations_until_the_outcome; commit=f9ef614a03bce1a1878d9b43fb7618df57ccfa21].
+Guarantees: a drop detaches a Python provider through its admission close,
+so the engine's route and an owned backing go only once no admitted use
+remains, and a drop requested from inside one of that provider's own uses is
+pending until that use exits [tested:
+test_a_close_requested_inside_an_admitted_use_completes_at_the_last_release,
+test_a_close_waits_for_an_admitted_pull_and_refuses_new_admission; commit=WORKTREE].
 Guarantees: every handle of one live name shares one life through
 metta._spaces.lease, so a retirement by any party reads dropped on all of them
 and a reused name never answers an old handle [tested:
@@ -425,8 +431,9 @@ class SpaceHandle(Handle):
             )
         if self._drop_pending:
             msg = (
-                f"{self._name} is being dropped in the current transaction; "
-                f"commit or abort it before using this handle again"
+                f"{self._name} is being dropped; its retirement completes when "
+                f"the current transaction ends or the provider use that "
+                f"requested it exits, so use this handle again after that"
             )
             raise MettaError(msg)
         if self._drop_engine_done:
@@ -662,10 +669,20 @@ class SpaceHandle(Handle):
             # Detach the engine's provider route while keeping Python ownership.
             # Drop must not clear an external journal or borrowed provider.
             provider = foreign._provider(name) if foreign.has_provider(name) else None
+            if provider is not None:
+                # The route is detached at once; the physical retirement
+                # waits for the uses the registration admitted. Requested
+                # from inside one of those uses, it cannot wait for itself:
+                # the teardown is retained until that use exits and the last
+                # release runs it, the handle pending meanwhile.
+                admission = foreign.unregister_provider(self._rt, name)
+                if admission.held_by_caller:
+                    self._drop_pending = True
+                    admission.after_last_release(self._drop_after_release)
+                    return
+                admission.wait()
             self._drop_pending = True
             try:
-                if provider is not None:
-                    self._rt.must("metta_py_unregister_foreign(Space)", Space=name)
                 # Separate queries let SWI reclaim clauses erased by the clear.
                 self._rt.must("metta_py_clear_for_release(Space)", Space=name)
                 # The engine reports the outcome to _released: before this call
@@ -702,6 +719,11 @@ class SpaceHandle(Handle):
             return
         self._finish_drop()
 
+    def _drop_after_release(self) -> None:
+        """Run the retained drop once the provider use that requested it has exited."""
+        self._drop_pending = False
+        self.drop()
+
     def _released(self, outcome: str) -> None:
         """Finish the drop after a committed retirement, or unpend it after an abort.
 
@@ -729,8 +751,12 @@ class SpaceHandle(Handle):
         cleanup._scoped = False
         for subscription in subscriptions._subscriptions_for(name):
             subscription.cancel()
+
+        # A registration still standing here (a retirement by another party)
+        # is detached and its admitted uses waited for, so the backing closes
+        # only once none of them can reach it.
         if foreign.has_provider(name):
-            foreign.unregister_provider(self._rt, name)
+            foreign.unregister_provider(self._rt, name).wait()
         if self._owns_backing:
             close = getattr(self._backing, "close", None)
             if callable(close):
