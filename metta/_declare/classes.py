@@ -271,6 +271,14 @@ def _withdraw_rows(runtime: Any, rows: list[tuple[str, int]]) -> None:
         runtime.must("spaces:metta_remove_occurrence(Space, Token, _)", Space=space, Token=token)
 
 
+# Withdrawal runs in two phases around the native outcome: prepare_withdrawal
+# writes rows inside the caller's transaction while every home is admitted,
+# reconcile_withdrawal changes Python records only for the homes the outcome
+# retired, and the pending registry below joins the two across the drop's
+# completion [tested: test_preparation_withdraws_rows_and_leaves_every_python_record_in_place,
+# test_a_rolled_back_drop_keeps_its_classes_and_their_rows,
+# test_a_drop_refused_at_commit_keeps_its_classes,
+# test_a_native_retirement_reconciles_the_class_records; commit=WORKTREE].
 # A prototype receiver carries the instance's own space. Every handle of a
 # retired name refuses to cross, so a receiver naming one is the class layer's
 # "retired" signal before any engine crossing, not a dead-handle refusal.
@@ -863,51 +871,179 @@ def install(space: Any, cls: type, *, accessors: bool, methods: bool) -> type:
         return space.transaction(publish)
 
 
-def release(space: Any) -> None:
-    """Retire declarations unreachable from declaring homes or native Scope ownership."""
+@dataclasses.dataclass(frozen=True)
+class ClassWithdrawal:
+    """The receipt of one prepared class withdrawal.
+
+    ``homes`` are the additional class homes the requested homes take with
+    them (the plans that lose their last live borrower, closed through the
+    standing base and reference edges); ``plans`` are those retired
+    candidates, ``survivors`` the rest. Reconciliation marks each plan it has
+    completed in ``completed``, so a failed reconciliation retries only the
+    work not yet done.
+    """
+
+    requested: tuple[str, ...]
+    homes: tuple[str, ...]
+    plans: tuple[ClassDeclaration, ...]
+    survivors: tuple[ClassDeclaration, ...]
+    completed: set[ClassDeclaration] = dataclasses.field(default_factory=set)
+    # The homes whose retirement committed, recorded by each home's own
+    # completion before the requesting home reconciles.
+    retired: set[str] = dataclasses.field(default_factory=set)
+
+    @property
+    def names(self) -> tuple[str, ...]:
+        """Every home this receipt covers, requested and taken along."""
+        return (*self.requested, *self.homes)
+
+
+# A Python-origin drop in flight: every home its receipt covers maps to the
+# receipt until the requesting home has reconciled, so a covered home's own
+# completion records its outcome instead of preparing a second withdrawal.
+_PENDING: dict[str, ClassWithdrawal] = {}
+
+
+def plan_withdrawal(home_names: tuple[str, ...]) -> ClassWithdrawal:
+    """The dependency closure over ``home_names``, computed and nothing written."""
+    requested = frozenset(home_names)
     plans = set(_DECLARATIONS.values())
     dependents: dict[ClassDeclaration, set[ClassDeclaration]] = {plan: set() for plan in plans}
     for plan in plans:
-        plan.borrowers.discard(space._name)
         for provider in (*plan.bases, *plan.references):
             dependents[provider].add(plan)
-    # Explicit space release, including Scope cleanup, invalidates dependent
-    # class programs even while their importing spaces are still being closed.
-    pending = {plan for plan in plans if plan.space._name == space._name}
-    invalid = set()
+    # A requested home invalidates the class programs that depend on it,
+    # cycles through inherited or referenced class types included.
+    pending = {plan for plan in plans if plan.space._name in requested}
+    invalid: set[ClassDeclaration] = set()
     while pending:
         plan = pending.pop()
         invalid.add(plan)
         pending.update(dependents[plan] - invalid)
-    # Registry dependencies form a graph, including cycles through field types.
+    # What survives is what a live borrower or a lifetime scope still holds,
+    # closed over the classes it depends on.
     # https://github.com/sqlalchemy/sqlalchemy/blob/a303102a7bfbbb6da992a89b6610d71f080fb5eb/lib/sqlalchemy/orm/decl_api.py#L1361-L1378
     pending = {
         plan for plan in plans - invalid
-        if plan.borrowers or (not plan.space.dropped and plan.space._scoped)
+        if (plan.borrowers - requested) or (not plan.space.dropped and plan.space._scoped)
     }
-    retained = set()
+    retained: set[ClassDeclaration] = set()
     while pending:
         plan = pending.pop()
         retained.add(plan)
         pending.update({*plan.bases, *plan.references} - retained)
     retired = plans - retained
-    for plan in retired:
-        _withdraw_rows(plan.space._rt, plan.record_rows)
+    order = sorted(retired, key=lambda plan: plan.name)
+    return ClassWithdrawal(
+        requested=tuple(home_names),
+        homes=tuple(plan.space._name for plan in order if plan.space._name not in requested),
+        plans=tuple(order),
+        survivors=tuple(sorted(retained, key=lambda plan: plan.name)),
+    )
+
+
+def prepare_withdrawal(home_names: tuple[str, ...]) -> ClassWithdrawal:
+    """Close the class dependency graph over ``home_names`` and withdraw the retiring plans' rows.
+
+    The native writes ride the caller's transaction and happen while every
+    affected home is still admitted; nothing on the Python side changes here,
+    not borrowers, dependencies, instrumentation, registrations or
+    ``_DECLARATIONS``, and no space is dropped. The receipt names the
+    additional class homes the caller must retire with the requested ones.
+    Rows stored in a retiring home go with its storage and are not withdrawn
+    one by one.
+    """
+    receipt = plan_withdrawal(home_names)
+    retiring = set(receipt.names)
+    for plan in receipt.plans:
+        _withdraw_rows(plan.space._rt, [row for row in plan.record_rows if row[0] not in retiring])
         for rows in plan.method_rows.values():
-            _withdraw_rows(plan.space._rt, [row for row in rows if row[0] != space._name])
+            _withdraw_rows(plan.space._rt, [row for row in rows if row[0] not in retiring])
         for rows in plan.inherited_rows.values():
-            _withdraw_rows(plan.space._rt, [row for row in rows if row[0] != space._name])
-    for plan in retired:
+            _withdraw_rows(plan.space._rt, [row for row in rows if row[0] not in retiring])
+    return receipt
+
+
+def reconcile_withdrawal(receipt: ClassWithdrawal, retired_homes: frozenset[str]) -> None:
+    """Restore Python instrumentation and registrations for the homes the outcome retired.
+
+    An empty set (an abort) changes nothing. Survivors lose the retired
+    borrowers and refresh their projections once. A plan already completed
+    is skipped, so a retry after a failure finishes the rest.
+    """
+    from metta._declare import projections  # noqa: PLC0415 -- only live declarations are refreshed
+
+    for plan in receipt.plans:
+        if plan.space._name not in retired_homes or plan in receipt.completed:
+            continue
         plan.release_operations()
         plan.restore()
         lazy('metta.integrate').unregister_type(plan.cls)
         if plan.previous_registration is not None:
             _record_registration(plan.cls, plan.previous_registration)
-    from metta._declare import projections  # noqa: PLC0415 -- only live declarations are refreshed
-
-    for plan in retained:
+        receipt.completed.add(plan)
+    if not retired_homes:
+        return
+    for plan in receipt.survivors:
+        plan.borrowers.difference_update(retired_homes)
+    for plan in receipt.survivors:
         for method in plan.methods.values():
-            projections.refresh(method, tuple(retained))
-    for plan in retired:
-        if plan.space._name != space._name:
+            projections.refresh(method, receipt.survivors)
+
+
+def begin_withdrawal(name: str) -> ClassWithdrawal:
+    """Prepare the withdrawal a Python-origin drop of ``name`` requests and hold it pending.
+
+    A home a pending receipt already covers is part of that group: its own
+    drop gets the group's receipt and prepares nothing again.
+    """
+    covering = _PENDING.get(name)
+    if covering is not None:
+        return covering
+    receipt = prepare_withdrawal((name,))
+    for home in receipt.names:
+        _PENDING[home] = receipt
+    return receipt
+
+
+def abandon_withdrawal(receipt: ClassWithdrawal) -> None:
+    """Forget a pending receipt: its transaction aborted, or it has reconciled."""
+    for home in receipt.names:
+        if _PENDING.get(home) is receipt:
+            del _PENDING[home]
+
+
+def home_handle(receipt: ClassWithdrawal, home: str) -> Any:
+    """The handle of a class home the receipt takes along."""
+    return next(plan.space for plan in receipt.plans if plan.space._name == home)
+
+
+def involved(name: str) -> bool:
+    """Whether any class program lives in ``name`` or borrows from it."""
+    return any(plan.space._name == name or name in plan.borrowers for plan in _DECLARATIONS.values())
+
+
+def home_retired(name: str) -> None:
+    """A space named ``name`` has been retired: reconcile what it took with it.
+
+    Inside a pending Python-origin group, a covered home records its outcome
+    and the requesting home reconciles against the homes that retired,
+    keeping the receipt pending until that reconciliation succeeds so a retry
+    finishes it. Outside one (a native-origin retirement, reached through the
+    lease hook), the home's rows went with its storage; its plans reconcile
+    now and the homes it takes along retire through their own handles.
+    """
+    receipt = _PENDING.get(name)
+    if receipt is not None:
+        receipt.retired.add(name)
+        if name in receipt.requested:
+            reconcile_withdrawal(receipt, frozenset(receipt.retired))
+            abandon_withdrawal(receipt)
+        return
+    if not involved(name):
+        return
+    receipt = prepare_withdrawal((name,))
+    reconcile_withdrawal(receipt, frozenset({name, *receipt.homes}))
+    for plan in receipt.plans:
+        if plan.space._name != name and not plan.space.dropped:
             plan.space.drop()

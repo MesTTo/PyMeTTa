@@ -8,6 +8,13 @@ Guarantees:
     wins, and exit restores the previous carrier even after an exception
     [tested: test_scoped_under_is_task_local_and_explicit_under_wins;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - a transaction body is named to the engine by a ticket `transaction_body`
+    resolves, never crossed as a callable, and a body's own exception comes
+    back as itself from a boundary that holds no engine record, so hundreds of
+    rolled-back bodies leave no frame, handle or cell behind once the
+    reclamation barrier runs [tested: test_aborted_births_leave_nothing_behind,
+    test_a_callback_exception_is_released_at_the_reclamation_barrier;
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -23,7 +30,7 @@ import metta._spaces.execution as _spaces_execution_module
 import metta.doors as _doors
 from metta._atoms.designation import _P, _R, _UNSET, _SpaceId
 from metta._atoms.factories import Atom, Expression, Symbol, Undefined, _to_atom
-from metta._binding.runtime import Runtime
+from metta._binding.runtime import Runtime, original_exception
 from metta._errors.errors import EngineError, MettaError
 from metta._lazy import lazy
 
@@ -270,6 +277,30 @@ def assuming(space: _root.Space, *facts: Any) -> _Assuming:
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return _Assuming(space, [_to_atom(f) for f in facts])
 
+# The body of a transaction in flight, by the ticket its engine call carries.
+# The engine runs the body through metta_ops:transaction_body with the ticket,
+# so no callable crosses: a crossed callable is held by its blob until atom GC
+# and the next Prolog-to-Python call, and with it everything it closes over,
+# the handle a `transaction(space.drop)` names included
+# [tested: test_committed_retirements_leave_nothing_behind; commit=WORKTREE].
+_BODIES: dict[int, Callable[[], Any]] = {}
+
+
+def transaction_body(ticket: int) -> None:
+    """The engine's call into a transaction's body, found by its ticket."""
+    _BODIES[int(ticket)]()
+
+
+def run_transaction(runtime: Runtime, body: Callable[[], Any]) -> dict[str, Any]:
+    """Run ``body`` inside one closed engine transaction, handing the engine a ticket, never the body."""
+    ticket = id(body)
+    _BODIES[ticket] = body
+    try:
+        return runtime.once("metta_py_transaction(Ticket, R)", Ticket=ticket)
+    finally:
+        _BODIES.pop(ticket, None)
+
+
 @overload
 def transaction(space: _root.Space, target: Callable[[], _R], /) -> _R: ...
 
@@ -344,14 +375,9 @@ def transaction(space: _root.Space, target: Callable[[], _R] | Any, /) -> Any:
     # installer's "already there" check skipped reinstalling a dead name.
     with lazy('metta._declare.operations').registry_undo():
         try:
-            row = space._rt.once("metta_py_transaction(F, R)", F=_capture)
+            row = run_transaction(space._rt, _capture)
         except MettaError as error:
-            term = getattr(error.__cause__, "term", None)
-            original = (
-                space._rt._original_python_error(term, base=BaseException)
-                if term is not None
-                else None
-            )
+            original = original_exception(error)
             if original is not None and original is not error:
                 raise original from error
             raise

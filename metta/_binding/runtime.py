@@ -77,6 +77,13 @@ Guarantees:
     test_an_enumeration_refuses_answers,
     test_an_enumeration_refuses_answers_through_the_term_door_too;
     commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
+  - the boundary exception under a classified error keeps the ball's message
+    and the Python exception the ball named as .original, never the Prolog
+    record janus handed over: with the record kept, a callback's exception,
+    its frames and the handle whose drop raised it lived for the process
+    through a cycle neither runtime's collector could close [tested:
+    test_a_failed_close_retried_leaves_nothing_behind,
+    test_aborted_births_leave_nothing_behind; commit=WORKTREE]
   - the functional Janus API is selected by live thread identity, never a
     recyclable numeric identifier [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
@@ -1018,6 +1025,51 @@ def _clean_message(exc: BaseException) -> str:
     return str(exc).strip()
 
 
+def _release_record(exc: Any, message: str, original: BaseException | None) -> None:
+    """Leave the boundary exception carrying what its ball said, not the ball.
+
+    janus hands a Prolog exception over as a PrologError whose `term` is a
+    janus.Term: a Prolog RECORD of the ball, erased only when that Term is
+    collected. A ball a Python callback raised is python_error(Class, Obj)
+    with Obj a blob owning a strong reference to the very exception, released
+    only once atom GC finds the blob unreferenced [source: janus-swi 1.5.3
+    janus.c release_python_object and MyPy_DECREF; janus.py Term.__del__].
+    Keep that record while chaining the recovered exception to the boundary,
+    and the two runtimes hold a cycle neither can close: the record marks the
+    blob for atom GC, the blob keeps the exception, the exception keeps the
+    boundary through __cause__, the boundary keeps the record. Every frame in
+    that exception's traceback, the handle whose drop raised it included,
+    then lives for the process [measured: 200 rolled-back transaction bodies
+    kept 200 RuntimeErrors, 400 frames and a closed context's handle alive
+    through six atom GC passes; docs/journal/2026-09-16-reclamation-counts.md].
+
+    Once every classifier has read the ball, the record says nothing the
+    message and the recovered object do not, so the boundary keeps those two
+    and the record goes, which is PEP 3110's reason for unbinding
+    `except ... as e` applied at the seam. str() and repr() of the boundary
+    then need no engine, so a chain prints after the engine is gone. The Term
+    sits in two places: janus raises the class WITH the Term, so CPython's
+    normalisation leaves it in .args as well as in .term, and a record freed
+    from one is still owned by the other.
+    """
+    exc.term = None
+    exc.args = (message,)
+    exc.message = message
+    exc.original = original
+
+
+def original_exception(error: BaseException) -> BaseException | None:
+    """The Python exception the engine boundary beneath ``error`` carried.
+
+    A callback's own raise crosses Prolog as a python_error ball and comes back
+    classified, the boundary exception under the classified error keeping the
+    live object (see _release_record). The callers that own a crossing, a
+    transaction body, a drop's completion, a saga step, a bounds write, raise
+    it as itself; every other caller reads the classified error.
+    """
+    return getattr(error.__cause__, "original", None)
+
+
 def _answer_bag(wires: object) -> tuple[Atom, ...] | None:
     """One directed bag difference an assertion reported, as atoms.
 
@@ -1550,86 +1602,105 @@ class Runtime:
         return refusing(error, ground=ground, remedy=remedy)
 
     def _raise(self, exc: BaseException) -> NoReturn:
+        """Raise the classified reading of a janus exception, from this one exit.
+
+        _classify RETURNS its reading, so the frames that held the ball's
+        record and the Python exception it named are gone before anything is
+        raised; this frame, the one a traceback keeps, holds neither. The
+        boundary exception is then left record-free by _release_record, which
+        is what lets a callback's exception die once its caller drops it.
+        """
         message = _clean_message(exc)
-        term = getattr(exc, "term", None)
-        if term is not None:
-            original = self._original_python_error(term, base=BaseException)
-            if original is not None and _is_metta_failure(original):
-                # The library's own raise crossed Prolog and came back:
-                # re-raise the very object, structured fields intact, instead
-                # of an EngineError holding its transcript. A group rehydrates
-                # only when every leaf is a MettaError; an op author's own
-                # exception, grouped or plain, stays wrapped so the boundary
-                # it crossed remains visible.
-                #
-                # An error that already chose its own cause keeps it. `from
-                # exc` here would overwrite the diagnosis with the plumbing:
-                # SubscriberError is raised `from` the watcher's own
-                # exception, and that is the thing a caller needs to read.
-                # The boundary term stays reachable as __context__ either way.
-                if original.__cause__ is not None or original.__suppress_context__:
-                    raise original
-                raise original from exc
-            try:
-                row = self._janus.query_once(
-                    "metta_control_signal_info(Error, Kind, Detail)", {"Error": term}
+        error, original = self._classify(getattr(exc, "term", None), message)
+        _release_record(exc, message, original)
+        # An error that already chose its own cause keeps it. `from exc` here
+        # would overwrite the diagnosis with the plumbing: SubscriberError is
+        # raised `from` the watcher's own exception, and that is the thing a
+        # caller needs to read. The boundary stays reachable as __context__
+        # either way.
+        if error.__cause__ is not None or error.__suppress_context__:
+            raise error
+        raise error from exc
+
+    def _classify(
+        self, term: object, message: str
+    ) -> tuple[BaseException, BaseException | None]:
+        """The error a ball reads as, with the live Python exception it named.
+
+        The library's own raise crossed Prolog and came back: it IS the
+        reading, structured fields intact, instead of an EngineError holding
+        its transcript. A group rehydrates only when every leaf is a
+        MettaError; an op author's own exception, grouped or plain, stays
+        wrapped so the boundary it crossed remains visible, and rides on that
+        boundary as .original for the callers that own the crossing. Never
+        raises: a classifier that itself fails answers an EngineError carrying
+        both messages.
+        """
+        if term is None:
+            return EngineError(message), None
+        original = self._original_python_error(term)
+        if original is not None and _is_metta_failure(original):
+            return original, original
+        try:
+            row = self._janus.query_once(
+                "metta_control_signal_info(Error, Kind, Detail)", {"Error": term}
+            )
+        except self._janus.PrologError as classifier_error:
+            msg = (
+                f"{message}; the exception classifier failed: "
+                f"{_clean_message(classifier_error)}"
+            )
+            return EngineError(msg), original
+        if row is not None and row.get("truth") is not False:
+            kind = row.get("Kind")
+            detail = row.get("Detail")
+            if kind == "interrupted" and isinstance(detail, list) and len(detail) == 2 and detail[0] == "scope":
+                return _scope.Cancelled(str(detail[1])), original
+            error_type = (
+                _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
+            )
+            if error_type is RestraintError:
+                restraint, bound, call = _restraint_fields(detail)
+                return self._refused(
+                    RestraintError(
+                        _reserved_message(kind, detail, message),
+                        restraint=restraint,
+                        bound=bound,
+                        call=call,
+                    ),
+                    term,
+                ), original
+            if error_type is MettaSyntaxError:
+                return self._refused(
+                    MettaSyntaxError(
+                        _reserved_message(kind, detail, message),
+                        line=self._syntax_line(term),
+                    ),
+                    term,
+                ), original
+            if error_type is not None:
+                # The bound the ball named IS the `limit` field its row
+                # declares, so the caller reads the number rather than the
+                # sentence around it; every other kind here declares none.
+                carried = (
+                    {"limit": detail}
+                    if issubclass(error_type, ResourceLimitError)
+                    and detail is not None
+                    else {}
                 )
-            except self._janus.PrologError as classifier_error:
-                msg = (
-                    f"{message}; the exception classifier failed: "
-                    f"{_clean_message(classifier_error)}"
-                )
-                raise EngineError(
-                    msg
-                ) from exc
-            if row is not None and row.get("truth") is not False:
-                kind = row.get("Kind")
-                detail = row.get("Detail")
-                if kind == "interrupted" and isinstance(detail, list) and len(detail) == 2 and detail[0] == "scope":
-                    raise _scope.Cancelled(str(detail[1])) from exc
-                error_type = (
-                    _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
-                )
-                if error_type is RestraintError:
-                    detail = row.get("Detail")
-                    restraint, bound, call = _restraint_fields(detail)
-                    raise self._refused(
-                        RestraintError(
-                            _reserved_message(kind, detail, message),
-                            restraint=restraint,
-                            bound=bound,
-                            call=call,
-                        ),
-                        term,
-                    ) from exc
-                if error_type is MettaSyntaxError:
-                    raise self._refused(
-                        MettaSyntaxError(
-                            _reserved_message(kind, row.get("Detail"), message),
-                            line=self._syntax_line(term),
-                        ),
-                        term,
-                    ) from exc
-                if error_type is not None:
-                    detail = row.get("Detail")
-                    # The bound the ball named IS the `limit` field its row
-                    # declares, so the caller reads the number rather than the
-                    # sentence around it; every other kind here declares none.
-                    carried = (
-                        {"limit": detail}
-                        if issubclass(error_type, ResourceLimitError)
-                        and detail is not None
-                        else {}
-                    )
-                    raise self._refused(
-                        error_type(_reserved_message(kind, detail, message), **carried),
-                        term,
-                    ) from exc
-            self._raise_assertion_failure(exc, term, message)
-            self._raise_space_capability_error(exc, term, message)
-            self._raise_operation_error(exc, term, message)
-            raise self._classified(message, term) from exc
-        raise EngineError(message) from exc
+                return self._refused(
+                    error_type(_reserved_message(kind, detail, message), **carried),
+                    term,
+                ), original
+        for classifier in (
+            self._assertion_failure,
+            self._space_capability_error,
+            self._operation_error,
+        ):
+            error = classifier(term, message)
+            if error is not None:
+                return error, original
+        return self._classified(message, term), original
 
     def _syntax_line(self, term: object) -> int | None:
         """The 1-based line a reader failure named, or None when it named none.
@@ -1651,8 +1722,8 @@ class Runtime:
         line = row.get("Line")
         return line if isinstance(line, int) else None
 
-    def _raise_assertion_failure(self, exc: BaseException, term: object, message: str) -> None:
-        """Raise AssertionFailure when the program's own claim is what failed.
+    def _assertion_failure(self, term: object, message: str) -> BaseException | None:
+        """AssertionFailure when the program's own claim is what failed, else None.
 
         Ahead of the operation classifier because a failed assertion carries
         a MeTTa operation too, and it is the more specific reading: `test`
@@ -1678,15 +1749,13 @@ class Runtime:
                 f"{message}; the assertion classifier failed: "
                 f"{_clean_message(classifier_error)}"
             )
-            raise EngineError(
-                msg
-            ) from exc
+            return EngineError(msg)
         if row is None or row.get("truth") is False:
-            return
+            return None
         form = row.get("Form")
         if not isinstance(form, str):
-            return
-        raise self._refused(
+            return None
+        return self._refused(
             AssertionFailure(
                 message,
                 operation=form,
@@ -1696,17 +1765,15 @@ class Runtime:
                 excess=_answer_bag(row.get("Excess")),
             ),
             term,
-        ) from exc
+        )
 
-    def _original_python_error(
-        self, term: object, base: type[BaseException] = MettaError
-    ) -> BaseException | None:
-        """The live exception a Python callback raised, when the Prolog
-        term still carries the object reference and the object is a
-        `base`. _raise keeps the default, the library's own exceptions;
-        transaction() widens it, because a transaction body is the
-        caller's own code and its ValueError should arrive as itself.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    def _original_python_error(self, term: object) -> BaseException | None:
+        """The live exception a Python callback raised, when the ball still carries it.
+
+        Handing the ball back through janus converts its blob to the very
+        object; _classify decides whether that object is the reading itself
+        (the library's own raise) or rides on the boundary as .original.
+        """
         try:
             row = self._janus.query_once(
                 "metta_py_original_exception(Error, Obj)", {"Error": term}
@@ -1716,12 +1783,10 @@ class Runtime:
         if not row or row.get("truth") is False:
             return None
         obj = row.get("Obj")
-        return obj if isinstance(obj, base) else None
+        return obj if isinstance(obj, BaseException) else None
 
-    def _raise_space_capability_error(
-        self, exc: BaseException, term: object, message: str
-    ) -> None:
-        """Raise SpaceCapabilityError with the refusal's stable fields."""
+    def _space_capability_error(self, term: object, message: str) -> BaseException | None:
+        """SpaceCapabilityError with the refusal's stable fields, else None."""
         try:
             row = self._janus.query_once(
                 "metta_py_space_capability_error(Error, Space, Operation, Capability)",
@@ -1732,9 +1797,9 @@ class Runtime:
                 f"{message}; the capability classifier failed: "
                 f"{_clean_message(classifier_error)}"
             )
-            raise EngineError(msg) from exc
+            return EngineError(msg)
         if row is None or row.get("truth") is False:
-            return
+            return None
         space = row.get("Space")
         operation = row.get("Operation")
         capability = row.get("Capability")
@@ -1743,8 +1808,8 @@ class Runtime:
             or not isinstance(operation, str)
             or not isinstance(capability, str)
         ):
-            return
-        raise self._refused(
+            return None
+        return self._refused(
             SpaceCapabilityError(
                 message,
                 space=space,
@@ -1752,10 +1817,10 @@ class Runtime:
                 capability=capability,
             ),
             term,
-        ) from exc
+        )
 
-    def _raise_operation_error(self, exc: BaseException, term: object, message: str) -> None:
-        """Raise MettaOperationError when the term names a MeTTa operation."""
+    def _operation_error(self, term: object, message: str) -> BaseException | None:
+        """MettaOperationError when the ball names a MeTTa operation, else None."""
         try:
             row = self._janus.query_once(
                 "metta_py_operation_error(Error, Operation, Kind, Expected, Culprit)",
@@ -1766,15 +1831,13 @@ class Runtime:
                 f"{message}; the operation classifier failed: "
                 f"{_clean_message(classifier_error)}"
             )
-            raise EngineError(
-                msg
-            ) from exc
+            return EngineError(msg)
         if row is None or row.get("truth") is False:
-            return
+            return None
         operation, kind = row.get("Operation"), row.get("Kind")
         if not isinstance(operation, str) or not isinstance(kind, str):
-            return
-        raise self._refused(
+            return None
+        return self._refused(
             MettaOperationError(
                 message,
                 operation=operation,
@@ -1783,7 +1846,7 @@ class Runtime:
                 culprit=row.get("Culprit"),
             ),
             term,
-        ) from exc
+        )
 
     # ------------------------------------------------------------------- helpers
 

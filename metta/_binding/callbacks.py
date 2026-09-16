@@ -52,6 +52,7 @@ _CALLBACKS = {
     'capture_contexts': ('metta._binding.task_context', 'snapshot_many'),
     'construct_token': ('metta._binding.tokens', 'construct_token'),
     'dispatch': ('metta._binding.dispatch', 'dispatch'),
+    'drop_completed': ('metta._spaces.handle', 'drop_completed'),
     'engine_message': ('metta._binding.runtime', 'engine_message'),
     'foreign_add': ('metta.foreign', 'foreign_add'),
     'foreign_add_many': ('metta.foreign', 'foreign_add_many'),
@@ -80,6 +81,7 @@ _CALLBACKS = {
     'segment_committed': ('metta.events', 'segment_committed'),
     'space_released': ('metta._spaces.lease', 'released'),
     'stream_reraise': ('metta._errors.errors', 'stream_reraise'),
+    'transaction_body': ('metta._spaces.scope', 'transaction_body'),
     'type_names': ('metta._binding.dispatch', 'type_names'),
 }
 
@@ -93,6 +95,7 @@ capture_context: _Any
 capture_contexts: _Any
 construct_token: _Any
 dispatch: _Any
+drop_completed: _Any
 engine_message: _Any
 foreign_add: _Any
 foreign_add_many: _Any
@@ -121,6 +124,7 @@ release_contexts: _Any
 segment_committed: _Any
 space_released: _Any
 stream_reraise: _Any
+transaction_body: _Any
 type_names: _Any
 
 __all__ = [
@@ -134,6 +138,7 @@ __all__ = [
     'capture_contexts',
     'construct_token',
     'dispatch',
+    'drop_completed',
     'engine_message',
     'foreign_add',
     'foreign_add_many',
@@ -162,6 +167,7 @@ __all__ = [
     'segment_committed',
     'space_released',
     'stream_reraise',
+    'transaction_body',
     'type_names',
 ]
 # end generated binding callbacks

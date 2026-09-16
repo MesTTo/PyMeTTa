@@ -22,6 +22,22 @@ Guarantees: parametric names retain their exact native fields and immutable
 registry identity [tested: test_parametric_names_preserve_their_native_fields,
 test_parametric_aliases_share_batch_ownership,
 test_parametric_name_carriers_are_immutable; commit=3f71a0b3af04a3ba4c88bf3906197a2a80d9080e].
+Guarantees: a drop takes the class homes whose last borrower it retires along
+in the same native outcome, in the caller's transaction or one opened for the
+drop, and their Python records change only after that outcome, so an abort or
+a refused commit restores homes, rows and records together [tested:
+test_a_python_drop_retires_the_classes_it_takes_along_in_one_outcome,
+test_a_rolled_back_drop_keeps_its_classes_and_their_rows,
+test_a_drop_refused_at_commit_keeps_its_classes; commit=WORKTREE].
+Guarantees: nothing of a handle crosses the engine at a drop: the completion
+is a ticket `drop_completed` resolves, an anonymous name returns to the pool
+when its life ends through any handle, a dropped minted handle leaves its
+context's registry, and a cleanup's own exception comes back as itself from a
+boundary that holds no engine record, so thousands of drops settle to the
+baseline [tested: test_temporary_spaces_leave_nothing_behind,
+test_committed_retirements_leave_nothing_behind,
+test_alias_release_leaves_nothing_behind,
+test_a_failed_close_retried_leaves_nothing_behind; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -41,7 +57,7 @@ import metta.doors as _doors
 from metta._atoms.designation import _DEFAULT_SPACE, _SpaceId
 from metta._atoms.factories import Atom, Expression, Grounded, Handle, Symbol, Variable, _to_atom
 from metta._atoms.templates import HOLE_PREFIX as _HOLE_PREFIX
-from metta._binding.runtime import Runtime, bridge, runtime, started
+from metta._binding.runtime import Runtime, bridge, original_exception, runtime, started
 from metta._errors.errors import MettaError
 from metta._lazy import lazy
 from metta.vocabularies import SpaceCapability
@@ -293,7 +309,7 @@ class SpaceHandle(Handle):
         m.add(S.Parent(S.Tom, S.Bob))
         m.match(S.Parent(V.x, S.Bob))
     """
-    __slots__ = ('__weakref__', '_autodrop', '_backing', '_cell', '_context_tokens', '_created_at', '_drop_engine_done', '_drop_pending', '_dropped', '_ephemeral', '_name', '_name_atom', '_owns_backing', '_rt', '_scoped', '_world')
+    __slots__ = ('__weakref__', '_autodrop', '_backing', '_cell', '_context_tokens', '_created_at', '_drop_engine_done', '_drop_pending', '_dropped', '_minter', '_name', '_name_atom', '_owns_backing', '_rt', '_scoped', '_withdrawal', '_world')
     _expression_listing_snapshot = True
 
     def __setattr__(self, name: str, value: Any, /) -> None:
@@ -401,12 +417,13 @@ class SpaceHandle(Handle):
         self._dropped = False
         self._drop_engine_done = False
         self._drop_pending = False
-        self._ephemeral = False
+        self._minter: Any = None
         self._autodrop = False
         self._backing: Any = None
         self._owns_backing = False
         self._created_at = _created_at
         self._world: _root.Space | None = None
+        self._withdrawal: Any = None
         self._context_tokens: list[Any] = []
         self._scoped = _spaces_lifetime_module.attach(self)
 
@@ -598,7 +615,7 @@ class SpaceHandle(Handle):
             _runtime=self._rt,
             _created_at=_creation_site() if _created_at is None else _created_at,
         )
-        fresh._ephemeral = not fresh._scoped
+        fresh._cell.ephemeral = not fresh._scoped
         fresh._autodrop = True
         # A space minted inside a world reads the home's equations and goes
         # with the home when the world is torn down, so the handle keeps the
@@ -682,26 +699,27 @@ class SpaceHandle(Handle):
                     return
                 admission.wait()
             self._drop_pending = True
+            classes = lazy('metta._declare.classes')
             try:
-                # Separate queries let SWI reclaim clauses erased by the clear.
-                self._rt.must("metta_py_clear_for_release(Space)", Space=name)
-                # The engine reports the outcome to _released: before this call
-                # returns outside a transaction, after the outer outcome inside
-                # one. Python cleanup waits for that report.
-                self._rt.must("metta_py_drop_space(Space, Host)", Space=name, Host=self._released)
+                # The class homes this space takes with it (the programs that
+                # lose their last borrower) retire in the same native outcome:
+                # inside the caller's transaction when one is open, else in one
+                # opened here, so an abort restores homes and rows together.
+                if classes.plan_withdrawal((name,)).homes and not self._rt.once("current_transaction(_)"):
+                    _spaces_scope_module.transaction(cast('_root.Space', self), lambda: self._drop_group(name))
+                else:
+                    self._drop_group(name)
             except BaseException as teardown_error:
+                if self._withdrawal is not None and not self._drop_engine_done:
+                    classes.abandon_withdrawal(self._withdrawal)
+                    self._withdrawal = None
                 if self._drop_engine_done:
                     # Engine teardown committed and the failure is Python
                     # cleanup, which drop() retries without repeating teardown.
                     # It crossed the engine inside the completion callback, so
                     # raise the cleanup's own exception rather than the engine
                     # transcript around it, as transaction() does for a body.
-                    term = getattr(teardown_error.__cause__, "term", None)
-                    original = (
-                        self._rt._original_python_error(term, base=BaseException)
-                        if term is not None
-                        else None
-                    )
+                    original = original_exception(teardown_error)
                     if original is not None and original is not teardown_error:
                         raise original from teardown_error
                     raise
@@ -719,6 +737,32 @@ class SpaceHandle(Handle):
             return
         self._finish_drop()
 
+    def _drop_group(self, name: _SpaceId) -> None:
+        """Retire this space and the class homes it takes with it, in the current transaction."""
+        classes = lazy('metta._declare.classes')
+        receipt = classes.begin_withdrawal(name)
+        self._withdrawal = receipt
+        if name in receipt.requested:
+            for home in receipt.homes:
+                classes.home_handle(receipt, home).drop()
+        # Separate queries let SWI reclaim clauses erased by the clear.
+        self._rt.must("metta_py_clear_for_release(Space)", Space=name)
+        # The engine reports the outcome to drop_completed by this handle's
+        # ticket: before this call returns outside a transaction, after the
+        # outer outcome inside one. Python cleanup waits for that report.
+        # Nothing of the handle crosses: a bound method handed over as the
+        # completion callable was held by its blob until atom GC and the next
+        # Prolog-to-Python call, and with it the handle, its lease cell and
+        # what the handle owned [tested: test_committed_retirements_leave_nothing_behind,
+        # test_temporary_spaces_leave_nothing_behind; commit=WORKTREE].
+        ticket = id(self)
+        _COMPLETIONS[ticket] = self
+        try:
+            self._rt.must("metta_py_drop_space_completing(Space, Ticket)", Space=name, Ticket=ticket)
+        except BaseException:
+            _COMPLETIONS.pop(ticket, None)
+            raise
+
     def _drop_after_release(self) -> None:
         """Run the retained drop once the provider use that requested it has exited."""
         self._drop_pending = False
@@ -732,6 +776,9 @@ class SpaceHandle(Handle):
         """
         self._drop_pending = False
         if outcome != "retired":
+            if self._withdrawal is not None:
+                lazy('metta._declare.classes').abandon_withdrawal(self._withdrawal)
+                self._withdrawal = None
             return
         self._drop_engine_done = True
         self._finish_drop()
@@ -765,14 +812,20 @@ class SpaceHandle(Handle):
         _spaces_intents_module.clear(cleanup)
         lazy('metta._declare.functions')._invalidate_builtins_cache(self._rt)
         lazy('metta._declare.definitions').release_definitions(cleanup)
+        self._withdrawal = None
         integrate._forget_space(name)
         lazy('metta._declare.operations')._forget_space(name)
         lazy('metta.algebra')._forget_space(cleanup)
-        if self._ephemeral:
+        if self._cell is not None and self._cell.ephemeral:
             self._rt.must(
                 "atom_string(_Name, Space), metta_py_pool_space(_Name)", Space=name
             )
         self._dropped = True
+        # A minted handle leaves its context's registry once dropped: nothing
+        # is left for close() to release, and holding it kept the life's cell.
+        minter = self._minter() if self._minter is not None else None
+        if minter is not None and minter._minted.get(str(self._name)) is self:
+            del minter._minted[str(self._name)]
         self._scoped = _spaces_lifetime_module.attach(self)
         if self._scoped:
             with _spaces_lifetime_module.suspend():
@@ -810,9 +863,9 @@ class SpaceHandle(Handle):
 
     def __exit__(self, exc_type, exc, tb) -> None:
         _spaces_scope_module._ACTIVE_SPACE.reset(self._context_tokens.pop())
-        # _autodrop, not _ephemeral: an anonymous name is always pooled at
-        # drop (_ephemeral), but only a scratch space whose lifetime IS the
-        # with-block dies on exit. A context home minted by MeTTa() is
+        # _autodrop, not the cell's ephemeral: an anonymous name is always
+        # pooled at drop (the life's ephemeral), but only a scratch space whose
+        # lifetime IS the with-block dies on exit. A context home minted by MeTTa() is
         # ephemeral yet owned by its context, which drops it at close().
         if self._autodrop and not self._context_tokens:
             self.drop()
@@ -1272,6 +1325,19 @@ class SpaceHandle(Handle):
         Grounded.__dict__['value'].__delete__(self)  # pylint: disable=unnecessary-dunder-call # delegate to the base slot without re-entering this deleter
 
 # Resolve annotations after definitions so peer imports can finish.
+
+# The handle whose drop is in flight, by the ticket its engine call carries.
+# The engine's completion names the ticket, never the handle, so the drop
+# hands no Python object to the engine.
+_COMPLETIONS: dict[int, SpaceHandle] = {}
+
+
+def drop_completed(ticket: int, outcome: str) -> None:
+    """The engine's report of a drop's outcome, retired or restored, for the handle that asked."""
+    handle = _COMPLETIONS.pop(int(ticket), None)
+    if handle is not None:
+        handle._released(outcome)
+
 if TYPE_CHECKING:
     import metta as _root
 else:

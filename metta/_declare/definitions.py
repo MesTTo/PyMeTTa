@@ -216,7 +216,7 @@ def release_definitions(space: Any) -> None:
             key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name
         ]:
             del _DEFINED_FUNCTION_NAMES[defined_key]
-        classes.release(space)
+        classes.home_retired(space.name)
 
 def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):
     """Install one compiled function while serializing shared definition state."""

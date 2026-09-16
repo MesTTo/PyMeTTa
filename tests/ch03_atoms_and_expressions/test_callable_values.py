@@ -78,7 +78,10 @@ def test_a_kept_native_callable_retains_its_scoped_program():
                 value = home.eval(S["retained-add"](3))[0]
                 callback = inner.keep(convert.build(value, Callable[[int], int], space=home))
             assert callback(4) == 7
-        with pytest.raises(MettaError, match="released_scope_space"):
+        # The scope's release retires the home; its handle reads dropped on
+        # every party (metta._spaces.lease), so the refusal is the handle's
+        # before the engine's released_scope_space could be.
+        with pytest.raises(MettaError, match=r"released_scope_space|its space was dropped"):
             callback(5)
 
 

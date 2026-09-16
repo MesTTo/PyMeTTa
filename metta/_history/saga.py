@@ -65,6 +65,7 @@ from metta._binding.dispatch import (
     _select_receipt_operations,
     _suspend_receipt_capture,
 )
+from metta._binding.runtime import original_exception
 from metta._errors.errors import EngineError, MettaError
 from metta._spaces.execution import speculative_enabled
 from metta._spaces.scope import _ACTIVE_BATCHES
@@ -697,12 +698,7 @@ class Saga:
                 B=rolled_back,
             )
         except MettaError as error:
-            term = getattr(error.__cause__, "term", None)
-            original = (
-                self._space._rt._original_python_error(term, base=BaseException)
-                if term is not None
-                else None
-            )
+            original = original_exception(error)
             if original is not None and original is not error:
                 raise original from error
             raise

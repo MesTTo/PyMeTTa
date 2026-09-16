@@ -181,7 +181,10 @@ def test_native_application_frames_retain_scoped_streams():
                 cursor = callback()
                 assert next(cursor) == 3
             assert list(cursor) == []
-        with pytest.raises(MettaError, match="released_scope_space"):
+        # The scope's release retires the home; its handle reads dropped on
+        # every party (metta._spaces.lease), so the refusal is the handle's
+        # before the engine's released_scope_space could be.
+        with pytest.raises(MettaError, match=r"released_scope_space|its space was dropped"):
             callback()
 
 

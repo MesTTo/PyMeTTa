@@ -315,10 +315,9 @@ class Config:
         # https://www.swi-prolog.org/pldoc/man?predicate=transaction/1
         with runtime._relational_lock():
             try:
-                runtime.must("metta_py_transaction(F, R)", F=apply)
+                lazy('metta._spaces.scope').run_transaction(runtime, apply)
             except MettaError as error:
-                term = getattr(error.__cause__, "term", None)
-                original = runtime._original_python_error(term, base=BaseException) if term is not None else None
+                original = lazy('metta._binding.runtime').original_exception(error)
                 if original is not None and original is not error:
                     raise original from error
                 raise

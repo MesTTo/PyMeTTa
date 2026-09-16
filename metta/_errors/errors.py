@@ -709,8 +709,12 @@ class SourceNotFound(MettaError, FileNotFoundError):  # noqa: N818  -- the excep
 class EngineError(MettaError):
     """A Prolog-side exception crossed the boundary.
 
-    The original janus exception rides along as __cause__, so nothing is
-    hidden; the message here is the engine's, trimmed of janus framing.
+    The janus exception rides along as __cause__, so nothing is hidden; the
+    message here is the engine's, trimmed of janus framing. That boundary
+    keeps the ball's message and, as `.original`, the Python exception a
+    callback raised when the ball carried one, never the Prolog record janus
+    handed over: the record would keep that exception, its frames and what
+    they reference alive across both runtimes.
     """
 
 

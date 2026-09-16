@@ -11,6 +11,13 @@ its lease through the deferred engine queue, so rows follow outstanding handles
 test_aliases_share_one_life_and_a_reused_name_starts_another,
 test_a_handle_born_in_an_aborted_transaction_is_dead,
 test_lease_rows_follow_outstanding_handles; commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
+Guarantees: a retirement the engine performed on its own reconciles the class
+programs living in or borrowing from the space through the same hook
+[tested: test_a_native_retirement_reconciles_the_class_records; commit=WORKTREE].
+Guarantees: an anonymous name outside a lifetime scope returns to the pool when
+its life ends, whichever handle ended it, because `Cell.ephemeral` is the
+life's property rather than one handle's
+[tested: test_alias_release_leaves_nothing_behind; commit=WORKTREE].
 Owns resources: one engine lease row per cell, released by retirement or by the
 cell's finalizer, never by a native call from the garbage collector. No Python
 object crosses into the engine: janus retains a crossed object until atom GC, which
@@ -24,18 +31,23 @@ import weakref
 from typing import Any
 
 from metta._binding.runtime import defer_engine_call
+from metta._lazy import lazy
 
 
 class Cell:
     """One space life as its Python handles see it: alive until the engine says otherwise."""
 
-    __slots__ = ("__weakref__", "lease", "name", "reason")
+    __slots__ = ("__weakref__", "ephemeral", "lease", "name", "reason")
 
     def __init__(self, name: Any, lease: int) -> None:
         """Start alive; only the engine's reports below end that."""
         self.name = name
         self.lease = lease
         self.reason: str | None = None
+        # An anonymous name outside a lifetime scope returns to the pool when
+        # the life ends. The life's property, not one handle's: an alias that
+        # drops the space pools the name as the minting handle would have.
+        self.ephemeral = False
 
     @property
     def dead(self) -> bool:
@@ -73,8 +85,16 @@ def _end(lease: int, reason: str) -> None:
 
 
 def released(lease: int) -> None:
-    """The engine retired the space behind ``lease``; every handle of it is dead."""
+    """The engine retired the space behind ``lease``; every handle of it is dead.
+
+    A class program living in or borrowing from the space reconciles here
+    too, so a retirement the engine performed on its own (a native or MeTTa
+    drop) withdraws the Python records the way a handle's drop does.
+    """
+    cell = _BY_LEASE.get(int(lease))
     _end(lease, "its space was dropped")
+    if cell is not None:
+        lazy('metta._declare.classes').home_retired(str(cell.name))
 
 
 def aborted(lease: int) -> None:

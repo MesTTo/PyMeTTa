@@ -30,6 +30,8 @@ CALLBACK_GROUPS: dict[str, tuple[Export, ...]] = {
         ("release_context", "release"), ("release_contexts", "release_many"),
     ),
     "metta._binding.tokens": ("construct_token",),
+    "metta._spaces.handle": ("drop_completed",),
+    "metta._spaces.scope": ("transaction_body",),
     "metta._spaces.lease": (("lease_aborted", "aborted"), ("space_released", "released")),
     "metta._binding.dispatch": ("dispatch", "type_names"),
     "metta._binding.runtime": ("engine_message", "heartbeat_tick"),
@@ -118,8 +120,6 @@ class Capability(NamedTuple):
 CAPABILITIES = (
     Capability("metta_py_capture_participant/3", None, "__call__", 0,
                "Retain the selected provider's bound transaction operations for completion."),
-    Capability("metta_py_transaction/2", None, "__call__", 0,
-               "Invoke the transaction callback retained by its caller."),
     Capability("metta_py_call/3", "metta._binding.host", None, None,
                "Apply a declared host service; bindinggen also checks source callers."),
     Capability("py-call/3", None, None, None,
@@ -134,8 +134,6 @@ CAPABILITIES = (
                "Journal an evaluated saga answer before returning it."),
     Capability("metta_py_saga_wrapped_call/4", None, "__call__", 1,
                "Journal a wrapped operation's receipt."),
-    Capability("metta_py_space_released/2", None, "__call__", 1,
-               "Report a release's outcome, retired or restored, to the handle that asked for it."),
 )
 
 

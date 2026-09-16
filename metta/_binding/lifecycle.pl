@@ -16,8 +16,12 @@
 %languages. py_call re-enters Python on the calling thread; an exception
 %there aborts the transaction, every dynamic change rolls back, and the
 %Python side re-raises the original.
-metta_py_transaction(F, R) :-
-    metta_transaction(py_call(F:'__call__'(), R)).
+%The host names the body by a TICKET; metta_ops:transaction_body runs it.
+%Nothing of the body crosses: a crossed callable was held by its blob until
+%atom GC and the next Prolog-to-Python call, and with it what it closed over
+%[tested: extensions/python/tests/ch04_spaces_and_matching/test_reclamation.py; commit=WORKTREE].
+metta_py_transaction(Ticket, R) :-
+    metta_transaction(py_call(metta_ops:transaction_body(Ticket), R)).
 
 % Proxy cardinality and liveness use the class's native owned-record schema.
 % [source: engine/spaces/owned_records.pl:metta_validate_owned_records/1;
@@ -225,20 +229,26 @@ metta_py_lease_retired(Space) :-
            py_call(metta_ops:space_released(Lease), _)).
 
 % Drop a named life without putting its public name in the anonymous pool.
-% The two-argument door names the handle's completion callable: the engine
-% calls it with retired after the outer outcome when the retirement committed
-% and with restored when an abort kept the space, so the handle finishes or
-% unpends its own cleanup. Outside a transaction that call returns first.
+% The completing door carries the host's TICKET for the handle that asked:
+% the engine reports retired after the outer outcome when the retirement
+% committed and restored when an abort kept the space, to
+% metta_ops:drop_completed with that ticket, so the handle finishes or
+% unpends its own cleanup. Outside a transaction the report comes before the
+% call returns. Nothing of the handle crosses: a bound method handed over as
+% the completion callable was held by its blob until atom GC and the next
+% Prolog-to-Python call, and with it the handle, its lease cell and what the
+% handle owned [tested: extensions/python/tests/ch04_spaces_and_matching/test_reclamation.py;
+% commit=WORKTREE].
 metta_py_drop_space(Name0) :-
     metta_py_space_atom(Name0, Name),
     metta_release_space(Name).
-metta_py_drop_space(Name0, Host) :-
+metta_py_drop_space_completing(Name0, Ticket) :-
     metta_py_space_atom(Name0, Name),
     context_module(Module),
-    metta_release_space(Name, Module:metta_py_space_released(Host)).
+    metta_release_space(Name, Module:metta_py_drop_completed(Ticket)).
 
-metta_py_space_released(Host, Outcome) :-
-    py_call(Host:'__call__'(Outcome), _).
+metta_py_drop_completed(Ticket, Outcome) :-
+    py_call(metta_ops:drop_completed(Ticket, Outcome), _).
 
 % Release an anonymous life: drop first, then pool the minted atom name.
 metta_py_release_space(Name0) :-

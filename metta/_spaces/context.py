@@ -566,6 +566,7 @@ class MeTTaBase:
             # instead of accumulating one per mint
             # [tested: test_a_context_closes_the_same_way_whether_a_base_space_handle_lives].
             self._minted[str(handle._name)] = handle
+            handle._minter = weakref.ref(self)
         return handle
 
     @property
