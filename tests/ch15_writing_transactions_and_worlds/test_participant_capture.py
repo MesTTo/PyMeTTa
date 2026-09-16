@@ -189,7 +189,7 @@ def test_native_provider_edits_change_the_public_projection(metta, registered):
     name = str(handle.name)
     replacement = Participant("edited")
     metta.runtime.must(
-        "metta_py_provider_space(Name, Space), metta_transaction(('remove-atom'('&metta', "
+        "metta_py_space_atom(Name, Space), metta_transaction(('remove-atom'('&metta', "
         "['@python-provider', ['HostSpace', Space], Original], _), "
         "'add-atom'('&metta', ['@python-provider', ['HostSpace', Space], Replacement], _)))",
         Name=name, Original=original, Replacement=replacement,
@@ -330,8 +330,8 @@ def test_failed_rollback_preserves_the_body_error_and_completes_every_original(m
         ]
         assert PROVIDERS[str(handle.name)] is original
         metta.runtime.must(
-            "metta_py_provider_space(BrokenName, Broken), "
-            "metta_py_provider_space(OriginalName, Original), "
+            "metta_py_space_atom(BrokenName, Broken), "
+            "metta_py_space_atom(OriginalName, Original), "
             "metta_foreign_completion(discard, "
             "[completed(Broken, rollback, threw(_)), completed(Original, rollback, ok)])",
             BrokenName=name, OriginalName=str(handle.name),

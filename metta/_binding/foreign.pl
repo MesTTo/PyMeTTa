@@ -43,14 +43,11 @@ metta_py_provider_reference(Space, Provider, Ref) :-
     )).
 
 metta_py_provider(Space0, Provider) :-
-    metta_py_provider_space(Space0, Space),
+    metta_py_space_atom(Space0, Space),
     metta_py_provider_reference(Space, Provider, _).
 
 metta_py_provider_names(Names) :-
     snapshot(findall(Space, metta_py_provider_reference(Space, _, _), Names)).
-
-metta_py_provider_space(Space0, Space) :-
-    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ).
 
 metta_py_capture_participant(Space, Provider, Protocol) :-
     atom_string(Space, SpaceString),
@@ -140,7 +137,7 @@ metta_py_plan_rows(Claimed, Rows, Table) :-
 
 
 metta_py_register_foreign(Space0, Provider, Capabilities, Delivery) :-
-    metta_py_provider_space(Space0, Space),
+    metta_py_space_atom(Space0, Space),
     metta_transaction(metta_py_register_foreign_(Space, Provider, Capabilities, Delivery)).
 
 metta_py_register_foreign_(Space, Provider, Capabilities, Delivery) :-
@@ -207,7 +204,7 @@ metta_py_declare_delivery(Space, Delivery) :-
     ).
 
 metta_py_unregister_foreign(Space0) :-
-    metta_py_provider_space(Space0, Space),
+    metta_py_space_atom(Space0, Space),
     metta_transaction(metta_py_unregister_foreign_(Space)).
 
 metta_py_unregister_foreign_(Space) :-
