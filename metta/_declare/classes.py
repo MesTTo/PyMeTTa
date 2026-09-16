@@ -271,6 +271,13 @@ def _withdraw_rows(runtime: Any, rows: list[tuple[str, int]]) -> None:
         runtime.must("spaces:metta_remove_occurrence(Space, Token, _)", Space=space, Token=token)
 
 
+# A prototype receiver carries the instance's own space. Every handle of a
+# retired name refuses to cross, so a receiver naming one is the class layer's
+# "retired" signal before any engine crossing, not a dead-handle refusal.
+def _retired_receiver(receiver: Expression) -> bool:
+    return any(isinstance(part, SpaceHandle) and part.dropped for part in receiver.children)
+
+
 class ClassDeclaration:
     """The inspected class shape and its class space, never an instance store."""
 
@@ -503,13 +510,16 @@ class ClassDeclaration:
     def receiver(self, instance: Any) -> Expression:
         key = Variable("class-receiver")
         answers = self.space.eval(_expr(S.match, Symbol(self.space.name), _expr(S["_python-proxy"], key, Grounded(instance)), key))
-        if len(answers) != 1 or not isinstance(answers[0], Expression):
+        if len(answers) != 1 or not isinstance(answers[0], Expression) or _retired_receiver(answers[0]):
             msg = f"{self.name} instance has retired or its construction rolled back"
             raise ReferenceError(msg)
         self.answer(_expr(S["owned-record-read"], self.proxy_record(answers[0]).declaration))
         return answers[0]
 
     def require_live(self, receiver: Expression) -> None:
+        if _retired_receiver(receiver):
+            msg = f"{receiver} has retired or its construction rolled back"
+            raise ReferenceError(msg)
         found = self.space.eval(_expr(S.match, Symbol(self.space.name),
                                      self.proxy_record(receiver).owner_row, Grounded(value=True)))
         if not found:
@@ -765,9 +775,12 @@ class ClassDeclaration:
                     receiver = plan.receiver(instance)
                 except ReferenceError:
                     return
-                SpaceHandle.drop(instance)
+                # The registry rows name the instance's own space, so they are
+                # withdrawn while that name is live: every handle of a retired
+                # name, the decoded receiver's included, refuses to cross.
                 plan.space.remove(_expr(Variable("field"), receiver, Variable("value")))
                 plan.space.remove(_expr(S["owned-by"], receiver))
+                SpaceHandle.drop(instance)
 
             self.replace_attribute("_space", property(checked_space))
             self.replace_attribute("drop", drop)
