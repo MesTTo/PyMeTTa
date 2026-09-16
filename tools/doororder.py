@@ -136,6 +136,7 @@ def render_invocations(table: Mapping[str, Invocation]) -> str:
         "from collections.abc import Mapping",
         "from types import MappingProxyType",
         "",
+        "# closed-set: generated; by=extensions/python/tools/doororder.py; lane=door-order",
         "INVOCATIONS: Mapping[str, tuple[frozenset[int], frozenset[str]]] = MappingProxyType({",
     ]
     for key in sorted(table):
@@ -209,6 +210,7 @@ def render(verdicts: Mapping[str, Verdict]) -> str:
         "",
         "from metta.doors._order import Verdict",
         "",
+        "# closed-set: generated; by=extensions/python/tools/doororder.py; lane=door-order",
         "VERDICTS: Mapping[str, Verdict] = MappingProxyType({",
     ]
     for key in sorted(verdicts):

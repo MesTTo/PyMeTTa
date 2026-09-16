@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from types import MappingProxyType
 
+# closed-set: generated; by=extensions/python/tools/doororder.py; lane=door-order
 INVOCATIONS: Mapping[str, tuple[frozenset[int], frozenset[str]]] = MappingProxyType({
     '_asyncio.Future.add_done_callback': (frozenset([0]), frozenset([])),
     '_asyncio.Future.remove_done_callback': (frozenset([0]), frozenset([])),

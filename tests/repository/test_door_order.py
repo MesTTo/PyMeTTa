@@ -11,6 +11,9 @@ descriptor, dynamic-name and self-recursion controls [tested: this file; commit=
 Generic, overloaded and Any-armed declarations, typeshed-declared callbacks,
 variadic binding, slots, inherited storage, contract results and narrowing
 have positive and planted-negative controls [tested: this file; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
+Authoritative declarations, Any narrowing, getattr defaults, type(), source
+and inherited iteration, field narrowing and unreachable branches have
+controls [tested: this file; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -1528,3 +1531,193 @@ def test_invocation_table_reads_versioned_stub_blocks(tmp_path, monkeypatch):
         "planted.Holder": (frozenset({0}), frozenset({"target"})),
     }
     assert doororder.invocations()["builtins.sorted"] == (frozenset(), frozenset({"key"}))
+
+
+def test_a_verified_return_declaration_excludes_the_values_it_refuses(tmp_path):
+    """A `-> Runtime` function returning `Runtime | None` state answers a Runtime; str stays a Sequence."""
+    _, result = _program(tmp_path, '''
+        from collections.abc import Sequence
+        from metta._binding.runtime import Runtime
+        class _State:
+            def __init__(self):
+                self.runtime = None
+        _STATE = _State()
+        def runtime() -> Runtime:
+            if _STATE.runtime is None:
+                _STATE.runtime = Runtime()
+            return _STATE.runtime
+        def text() -> Sequence[str]:
+            return "abc"
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross through the declared, never-None runtime."""
+                return runtime().must("value")
+            @marked
+            def second(self) -> int:
+                """Read a str where a Sequence is declared."""
+                return len(text().upper())
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+    assert result["space:second"].number == 0
+    assert not result["space:second"].open
+
+
+def test_getattr_with_a_default_answers_the_default(tmp_path):
+    """`getattr(x, "close", None)` followed by `if callable(close)` is not an unresolved call."""
+    _, result = _program(tmp_path, '''
+        from collections.abc import Iterator
+        class Space:
+            def __init__(self, source: Iterator[int]):
+                self._source = source
+            @marked
+            def close(self) -> None:
+                """Close the source when it can be closed."""
+                close = getattr(self._source, "close", None)
+                if callable(close):
+                    close()
+    ''')
+    assert result["space:close"].number == 0
+    assert not result["space:close"].open
+
+
+def test_an_inherited_container_iterates_what_it_stores(tmp_path):
+    """`for row in self` on a UserList subclass yields the stored elements."""
+    _, result = _program(tmp_path, '''
+        from collections import UserList
+        from metta._binding.runtime import Runtime
+        class Runtimes(UserList[Runtime]):
+            def cross(self) -> int:
+                total = self[0].must("first")
+                for runtime in self:
+                    total += runtime.must("each")
+                return total
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Build the container and cross through everything it stores."""
+                return Runtimes([Runtime()]).cross()
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_a_field_test_against_none_narrows_the_field(tmp_path):
+    """`if self._rt is not None: self._rt.must()` reads only the engine."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self._rt = None
+            @marked
+            def start(self) -> None:
+                """Hold the engine."""
+                self._rt = Runtime()
+            @marked
+            def first(self) -> int:
+                """Cross only when the engine exists."""
+                if self._rt is None:
+                    return 0
+                return self._rt.must("value")
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_an_any_value_narrowed_by_isinstance_is_that_type(tmp_path):
+    """After `isinstance(atom, Expression)` an Any parameter is an Expression; an iterable arm stays open."""
+    _, result = _program(tmp_path, '''
+        from collections.abc import Iterable
+        from typing import Any
+        from metta._binding.runtime import Runtime
+        class Expression:
+            def __init__(self):
+                self._rt = Runtime()
+            def cross(self) -> int:
+                return self._rt.must("value")
+        class Space:
+            @marked
+            def typed(self, atom: Any) -> int:
+                """Cross only through the arm the test selects."""
+                if isinstance(atom, Expression):
+                    return atom.cross()
+                return 0
+            @marked
+            def iterated(self, atoms: Any) -> int:
+                """Iterate an Any once the test says it can be iterated."""
+                if isinstance(atoms, Iterable):
+                    return sum(atom.cross() for atom in atoms)
+                return 0
+    ''')
+    assert result["space:typed"].number == 1
+    assert not result["space:typed"].open
+    assert result["space:iterated"].number is None
+    assert result["space:iterated"].defect_open
+
+
+def test_a_supplied_value_reaches_a_concrete_parameter_as_its_declared_class(tmp_path):
+    """A caller's protocol value is the declared class inside the callee; the caller keeps the contract."""
+    _, result = _program(tmp_path, '''
+        from typing import Protocol
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self._rt = Runtime()
+            @marked
+            def first(self) -> int:
+                """Read this space's own engine."""
+                return self._rt.must("value")
+        class SpaceLike(Protocol):
+            def first(self) -> int: ...
+        def serve(m: SpaceLike) -> int:
+            return relay(m)
+        def relay(space: Space) -> int:
+            return space._rt.must("relayed")
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_a_source_iter_yields_its_elements_to_a_loop(tmp_path):
+    """`for row in rows` binds the rows an __iter__ returning iter(self.data) yields."""
+    _, result = _program(tmp_path, '''
+        from collections import UserList
+        from collections.abc import Iterator
+        from metta._binding.runtime import Runtime
+        class Runtimes(UserList[Runtime]):
+            def __iter__(self) -> Iterator[Runtime]:
+                return iter(self.data)
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross through each element a source __iter__ yields."""
+                return sum(runtime.must("value") for runtime in Runtimes([Runtime()]))
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_type_of_a_value_is_its_class_and_a_made_class_resolves_through_its_bases(tmp_path):
+    """`type(self)._columns` reads the class attribute; `type("Row", (Row,), {...})` is a Row."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Row:
+            _columns: tuple[str, ...] = ()
+            def __init__(self):
+                self._rt = Runtime()
+            def cross(self) -> int:
+                return self._rt.must("value")
+            def names(self) -> tuple[str, ...]:
+                return type(self)._columns
+        def row_class(columns):
+            return type("Row", (Row,), {"_columns": columns})
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross through a dynamically made row class."""
+                row = row_class(("a",))()
+                return row.cross() + len(row.names())
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
