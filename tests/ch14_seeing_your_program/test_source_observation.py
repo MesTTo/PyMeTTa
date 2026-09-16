@@ -5,6 +5,8 @@ program preserves its answers and writes [tested: test_coverage_distinguishes_id
 test_observation_executes_writes_and_retains_error_answers; commit=df1367c75148ca6c7262134a8736b237e1150383].
 """
 
+import uuid
+
 from metta import MeTTa, S
 
 
@@ -166,3 +168,21 @@ def test_runtime_columns_count_unicode_codepoints():
         row[2:] == (S["δ"], "unicode.metta", 1, column, 1, column + 8, S.exact)
         for row in _rows(atoms, "source-frame")
     )
+
+
+def test_coverage_survives_a_registered_python_import_rewriter(tmp_path):
+    """A Python import registers a form rewriter that rebuilds every form it reads."""
+    module_name = f"observed_rewriter_{uuid.uuid4().hex}"
+    (tmp_path / f"{module_name}.py").write_text("def origin(): return 31\n")
+    source = "(= (pick $flag $x)\n  (if $flag\n    (+ $x 2)\n    (+ $x 2)))\n!(pick True 1)"
+    with MeTTa() as metta:
+        metta.run(f'!(import! &self "{tmp_path / f"{module_name}.py"}")')
+        assert metta.runtime.must("seam:form_rewriter(Rewriter)")["Rewriter"] == "bind_python_calls"
+        atoms = _observe(metta, source)
+    assert _rows(atoms, "observation-answer") == [(0, 3)]
+    coverage = _rows(atoms, "source-coverage")
+    (taken,) = [row for row in coverage if row[1:5] == (3, 5, 3, 13)]
+    (untaken,) = [row for row in coverage if row[1:5] == (4, 5, 4, 13)]
+    assert taken[-1].value > 0
+    assert untaken[-1] == 0
+    assert not _rows(atoms, "source-coverage-unavailable")

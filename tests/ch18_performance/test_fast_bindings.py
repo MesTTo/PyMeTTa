@@ -45,7 +45,7 @@ def test_equal_raw_and_resolved_source_can_still_own_a_binding(precompiled):
             )
         m.runtime.must(
             "metta_engine:metta_token(Space, '&self'), "
-            "metta_engine:rewrite_parsed_form(Space, Text, "
+            "metta_engine:rewrite_parsed_form(Space, origin(function, source), Text, "
             "[=, ['binding-literal-self'], '&self'], "
             "[=, ['binding-literal-self'], '&self'])",
             Space=source.name, Text="(= (binding-literal-self) &self)",

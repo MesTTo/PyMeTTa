@@ -9,6 +9,9 @@
 %     pays only this file's load [tested: a_name_resolves_to_an_object].
 %   - host.py sits beside this file and imports nothing from the
 %     `metta` package, because the engine runs with janus alone.
+%   - form rewriters receive a separate source-origin tree; resolved Python
+%     module specs are values in that tree [source:
+%     engine/filereader/source_origins.pl:rewrite_source_form/5; commit=WORKTREE].
 % Guarantees:
 %   - values crossing this surface stay OBJECTS. Nothing is flattened, drained
 %     or stringified on the way back, so a generator keeps its laziness and a
@@ -646,22 +649,28 @@ python_call_module(Name, ModuleKey) :- python_import_alias(Name, ModuleKey), !.
 python_call_module(Name, Name).
 %The rewrite below only ever changes a spec that python_import_alias/2 names,
 %so with no alias registered it is the identity, and its whole effect is to
-%rebuild the term through maplist/3. The loader runs it over every form it
-%reads, which measured at 71 inferences per form on a program that never
+%rebuild the term through maplist/3. The loader runs it over function and
+%runnable forms, which measured at 71 inferences per form on a program that never
 %touches Python. Ask first.
-bind_python_calls(Term, Bound) :-
+bind_python_calls(Term, Origins, Bound, BoundOrigins) :-
     ( python_import_alias(_, _)
-      -> bind_python_calls_(Term, Bound)
-       ; Bound = Term ).
+      -> bind_python_calls_(Term, Origins, Bound, BoundOrigins)
+       ; Bound = Term, BoundOrigins = Origins ).
 
-bind_python_calls_(Term, Term) :- var(Term), !.
-bind_python_calls_(Term, Term) :- atomic(Term), !.
-bind_python_calls_([Call, [Spec|Args]], ['py-call', [BoundSpec|BoundArgs]]) :-
+bind_python_calls_(Term, Origins, Term, Origins) :- var(Term), !.
+bind_python_calls_(Term, Origins, Term, Origins) :- atomic(Term), !.
+bind_python_calls_([Call, [Spec|Args]], Origins, ['py-call', [BoundSpec|BoundArgs]],
+                   children([CallOrigin, children([BoundSpecOrigin|BoundArgOrigins])])) :-
     Call == 'py-call', !,
+    filereader:source_children(Origins, [Call, [Spec|Args]], [CallOrigin, ArgsOrigin]),
+    filereader:source_children(ArgsOrigin, [Spec|Args], [SpecOrigin|ArgOrigins]),
     bind_python_call_spec(Spec, BoundSpec),
-    maplist(bind_python_calls_, Args, BoundArgs).
-bind_python_calls_(Terms, BoundTerms) :-
-    maplist(bind_python_calls_, Terms, BoundTerms).
+    % A resolved private module spec is a value, even though it is an atom.
+    ( BoundSpec == Spec -> BoundSpecOrigin = SpecOrigin ; BoundSpecOrigin = value ),
+    maplist(bind_python_calls_, Args, ArgOrigins, BoundArgs, BoundArgOrigins).
+bind_python_calls_(Terms, Origins, BoundTerms, children(BoundOrigins)) :-
+    filereader:source_children(Origins, Terms, ChildOrigins),
+    maplist(bind_python_calls_, Terms, ChildOrigins, BoundTerms, BoundOrigins).
 
 bind_python_call_spec(Spec, BoundSpec) :-
     atom(Spec),
