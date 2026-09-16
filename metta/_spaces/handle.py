@@ -12,7 +12,7 @@ so the engine's route and an owned backing go only once no admitted use
 remains, and a drop requested from inside one of that provider's own uses is
 pending until that use exits [tested:
 test_a_close_requested_inside_an_admitted_use_completes_at_the_last_release,
-test_a_close_waits_for_an_admitted_pull_and_refuses_new_admission; commit=WORKTREE].
+test_a_close_waits_for_an_admitted_pull_and_refuses_new_admission; commit=b2cc373103e31b4e42da5c51d7d4d209e55f13f0].
 Guarantees: every handle of one live name shares one life through
 metta._spaces.lease, so a retirement by any party reads dropped on all of them
 and a reused name never answers an old handle [tested:

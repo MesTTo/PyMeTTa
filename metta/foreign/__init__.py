@@ -43,7 +43,7 @@ Guarantees:
     test_every_way_a_stream_ends_releases_its_admission,
     test_an_older_snapshot_cannot_invoke_a_closed_provider,
     test_a_close_requested_inside_an_admitted_use_completes_at_the_last_release,
-    test_an_enlisted_participant_is_held_from_begin_to_commit; commit=WORKTREE]
+    test_an_enlisted_participant_is_held_from_begin_to_commit; commit=b2cc373103e31b4e42da5c51d7d4d209e55f13f0]
   - a provider's own refusal sentence reaches the caller, and "implements it
     and declines it" reads differently from "does not have it" [tested
     test_a_provider_states_its_own_refusal,
