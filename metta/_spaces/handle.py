@@ -6,7 +6,7 @@ Failed cleanup retains its state for retry before an anonymous name is pooled
 Guarantees: a drop inside a transaction finishes this side's cleanup only when
 the engine reports the committed retirement, and an abort restores the handle
 [tested: test_a_drop_inside_a_transaction_follows_its_outcome,
-test_a_pending_drop_refuses_handle_operations_until_the_outcome; commit=WORKTREE].
+test_a_pending_drop_refuses_handle_operations_until_the_outcome; commit=f9ef614a03bce1a1878d9b43fb7618df57ccfa21].
 Guarantees: parametric names retain their exact native fields and immutable
 registry identity [tested: test_parametric_names_preserve_their_native_fields,
 test_parametric_aliases_share_batch_ownership,

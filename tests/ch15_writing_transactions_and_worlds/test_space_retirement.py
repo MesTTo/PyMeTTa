@@ -4,7 +4,7 @@ Guarantees: an aborted transaction restores the space's rows, storage cache, sco
 record and handle, and a committed one retires them only after the outcome
 [tested: test_a_drop_inside_a_transaction_follows_its_outcome,
 test_a_pending_drop_refuses_handle_operations_until_the_outcome,
-test_cleanup_failure_after_a_committed_drop_is_retryable; commit=WORKTREE].
+test_cleanup_failure_after_a_committed_drop_is_retryable; commit=f9ef614a03bce1a1878d9b43fb7618df57ccfa21].
 """
 
 from contextlib import nullcontext
