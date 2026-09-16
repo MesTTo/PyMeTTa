@@ -2140,9 +2140,11 @@ def test_the_bracket_door_is_exact_at_a_compiled_call(tmp_path):
 def test_a_measurement_warms_stale_artifacts_once_per_process(monkeypatch):
     """The first launch of a process runs the artifact warm-up child; later launches do not."""
     calls = []
+    environments = []
 
-    def run(command, _root, _env):
+    def run(command, _root, env):
         calls.append(command[-1])
+        environments.append(env)
         return parity.Outcome([], None), ""
 
     monkeypatch.setattr(coverage, "_WARMED", set())
@@ -2151,3 +2153,5 @@ def test_a_measurement_warms_stale_artifacts_once_per_process(monkeypatch):
     coverage._launch("print('second')", REPO)
     assert calls == [coverage._WARM_SOURCE, "print('first')", "print('second')"]
     assert coverage._WARMED == {REPO}
+    # The warm-up child runs in the same built environment as a measurement.
+    assert all(isinstance(env, dict) and env for env in environments)
