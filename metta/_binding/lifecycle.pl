@@ -27,7 +27,7 @@
 %[measured 2026-09-17: the four-class method diamond of
 %extensions/python/tests/ch09_types/test_class_methods.py cost 257,602,163
 %inferences to define with 228 refreshes for 198 rows; command=cd extensions/python &&
-%PYTHONPATH=. python ../../ai-tmp/ai_probe_class_def_cost.py; commit=WORKTREE].
+%PYTHONPATH=. python ../../ai-tmp/ai_probe_class_def_cost.py; commit=a8b3ad6e372c077945b36da93ed631f0a45d11fb].
 metta_py_transaction(Ticket, R) :-
     metta_transaction(
         filereader:with_definition_batch(py_call(metta_ops:transaction_body(Ticket), R))).

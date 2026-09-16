@@ -6,7 +6,7 @@ Guarantees:
     test_method_entry_inferences_match_the_equivalent_native_body; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - a class definition publishes its references a bounded number of times and
     a diamond costs no more than twice its two parents together [tested:
-    test_a_class_definition_publishes_its_references_once; commit=WORKTREE]
+    test_a_class_definition_publishes_its_references_once; commit=a8b3ad6e372c077945b36da93ed631f0a45d11fb]
 """
 
 from dataclasses import dataclass
