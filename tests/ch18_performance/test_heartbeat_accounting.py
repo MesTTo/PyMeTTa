@@ -86,14 +86,10 @@ def _failure_worker(eager: bool, expiry: int) -> dict:  # noqa: FBT001 -- the wo
     import janus_swi as janus
 
     if not eager:
-        # Plant the old boot behavior in this process only. Match the source
-        # file as well as the directive so unrelated imports remain intact.
-        shim = ROOT / "extensions/python/metta/_binding/shim.pl"
-        janus.consult("binding_lazy_control", data=f"""
-            :- multifile user:term_expansion/2.
-            user:term_expansion((:- janus:use_module(library(apply), [maplist/2])), []) :-
-                prolog_load_context(file, {str(shim)!r}).
-        """)
+        # The control that once removed the binding's own import of janus's
+        # failure-path dependency; the host imports it now, so both arms are
+        # the same process and must read the same cost.
+        pass
     from metta import Space
 
     with Space("&first-failure") as space:
@@ -165,7 +161,11 @@ def concurrent_workers():
 
 
 def test_first_failed_text_query_has_no_deferred_dependency_cost():
-    """Boot removes the expiry delta and the lazy-import plant restores it."""
+    """No cache state changes the first failed query's cost: janus imports
+    its failure-path dependency when it loads (host ledger,
+    swi-file-search-cache-autoload), and an aged file-search entry stays a
+    hit (swi-file-search-cache-sweep), so the sixteen processes per cell
+    read one cost across the live, disabled and expired cache states."""
     results = _concurrent([
         ("failure", eager, expiry)
         for _ in range(16) for eager in (False, True) for expiry in (10, 0, -1)
@@ -175,12 +175,7 @@ def test_first_failed_text_query_has_no_deferred_dependency_cost():
         costs.setdefault((result["eager"], result["expiry"]), set()).add(result["cost"])
     assert all(len(values) == 1 for values in costs.values()), costs
     one = {key: next(iter(values)) for key, values in costs.items()}
-    assert one[True, -1] == one[True, 0] == one[True, 10], one
-    # SWI's expired-cache branch refreshes the entry with asserta/1. The
-    # assertion ownership wrapper adds three inferences to its former 229.
-    # The eager path above must still have no expiry-dependent cost.
-    assert one[False, -1] - one[False, 10] == 232, one
-    assert one[False, 0] - one[False, 10] == 226, one
+    assert len(set(one.values())) == 1, one
 
 
 def test_binding_boot_resolves_its_direct_standard_library_dependencies():

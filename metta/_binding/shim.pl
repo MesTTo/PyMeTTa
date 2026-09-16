@@ -456,14 +456,6 @@
 % translator's goal lists with its own conjunction builder; the name was
 % called unqualified in this module and defined nowhere it could see.
 :- use_module('../../../../engine/translator', [goals_list_to_conj/2]).
-% Janus resolves maplist/2 lazily on its first failed text query. The native
-% file-search cache expires after ten seconds, making that import vary by
-% exactly 229 inferences under concurrent startup. Resolve this required
-% failure-path dependency while loading the binding.
-% [tested: test_first_failed_text_query_has_no_deferred_dependency_cost;
-% commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
-% Workaround: swi-file-search-cache-autoload - import Janus's failed-query dependency once at binding boot.
-:- janus:use_module(library(apply), [maplist/2]).
 % These predicates are called directly by binding units. Declare their host
 % imports here instead of making the first count, variable, or bounded cursor
 % load the missing import through Prolog's global autoloader.
