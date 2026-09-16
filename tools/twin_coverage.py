@@ -1999,7 +1999,8 @@ _PREAMBLE = (
     # ai-tmp/ai-autoload-search-traps.md explains which first
     # loads are intentional. No optional library is preloaded here.
     "import janus_swi\n"
-    # Workaround: swi-file-search-cache-sweep - keep file-search entries live throughout each measured child.
+    # The measured child's file-search cache sweeps nothing: the flag paces the
+    # sweep of dead entries, and the protocol string below records it.
     "janus_swi.cmd('system', 'set_prolog_flag', 'file_search_cache_time', "
     f"{FILE_SEARCH_CACHE_TIME})\n"
     "from metta import Expression, MeTTa, S, V\n"
