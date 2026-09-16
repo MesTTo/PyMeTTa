@@ -59,13 +59,13 @@ _CALLBACKS = {
     'foreign_atoms': ('metta.foreign', 'foreign_atoms'),
     'foreign_clear': ('metta.foreign', 'foreign_clear'),
     'foreign_match': ('metta.foreign', 'foreign_match'),
+    'foreign_participant': ('metta.foreign', 'foreign_participant'),
     'foreign_plan': ('metta.foreign', 'foreign_plan'),
     'foreign_pushdown': ('metta.foreign', 'foreign_pushdown'),
     'foreign_refuse': ('metta.foreign', 'foreign_refuse'),
     'foreign_remove': ('metta.foreign', 'foreign_remove'),
     'foreign_remove_token': ('metta.foreign', 'foreign_remove_token'),
     'foreign_tokens': ('metta.foreign', 'foreign_tokens'),
-    'foreign_transaction': ('metta.foreign', 'foreign_transaction'),
     'fork_context': ('metta._binding.task_context', 'fork'),
     'fork_contexts': ('metta._binding.task_context', 'fork_many'),
     'heartbeat_tick': ('metta._binding.runtime', 'heartbeat_tick'),
@@ -98,13 +98,13 @@ foreign_add_token: _Any
 foreign_atoms: _Any
 foreign_clear: _Any
 foreign_match: _Any
+foreign_participant: _Any
 foreign_plan: _Any
 foreign_pushdown: _Any
 foreign_refuse: _Any
 foreign_remove: _Any
 foreign_remove_token: _Any
 foreign_tokens: _Any
-foreign_transaction: _Any
 fork_context: _Any
 fork_contexts: _Any
 heartbeat_tick: _Any
@@ -137,13 +137,13 @@ __all__ = [
     'foreign_atoms',
     'foreign_clear',
     'foreign_match',
+    'foreign_participant',
     'foreign_plan',
     'foreign_pushdown',
     'foreign_refuse',
     'foreign_remove',
     'foreign_remove_token',
     'foreign_tokens',
-    'foreign_transaction',
     'fork_context',
     'fork_contexts',
     'heartbeat_tick',

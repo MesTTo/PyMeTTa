@@ -424,27 +424,13 @@ seam:custom_match(Blob, Other) :-
     metta_py_answer_match(CW, Other, Table, '$metta-matchable')
 )).
 
-%Transactional participation for Python providers, driven by (writes Ctx
-%transactional): the provider's own begin/commit/rollback methods.
+% Select native ownership without invoking Python descriptors. The engine
+% calls Capture only for a registration not yet enlisted in this transaction.
 provides(host, user, (
-seam:foreign_begin(Space) :-
+seam:foreign_participant(Space, Identity, Capture) :-
     metta_py_foreign(Space),
-    atom_string(Space, SpaceStr),
-    py_call(metta_ops:foreign_transaction(SpaceStr, "begin"), _)
-)).
-
-provides(host, user, (
-seam:foreign_commit(Space) :-
-    metta_py_foreign(Space),
-    atom_string(Space, SpaceStr),
-    py_call(metta_ops:foreign_transaction(SpaceStr, "commit"), _)
-)).
-
-provides(host, user, (
-seam:foreign_rollback(Space) :-
-    metta_py_foreign(Space),
-    atom_string(Space, SpaceStr),
-    py_call(metta_ops:foreign_transaction(SpaceStr, "rollback"), _)
+    metta_py_provider_reference(Space, Provider, Identity),
+    Capture = user:metta_py_capture_participant(Space, Provider)
 )).
 
 %The option reaches a provider whose match accepts a limit keyword and nobody

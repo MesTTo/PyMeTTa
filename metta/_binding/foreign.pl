@@ -3,8 +3,13 @@
 % Guarantees: optional add-token and remove-token callbacks preserve exact
 %   provider identities [tested: test_token_mutation_receives_and_withdraws_a_reference;
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-% Owns resources: provider and capability registrations until metta_py_unregister_foreign/1 removes them
-% [source: extensions/python/metta/_binding/foreign.pl:329; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+% Owns resources: native provider values and their owned-record markers until
+%   metta_py_unregister_foreign/1 removes them; captured clause references keep
+%   the original participant alive through completion.
+% Assumes: spaces:metta_owned_record_occurrences/3 and metta_owned_clause/2 supply
+%   shared occurrence validation and decoding; neither a copied Python map nor
+%   a second cardinality check authorizes a provider callback
+%   [source: engine/spaces/owned_records.pl:metta_owned_record_occurrences/3; commit=WORKTREE].
 
 %%%%%%%%%% Foreign spaces %%%%%%%%%%
 %
@@ -15,8 +20,45 @@
 % and soundness stays the engine's. Registration is dynamic, from Python.
 
 
-:- dynamic metta_py_foreign/1.
 :- dynamic metta_py_capability/2.
+
+% HostSpace and HostFunction share the provider relation with distinct
+% structural keys. The registration lifetime is separate from a Space handle.
+metta_py_provider_declaration(Space,
+    ['@owned-record', '&metta', ['PythonProvider', ['HostSpace', Space]],
+     '&metta', ['@python-provider', ['HostSpace', Space]]]).
+
+metta_py_foreign(Space) :-
+    spaces:metta_native_pair('&metta',
+        ['@python-provider', ['HostSpace', Space], _], _, _).
+
+% The ownership guard enumerates names; the shared validator then checks the
+% original stored keys, owner and cardinality before a host value can escape.
+metta_py_provider_reference(Space, Provider, Ref) :-
+    snapshot((
+        metta_py_foreign(Space),
+        metta_py_provider_declaration(Space, Declaration),
+        spaces:metta_owned_record_occurrences(Declaration, _,
+            [Ref-['@python-provider', ['HostSpace', Space], Provider]])
+    )).
+
+metta_py_provider(Space0, Provider) :-
+    metta_py_provider_space(Space0, Space),
+    metta_py_provider_reference(Space, Provider, _).
+
+metta_py_provider_names(Names) :-
+    snapshot(findall(Space, metta_py_provider_reference(Space, _, _), Names)).
+
+metta_py_provider_space(Space0, Space) :-
+    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ).
+
+metta_py_capture_participant(Space, Provider, Protocol) :-
+    atom_string(Space, SpaceString),
+    py_call(metta_ops:foreign_participant(SpaceString, Provider),
+            [Begin, Commit, Rollback]),
+    Protocol = transaction(user:py_call(Begin:'__call__'(), _),
+                           user:py_call(Commit:'__call__'(), _),
+                           user:py_call(Rollback:'__call__'(), _)).
 
 
 metta_py_erring_item(CW, _, _, _, _, _) :-
@@ -97,8 +139,11 @@ metta_py_plan_rows(Claimed, Rows, Table) :-
     ).
 
 
-metta_py_register_foreign(Space0, Capabilities, Delivery) :-
-    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+metta_py_register_foreign(Space0, Provider, Capabilities, Delivery) :-
+    metta_py_provider_space(Space0, Space),
+    metta_transaction(metta_py_register_foreign_(Space, Provider, Capabilities, Delivery)).
+
+metta_py_register_foreign_(Space, Provider, Capabilities, Delivery) :-
     %The engine-side claim comes first, so a name another provider already owns
     %is refused by name here instead of landing in metta_py_foreign/1 and then
     %resolving against MORK's or redis's clauses by load order. A
@@ -106,7 +151,19 @@ metta_py_register_foreign(Space0, Capabilities, Delivery) :-
     %the same extent, which the door treats as idempotent exactly as the line
     %below does.
     metta_claim_space(Space, python),
-    ( metta_py_foreign(Space) -> true ; assertz(metta_py_foreign(Space)) ),
+    (   metta_py_provider_reference(Space, Held, _)
+    ->  ( Held == Provider -> true
+        ; throw(error(permission_error(register, foreign_provider, Space),
+                      context(metta_py_register_foreign/4,
+                              'unregister the current provider before replacing it'))) )
+    ;   metta_py_provider_schema,
+        metta_py_provider_declaration(Space, Record),
+        spaces:metta_owned_record_occurrences(Record, Owners, []),
+        ( Owners == []
+        -> 'add-atom'('&metta', ['owned-by', ['PythonProvider', ['HostSpace', Space]]], _)
+        ; true ),
+        'add-atom'('&metta', ['@python-provider', ['HostSpace', Space], Provider], _)
+    ),
     %A newly registered provider is a new source: the linear-consumption
     %mark belongs to the drained OBJECT, and this is the door a fresh one
     %arrives through.
@@ -123,6 +180,18 @@ metta_py_register_foreign(Space0, Capabilities, Delivery) :-
              assertz(metta_py_capability(Space, Capability)) )),
     metta_py_declare_delivery(Space, Delivery).
 
+% Registration publishes the shared pattern explicitly. A concrete or changed
+% declaration matching its query is not the same source contract.
+metta_py_provider_schema :-
+    metta_py_provider_declaration(_, Declaration), copy_term(Declaration, Query),
+    (   spaces:metta_native_pair('&metta', Query, _, Ref),
+        spaces:metta_owned_clause(Ref, _:Head),
+        native_storage_functor('&metta', Functor),
+        metta_storage_term(Functor, Stored, _, Head), Stored =@= Declaration
+    ->  true
+    ;   'add-atom'('&metta', Declaration, _)
+    ).
+
 %A provider's event promise, written as the ordinary (events ...)
 %declaration so a MeTTa program reads what the engine acts on. It rides
 %registration rather than a second crossing because the two are one fact
@@ -138,8 +207,13 @@ metta_py_declare_delivery(Space, Delivery) :-
     ).
 
 metta_py_unregister_foreign(Space0) :-
-    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    metta_py_provider_space(Space0, Space),
+    metta_transaction(metta_py_unregister_foreign_(Space)).
+
+metta_py_unregister_foreign_(Space) :-
+    metta_py_provider_reference(Space, Provider, _),
     retractall(metta_py_capability(Space, _)),
     metta_py_declare_delivery(Space, []),
-    retractall(metta_py_foreign(Space)),
+    'remove-atom'('&metta', ['@python-provider', ['HostSpace', Space], Provider], _),
+    'remove-atom'('&metta', ['owned-by', ['PythonProvider', ['HostSpace', Space]]], _),
     metta_disclaim_space(Space, python).

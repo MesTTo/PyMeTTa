@@ -15,15 +15,13 @@
 
 :- multifile seam:foreign_atoms/2.
 
-:- multifile seam:foreign_begin/1.
-
 :- multifile seam:foreign_capability/2.
-
-:- multifile seam:foreign_commit/1.
 
 :- multifile seam:foreign_erring/5.
 
 :- multifile seam:foreign_match/3.
+
+:- multifile seam:foreign_participant/3.
 
 :- multifile seam:foreign_plan/5.
 
@@ -34,8 +32,6 @@
 :- multifile seam:foreign_remove/3.
 
 :- multifile seam:foreign_remove_token/3.
-
-:- multifile seam:foreign_rollback/1.
 
 :- multifile seam:foreign_space/1.
 
@@ -138,20 +134,10 @@ seam:custom_match(Blob, Other) :-
     metta_py_stream_item(CW),
     metta_py_answer_match(CW, Other, Table, '$metta-matchable').
 
-seam:foreign_begin(Space) :-
+seam:foreign_participant(Space, Identity, Capture) :-
     metta_py_foreign(Space),
-    atom_string(Space, SpaceStr),
-    py_call(metta_ops:foreign_transaction(SpaceStr, "begin"), _).
-
-seam:foreign_commit(Space) :-
-    metta_py_foreign(Space),
-    atom_string(Space, SpaceStr),
-    py_call(metta_ops:foreign_transaction(SpaceStr, "commit"), _).
-
-seam:foreign_rollback(Space) :-
-    metta_py_foreign(Space),
-    atom_string(Space, SpaceStr),
-    py_call(metta_ops:foreign_transaction(SpaceStr, "rollback"), _).
+    metta_py_provider_reference(Space, Provider, Identity),
+    Capture = user:metta_py_capture_participant(Space, Provider).
 
 seam:foreign_match(Space, Pattern, Options) :-
     metta_py_foreign(Space),

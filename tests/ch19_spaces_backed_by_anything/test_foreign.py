@@ -14,8 +14,9 @@ Guarantees:
     operation reads differently from not having it
     [tested test_capabilities_follow_implemented_methods,
     test_declining_and_not_implementing_read_differently]
-  - registration changes Python state only after the engine accepts the same
-    change [tested test_provider_registration_is_transactional]
+  - the public provider mapping follows accepted native registration changes
+    [source: extensions/python/metta/_binding/foreign.pl:metta_py_provider_reference/3;
+    commit=WORKTREE]
   - the caller's bound reaches a provider that claimed exact and no other
     [tested test_a_bound_is_withheld_from_a_provider_that_claimed_nothing]
   - a provider bulk write preflights every atom's add policy before the one
@@ -308,7 +309,7 @@ def test_provider_collision_is_refused(metta):  # noqa: D103  -- pytest discover
         _space_declarations._unregister_space(metta, "&col")
 
 
-def test_provider_registration_is_transactional():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_provider_registration_is_transactional(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Empty(SpaceProvider):
         def atoms(self):
             return iter(())
@@ -316,16 +317,11 @@ def test_provider_registration_is_transactional():  # noqa: D103  -- pytest disc
     class Runtime:
         fail = False
 
-        def must(self, goal, **_inputs):
+        def must(self, goal, **inputs):
             if self.fail:
                 msg = "injected provider boundary failure"
                 raise RuntimeError(msg)
-            # Registration asks the live `provider-capability` row before it
-            # asks the provider, because that vocabulary is open and an engine
-            # a library extended carries words this build does not ship.
-            if goal.startswith("metta_vocabulary_values"):
-                return {"Words": [str(word) for word in foreign_module.CAPABILITIES]}
-            return {"truth": True}
+            return metta.runtime.must(goal, **inputs)
 
     provider = Empty()
     name = f"&provider-transaction-test-{id(provider)}"
@@ -344,7 +340,8 @@ def test_provider_registration_is_transactional():  # noqa: D103  -- pytest disc
         assert foreign_module.PROVIDERS[name] is provider
     finally:
         runtime.fail = False
-        foreign_module.unregister_provider(runtime, name)
+        if name in foreign_module.PROVIDERS:
+            foreign_module.unregister_provider(runtime, name)
 
 
 # The capability model carried a boolean and no reason, so _require_provider

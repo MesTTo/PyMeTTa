@@ -78,7 +78,7 @@ def test_callback_facade_owns_no_state_and_delegates():
             "foreign_remove": "foreign",
             "foreign_remove_token": "foreign",
             "foreign_tokens": "foreign",
-            "foreign_transaction": "foreign",
+            "foreign_participant": "foreign",
             "is_matchable": "foreign",
             "match_object": "foreign",
             "path_begin": "paths",

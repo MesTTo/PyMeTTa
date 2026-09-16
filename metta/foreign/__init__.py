@@ -29,8 +29,10 @@ Guarantees:
     add policy before the batch method runs, and an empty batch is a no-op
     [tested: test_a_batch_preflights_every_add_policy_before_one_bulk_write;
     commit=06e553e2a31cd7e54b49df9b7759c63c1a5455ea]
-  - provider registration changes Python state only after the engine accepts
-    the same change [tested test_provider_registration_is_transactional]
+  - provider registration lives in native owned records; the public mapping
+    reads the caller's native snapshot, including commit and rollback
+    [source: extensions/python/metta/_binding/foreign.pl:metta_py_provider_reference/3;
+    commit=WORKTREE]
   - a provider's own refusal sentence reaches the caller, and "implements it
     and declines it" reads differently from "does not have it" [tested
     test_a_provider_states_its_own_refusal,
@@ -71,9 +73,10 @@ Guarantees:
     test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
     test_a_bound_the_provider_set_itself_crosses_as_that_bound;
     commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
-Guarded by:
-  - _PROVIDER_LOCK serializes library registration and provider lookups
-    [tested test_provider_registration_is_transactional]
+Owns resources:
+  Native provider occurrences retain registered objects. Transaction captures
+  retain their original bound methods until completion; no Python registry
+  or per-transaction host wrapper owns another copy.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -83,15 +86,14 @@ Open Obligations:
 from __future__ import annotations
 
 import inspect
-import threading
-from collections.abc import Iterable, Iterator, Mapping, Sized
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sized
 from contextlib import contextmanager
 from functools import cache
-from types import MappingProxyType
 from typing import Any, ClassVar, Protocol, cast, runtime_checkable
 
 from metta._atoms.answer import Answer
 from metta._atoms.factories import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _encode
+from metta._binding.runtime import runtime
 from metta._errors.errors import (
     EngineError,
     MettaError,
@@ -232,10 +234,11 @@ class Transactional(Protocol):
     """A provider that participates in the engine's transactions.
 
     Declared with (writes <ctx> transactional) or ``space.writes``: the
-    engine calls begin() at the provider's first write inside the
-    outermost transaction, then exactly one of commit() or rollback()
-    when it finishes, alongside the engine's own database rollback, so a
-    MeTTa (transaction ...) is atomic across both stores.
+    engine captures begin(), commit() and rollback() before the first write
+    by each registration. A successful begin receives commit or rollback on
+    that same provider even if its registration or methods change. Capture
+    and begin failures own their recovery. Provider commits follow the native
+    commit, so a refusing provider can leave a partial durable outcome.
     """
 
     def begin(self) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
@@ -481,23 +484,35 @@ class SpaceProvider:
         return self.can_run(capability, **request)
 
 
-# Space name (with &) -> provider; consulted by the shim's foreign hooks
-# through the metta_ops module functions below. The public view is read-only
-# so registration cannot bypass the engine transaction or its lock.
-_PROVIDERS: dict[str, SpaceProvider] = {}
-PROVIDERS: Mapping[str, SpaceProvider] = MappingProxyType(_PROVIDERS)
-_PROVIDER_LOCK = threading.RLock()
+class _Providers(Mapping[str, "SpaceProvider"]):
+    """The native registration table as a read-only Python mapping."""
+
+    def __getitem__(self, name: str) -> SpaceProvider:
+        """Read the provider selected by the current native snapshot."""
+        row = runtime().once("metta_py_provider(Space, Provider)", Space=name)
+        if not row:
+            raise KeyError(name)
+        return row["Provider"]
+
+    def __iter__(self) -> Iterator[str]:
+        """Enumerate validated native registration names."""
+        return iter(runtime().must("metta_py_provider_names(Names)")["Names"])
+
+    def __len__(self) -> int:
+        """Count the current native registration names."""
+        return len(runtime().must("metta_py_provider_names(Names)")["Names"])
+
+
+PROVIDERS: Mapping[str, SpaceProvider] = _Providers()
 
 
 def _provider(space: str) -> SpaceProvider:
-    with _PROVIDER_LOCK:
-        return _PROVIDERS[space]
+    return PROVIDERS[space]
 
 
 def has_provider(space: str) -> bool:
     """Whether a Python provider currently owns the space."""
-    with _PROVIDER_LOCK:
-        return space in _PROVIDERS
+    return space in PROVIDERS
 
 
 def _provider_length(space: str) -> int | None:
@@ -507,8 +522,7 @@ def _provider_length(space: str) -> int | None:
     an arbitrary backend here would turn an absent complexity promise into a
     potentially remote full scan merely because a caller wrote ``len(space)``.
     """
-    with _PROVIDER_LOCK:
-        provider = _PROVIDERS.get(space)
+    provider = PROVIDERS.get(space)
     if provider is None:
         return None
     if not isinstance(provider, Sized):
@@ -598,8 +612,7 @@ def require_capability(
     **request: Any,
 ) -> None:
     """Refuse an operation before it creates partial state or enters Prolog."""
-    with _PROVIDER_LOCK:
-        provider = _PROVIDERS.get(space)
+    provider = PROVIDERS.get(space)
     if provider is None:
         return
     _require_provider(provider, space, capability, operation, **request)
@@ -626,35 +639,24 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:  # n
         raise TypeError(
             msg
         )
-    with _PROVIDER_LOCK:
-        holder = _PROVIDERS.get(name)
-        if holder is not None and holder is not provider:
-            msg = (
-                f"{name} already has a provider ({type(holder).__name__}); "
-                f"unregister it first, or pick another name. Replacing silently "
-                f"would leave the old owner holding a dead registration."
-            )
-            raise ValueError(
-                msg
-            )
-        # The engine's own vocabulary, computed here because this is where
-        # it already was. Without it foreign_provides/2 reported that every
-        # Python provider provides everything, so anything the engine decides
-        # from a declaration excluded exactly the incomplete providers.
-        # The event promise rides the same crossing rather than a second one:
-        # it is written as the space's ordinary (events ...) declaration, and
-        # a re-registration that stops promising events has to stop the space
-        # being subscribable in the same step.
-        promise = delivery_promise(provider)
-        runtime.must(
-            "metta_py_register_foreign(Space, Capabilities, Delivery)",
-            Space=name,
-            Capabilities=[
-                word for word in _declarable(runtime) if provider.can_run(word)
-            ],
-            Delivery=list(promise) if promise is not None else [],
+    holder = PROVIDERS.get(name)
+    if holder is not None and holder is not provider:
+        msg = (
+            f"{name} already has a provider ({type(holder).__name__}); "
+            f"unregister it first, or pick another name. Replacing silently "
+            f"would leave the old owner holding a dead registration."
         )
-        _PROVIDERS[name] = provider
+        raise ValueError(msg)
+    # Derive host promises outside native commit locks. Publication validates
+    # the same native key again, so concurrent registrations cannot both win.
+    promise = delivery_promise(provider)
+    runtime.must(
+        "metta_py_register_foreign(Space, Provider, Capabilities, Delivery)",
+        Space=name,
+        Provider=provider,
+        Capabilities=[word for word in _declarable(runtime) if provider.can_run(word)],
+        Delivery=list(promise) if promise is not None else [],
+    )
 
 
 def _declarable(runtime) -> list[str]:
@@ -678,12 +680,10 @@ def unregister_provider(runtime, name: str) -> None:
     convert.unregister_type answers the same way. Removing something that
     was never there is a mistake worth hearing about.
     """
-    with _PROVIDER_LOCK:
-        if name not in _PROVIDERS:
-            msg = f"no provider is registered for {name!r}"
-            raise KeyError(msg)
-        runtime.must("metta_py_unregister_foreign(Space)", Space=name)
-        _PROVIDERS.pop(name, None)
+    if name not in PROVIDERS:
+        msg = f"no provider is registered for {name!r}"
+        raise KeyError(msg)
+    runtime.must("metta_py_unregister_foreign(Space)", Space=name)
 
 
 # ------------------------------------------------- called from the shim
@@ -1008,21 +1008,19 @@ def _unwrap_box(obj: Any) -> Any:
     return obj.value if isinstance(obj, Box) else obj
 
 
-def foreign_transaction(space: str, step: str) -> bool:
-    """One transactional step on a declared-transactional provider."""
-    provider = _provider(space)
-    if not isinstance(provider, Transactional):
-        msg = (
-            f"{space} is declared (writes {space} transactional) and its "
-            f"provider {type(provider).__name__} does not implement "
-            f"begin/commit/rollback; implement metta.foreign.Transactional "
-            f"or declare best-effort"
-        )
-        raise MettaError(
-            msg
-        )
-    getattr(provider, step)()
-    return True
+def foreign_participant(space: str, provider: SpaceProvider) -> list[Callable[[], Any]]:
+    """Capture the selected provider's bound operations before begin runs."""
+    if isinstance(provider, Transactional):
+        operations = [provider.begin, provider.commit, provider.rollback]
+        if all(map(callable, operations)):
+            return operations
+    msg = (
+        f"{space} is declared (writes {space} transactional) and its "
+        f"provider {type(provider).__name__} does not implement callable "
+        f"begin/commit/rollback; implement metta.foreign.Transactional "
+        f"or declare best-effort"
+    )
+    raise MettaError(msg)
 
 
 def foreign_add(space: str, atom_wire: list) -> bool:

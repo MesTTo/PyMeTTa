@@ -36,7 +36,7 @@ CALLBACK_GROUPS: dict[str, tuple[Export, ...]] = {
         "foreign_add", "foreign_add_many", "foreign_add_token", "foreign_atoms",
         "foreign_tokens", "foreign_clear", "foreign_match", "foreign_plan",
         "foreign_pushdown", "foreign_refuse", "foreign_remove",
-        "foreign_remove_token", "foreign_transaction", "is_matchable",
+        "foreign_remove_token", "foreign_participant", "is_matchable",
         "match_object",
     ),
     "metta.paths": (
@@ -115,6 +115,8 @@ class Capability(NamedTuple):
 
 # closed-set: decides; policy=object-call capabilities at the native boundary; reads=none
 CAPABILITIES = (
+    Capability("metta_py_capture_participant/3", None, "__call__", 0,
+               "Retain the selected provider's bound transaction operations for completion."),
     Capability("metta_py_transaction/2", None, "__call__", 0,
                "Invoke the transaction callback retained by its caller."),
     Capability("metta_py_call/3", "metta._binding.host", None, None,
