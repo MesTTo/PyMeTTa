@@ -4,6 +4,9 @@ Guarantees:
   - canonical and inherited method bodies cost their handwritten equivalents;
     the public dispatch entry adds one inference per call [tested:
     test_method_entry_inferences_match_the_equivalent_native_body; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
+  - a class definition publishes its references a bounded number of times and
+    a diamond costs no more than twice its two parents together [tested:
+    test_a_class_definition_publishes_its_references_once; commit=WORKTREE]
 """
 
 from dataclasses import dataclass
@@ -74,3 +77,60 @@ def test_method_entry_inferences_match_the_equivalent_native_body(grain):
             for canonical, public, written in families:
                 assert costs[canonical] == costs[written], (grain, count, costs)
                 assert costs[public] == costs[written] + count, (grain, count, costs)
+
+
+def test_a_class_definition_publishes_its_references_once():
+    """A definition is one batch: its rows publish at its reads and its end, not once per row."""
+    with MeTTa() as context:
+        m = context.self
+        costs = {}
+
+        with m.stats() as spent:
+            @m.define
+            @dataclass(frozen=True)
+            class PublishedRoot:
+                x: int
+
+                def rank(self) -> int:
+                    return self.x
+
+                def describe(self) -> int:
+                    return self.rank()
+        costs["root"] = spent.inferences
+
+        with m.stats() as spent:
+            @m.define
+            @dataclass(frozen=True)
+            class PublishedLeft(PublishedRoot):
+                def rank(self) -> int:
+                    return 10 + super().rank()
+        costs["left"] = spent.inferences
+
+        with m.stats() as spent:
+            @m.define
+            @dataclass(frozen=True)
+            class PublishedRight(PublishedRoot):
+                def rank(self) -> int:
+                    return 100 + super().rank()
+        costs["right"] = spent.inferences
+
+        # Count the refresh iterations that publish something during the diamond's
+        # definition; before the definition batch there were 228 for 198 rows.
+        m._rt.must(
+            "flag(test_reference_publications,_,0),"
+            "wrap_predicate(metta_engine:metta_reference_refresh_now,test_publication_counter,_Wrapped,"
+            "(metta_engine:metta_reference_pending(_Pending),"
+            "(_Pending==[]->true;flag(test_reference_publications,_N,_N+1)),_Wrapped))")
+        try:
+            with m.stats() as spent:
+                @m.define
+                @dataclass(frozen=True)
+                class PublishedDiamond(PublishedLeft, PublishedRight):
+                    pass
+            costs["diamond"] = spent.inferences
+        finally:
+            publications = m._rt.must("flag(test_reference_publications,Count,Count),"
+                                      "unwrap_predicate(metta_engine:metta_reference_refresh_now,test_publication_counter)")["Count"]
+        assert PublishedDiamond(1).rank() == 111
+        assert publications <= 8, (publications, costs)
+        assert costs["diamond"] <= 2 * (costs["left"] + costs["right"]), costs

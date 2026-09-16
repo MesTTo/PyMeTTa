@@ -11,6 +11,7 @@
 %world context.
 metta_py_world_effect_plan(Space, Origin, Target,
                            [Operations, Effect, Coverage]) :-
+    metta_py_settle_definitions,
     metta_py_target_term(Space, Target, Term0),
     metta_py_world_rebase(Term0, Origin, Space, Term),
     metta_py_module(Space, Module),
@@ -36,6 +37,7 @@ metta_py_world_effect_plan(Space, Origin, Target,
 %world evaluation, but the stored clauses remain so every later admission
 %question is asked of the frozen program rather than the mutable origin.
 metta_py_world_prepare(Space, Origin, AtomWires) :-
+    metta_py_settle_definitions,
     setup_call_cleanup(
         seam:observation_begin,
         metta_with_state_write_fence(

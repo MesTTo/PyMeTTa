@@ -11,6 +11,15 @@
 
 binding_evaluation.
 
+%Inside a definition batch (metta_py_transaction/2) reference publication and
+%dependent recompilation wait for a door that reads them: an evaluating or
+%planning door settles them first. Outside a batch this is one inference.
+metta_py_settle_definitions :-
+    (   filereader:active_source_program(_)
+    ->  filereader:flush_source_program_analysis_if_needed
+    ;   true
+    ).
+
 % Resolution and execution share the same space module and dispatch seam.
 % call_delays stays inside enumeration, before findall can erase the residue.
 metta_py_solution(Space, Term, Out, Delays) :-

@@ -37,11 +37,12 @@ system:term_expansion(binding_evaluation, Clauses) :-
 evaluation_clause(metta_py_evaluate(Options, Space, Target, Result), Goal) :-
     metta_py_options(Options, [answers(Collection), seconds(Time), inferences(Inf)]),
     evaluation_clause(metta_py_evaluation_accounted(Options, Space, Target, Result), Accounted),
-    Goal = ((Collection == cursor ; Time == none, Inf == none)
-            -> Accounted
-            ; metta_py_option_limits(Time, Inf, Seconds, Inferences),
-              metta_py_guarded(Seconds, Inferences,
-                  metta_py_evaluation_accounted(Options, Space, Target, Result))).
+    Goal = ( metta_py_settle_definitions,
+             ( (Collection == cursor ; Time == none, Inf == none)
+             -> Accounted
+             ; metta_py_option_limits(Time, Inf, Seconds, Inferences),
+               metta_py_guarded(Seconds, Inferences,
+                   metta_py_evaluation_accounted(Options, Space, Target, Result)) )).
 
 evaluation_clause(metta_py_evaluation_accounted(Options, Space, Target, Result), Goal) :-
     metta_py_options(Options, [answers(Collection), accounting(Accounting), under(Under)]),

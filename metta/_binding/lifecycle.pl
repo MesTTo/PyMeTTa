@@ -20,8 +20,17 @@
 %Nothing of the body crosses: a crossed callable was held by its blob until
 %atom GC and the next Prolog-to-Python call, and with it what it closed over
 %[tested: extensions/python/tests/ch04_spaces_and_matching/test_reclamation.py; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
+%The body is a definition batch: reference publication and dependent
+%recompilation wait for the first evaluating door inside it
+%(metta_py_settle_definitions/0) or for its end, as a file's wait for its next
+%runnable, so a class definition's rows publish once rather than once per row
+%[measured 2026-09-17: the four-class method diamond of
+%extensions/python/tests/ch09_types/test_class_methods.py cost 257,602,163
+%inferences to define with 228 refreshes for 198 rows; command=cd extensions/python &&
+%PYTHONPATH=. python ../../ai-tmp/ai_probe_class_def_cost.py; commit=WORKTREE].
 metta_py_transaction(Ticket, R) :-
-    metta_transaction(py_call(metta_ops:transaction_body(Ticket), R)).
+    metta_transaction(
+        filereader:with_definition_batch(py_call(metta_ops:transaction_body(Ticket), R))).
 
 % Proxy cardinality and liveness use the class's native owned-record schema.
 % [source: engine/spaces/owned_records.pl:metta_validate_owned_records/1;
