@@ -11,7 +11,7 @@ Guarantees: every handle of one live name shares one life through
 metta._spaces.lease, so a retirement by any party reads dropped on all of them
 and a reused name never answers an old handle [tested:
 test_a_native_drop_marks_every_retained_handle_dead,
-test_aliases_share_one_life_and_a_reused_name_starts_another; commit=WORKTREE].
+test_aliases_share_one_life_and_a_reused_name_starts_another; commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
 Guarantees: parametric names retain their exact native fields and immutable
 registry identity [tested: test_parametric_names_preserve_their_native_fields,
 test_parametric_aliases_share_batch_ownership,

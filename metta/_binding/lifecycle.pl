@@ -5,7 +5,7 @@
 % Guarantees: metta_py_lease/2 holds one row per live name with a Python cell,
 % asserted in the caller's transaction and retracted by retirement or by the
 % cell's deferred release [tested: test_a_handle_born_in_an_aborted_transaction_is_dead,
-% test_lease_rows_follow_outstanding_handles; commit=WORKTREE].
+% test_lease_rows_follow_outstanding_handles; commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
 % Guarantees: declaration, transport and release preserve native expression identities
 % [tested: test_parametric_names_preserve_their_native_fields,
 % test_parametric_names_follow_scope_release; commit=3f71a0b3af04a3ba4c88bf3906197a2a80d9080e].

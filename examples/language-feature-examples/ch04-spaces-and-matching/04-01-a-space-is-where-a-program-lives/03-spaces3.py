@@ -160,5 +160,5 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: transactional release at 9d7d4164c. Measured in provisioned worktrees of
 #: each commit [measured 2026-09-16: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
 BUDGET = 545

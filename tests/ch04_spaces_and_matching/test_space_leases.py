@@ -6,7 +6,7 @@ rows follow outstanding handles rather than historical names
 [tested: test_a_native_drop_marks_every_retained_handle_dead,
 test_aliases_share_one_life_and_a_reused_name_starts_another,
 test_a_handle_born_in_an_aborted_transaction_is_dead,
-test_lease_rows_follow_outstanding_handles; commit=WORKTREE].
+test_lease_rows_follow_outstanding_handles; commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
 """
 
 import gc

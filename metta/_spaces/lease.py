@@ -10,12 +10,12 @@ its lease through the deferred engine queue, so rows follow outstanding handles
 [tested: test_a_native_drop_marks_every_retained_handle_dead,
 test_aliases_share_one_life_and_a_reused_name_starts_another,
 test_a_handle_born_in_an_aborted_transaction_is_dead,
-test_lease_rows_follow_outstanding_handles; commit=WORKTREE].
+test_lease_rows_follow_outstanding_handles; commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
 Owns resources: one engine lease row per cell, released by retirement or by the
 cell's finalizer, never by a native call from the garbage collector. No Python
 object crosses into the engine: janus retains a crossed object until atom GC, which
 would keep the cell, its handles and the row alive
-[source: docs/journal/2026-09-15-foreign-participant-capture.md; commit=WORKTREE].
+[source: docs/journal/2026-09-15-foreign-participant-capture.md; commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
 """
 
 from __future__ import annotations
