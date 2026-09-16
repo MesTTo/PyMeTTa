@@ -17,7 +17,7 @@ metta_py_transaction(F, R) :-
 
 % Proxy cardinality and liveness use the class's native owned-record schema.
 % [source: engine/spaces/owned_records.pl:metta_validate_owned_records/1;
-% commit=WORKTREE]
+% commit=829c6960c1f02a4745aa60408a8e8b5feba0521e]
 metta_py_attach_proxy(Space, Wire) :-
     metta_py_decode_shared(Wire, Row, _),
     Row = ['_python-proxy', _, _],

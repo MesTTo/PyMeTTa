@@ -7,7 +7,7 @@ Owns resources:
     commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - mutable class programs own exact catalog occurrences of their field and
     proxy record patterns [source: extensions/python/metta/_declare/classes.py:
-    ClassDeclaration.install_storage; release; commit=WORKTREE]
+    ClassDeclaration.install_storage; release; commit=829c6960c1f02a4745aa60408a8e8b5feba0521e]
 Guarded by:
   - definitions._DEFINE_LOCK serializes declaration, instrumentation and proxy
     reconstruction; outer commit checks reject stale proxy publications
@@ -16,7 +16,7 @@ Guarded by:
 Guarantees:
   - mutable field and proxy reads validate original native occurrences through
     the shared owned-record reader [source: engine/spaces/owned_records.pl:
-    'owned-record-read'/2; commit=WORKTREE]
+    'owned-record-read'/2; commit=829c6960c1f02a4745aa60408a8e8b5feba0521e]
   - kept mutable receivers retain their current native field dependencies
     after scope children finish [tested:
     test_kept_fields_follow_the_last_stored_value,

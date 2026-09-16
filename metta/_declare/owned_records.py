@@ -2,15 +2,15 @@
 
 Assumes: callers retain exact declaration occurrences with the source program;
   owner and record keys are native atoms admitted by metta_check_owned_record/1
-  [source: engine/spaces/owned_records.pl:metta_check_owned_record/1; commit=WORKTREE].
+  [source: engine/spaces/owned_records.pl:metta_check_owned_record/1; commit=829c6960c1f02a4745aa60408a8e8b5feba0521e].
 Guarantees: native reads validate original occurrence keys and cardinality;
   dependencies retain the full row around stored Error data
   [source: engine/spaces/owned_records.pl:'owned-record-read'/2;
-  commit=WORKTREE].
+  commit=829c6960c1f02a4745aa60408a8e8b5feba0521e].
 Decides: a write evaluates its supplied source once after checking its owner;
   empty reads and deletes use the caller's missing-binding expression
   [source: extensions/python/metta/_declare/owned_records.py:OwnedRecord.write;
-  commit=WORKTREE].
+  commit=829c6960c1f02a4745aa60408a8e8b5feba0521e].
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ class OwnedRecord:
         """Return complete current rows so a stored Error remains dependency data."""
         # Scope treats only a top-level Error as a failed dependency query.
         # [source: lib/lib_thread/lib_thread.pl:scope_expression_answer_/2;
-        # commit=WORKTREE]
+        # commit=829c6960c1f02a4745aa60408a8e8b5feba0521e]
         return self._select(lambda row: row, _expr(S.superpose, Expression([])))
 
     def write(self, value_source: Atom) -> Expression:

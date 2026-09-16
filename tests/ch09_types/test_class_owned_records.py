@@ -5,7 +5,7 @@ Owns resources: contexts release declarations and objects; concurrent controls
 Guarantees: controls observe native rows, Python aliases, source lifetimes and
   retained dependency values through the generated class programs
   [source: extensions/python/tests/ch09_types/test_class_owned_records.py;
-  commit=WORKTREE].
+  commit=829c6960c1f02a4745aa60408a8e8b5feba0521e].
 """
 
 from __future__ import annotations
