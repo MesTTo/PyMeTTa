@@ -1099,7 +1099,16 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 2478
+#: RE-PINNED 2026-09-16, 2478 to 4244 (+1766), The interval since this pin's
+#: last move was never priced by the twin lane: 2478 to 2586 at the libraries
+#: merge c80041350, 3168 at 6f2b9576d, 3928 at 709e556c1 with the completion
+#: and admission-law units, 4244 from the FROM source-origins reader at
+#: 1a8c00f93 on; unchanged by the transactional release at f9ef614a0, the
+#: handle lease at a9b0ddb6d and the retirement commit validation. Measured in
+#: provisioned worktrees of each commit [measured 2026-09-16: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 4244
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same
