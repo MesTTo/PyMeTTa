@@ -161,11 +161,13 @@ def concurrent_workers():
 
 
 def test_first_failed_text_query_has_no_deferred_dependency_cost():
-    """No cache state changes the first failed query's cost: janus imports
-    its failure-path dependency when it loads (host ledger,
+    """No cache state changes the first failed query's cost.
+
+    Janus imports its failure-path dependency when it loads (host ledger,
     swi-file-search-cache-autoload), and an aged file-search entry stays a
     hit (swi-file-search-cache-sweep), so the sixteen processes per cell
-    read one cost across the live, disabled and expired cache states."""
+    read one cost across the live, disabled and expired cache states.
+    """
     results = _concurrent([
         ("failure", eager, expiry)
         for _ in range(16) for eager in (False, True) for expiry in (10, 0, -1)

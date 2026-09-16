@@ -265,11 +265,13 @@ HOST_SERVICES = {
     # the non-backtrackable State guard, or live-cell identity.
     "metta_speculate/1",
     "metta_transaction/1",
-    # Result-aware transactions and both generator context lifetimes are
-    # engine execution doors shared by bindings and native callers.
+    # Result-aware transactions and the three scoped-root doors (a trailed
+    # value, an enumeration and a stack push) are engine execution doors
+    # shared by bindings and native callers.
     "metta_transaction/2",
     "metta_with_trailed/3",
     "metta_with_trailed_enumeration/3",
+    "metta_with_trailed_push/3",
     # Sagas need the durable transaction outcome before any post-commit
     # observer or foreign-provider failure is rethrown.
     "metta_transaction_notified/3",
@@ -517,6 +519,7 @@ FLOOR_REASONS = {
     "metta_transaction/2": "door",
     "metta_with_trailed/3": "door",
     "metta_with_trailed_enumeration/3": "door",
+    "metta_with_trailed_push/3": "door",
     "metta_transaction_notified/3": "door",
     "metta_world_effect_coverage/2": "door",
     "metta_effect_covered/2": "door",
