@@ -6,13 +6,11 @@ Guarantees:
     test_call_consumer_source.CallConsumerSourceTests; commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
   - _python-call-value observes one held immediate result through eval-one;
     exceptions and cardinality failures propagate, while returned Error data
-    stays a value [assumed: test_call_value_holds_native_results and
-    test_call_value_refuses_zero_and_multiple_answers await native execution;
-    commit=WORKTREE].
+    stays a value [tested: test_call_value_holds_native_results and test_call_value_refuses_zero_and_multiple_answers; commit=WORKTREE].
   - host value calls preserve their exact result without inspecting a
-    signature or consuming an iterator [assumed:
-    test_call_value_does_not_start_or_replace_deferred_host_results awaits
-    native execution; commit=WORKTREE].
+    signature or consuming an iterator [tested:
+    test_call_value_does_not_start_or_replace_deferred_host_results;
+    commit=WORKTREE].
   - canonical keyword terms become one fresh dictionary per body activation
     [tested: test_compiled_collectors_match_native_equation_heads;
     test_compiled_generator_answers_share_one_keyword_dictionary; commit=1796cf0f581aa767db9289b807f66238cb747065]

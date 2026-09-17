@@ -9,9 +9,9 @@ import inspect
 import pytest
 
 from metta import Atom, Expression, G, Grounded, MeTTa, S, V, Variable
-from metta._errors.errors import EngineError
 from metta._catalog import call_signatures, call_values
 from metta._declare import call_syntax
+from metta._errors.errors import EngineError
 
 
 def _call(home, function, *arguments, **keywords):

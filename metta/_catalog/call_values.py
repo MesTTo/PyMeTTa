@@ -5,14 +5,9 @@ Guarantees:
     independently of the refusal vocabulary [tested:
     test_call_consumer_source.CallConsumerSourceTests; commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
   - returned Python values keep explicit images, borrowed container identity
-    and Atom object identity at the one-value boundary [assumed:
-    test_call_value_preserves_host_result_identity awaits native execution;
-    commit=WORKTREE].
+    and Atom object identity at the one-value boundary [tested: test_call_value_preserves_host_result_identity; commit=WORKTREE].
   - two-frame callable applications consume supplied positional values while
-    raw native ports retain their formal-slot capture contract [assumed:
-    test_bound_application_prefixes_keep_variadic_collectors and
-    test_raw_native_captures_still_hold_formal_slots await native execution;
-    commit=WORKTREE].
+    raw native ports retain their formal-slot capture contract [tested: test_bound_application_prefixes_keep_variadic_collectors and test_raw_native_captures_still_hold_formal_slots; commit=WORKTREE].
   - compiled parameter slots hold fixed values, positional expressions and
     ordered keyword-pair expressions through one packing operation [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
