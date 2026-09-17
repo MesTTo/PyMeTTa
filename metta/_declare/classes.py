@@ -374,7 +374,7 @@ class ClassDeclaration:
 
     def accessor(self, name: str, *, write: bool = False, delete: bool = False) -> Symbol:
         """The field's getter, its writer (`!`), or its deleter (`retire-`, as the object's)
-        [tested: test_a_field_delete_removes_the_value_and_keeps_the_owner; commit=WORKTREE].
+        [tested: test_a_field_delete_removes_the_value_and_keeps_the_owner; commit=14a44cfa4dfc67a9cd7c602fafe86dd8b377aaf9].
         """
         if delete:
             return Symbol(f"retire-{self.name}-{attribute_name(name)}")

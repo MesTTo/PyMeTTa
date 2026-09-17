@@ -883,7 +883,7 @@ class SpaceHandle(Handle):
         captured it: ch20 test_typing_point ahead of ch17 test_async_scheduler).
         A token belongs to the context that entered it; one entered elsewhere
         stays for that context's own exit
-        [tested: test_a_drop_leaves_the_scope_the_handle_entered; commit=WORKTREE].
+        [tested: test_a_drop_leaves_the_scope_the_handle_entered; commit=14a44cfa4dfc67a9cd7c602fafe86dd8b377aaf9].
         """
         while self._context_tokens:
             token = self._context_tokens.pop()

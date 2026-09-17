@@ -73,7 +73,7 @@ metta_py_decode_for_add(Tagged, Term) :-
 %walking every row before it, so a copy cost K^2 [measured 2026-09-17:
 %67,690, 211,905, 731,155 and 2,722,368 inferences for 5, 10, 20 and 40
 %origins, 13,538 to 68,059 per origin, before; command=ai probe over
-%Space.copy() with m.stats(); commit=WORKTREE].
+%Space.copy() with m.stats(); commit=14a44cfa4dfc67a9cd7c602fafe86dd8b377aaf9].
 metta_py_add_many(Space, TaggedList) :-
     maplist(metta_py_decode_for_add, TaggedList, Terms),
     filereader:with_definition_batch(metta_add_atoms(Space, Terms)).
