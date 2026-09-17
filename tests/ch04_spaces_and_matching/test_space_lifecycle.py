@@ -26,7 +26,7 @@ Guarantees:
     removed binds the name to the library rather than colliding with the
     shadow repair's import of the inherited definition [tested:
     test_a_library_origin_binds_a_name_whose_local_definition_was_removed;
-    commit=WORKTREE]
+    commit=8f524d6df196ba4046fa6043c0a6a1b84c26b952]
   - named spaces are never admitted to the anonymous reuse pool [tested:
     test_a_named_space_drop_never_enters_the_anonymous_pool;
     commit=d843bb6d17a525c36afd21cab077d63b34447535]
