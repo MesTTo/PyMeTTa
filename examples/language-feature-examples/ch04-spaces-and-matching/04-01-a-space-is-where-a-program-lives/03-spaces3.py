@@ -168,5 +168,5 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: a428cf905..2f1be9e0b as the identity twin's, and stock 10.1.13, stock
 #: 10.1.14 and the patched 10.1.14 host all read 504 at the tip [measured
 #: 2026-09-17: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=3a88c8dcc7369eb0bc5924059c0e330c12fceef9].
 BUDGET = 504

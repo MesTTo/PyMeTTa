@@ -1118,7 +1118,7 @@ def twin(m):
 #: stock 10.1.13 and 10.1.14 read 3868 at the tip and the patched 10.1.14 host
 #: the seat runs reads 3871, inside the allowance [measured 2026-09-17: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=3a88c8dcc7369eb0bc5924059c0e330c12fceef9].
 BUDGET = 3871
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
