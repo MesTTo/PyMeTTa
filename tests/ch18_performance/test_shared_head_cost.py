@@ -27,6 +27,10 @@ Guarantees:
     commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c]
   - defining that head costs the same in the eighth as in the second [tested:
     test_defining_a_shared_head_costs_the_same_in_every_space; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
+  - and still does while a table stands somewhere in the process, because the
+    tabling library learns of a change from the engine's own invalidation
+    wave rather than from a walk of every space calling the name [tested:
+    test_a_declared_table_keeps_a_shared_heads_definition_cost_flat; commit=WORKTREE]
   - a recycled space name defines for a fresh name's cost [tested:
     test_a_recycled_space_name_defines_for_a_fresh_names_cost; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
   - narrowing those three did not narrow what a definition REACHES: an
@@ -189,6 +193,30 @@ def test_defining_a_shared_head_costs_the_same_in_every_space(metta, rooms):
     assert eighth <= second * (1 + BAND), (
         f"defining psh-define costs {eighth} inferences in the eighth live "
         f"space against {second} in the second: {_report(defining)}"
+    )
+
+
+def test_a_declared_table_keeps_a_shared_heads_definition_cost_flat(metta, rooms):
+    """A standing table must not price a definition by the spaces calling its name.
+
+    The tabling library hears of a change through the invalidation wave the
+    engine already runs, from a node the tabled function supports, so a
+    definition costs what it costs with no table standing. A walk of its own
+    rooted at every view of the changed name read [838, 989, 1176, 1427,
+    1518, 1609, 1976, 2063] over these eight rooms with one table standing
+    [measured 2026-09-17].
+    """
+    metta.run("!(import! &self (library lib_tabling))")
+    metta.run("(= (psh-standing $n) (+ $n 1)) !(tabled (psh-standing $n)) !(psh-standing 1)")
+    try:
+        defining, _ = _shared_head_costs(metta, rooms, "psh-define-tabled")
+    finally:
+        assert metta.run("!(untabled (psh-standing $n))") == [[True]]
+    second, eighth = defining[1], defining[-1]
+    assert eighth <= second * (1 + BAND), (
+        f"defining psh-define-tabled costs {eighth} inferences in the eighth "
+        f"live space against {second} in the second with a table standing: "
+        f"{_report(defining)}"
     )
 
 

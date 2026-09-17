@@ -18,6 +18,10 @@ Guarantees:
     so a table filled by a live call survives the first use of a deferred
     library function in a space holding a `from` row [tested:
     test_a_reference_refresh_that_changes_nothing_keeps_the_table; commit=689745c3bb9ef9a36b5427bb3e7289a69da9b71b]
+  - a function change drops the tables that can have read it and no other:
+    the changed function's own, those of the functions whose compiled bodies
+    reach it through the support graph, and those whose reach is unbounded
+    [tested: test_an_unrelated_definition_keeps_the_table; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -212,6 +216,39 @@ def test_a_reference_refresh_that_changes_nothing_keeps_the_table(m, metta):
             assert S.tables(1) in list(counted)
         finally:
             assert m.eval(S.untabled(call)) == [True]
+
+
+def test_an_unrelated_definition_keeps_the_table(m):
+    """A table goes when its own function changes or a function its compiled
+    body reaches does, and stays when an unrelated definition arrives. The
+    support graph's forward closure from the changed name is the set of
+    readers, so a definition landing anywhere in the process, the first
+    compile of a deferred library function included, no longer empties every
+    table.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    m.run(
+        "(= (kept-fn $n) (+ $n 1)) (= (reader-fn $n) (helper-fn $n))\n"
+        "(= (helper-fn $n) (* $n 2))\n"
+        "!(tabled (kept-fn $n)) !(tabled (reader-fn $n))\n"
+        "!(kept-fn 1) !(reader-fn 1)"
+    )
+
+    def tables() -> int:
+        return m.runtime.once(
+            "space_module(Space, _M), aggregate_all(count, current_table(_M:_G, _), N)",
+            Space=m.name,
+        )["N"]
+
+    try:
+        assert tables() == 2
+        m.run("(= (other-fn $n) (- $n 1))")
+        assert tables() == 2
+        m.run("(= (helper-fn 0) 0)")
+        assert tables() == 1
+        m.run("(= (kept-fn 0) 0)")
+        assert tables() == 0
+    finally:
+        assert m.run("!(untabled (kept-fn $n)) !(untabled (reader-fn $n))") == [[True], [True]]
 
 
 def test_a_second_live_call_reuses_the_table_but_an_undeclared_control_does_not(m):
