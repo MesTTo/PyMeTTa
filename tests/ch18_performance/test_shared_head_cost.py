@@ -30,7 +30,7 @@ Guarantees:
   - and still does while a table stands somewhere in the process, because the
     tabling library learns of a change from the engine's own invalidation
     wave rather than from a walk of every space calling the name [tested:
-    test_a_declared_table_keeps_a_shared_heads_definition_cost_flat; commit=WORKTREE]
+    test_a_declared_table_keeps_a_shared_heads_definition_cost_flat; commit=0cb96b1823038ffb8084168a7103dfac9eef0daa]
   - a recycled space name defines for a fresh name's cost [tested:
     test_a_recycled_space_name_defines_for_a_fresh_names_cost; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
   - narrowing those three did not narrow what a definition REACHES: an

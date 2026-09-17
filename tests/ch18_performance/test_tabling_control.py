@@ -21,7 +21,7 @@ Guarantees:
   - a function change drops the tables that can have read it and no other:
     the changed function's own, those of the functions whose compiled bodies
     reach it through the support graph, and those whose reach is unbounded
-    [tested: test_an_unrelated_definition_keeps_the_table; commit=WORKTREE]
+    [tested: test_an_unrelated_definition_keeps_the_table; commit=0cb96b1823038ffb8084168a7103dfac9eef0daa]
 Open Obligations:
   To Do: None
   Hacks: None
