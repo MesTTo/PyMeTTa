@@ -6,11 +6,11 @@ Guarantees:
     test_call_consumer_source.CallConsumerSourceTests; commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
   - _python-call-value observes one held immediate result through eval-one;
     exceptions and cardinality failures propagate, while returned Error data
-    stays a value [tested: test_call_value_holds_native_results and test_call_value_refuses_zero_and_multiple_answers; commit=WORKTREE].
+    stays a value [tested: test_call_value_holds_native_results and test_call_value_refuses_zero_and_multiple_answers; commit=d78d867637047c164be4bc1ab63c40b46d2cff5d].
   - host value calls preserve their exact result without inspecting a
     signature or consuming an iterator [tested:
     test_call_value_does_not_start_or_replace_deferred_host_results;
-    commit=WORKTREE].
+    commit=d78d867637047c164be4bc1ab63c40b46d2cff5d].
   - canonical keyword terms become one fresh dictionary per body activation
     [tested: test_compiled_collectors_match_native_equation_heads;
     test_compiled_generator_answers_share_one_keyword_dictionary; commit=1796cf0f581aa767db9289b807f66238cb747065]
@@ -44,7 +44,7 @@ Owns resources:
   - the binder operation's existing catalog owns the shared native value
     equation; local type holdings follow operation replacement and withdrawal
     [source: extensions/python/metta/_declare/operations.py:_register_transaction,
-    _holdings and _retire_previous; commit=WORKTREE].
+    _holdings and _retire_previous; commit=d78d867637047c164be4bc1ab63c40b46d2cff5d].
   - consuming spaces own their ordinary operation registrations; keyword
     dictionaries are temporary values local to one call
     [tested: test_expanded_operation_contracts_follow_replacement_and_retirement;
@@ -215,7 +215,7 @@ def value_declarations() -> tuple[Expression, ...]:
     # [source: engine/metta/control.pl:metta_evalc_step/3;
     # engine/translator/special_forms.pl:translate_special_dl(noeval,...);
     # tested: test_call_value_holds_native_results,
-    # test_call_value_refuses_zero_and_multiple_answers; commit=WORKTREE]
+    # test_call_value_refuses_zero_and_multiple_answers; commit=d78d867637047c164be4bc1ab63c40b46d2cff5d]
     body = _expr(S.let, source, binding,
                  _expr(S["eval-one"], _expr(S.evalc, source, home)))
     # Four Atom operands, since the callable image and its operand frames
