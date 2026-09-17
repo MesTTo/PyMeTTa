@@ -3,6 +3,11 @@
 % Guarantees: optional add-token and remove-token callbacks preserve exact
 %   provider identities [tested: test_token_mutation_receives_and_withdraws_a_reference;
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+% Guarantees: seam:foreign_space/1 answers from the engine's claim registry,
+%   the one indexed fact the registration and unregistration doors keep in
+%   step with the provider record inside the same transaction [tested:
+%   extensions/python/tests/ch19_spaces_backed_by_anything/test_foreign.py;
+%   commit=WORKTREE].
 % Owns resources: native provider values and their owned-record markers until
 %   metta_py_unregister_foreign/1 removes them; captured clause references keep
 %   the original participant alive through completion.
@@ -28,9 +33,20 @@ metta_py_provider_declaration(Space,
     ['@owned-record', '&metta', ['PythonProvider', ['HostSpace', Space]],
      '&metta', ['@python-provider', ['HostSpace', Space]]]).
 
+%The engine's own claim registry answers it: metta_py_register_foreign_/4
+%claims the name for python in the same transaction that writes the provider
+%record, and metta_py_unregister_foreign_/1 disclaims it in the one that
+%removes the record, so the claim follows commit, rollback and snapshots
+%exactly as the record does, and it is one indexed dynamic fact. Reading the
+%record here instead went through the general matcher, 12 inferences an ask
+%against 3, and the engine asks this of every native match and twice per
+%door call: the eval door read 165 inferences a call, 24 of them this
+%question [measured 2026-09-17: the door profile and the claim-against-record
+%probe recorded in docs/journal/2026-09-11-classes-on-metta.md, "the door tax
+%behind the participant capture", claim and record agreeing across register,
+%unregister and a rolled-back registration; commit=WORKTREE].
 metta_py_foreign(Space) :-
-    spaces:metta_native_pair('&metta',
-        ['@python-provider', ['HostSpace', Space], _], _, _).
+    metta_space_claim(Space, python).
 
 % The ownership guard enumerates names; the shared validator then checks the
 % original stored keys, owner and cardinality before a host value can escape.
@@ -42,9 +58,17 @@ metta_py_provider_reference(Space, Provider, Ref) :-
             [Ref-['@python-provider', ['HostSpace', Space], Provider]])
     )).
 
+%The dispatch read: the row itself, through the reader every catalog row is
+%read with. The validating reader above belongs to the doors that change a
+%registration; a match, an add or a token crossing asks only which provider
+%the name has now, and asked it under a snapshot with the whole owner and
+%cardinality check on every crossing, twice per foreign match since Python's
+%PROVIDERS mapping asks the engine back from inside the hook [measured
+%2026-09-17: foreign-match 561 inferences a query with two snapshots in each,
+%wt-battery-3/ai-tmp/ai_foreign_match_profile.py; commit=WORKTREE].
 metta_py_provider(Space0, Provider) :-
     metta_py_space_atom(Space0, Space),
-    metta_py_provider_reference(Space, Provider, _).
+    once(metta_contract_fact(['@python-provider', ['HostSpace', Space], Provider])).
 
 metta_py_provider_names(Names) :-
     snapshot(findall(Space, metta_py_provider_reference(Space, _, _), Names)).

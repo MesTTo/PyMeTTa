@@ -169,4 +169,13 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: 10.1.14 and the patched 10.1.14 host all read 504 at the tip [measured
 #: 2026-09-17: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3a88c8dcc7369eb0bc5924059c0e330c12fceef9].
-BUDGET = 504
+#: RE-PINNED 2026-09-17, 504 to 447 (-57), metta_py_foreign/1 reads the
+#: engine's claim registry, metta_space_claim/2 at 3 inferences an ask where a
+#: native match over the catalog's @python-provider row cost 12 and was asked
+#: at every native match and twice per door call, and the provider dispatch
+#: reads the catalog row through metta_contract_fact/1 instead of the
+#: validating reader under a snapshot: the door tax the participant capture put
+#: on every crossing at 05fae56ad comes off, and the MeTTa halves keep their
+#: counts [measured 2026-09-17: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 447

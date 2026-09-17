@@ -1119,7 +1119,16 @@ def twin(m):
 #: the seat runs reads 3871, inside the allowance [measured 2026-09-17: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3a88c8dcc7369eb0bc5924059c0e330c12fceef9].
-BUDGET = 3871
+#: RE-PINNED 2026-09-17, 3871 to 3639 (-232), metta_py_foreign/1 reads the
+#: engine's claim registry, metta_space_claim/2 at 3 inferences an ask where a
+#: native match over the catalog's @python-provider row cost 12 and was asked
+#: at every native match and twice per door call, and the provider dispatch
+#: reads the catalog row through metta_contract_fact/1 instead of the
+#: validating reader under a snapshot: the door tax the participant capture put
+#: on every crossing at 05fae56ad comes off, and the MeTTa halves keep their
+#: counts [measured 2026-09-17: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3639
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same
