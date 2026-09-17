@@ -22,6 +22,11 @@ Guarantees:
   - what a recycled name DOES carry is the process-wide registrations, which
     belong to no space [tested
     test_a_recycled_name_still_sees_process_wide_registrations]
+  - a library origin declared after a local definition of the same name was
+    removed binds the name to the library rather than colliding with the
+    shadow repair's import of the inherited definition [tested:
+    test_a_library_origin_binds_a_name_whose_local_definition_was_removed;
+    commit=WORKTREE]
   - named spaces are never admitted to the anonymous reuse pool [tested:
     test_a_named_space_drop_never_enters_the_anonymous_pool;
     commit=d843bb6d17a525c36afd21cab077d63b34447535]
@@ -499,6 +504,30 @@ def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
             assert parent.match(S.parent_only(1))
 
         assert parent.match(S.parent_only(1))
+
+
+def test_a_library_origin_binds_a_name_whose_local_definition_was_removed(metta):
+    """A removed local equation leaves the shadow repair's explicit import of
+    the inherited name behind; a library origin declared afterwards takes the
+    name over, as a local equation written afterwards does, instead of
+    colliding with that import (`import/1: No permission to import capture/2
+    into ... (already imported from ...)`).
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    with metta._new_space() as parent:
+        parent.run("(= (capture $x) (parent-capture $x))")
+        with metta._new_space(inherits=parent) as child:
+            child.run("(= (capture $x) (child-capture $x))")
+            assert child.run("!(capture 1)") == [[S["child-capture"](1)]]
+            assert child.remove(S["="](S.capture(V.x), S["child-capture"](V.x))) is True
+            assert child.run("!(capture 1)") == [[S["parent-capture"](1)]]
+            assert child.run("(from (library lib_thread))") == []
+            source = child.runtime.must(
+                "atom_string(_Module, ModuleText), "
+                "predicate_property(_Module:capture(_, _), imported_from(_Source)), "
+                "atom_string(_Source, Source)",
+                ModuleText=f"$metta_exec:{child.name}",
+            )["Source"]
+            assert "lib_thread" in source
 
 
 def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
