@@ -468,7 +468,7 @@ def copy(space: _root.Space) -> _root.Space:
     its authored twin [source: engine/filereader/source_lifecycle.pl,
     metta_source_occurrence/4; tested:
     test_a_copy_leaves_projected_rows_to_the_origins_it_copies;
-    commit=WORKTREE].
+    commit=1bf85bb150defced36894b48722a861fee616609].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     lazy('metta.foreign').require_capability(space._space, "enumerate", "copy")
     # Enumerate the SOURCE before minting: a provider whose enumeration
