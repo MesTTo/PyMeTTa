@@ -329,6 +329,33 @@ def test_reloading_invalidates_a_specialization(metta, source):
     assert metta.run(f"!({twice} {bump} 1)") == [[21]]
 
 
+def test_reloading_invalidates_a_specialization_after_a_class_definition(metta, source):
+    """A class definition leaves a reference row in the home space, so a later
+    specialization's body translation, which forces the deferred function it
+    binds, reports a face change whose closure reached the specialization
+    while it was still being built. The orphan equation that left behind
+    survived this reload and answered beside the rebuilt clone, so the call
+    answered twice [tested: 2026-09-17, test_r5_unbuilt_doors.py's
+    dataclass definition ahead of this file's reload scenario].
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    import dataclasses
+
+    point = dataclasses.make_dataclass(f"ReloadPoint{uuid.uuid4().hex[:8]}", [("x", int)])
+    metta.define(point)
+    assert metta.type(point(3)) == S[point.__name__]
+
+    bump, twice = fresh("bump"), fresh("twice")
+    body = f"(= ({twice} $f $x) ($f ($f $x)))\n"
+    source.write_text(f"(= ({bump} $n) (+ $n 1))\n" + body)
+    metta.load(source)
+    assert metta.run(f"!({twice} {bump} 1)") == [[3]]
+
+    source.write_text(f"(= ({bump} $n) (+ $n 10))\n" + body)
+    metta.load(source)
+
+    assert metta.run(f"!({twice} {bump} 1)") == [[21]]
+
+
 def test_a_live_view_follows_a_reload(scratch, source):
     """A LiveView subscribes to the space's own write events, and the
     withdrawal is a write, so the view is current without re-seeding.
