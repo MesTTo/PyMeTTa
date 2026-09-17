@@ -4,6 +4,15 @@ Guarantees:
   - the call consumer domain names immediate application or iteration,
     independently of the refusal vocabulary [tested:
     test_call_consumer_source.CallConsumerSourceTests; commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
+  - returned Python values keep explicit images, borrowed container identity
+    and Atom object identity at the one-value boundary [assumed:
+    test_call_value_preserves_host_result_identity awaits native execution;
+    commit=WORKTREE].
+  - two-frame callable applications consume supplied positional values while
+    raw native ports retain their formal-slot capture contract [assumed:
+    test_bound_application_prefixes_keep_variadic_collectors and
+    test_raw_native_captures_still_hold_formal_slots await native execution;
+    commit=WORKTREE].
   - compiled parameter slots hold fixed values, positional expressions and
     ordered keyword-pair expressions through one packing operation [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
@@ -87,6 +96,7 @@ from metta._atoms.factories import (
 )
 from metta._catalog import call_signatures
 from metta._catalog.containers import runtime_annotation
+from metta._catalog.project import explicit_projection
 from metta._lazy import lazy
 
 # The consumer chooses how a caller uses the published result contract.
@@ -98,6 +108,14 @@ type CallConsumer = Literal["value", "iterable"]
 def argument(value: Any) -> Atom:
     """Borrow Python container arguments; their grain belongs to their storage."""
     return Grounded(value) if runtime_annotation(value) is not None else _encode(value)
+
+
+def returned(value: Any) -> Atom:
+    """Carry one successful Python result through its existing value image."""
+    projected = explicit_projection(value)
+    if projected is not None:
+        return projected
+    return Grounded(value) if isinstance(value, Atom) else argument(value)
 
 
 def argument_sources(signature: inspect.Signature, supplied: Mapping[str, Any],
@@ -196,6 +214,33 @@ def _uncaptured(signature: inspect.Signature, captured: int, keywords: Collectio
     return signature.replace(parameters=parameters[captured:])
 
 
+def _positional_signature(signature: inspect.Signature, captured: int,
+                          keywords: Collection[str], refusal: type[Exception]) -> inspect.Signature:
+    """Project supplied positional values through the canonical parameter kinds."""
+    if not isinstance(captured, int) or captured < 0:
+        msg = "a native callable binding must name the number of captured arguments"
+        raise TypeError(msg)
+    remaining, consumed = captured, 0
+    # A bound *args collector survives receiver injection. The same rule
+    # projects an arbitrary positional prefix; keyword-only slots never take
+    # its values. The caller owns whether observation means inspect or call.
+    # https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Lib/inspect.py#L1877
+    for parameter in signature.parameters.values():
+        if not remaining:
+            break
+        if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
+            remaining = 0
+            break
+        if parameter.kind not in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD):
+            break
+        consumed += 1
+        remaining -= 1
+    if remaining:
+        msg = "invalid method signature" if refusal is ValueError else "too many positional arguments"
+        raise refusal(msg)
+    return _uncaptured(signature, consumed, keywords)
+
+
 class NativeCallable:
     """A Python application of a native callable value, with no host body."""
 
@@ -215,7 +260,8 @@ class NativeCallable:
         _, signature, stream, _application = self._layout()
         return signature, stream
 
-    def _declared_contract(self, keywords: Collection[str] = ()) -> tuple[inspect.Signature, bool, Atom | None] | None:
+    def _declared_contract(self, keywords: Collection[str] = (), *,
+                           refusal: type[Exception] = ValueError) -> tuple[inspect.Signature, bool, Atom | None] | None:
         # Read stored program data through the occurrence relation. A written
         # match pattern would interpret the lambda's :seg binder as a query
         # gap, although this consumer is looking up a callable value. A
@@ -249,11 +295,14 @@ class NativeCallable:
             if len(applications) > 1:
                 msg = "a native callable needs at most one native application declaration"
                 raise TypeError(msg)
-            return _uncaptured(signature, captured, keywords), cardinality == "stream", next(iter(applications), None)
+            application = next(iter(applications), None)
+            remaining = (_positional_signature(signature, captured, keywords, refusal)
+                         if application is not None else _uncaptured(signature, captured, keywords))
+            return remaining, cardinality == "stream", application
         return None
 
     def _layout(self, arity: int | None = None, keyword_names: Collection[str] = ()) -> tuple[Atom, inspect.Signature, bool, Atom | None]:
-        if (declared := self._declared_contract(keyword_names)) is not None:
+        if (declared := self._declared_contract(keyword_names, refusal=ValueError if arity is None else TypeError)) is not None:
             return self.atom, *declared
         if (layout := self._reference_layout(arity, keyword_names)) is not None:
             return layout
@@ -278,7 +327,8 @@ class NativeCallable:
         source, captures = reference
         layouts: list[tuple[Atom, inspect.Signature, bool, Atom | None]] = []
         exact = None if arity is None else arity + len(captures)
-        if exact is not None and (layout := self._port_layout(source, captures, exact, keywords)) is not None:
+        refusal = ValueError if arity is None else TypeError
+        if exact is not None and (layout := self._port_layout(source, captures, exact, keywords, refusal)) is not None:
             layouts.append(layout)
             # Native fixed-arity dispatch is the specific case. Preserve its
             # direct lookup and single binding pass, including binding errors.
@@ -288,8 +338,8 @@ class NativeCallable:
                 return layout
         for native_arity in self.space.arities(source.name):
             count = native_arity - 1
-            if (count >= len(captures) and count != exact
-                    and (layout := self._port_layout(source, captures, count, keywords)) is not None):
+            if (count != exact
+                    and (layout := self._port_layout(source, captures, count, keywords, refusal)) is not None):
                 layouts.append(layout)
         # A unique declaration needs no speculative binding pass. This also
         # preserves effects from keyword keys and the declaration's diagnostics.
@@ -313,13 +363,16 @@ class NativeCallable:
         raise TypeError(msg)
 
     def _port_layout(self, source: Symbol, captures: tuple[Atom, ...], count: int,
-                     keywords: Collection[str]) -> tuple[Atom, inspect.Signature, bool, Atom | None] | None:
+                     keywords: Collection[str], refusal: type[Exception]) -> tuple[Atom, inspect.Signature, bool, Atom | None] | None:
         canonical = _application_image(source, (), count, self.space)
-        declared = NativeCallable(canonical, self.space, Any)._declared_contract(keywords)
+        declared = NativeCallable(canonical, self.space, Any)._declared_contract(keywords, refusal=refusal)
         if declared is None:
             return None
         signature, stream, applicator = declared
-        remaining = _uncaptured(signature, len(captures), keywords)
+        if applicator is None and count < len(captures):
+            return None
+        remaining = (_positional_signature(signature, len(captures), keywords, refusal)
+                     if applicator is not None else _uncaptured(signature, len(captures), keywords))
         if applicator is not None and captures:
             positional, named, complete = fresh(), fresh(), fresh()
             supplied: Atom = positional
@@ -327,7 +380,9 @@ class NativeCallable:
                 supplied = _expr(S["cons-atom"], _expr(S.noeval, capture), supplied)
             applicator = _expr(S["|->"], Expression([positional, named]),
                                _expr(S.let, complete, supplied, _expr(applicator, complete, named)))
-        return _application_image(source, captures, count - len(captures), self.space), remaining, stream, applicator
+        image = (self.atom if applicator is not None
+                 else _application_image(source, captures, count - len(captures), self.space))
+        return image, remaining, stream, applicator
 
     def application(self, args: Any, kwargs: Any) -> tuple[Atom, inspect.Signature, bool]:
         """Bind call syntax without evaluating the resulting native term."""

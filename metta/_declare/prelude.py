@@ -62,10 +62,9 @@ from typing import Any
 
 import metta._declare.operations as _ops_module
 from metta._atoms.designation import _OperationName
-from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, _expr
+from metta._atoms.factories import Expression, Grounded, S, Symbol, _expr
 from metta._atoms.mentions import OPERATOR_CALLABLES
-from metta._catalog.call_values import argument
-from metta._catalog.project import explicit_projection
+from metta._catalog.call_values import returned
 
 __all__ = ["NAMES", "install", "pythonic"]
 
@@ -373,12 +372,7 @@ def _py_operator(selector, operands):
         return error
     operation = _PYTHON_OPERATORS[selector.name]
     try:
-        result = operation(*(pythonic(operand) for operand in operands.children))
-        projected = explicit_projection(result)
-        if projected is not None:
-            return projected
-        # An undeclared Python-returned Atom remains the returned object.
-        return Grounded(result) if isinstance(result, Atom) else argument(result)
+        return returned(operation(*(pythonic(operand) for operand in operands.children)))
     except Exception as error:  # noqa: BLE001 -- Python's operator protocol defines the caught data
         call = Expression([Symbol("py-operator"), selector, operands])
         reason = Expression(

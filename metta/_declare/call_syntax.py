@@ -4,6 +4,15 @@ Guarantees:
   - native consumer validation derives from CallConsumer and retains its
     existing wire values [tested:
     test_call_consumer_source.CallConsumerSourceTests; commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
+  - _python-call-value observes one held immediate result through eval-one;
+    exceptions and cardinality failures propagate, while returned Error data
+    stays a value [assumed: test_call_value_holds_native_results and
+    test_call_value_refuses_zero_and_multiple_answers await native execution;
+    commit=WORKTREE].
+  - host value calls preserve their exact result without inspecting a
+    signature or consuming an iterator [assumed:
+    test_call_value_does_not_start_or_replace_deferred_host_results awaits
+    native execution; commit=WORKTREE].
   - canonical keyword terms become one fresh dictionary per body activation
     [tested: test_compiled_collectors_match_native_equation_heads;
     test_compiled_generator_answers_share_one_keyword_dictionary; commit=1796cf0f581aa767db9289b807f66238cb747065]
@@ -34,6 +43,10 @@ Guarantees:
     [source: extensions/python/metta/_catalog/call_values.py:NativeCallable._reference_layout;
     commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
 Owns resources:
+  - the binder operation's existing catalog owns the shared native value
+    equation; local type holdings follow operation replacement and withdrawal
+    [source: extensions/python/metta/_declare/operations.py:_register_transaction,
+    _holdings and _retire_previous; commit=WORKTREE].
   - consuming spaces own their ordinary operation registrations; keyword
     dictionaries are temporary values local to one call
     [tested: test_expanded_operation_contracts_follow_replacement_and_retirement;
@@ -147,24 +160,88 @@ def bind_call(home: Atom, function: Atom, positional: Atom, keywords: Atom, cons
         ))
         stream = False
     else:
-        native = call_values.rebuild(function, Any, call_values.lexical_space(home))
-        if native is None:
-            msg = "the value has no native callable image"
-            raise TypeError(msg)
-        application, _signature, stream = native.application(positional.children, named)
-        application = _expr(S.evalc, application, native.space)
+        application, stream = _native_application(home, function, positional.children, named)
     if consumer.value == "iterable":
         application = _expr(S.collapse, application if stream else _expr(S["py-iter-once"], application))
     return application
 
 
+def _native_application(home: Atom, function: Atom, positional: tuple[Atom, ...],
+                        named: dict[str, Atom]) -> tuple[Atom, bool]:
+    native = call_values.rebuild(function, Any, call_values.lexical_space(home))
+    if native is None:
+        msg = "the value has no native callable image"
+        raise TypeError(msg)
+    application, _signature, stream = native.application(positional, named)
+    return _expr(S.evalc, application, native.space), stream
+
+
+def bind_value(home: Atom, function: Atom, positional: Atom, keywords: Atom) -> Atom:
+    """Construct the immediate-value application without executing its body."""
+    arguments, named = _argument_values(positional, keywords)
+    if isinstance(function, Grounded):
+        return call_values.apply_sources(S["_python-apply-host-value"], tuple(
+            _expr(S.noeval, value) for value in (home, function, positional, keywords)
+        ))
+    application, _stream = _native_application(home, function, arguments, named)
+    return application
+
+
+def apply_host_value(home: Atom, function: Atom, positional: Atom, keywords: Atom) -> Atom:
+    """Call the exact host object once with values and retain its result image."""
+    arguments, named = _argument_values(positional, keywords)
+    if not isinstance(function, Grounded):
+        msg = "a host value application requires a grounded callable"
+        raise TypeError(msg)
+    space = call_values.lexical_space(home)
+    target = build(function, space=space)
+    value = target(*(build(argument, space=space) for argument in arguments),
+                   **{name: build(argument, space=space) for name, argument in named.items()})
+    return call_values.returned(value)
+
+
+def value_declarations() -> tuple[Expression, ...]:
+    """Derive the held native value equation owned by its binder operation."""
+    home, function, positional, keywords = (Variable(name) for name in (
+        "call-home", "call-function", "call-positionals", "call-keywords",
+    ))
+    source = Variable("call-source")
+    head = _expr(S["_python-call-value"], home, function, positional, keywords)
+    binding = _expr(S["_python-bind-call-value"], home, function, positional, keywords)
+    # No function frame: this engine's eval and evalc are full evaluations
+    # and step only inside a function frame, where chain observes the step,
+    # so a frame around eval-one handed back the callable's body after one
+    # step and a zero-answer body never reached the cardinality check. Outside
+    # a frame eval-one observes the whole answer set, and a body's noeval
+    # mask is what keeps returned syntax from being reduced at the boundary.
+    # [source: engine/metta/control.pl:metta_evalc_step/3;
+    # engine/translator/special_forms.pl:translate_special_dl(noeval,...);
+    # tested: test_call_value_holds_native_results,
+    # test_call_value_refuses_zero_and_multiple_answers; commit=WORKTREE]
+    body = _expr(S.let, source, binding,
+                 _expr(S["eval-one"], _expr(S.evalc, source, home)))
+    # Four Atom operands, since the callable image and its operand frames
+    # must reach the binder unevaluated, and an undefined result, since an
+    # Atom result type hands the right-hand side back as written.
+    return (
+        _expr(S[":"], head.head, _expr(S["->"], *(S.Atom for _ in head.args), S["%Undefined%"])),
+        _expr(S["="], head, body),
+        _expr(S.internal, head.head),
+    )
+
+
 def link(space: Any, required: Any) -> None:
     """Link only the shared argument operations requested by compiled source."""
+    required = set(required)
+    if "_python-call-value" in required:
+        required.update(("_python-bind-call-value", "_python-apply-host-value"))
     for name, function, arity in (
         ("_python-expand-positional", expand_positional, 2),
         ("_python-merge-keywords", merge_keywords, 2),
         ("_python-bind-call", bind_call, 5),
         ("_python-bind-parameters", bind_parameters, 4),
+        ("_python-apply-host-value", apply_host_value, 4),
+        ("_python-bind-call-value", bind_value, 4),
     ):
         if name not in required:
             continue
@@ -172,13 +249,20 @@ def link(space: Any, required: Any) -> None:
         if existing is not None and existing.fn is not function:
             msg = f"the call-argument operation {name} already has another provider"
             raise TypeError(msg)
-        space.op(function, name=name, arities=[arity], effect="oracleIO",
-                 declarations=[_expr(S.arguments, Symbol(name), S.atoms)])
+        declarations = [_expr(S.arguments, Symbol(name), S.atoms)]
+        if function is bind_value:
+            declarations.extend(value_declarations())
+        space.op(function, name=name, arities=[arity], effect="oracleIO", declarations=declarations)
         space.add(_expr(S.internal, Symbol(name)))
 
 
 def bind_arguments(signature: inspect.Signature, positional: Atom, keywords: Atom) -> inspect.BoundArguments:
     """Bind independent positional values and keyword entries."""
+    arguments, named = _argument_values(positional, keywords)
+    return signature.bind(*arguments, **named)
+
+
+def _argument_values(positional: Atom, keywords: Atom) -> tuple[tuple[Atom, ...], dict[str, Atom]]:
     if not isinstance(positional, Expression) or not isinstance(keywords, Expression):
         msg = "call arguments need a positional expression and a keyword-pair expression"
         raise TypeError(msg)
@@ -196,7 +280,7 @@ def bind_arguments(signature: inspect.Signature, positional: Atom, keywords: Ato
             msg = f"got multiple values for keyword argument {key.value!r}"
             raise TypeError(msg)
         named[key.value] = value
-    return signature.bind(*arguments, **named)
+    return arguments, named
 
 
 def bind_parameters(home: Atom, image: Atom, positional: Atom, keywords: Atom) -> Atom:

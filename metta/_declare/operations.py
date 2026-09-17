@@ -631,10 +631,14 @@ def _partition_declarations(
     """Split operation-local declarations from &metta policy facts.
 
     Type and documentation atoms govern compilation in the operation's own
-    declaration space. Every other atom is catalog policy and therefore lives
-    in &metta. The registration owns both sets for rollback, replacement, and
-    unregistration. `(op ...)` is reserved because arity and transport derive
-    that fact from the callable and cannot safely disagree with it.
+    declaration space, and an equation or internal marker an operation
+    declares is that space's program too: the binder of `_python-call-value`
+    owns the native equation that reaches it, so the registration that
+    retains it also replaces, withdraws and rolls it back. Every other atom
+    is catalog policy and therefore lives in &metta. The registration owns
+    both sets for rollback, replacement, and unregistration. `(op ...)` is
+    reserved because arity and transport derive that fact from the callable
+    and cannot safely disagree with it.
     """
     local: list[Expression] = []
     catalog: list[Expression] = []
@@ -684,7 +688,7 @@ def _partition_declarations(
             if atom not in catalog:
                 catalog.append(atom)
             continue
-        target = local if head in (Symbol(":"), Symbol("@doc")) else catalog
+        target = local if head in (Symbol(":"), Symbol("@doc"), Symbol("="), Symbol("internal")) else catalog
         if atom not in target:
             target.append(atom)
     supplied_effect = None if effect is None else _effect_class(effect, name=name)
