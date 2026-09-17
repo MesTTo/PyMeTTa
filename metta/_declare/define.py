@@ -8,6 +8,11 @@ spelling; and a free identifier must be a parameter, a known function, or
 read as a data constructor. A compiled body is a complete atom tree, and any
 runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
+  - a whole annotation written as a string is a forward reference read as
+    the syntax it quotes, and a yield-context loop over a computed source
+    evaluates it once before superposing its value [tested:
+    test_operators_on_a_declared_value_lower_to_its_special_methods,
+    test_containers_iterate_index_contain_and_truth_test_through_their_methods; commit=WORKTREE]
   - local annotation claims and source type aliases admit the same container
     images as runtime_type_atoms at call boundaries, preserving scalar claims
     [tested: test_local_alias_accepts_its_structural_and_borrowed_images;
@@ -314,8 +319,22 @@ def _annotation_resolver(
             line=getattr(node, "lineno", None),
         )
 
+    def forward(node: ast.expr) -> Any:
+        """A whole annotation written as a string is a forward reference, read as the syntax it quotes.
+
+        Only the top level is a reference; a string nested in a subscript
+        (`Literal["a"]`) stays the value it is
+        [source: https://docs.python.org/3.14/reference/compound_stmts.html#annotations].
+        """
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            quoted = ast.parse(node.value, mode="eval").body
+            for inner in ast.walk(quoted):
+                ast.copy_location(inner, node)
+            return resolve(quoted)
+        return resolve(node)
+
     def to_atom(node: ast.expr) -> Atom:
-        alternatives = runtime_type_atoms(resolve(node))
+        alternatives = runtime_type_atoms(forward(node))
         if len(alternatives) != 1:
             msg = (
                 f"the local annotation {ast.unparse(node)!r} names "
@@ -329,9 +348,9 @@ def _annotation_resolver(
         return alternatives[0]
 
     def to_alternatives(node: ast.expr) -> list[Atom]:
-        return runtime_type_atoms(resolve(node))
+        return runtime_type_atoms(forward(node))
 
-    return to_atom, to_alternatives, resolve
+    return to_atom, to_alternatives, forward
 
 
 def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
@@ -1250,12 +1269,19 @@ class _Compiler(
         forks once per answer. Anything else evaluates to an expression whose
         elements superpose.
         """
+        iter_node = _records.iteration_source(self, iter_node)
         if _records.answer_stream(self, iter_node):
             return Expression([Symbol("let"), Variable(var), self.expression(iter_node), body])
         source = self.expression(iter_node)
-        return Expression(
-            [Symbol("let"), Variable(var), Expression([Symbol("superpose"), source]), body]
-        )
+        each = Expression([Symbol("let"), Variable(var), Expression([Symbol("superpose"), source]), body])
+        if not isinstance(source, Expression):
+            return each
+        # A computed source (a field read, a call) is evaluated once and its
+        # value superposed; superposing the computation itself would splice
+        # the call's own children.
+        held = Variable(self._temp("iterable"))
+        each = Expression([Symbol("let"), Variable(var), Expression([Symbol("superpose"), held]), body])
+        return Expression([Symbol("let"), held, source, each])
 
     def _yield_from(self, node: ast.YieldFrom) -> Atom:
         """Delegate known generators and refuse call-shaped ambiguity.

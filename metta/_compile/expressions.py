@@ -1,5 +1,12 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - an operator, comparison, unary, subscript, truth test or comprehension
+    source whose operand's static type is a declared class lowers to that
+    class's special method before any builtin path, and a declared class
+    named as a value is its class symbol [tested:
+    test_operators_on_a_declared_value_lower_to_its_special_methods,
+    test_containers_iterate_index_contain_and_truth_test_through_their_methods,
+    test_keyword_class_patterns_place_fields_through_match_args; commit=WORKTREE]
   - proved native sequence results retain their structural image while
     unknown protocol results keep the borrowed value boundary [tested:
     test_native_sequence_operator_results_retain_images;
@@ -326,6 +333,12 @@ class ExpressionCompilerMixin(CompilerContext):
             return host_value
         if isinstance(host_value, State):
             return host_value.__metta__()
+        owner = _records.declared(host_value)
+        if owner is not None:
+            # A declared class named as a value is its class symbol: the head a
+            # pattern matches, the type get-type answers, a class method's receiver.
+            self.class_dependencies.add(owner.cls)
+            return Symbol(owner.name)
         known = self._known_symbol(node.id)
         if known is not None:
             return known
@@ -530,6 +543,9 @@ class ExpressionCompilerMixin(CompilerContext):
         return Symbol(node.id)
 
     def _x_BinOp(self, node: ast.BinOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        protocol = _records.operator(self, node)
+        if protocol is not None:
+            return protocol
         native = self._native_number(node.left) and self._native_number(node.right)
         left_kind = self._container_kind(node.left)
         right_kind = self._container_kind(node.right)
@@ -740,6 +756,9 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_UnaryOp(self, node: ast.UnaryOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        protocol = _records.unary(self, node)
+        if protocol is not None:
+            return protocol
         if isinstance(node.op, ast.USub):
             operand = node.operand
             if isinstance(operand, ast.Constant) and isinstance(operand.value, (int, float)):
@@ -774,13 +793,21 @@ class ExpressionCompilerMixin(CompilerContext):
         # temporary before any link is built. Minted names carry a hyphen,
         # unreachable from Python identifiers.
         bindings: list[tuple[str, Atom]] = []
+        rebound: set[int] = set()
         for i in range(1, len(terms) - 1):
             if not isinstance(terms[i], (Variable, Symbol, Grounded)):
                 temp = self._temp("cmp")
                 bindings.append((temp, terms[i]))
                 terms[i] = Variable(temp)
+                rebound.add(i)
         links = [
-            self._compare_link(
+            # A link whose operand's declared class answers the comparison is
+            # that method's call; an operand a temporary already holds keeps
+            # Python's protocol so it is still evaluated once.
+            protocol
+            if not rebound & {i, i + 1}
+            and (protocol := _records.comparison(self, op_node, nodes[i], nodes[i + 1], at=node)) is not None
+            else self._compare_link(
                 op_node,
                 terms[i],
                 terms[i + 1],
@@ -826,6 +853,9 @@ class ExpressionCompilerMixin(CompilerContext):
         answer IS bool() of the value. Only `not` and declared Bool-returning
         engine calls stay bare; rich comparisons may return other objects.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        protocol = _records.truth(self, node)
+        if protocol is not None:
+            return protocol
         term = self.expression(node)
         if (
             isinstance(node, ast.Compare)
@@ -960,11 +990,12 @@ class ExpressionCompilerMixin(CompilerContext):
         var = _name_of(gen.target, line)
         # The source reads in THIS scope: a later clause's source may use an
         # earlier clause's variable, but never its own.
-        if isinstance(gen.iter, ast.Call) and (call_syntax.dynamic(self, gen.iter) or call_syntax.expanded(gen.iter)):
-            source = call_syntax.application(self, gen.iter, consumer="iterable")
+        iter_node = _records.iteration_source(self, gen.iter)
+        if isinstance(iter_node, ast.Call) and (call_syntax.dynamic(self, iter_node) or call_syntax.expanded(iter_node)):
+            source = call_syntax.application(self, iter_node, consumer="iterable")
         else:
-            source = self.expression(gen.iter)
-            if _records.answer_stream(self, gen.iter):
+            source = self.expression(iter_node)
+            if _records.answer_stream(self, iter_node):
                 source = Expression([Symbol("collapse"), source])
         inner = self._inner([var])
         binder = Variable(inner.scope[var])
@@ -1647,6 +1678,9 @@ class ExpressionCompilerMixin(CompilerContext):
         mention = self._mention(node)
         if mention is not None:
             return mention
+        protocol = _records.subscript(self, node)
+        if protocol is not None:
+            return protocol
         source = self.expression(node.value)
         if not isinstance(node.slice, ast.Slice) and self._dict_atom(source):
             # The get on a dict-space is lib_dict's own: the matching pair

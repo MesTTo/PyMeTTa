@@ -185,6 +185,7 @@ class LoopCompilerMixin(CompilerContext):
         answers collapse into a tuple; every ordinary value crosses Python's
         iterator protocol before it becomes the tuple the loop peels.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        iter_node = _records.iteration_source(self, iter_node)
         if isinstance(iter_node, ast.Call) and (call_syntax.dynamic(self, iter_node) or call_syntax.expanded(iter_node)):
             return call_syntax.application(self, iter_node, consumer="iterable")
         if _records.answer_stream(self, iter_node):

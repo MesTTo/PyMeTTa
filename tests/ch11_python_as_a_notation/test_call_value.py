@@ -232,14 +232,17 @@ def test_call_value_keeps_explicit_host_images():
         assert home.eval(_call(home, G(Declared))) == [S.Declared(S.payload)]
 
 
-def test_call_value_observes_a_returned_answer_view():
-    """A returned view is observed to its one answer, as a view entering a term is."""
+def test_call_value_holds_a_returned_answer_view():
+    """A returned view crosses by identity; observation waits for a term, so the twin counts it."""
     with MeTTa() as context:
         home = context.self
         call_syntax.link(home, ("_python-call-value",))
-        home.add(S.row(1))
+        home.add(S.row(1), S.row(2))
         rows = S.match(S[home.name], S.row(V.x), V.x)
-        assert home.eval(_call(home, G(lambda: home.answers(rows)))) == [1]
-        home.add(S.row(2))
+        view = home.answers(rows)
+        result = home.eval(_call(home, G(lambda: view)))
+        assert len(result) == 1 and isinstance(result[0], Grounded)
+        assert result[0].value is view
+        assert len(view) == 2
         with pytest.raises(EngineError, match="exactly one answer"):
-            home.eval(_call(home, G(lambda: home.answers(rows))), on_error="abort")
+            S.observed(view)

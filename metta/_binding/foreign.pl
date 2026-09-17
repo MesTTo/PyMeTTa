@@ -65,7 +65,8 @@ metta_py_provider_reference(Space, Provider, Ref) :-
 %cardinality check on every crossing, twice per foreign match since Python's
 %PROVIDERS mapping asks the engine back from inside the hook [measured
 %2026-09-17: foreign-match 561 inferences a query with two snapshots in each,
-%wt-battery-3/ai-tmp/ai_foreign_match_profile.py; commit=d60277df18afee021990c754b6e593fbb32d69a2].
+%docs/journal/2026-09-11-classes-on-metta.md, the door tax behind the
+%participant capture; commit=d60277df18afee021990c754b6e593fbb32d69a2].
 metta_py_provider(Space0, Provider) :-
     metta_py_space_atom(Space0, Space),
     once(metta_contract_fact(['@python-provider', ['HostSpace', Space], Provider])).

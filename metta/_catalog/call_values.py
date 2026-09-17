@@ -109,16 +109,21 @@ def argument(value: Any) -> Atom:
 def returned(value: Any) -> Atom:
     """Carry one successful Python result through its existing value image.
 
-    An author's declared image projects first, since a declared class
-    instance is a face of a native value whatever else it is (a prototype
-    instance is a space, and a space is an atom), and an answer view is
-    observed to its one answer through its own image, the observation point
-    term construction already is for a view; an Atom result is then held
-    under a data wrapper so returned syntax is not reduced; a container is
-    borrowed by identity; and anything else is held by its exact class,
-    which is where a generator or a coroutine stays unstarted: neither has
-    an image, so the twin receives the object it returned.
+    An answer view is held by identity: observation is what term construction
+    does to a view, and a returned view is not in a term yet, so `len(m.match(...))`
+    in a compiled body counts it and `.one()` reads it. An author's declared
+    image projects next, since a declared class instance is a face of a native
+    value whatever else it is (a prototype instance is a space, and a space is
+    an atom); an Atom result is then held under a data wrapper so returned
+    syntax is not reduced; a container is borrowed by identity; and anything
+    else is held by its exact class, which is where a generator or a coroutine
+    stays unstarted: neither has an image, so the twin receives the object it
+    returned.
     """
+    from metta._spaces.results import Answers  # noqa: PLC0415 -- results imports this codec
+
+    if isinstance(value, Answers):
+        return hold(value)
     projected = explicit_projection(value)
     if projected is not None:
         return projected

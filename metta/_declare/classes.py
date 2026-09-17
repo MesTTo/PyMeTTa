@@ -142,11 +142,15 @@ def _user_bases(cls: type) -> tuple[type, ...]:
     return bases[:bases.index(space_class)] if space_class in bases else tuple(base for base in bases if base not in (object, tuple))
 
 
-def contextual_function(cls: type, fn: types.FunctionType) -> types.FunctionType:
-    """Read source annotations with the completed class and its type parameters."""
+def contextual_function(cls: type, fn: types.FunctionType, *, bindings: dict[str, Any] | None = None) -> types.FunctionType:
+    """Read source annotations with the completed class and its type parameters.
+
+    `bindings` are host names the source resolves as written, the way a class
+    method's receiver names the defining class while its body compiles.
+    """
     from metta._declare.define import _function_namespace  # noqa: PLC0415 -- shared source compiler
 
-    namespace = _function_namespace(fn) | {ancestor.__name__: ancestor for ancestor in cls.__mro__}
+    namespace = _function_namespace(fn) | {ancestor.__name__: ancestor for ancestor in cls.__mro__} | (bindings or {})
     type_params = (*getattr(cls, "__type_params__", ()), *fn.__type_params__)
     namespace.update({parameter.__name__: parameter for parameter in type_params})
     source = types.FunctionType(fn.__code__, namespace, fn.__name__, fn.__defaults__, fn.__closure__)

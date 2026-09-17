@@ -231,11 +231,13 @@ def attribute_docstrings(target: type) -> dict[str, str]:
     """Read string literals immediately following annotated class fields."""
     try:
         source = textwrap.dedent(inspect.getsource(target))
-    except (OSError, TypeError):
+        tree = ast.parse(source)
+    except (OSError, TypeError, SyntaxError):
+        # A class exec'd from text (a README block) has lines inspect cannot
+        # place, so the text it answers may not even parse; it documents nothing.
         return {}
-    tree = ast.parse(source)
     class_node = next(
-        (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)),
+        (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and node.name == target.__name__),
         None,
     )
     if class_node is None:

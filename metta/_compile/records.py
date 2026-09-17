@@ -21,6 +21,21 @@ Guarantees:
   - value construction uses the compiler's SSA bindings and subsequent value
     writes refuse with a replacement remedy [tested:
     test_class_value_post_init_and_write_refusal; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+  - syntax Python routes to a special method lowers to the operand's own
+    dispatch entry when its static type is a declared class: operators and
+    their reflected and in-place partners, comparisons, the builtin calls the
+    reference routes, subscripts and their writes and deletes, containment,
+    truth, instance calls, iteration through a generator `__iter__`, `with`
+    through enter and exit, and keyword class patterns through
+    `__match_args__`; an operand of unknown type keeps the builtin [tested:
+    test_operators_on_a_declared_value_lower_to_its_special_methods,
+    test_containers_iterate_index_contain_and_truth_test_through_their_methods,
+    test_calls_context_managers_and_augmented_assignment_reach_their_methods,
+    test_keyword_class_patterns_place_fields_through_match_args; commit=WORKTREE]
+  - the operator form costs exactly the method call it stands for [tested:
+    test_an_operator_costs_exactly_the_method_call_it_stands_for; commit=WORKTREE]
+  - a property read is its getter's call and a property write its setter's
+    [tested: test_properties_static_and_class_methods_and_memoised_members; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -32,10 +47,12 @@ import inspect
 from dataclasses import dataclass
 from typing import Any
 
+from metta._atoms import operators
+from metta._atoms._python_protocols import BY_OPERATOR
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
 from metta._catalog.call_values import apply_sources
 from metta._compile import call_syntax
-from metta._compile.context import CompilerContext
+from metta._compile.context import CompilerContext, next_aux_serial
 from metta._errors.errors import CompileError
 from metta._lazy import lazy
 
@@ -64,7 +81,8 @@ class MethodReference:
 
     @property
     def private(self) -> bool:
-        return self.name.startswith("_")
+        # A special method is a protocol name, not a private member.
+        return self.name.startswith("_") and not (self.name.startswith("__") and self.name.endswith("__"))
 
 
 def declared(value: Any) -> Any:
@@ -105,12 +123,38 @@ def record_type(compiler: CompilerContext, node: ast.expr) -> Any:
         if constructor is not None:
             return constructor
         member = method_reference(compiler, node.func)
-        return declared(member.result_type) if member is not None else None
+        if member is not None:
+            return declared(member.result_type)
+        if isinstance(node.func, ast.Name) and node.func.id in compiler.scope:
+            return _protocol_result(compiler, node.func, "__call__")
+        return None
     if isinstance(node, ast.Attribute):
         owner = record_type(compiler, node.value)
         field = owner.field(field_name(compiler, node.attr)) if owner is not None else None
-        return declared(field.annotation) if field is not None else None
+        if field is not None:
+            return declared(field.annotation)
+        member = method_reference(compiler, node) if owner is not None else None
+        return declared(member.result_type) if member is not None and member.method is not None and member.method.is_property else None
+    if isinstance(node, ast.BinOp):
+        entry = operators.BY_NODE.get(type(node.op).__name__)
+        if entry is None:
+            return None
+        result = _protocol_result(compiler, node.left, entry.dunder)
+        if result is None and entry.reflected is not None:
+            result = _protocol_result(compiler, node.right, entry.reflected)
+        return result
+    if isinstance(node, ast.UnaryOp):
+        entry = operators.BY_NODE.get(type(node.op).__name__)
+        return _protocol_result(compiler, node.operand, entry.dunder) if entry is not None else None
+    if isinstance(node, ast.Subscript) and not isinstance(node.slice, ast.Slice):
+        return _protocol_result(compiler, node.value, "__getitem__")
     return None
+
+
+def _protocol_result(compiler: CompilerContext, node: ast.expr, dunder: str) -> Any:
+    """The declared class a special method answers, when the operand's type declares one."""
+    member = protocol_member(compiler, node, dunder)
+    return declared(member[1].result_type) if member is not None else None
 
 
 def field_number(compiler: CompilerContext, node: ast.expr) -> bool:
@@ -165,6 +209,11 @@ def attribute(compiler: CompilerContext, node: ast.Attribute) -> Atom | None:
         method, home, receiver, after = member.method, member.home, member.receiver, member.after
         if receiver is None:
             return _expr(S.noeval, method.__metta__())
+        if method is not None and method.is_property:
+            # `obj.area` on a property is the getter's call, the reference's own routing.
+            synthesized = ast.Call(func=node, args=[], keywords=[])
+            ast.copy_location(synthesized, node)
+            return call(compiler, synthesized)
         head = lazy('metta._declare.methods').selector(home, member.name, after=after, value=True)
         result = _expr(head, compiler.expression(receiver))
         return _expr(S.evalc, result, Symbol(home.space.name)) if member.private else result
@@ -189,6 +238,9 @@ def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.Au
         target = node.targets[0]
     else:
         target = node.target
+    if isinstance(target, ast.Subscript):
+        written = subscript_write(compiler, node)
+        return None if written is None else (None, written)
     if not isinstance(target, ast.Attribute):
         return None
     owner = record_type(compiler, target.value)
@@ -197,6 +249,16 @@ def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.Au
     name = target.attr if isinstance(target, _LiteralField) else field_name(compiler, target.attr)
     field = owner.field(name)
     if field is None:
+        getter = lazy('metta._declare.methods').selected(owner, name)
+        if getter is not None and getter.setter is not None and node.value is not None:
+            # `obj.area = v` on a property is its setter, the reference's own routing;
+            # the augmented form reads the property first, as Python does.
+            assigned: ast.expr = node.value
+            if isinstance(node, ast.AugAssign):
+                read = ast.copy_location(ast.Attribute(value=target.value, attr=target.attr, ctx=ast.Load()), target)
+                assigned = ast.copy_location(ast.BinOp(left=read, op=node.op, right=node.value), node)
+            stored = protocol_call(compiler, target.value, getter.setter.python_name, assigned, at=node)
+            return None if stored is None else (None, stored)
         msg = f"{owner.name}.{target.attr} is not a declared field; annotate the field on {owner.name} before assigning it"
         raise CompileError(
             msg,
@@ -238,6 +300,11 @@ def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.Au
 
 
 def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:
+    if isinstance(node.func, ast.Name) and node.func.id in compiler.scope and not node.keywords:
+        # `adder(3)` on a declared local is its `__call__`, the instance term applied.
+        applied = protocol_call(compiler, node.func, "__call__", *node.args, at=node)
+        if applied is not None:
+            return applied
     member = method_reference(compiler, node.func)
     if member is not None:
         method, home, receiver, after = member.method, member.home, member.receiver, member.after
@@ -245,23 +312,32 @@ def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:
             return call_syntax.application(compiler, node)
         arguments = node.args
         qualified = receiver is None
-        if qualified:
+        kind = method.kind if method is not None else "instance"
+        class_symbol = Symbol(home.name) if kind == "class" and qualified else None
+        if qualified and kind == "instance":
             if not arguments:
                 return call_syntax.application(compiler, node)
             receiver, *arguments = arguments
-        sources = [receiver, *arguments, *(keyword.value for keyword in node.keywords)]
+        sources = [*([] if receiver is None else [receiver]), *arguments, *(keyword.value for keyword in node.keywords)]
         supplied = {id(source): Variable(compiler._temp("method-operand")) for source in sources}
         evaluated = [(compiler.expression(source), supplied[id(source)]) for source in sources]
+        if kind == "class" and receiver is not None:
+            # An instance reaches its class method through the class symbol of
+            # its own type, so a subclass's override is the one selected.
+            evaluated = [(_expr(S["get-type"], atom) if variable is supplied[id(receiver)] else atom, variable)
+                         for atom, variable in evaluated]
         params = tuple(method.call_signature.parameters.values()) if method is not None else ()
         direct = method is not None and not node.keywords and len(arguments) == len(params) and all(
             parameter.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
             for parameter in params
         )
-        if qualified:
+        if kind == "static":
+            head = Symbol(method.name if direct else method.unbound_apply_name)
+        elif qualified and kind == "instance":
             head = Symbol(method.name if direct else method.apply_name)
         else:
             head = lazy('metta._declare.methods').selector(home, member.name, after=after, applied=not direct)
-        operands: list[Atom] = [supplied[id(receiver)]]
+        operands: list[Atom] = [] if kind == "static" else [class_symbol if class_symbol is not None else supplied[id(receiver)]]
         values = [supplied[id(argument)] for argument in arguments]
         if direct:
             operands.extend(values)
@@ -278,6 +354,9 @@ def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:
         return body
     if isinstance(node.func, ast.Name) and node.func.id not in compiler.scope:
         function = compiler.host_value(node.func.id)
+        routed = builtin(compiler, function, node)
+        if routed is not None:
+            return routed
         if function is builtins.type and len(node.args) == 1 and not node.keywords and record_type(compiler, node.args[0]) is not None:
             return _expr(S["get-type"], compiler.expression(node.args[0]))
         if function is builtins.isinstance and len(node.args) == 2 and not node.keywords:
@@ -405,3 +484,252 @@ def remember_binding(compiler: CompilerContext, name: str, node: ast.expr, annot
         compiler.record_locals.pop(name, None)
     else:
         compiler.record_locals[name] = owner.cls
+
+
+# ----------------------------------------------------------- special methods
+# Python routes its own syntax to a special method of the operand's type: the
+# operator inventory joins each binary, comparison, unary, subscript and
+# containment form to its member, its reflected partner and its in-place
+# partner, and the builtin calls below are the language reference's routing.
+# When the operand's STATIC type is a declared class that defines the member,
+# the syntax lowers to that method's own dispatch entry, the same entry an
+# explicit call reaches; an operand of unknown type keeps the builtin.
+
+#: Builtin calls the reference routes to a special method, written once.
+# closed-set: decides; policy=which builtin call reaches which special method of a declared class; reads=https://docs.python.org/3.14/reference/datamodel.html#special-method-names, the Python Language Reference section 3.3
+_BUILTIN_PROTOCOLS: dict[Any, str] = {
+    builtins.len: "__len__",
+    builtins.abs: "__abs__",
+    builtins.str: "__str__",
+    builtins.repr: "__repr__",
+    builtins.int: "__int__",
+    builtins.float: "__float__",
+    builtins.round: "__round__",
+    builtins.iter: "__iter__",
+    builtins.next: "__next__",
+    builtins.reversed: "__reversed__",
+}
+
+#: The reference's reflection for rich comparisons: `__lt__` and `__gt__` are
+#: each other's reflection, `__le__` and `__ge__` likewise, `__eq__` and
+#: `__ne__` their own [source: Python Language Reference section 3.3.1,
+#: object.__lt__ and its siblings].
+# closed-set: decides; policy=which comparison a reflected operand answers; reads=https://docs.python.org/3.14/reference/datamodel.html#object.__lt__
+_REFLECTED_COMPARISONS: dict[str, str] = {
+    "__eq__": "__eq__", "__ne__": "__ne__",
+    "__lt__": "__gt__", "__gt__": "__lt__",
+    "__le__": "__ge__", "__ge__": "__le__",
+}
+
+
+def protocol_member(compiler: CompilerContext, node: ast.expr, dunder: str) -> Any:
+    """The declared class's method for a special name, when the operand's static type declares one."""
+    owner = record_type(compiler, node)
+    if owner is None:
+        return None
+    method = lazy('metta._declare.methods').selected(owner, dunder)
+    return None if method is None or method.abstract else (owner, method)
+
+
+def protocol_call(compiler: CompilerContext, receiver: ast.expr, dunder: str, *operands: ast.expr,
+                  at: ast.AST) -> Atom | None:
+    """Lower syntax to the receiver's special method, as the call Python itself makes."""
+    if protocol_member(compiler, receiver, dunder) is None:
+        return None
+    synthesized = ast.Call(
+        func=ast.Attribute(value=receiver, attr=dunder, ctx=ast.Load()), args=list(operands), keywords=[],
+    )
+    ast.copy_location(synthesized, at)
+    ast.copy_location(synthesized.func, at)
+    return call(compiler, synthesized)
+
+
+def operator(compiler: CompilerContext, node: ast.BinOp) -> Atom | None:
+    """`a + b` asks the left operand's `__add__`, then the right's `__radd__`."""
+    entry = operators.BY_NODE.get(type(node.op).__name__)
+    if entry is None:
+        return None
+    lowered = protocol_call(compiler, node.left, entry.dunder, node.right, at=node)
+    if lowered is None and entry.reflected is not None:
+        lowered = protocol_call(compiler, node.right, entry.reflected, node.left, at=node)
+    return lowered
+
+
+def augmented(compiler: CompilerContext, node: ast.AugAssign) -> Atom | None:
+    """`a += b` asks `__iadd__`, then `__add__`, and rebinds the target to the answer."""
+    if not isinstance(node.target, ast.Name):
+        return None
+    entry = operators.BY_NODE.get(type(node.op).__name__)
+    if entry is None or not entry.augmented:
+        return None
+    read = ast.copy_location(ast.Name(id=node.target.id, ctx=ast.Load()), node.target)
+    inplace = f"__i{entry.dunder[2:]}"
+    for dunder in ((inplace, entry.dunder) if ("object", inplace) in BY_OPERATOR else (entry.dunder,)):
+        lowered = protocol_call(compiler, read, dunder, node.value, at=node)
+        if lowered is not None:
+            return lowered
+    return None
+
+
+def comparison(compiler: CompilerContext, op: ast.cmpop, left: ast.expr, right: ast.expr, *, at: ast.AST) -> Atom | None:
+    """One comparison link through the operand's own comparison method."""
+    if isinstance(op, (ast.In, ast.NotIn)):
+        lowered = protocol_call(compiler, right, "__contains__", left, at=at)
+        if lowered is not None and isinstance(op, ast.NotIn):
+            return _expr(S["not"], lowered)
+        return lowered
+    entry = operators.BY_NODE.get(type(op).__name__)
+    if entry is None or entry.dunder not in _REFLECTED_COMPARISONS:
+        return None
+    forward = entry.dunder
+    lowered = protocol_call(compiler, left, forward, right, at=at)
+    if lowered is None:
+        lowered = protocol_call(compiler, right, _REFLECTED_COMPARISONS[forward], left, at=at)
+    if lowered is None and forward == "__ne__":
+        # The reference derives != from == when no __ne__ is written.
+        equal = comparison(compiler, ast.Eq(), left, right, at=at)
+        if equal is not None:
+            lowered = _expr(S["not"], equal)
+    return lowered
+
+
+def unary(compiler: CompilerContext, node: ast.UnaryOp) -> Atom | None:
+    entry = operators.BY_NODE.get(type(node.op).__name__)
+    if entry is None:
+        return None
+    return protocol_call(compiler, node.operand, entry.dunder, at=node)
+
+
+def truth(compiler: CompilerContext, node: ast.expr) -> Atom | None:
+    """The reference's truth test: `__bool__`, else `__len__` against zero."""
+    lowered = protocol_call(compiler, node, "__bool__", at=node)
+    if lowered is not None:
+        return lowered
+    length = protocol_call(compiler, node, "__len__", at=node)
+    if length is not None:
+        return _expr(S["not"], _expr(S["=="], length, Grounded(0)))
+    return None
+
+
+def subscript(compiler: CompilerContext, node: ast.Subscript) -> Atom | None:
+    if isinstance(node.slice, ast.Slice):
+        return None
+    return protocol_call(compiler, node.value, "__getitem__", node.slice, at=node)
+
+
+def subscript_write(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> Atom | None:
+    """`a[k] = v` is `__setitem__`; `a[k] += v` reads `__getitem__` first, as Python does."""
+    target = node.targets[0] if isinstance(node, ast.Assign) else node.target
+    if not isinstance(target, ast.Subscript) or isinstance(target.slice, ast.Slice) or node.value is None:
+        return None
+    if isinstance(node, ast.Assign) and len(node.targets) != 1:
+        return None
+    if protocol_member(compiler, target.value, "__setitem__") is None:
+        return None
+    value: ast.expr = node.value
+    if isinstance(node, ast.AugAssign):
+        read = ast.copy_location(ast.Subscript(value=target.value, slice=target.slice, ctx=ast.Load()), target)
+        value = ast.copy_location(ast.BinOp(left=read, op=node.op, right=node.value), node)
+    return protocol_call(compiler, target.value, "__setitem__", target.slice, value, at=node)
+
+
+def subscript_delete(compiler: CompilerContext, target: ast.Subscript) -> Atom | None:
+    if isinstance(target.slice, ast.Slice):
+        return None
+    return protocol_call(compiler, target.value, "__delitem__", target.slice, at=target)
+
+
+def builtin(compiler: CompilerContext, function: Any, node: ast.Call) -> Atom | None:
+    """A builtin call routed to the argument's special method: `len(a)` is `a.__len__()`."""
+    if not node.args or node.keywords:
+        return None
+    subject, *rest = node.args
+    if function is builtins.bool and not rest:
+        return truth(compiler, subject)
+    dunder = _BUILTIN_PROTOCOLS.get(function)
+    if dunder is None:
+        return None
+    lowered = protocol_call(compiler, subject, dunder, *rest, at=node)
+    if lowered is None and function is builtins.str:
+        # str() falls back to __repr__, the reference's own rule.
+        lowered = protocol_call(compiler, subject, "__repr__", *rest, at=node)
+    return lowered
+
+
+def iteration_source(compiler: CompilerContext, node: ast.expr) -> ast.expr:
+    """`for x in a` reads a declared class through `__iter__`, written as a generator."""
+    member = protocol_member(compiler, node, "__iter__")
+    if member is None:
+        return node
+    owner, method = member
+    if not method.generator:
+        msg = (
+            f"{owner.name}.__iter__ returns an iterator object; write it as a generator "
+            f"(yield each element) so the loop reads its answers"
+        )
+        raise CompileError(msg, construct="for", line=getattr(node, "lineno", None))
+    synthesized = ast.Call(func=ast.Attribute(value=node, attr="__iter__", ctx=ast.Load()), args=[], keywords=[])
+    ast.copy_location(synthesized, node)
+    ast.copy_location(synthesized.func, node)
+    return synthesized
+
+
+def context_manager(compiler: CompilerContext, node: ast.With) -> list[ast.stmt] | None:
+    """`with a as v: body` is bind, enter, and try/finally with exit, the reference's expansion.
+
+    `__exit__` receives three `None` arguments: no exception reaches it, so a
+    manager that reads them keeps the host `with`.
+    """
+    if any(protocol_member(compiler, item.context_expr, "__enter__") is None for item in node.items):
+        return None
+    body: list[ast.stmt] = list(node.body)
+    for item in reversed(node.items):
+        manager = f"with-manager-{next_aux_serial()}"
+
+        def name(ctx: ast.expr_context, manager: str = manager, at: ast.expr = item.context_expr) -> ast.Name:
+            return ast.copy_location(ast.Name(id=manager, ctx=ctx), at)
+
+        enter = ast.Call(func=ast.Attribute(value=name(ast.Load()), attr="__enter__", ctx=ast.Load()), args=[], keywords=[])
+        exit_call = ast.Call(
+            func=ast.Attribute(value=name(ast.Load()), attr="__exit__", ctx=ast.Load()),
+            args=[ast.Constant(value=None) for _ in range(3)], keywords=[],
+        )
+        entered: ast.stmt = (
+            ast.Assign(targets=[item.optional_vars], value=enter) if item.optional_vars is not None
+            else ast.Expr(value=enter)
+        )
+        body = [
+            ast.Assign(targets=[name(ast.Store())], value=item.context_expr),
+            entered,
+            ast.Try(body=body, handlers=[], orelse=[], finalbody=[ast.Expr(value=exit_call)]),
+        ]
+        for statement in body:
+            ast.copy_location(statement, node)
+            ast.fix_missing_locations(statement)
+    return body
+
+
+def keyword_pattern(compiler: CompilerContext, node: ast.MatchClass, pattern: Any) -> list[Atom]:
+    """`case C(x=0, y=y)` places keyword patterns through `__match_args__` on a value class."""
+    owner = declared(static_value(compiler, node.cls))
+    positions = getattr(owner.cls, "__match_args__", None) if owner is not None and owner.grain == "value" else None
+    if positions is None:
+        msg = (
+            "keyword class patterns need a declared value class, whose __match_args__ gives each "
+            "field a position; match the constructor's positional fields, or read an entity's "
+            "fields in a guard"
+        )
+        raise CompileError(msg, construct="class pattern", line=node.lineno)
+    slots: list[Atom] = [Variable("_") for _ in positions]
+    for index, sub in enumerate(node.patterns):
+        slots[index] = pattern(sub)
+    for name, sub in zip(node.kwd_attrs, node.kwd_patterns, strict=True):
+        if name not in positions:
+            msg = f"{owner.name} has no positional field {name!r}; its fields are {', '.join(positions)}"
+            raise CompileError(msg, construct="class pattern", line=node.lineno)
+        index = positions.index(name)
+        if index < len(node.patterns):
+            msg = f"{name!r} is matched both positionally and by keyword"
+            raise CompileError(msg, construct="class pattern", line=node.lineno)
+        slots[index] = pattern(sub)
+    return slots

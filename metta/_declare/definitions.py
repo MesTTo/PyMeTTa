@@ -143,7 +143,7 @@ from metta._compile.twins import (
     dispatcher_owns_clause,
     select_clause_twin,
 )
-from metta._declare import call_syntax, classes, operations
+from metta._declare import call_syntax, classes
 from metta._declare import functions as _space_functions
 from metta._errors.errors import CompileError, EngineError, Remedy
 from metta._lazy import lazy
@@ -194,7 +194,7 @@ def clear_definitions(space: Any) -> None:
         # or the next define links an operation that declares nothing
         # [tested: test_clear_starts_a_new_twin_family,
         # test_clearing_a_space_lets_a_later_link_declare_again; commit=e01a1a46a1bcbce16862c3a2cd4175bb9127fd13].
-        operations._forget_space(space.name)
+        _declare_operations_module._forget_space(space.name)
 
 def release_definitions(space: Any) -> None:
     """Drop the process state describing a space's definitions, the

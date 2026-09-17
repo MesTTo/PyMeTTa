@@ -1,5 +1,12 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
+  - `with` on a declared class expands to enter, the body and exit in a
+    finally arm; an augmented assignment, a subscript write or delete, a
+    property write or delete and a keyword class pattern reach the class's
+    special methods [tested:
+    test_calls_context_managers_and_augmented_assignment_reach_their_methods,
+    test_properties_static_and_class_methods_and_memoised_members,
+    test_keyword_class_patterns_place_fields_through_match_args; commit=WORKTREE]
   - augmented assignments share binary expression result-image proofs
     [tested: test_native_sequence_operator_results_retain_images; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - lifted definitions and continuations retain Python underscore binders
@@ -982,7 +989,7 @@ class StatementCompilerMixin(CompilerContext):
             )
         return continuation
 
-    def _delete_target(self, target: ast.expr) -> Expression:
+    def _delete_target(self, target: ast.expr) -> Atom:
         """Snapshot one subscript pattern, refuse empty, then remove every row."""
         owner = _records.record_type(self, target)
         if isinstance(target, ast.Name) and owner is not None:
@@ -994,6 +1001,11 @@ class StatementCompilerMixin(CompilerContext):
             # the owner stays. A value's positions are fixed, as its writes are.
             owner = _records.record_type(self, target.value)
             field = owner.field(_records.field_name(self, target.attr)) if owner is not None else None
+            if owner is not None and field is None:
+                # `del obj.area` on a property is its deleter, the reference's own routing.
+                removed = _records.protocol_call(self, target.value, f"retire-{_records.field_name(self, target.attr)}", at=target)
+                if removed is not None:
+                    return removed
             if owner is None or field is None:
                 msg = "a compiled del of an attribute names a stored field of a declared class"
                 raise CompileError(msg, construct="delete", line=getattr(target, "lineno", None))
@@ -1001,6 +1013,10 @@ class StatementCompilerMixin(CompilerContext):
                 msg = f"{owner.name} is a value; its fields cannot be deleted"
                 raise CompileError(msg, construct="delete", line=getattr(target, "lineno", None))
             return _records.field_call(owner, field.name, self.expression(target.value), delete=True)
+        if isinstance(target, ast.Subscript):
+            removed = _records.subscript_delete(self, target)
+            if removed is not None:
+                return removed
         if not isinstance(target, ast.Subscript) or isinstance(target.slice, ast.Slice):
             msg = "a compiled del target is space[pattern], with one nonslice pattern"
             raise CompileError(
@@ -1331,6 +1347,9 @@ class StatementCompilerMixin(CompilerContext):
         if isinstance(head, ast.Match):
             return self._match_statement(head, rest)
         if isinstance(head, ast.With):
+            managed = _records.context_manager(self, head)
+            if managed is not None:
+                return self.block([*managed, *rest])
             return self._limits_statement(head, rest)
         self._lift_definition(head)
         return self.block(rest)
@@ -1544,7 +1563,13 @@ class StatementCompilerMixin(CompilerContext):
                     construct="augmented assignment",
                     line=head.lineno,
                 )
-            if target_name in self.space_locals and target_name not in self.container_locals:
+            rebound = _records.augmented(self, head)
+            if rebound is not None:
+                # A declared class answers its own in-place operator; the
+                # target rebinds to the answer, as Python's `a = a.__iadd__(b)`.
+                value = rebound
+                target = target_name
+            elif target_name in self.space_locals and target_name not in self.container_locals:
                 # On a space, += and -= ARE the write operations, never
                 # arithmetic: the miscompile stored (+ $s atom), answered
                 # True, and wrote nothing. The write executes under a
@@ -2272,11 +2297,9 @@ class _StatementPattern:
 
     def _class(self, node: ast.MatchClass) -> Atom:
         if node.kwd_attrs:
-            msg = (
-                "keyword class patterns have no positional MeTTa image; "
-                "match the constructor's positional fields"
-            )
-            raise CompileError(msg, construct="match pattern", line=node.lineno)
+            # A declared value class places keyword patterns by __match_args__.
+            slots = _records.keyword_pattern(self.compiler, node, self.pattern)
+            return Expression([self.compiler.expression(node.cls), *slots])
         return Expression(
             [self.compiler.expression(node.cls), *(self.pattern(p) for p in node.patterns)]
         )
