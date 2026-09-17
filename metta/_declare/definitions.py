@@ -193,7 +193,7 @@ def clear_definitions(space: Any) -> None:
         # store, and the ownership counts saying they were there must go too,
         # or the next define links an operation that declares nothing
         # [tested: test_clear_starts_a_new_twin_family,
-        # test_clearing_a_space_lets_a_later_link_declare_again; commit=WORKTREE].
+        # test_clearing_a_space_lets_a_later_link_declare_again; commit=e01a1a46a1bcbce16862c3a2cd4175bb9127fd13].
         operations._forget_space(space.name)
 
 def release_definitions(space: Any) -> None:

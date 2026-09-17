@@ -1925,7 +1925,7 @@ def hold(value: Any) -> Atom:
     own with its own meaning, and is held rather than encoded through its
     base's handler. The caller has already asked for an explicit image where
     one applies; this is the answer where none does [tested:
-    test_call_value_source.CallValueSourceTests; commit=WORKTREE].
+    test_call_value_source.CallValueSourceTests; commit=e01a1a46a1bcbce16862c3a2cd4175bb9127fd13].
     """
     handler = _ENCODE_FAST.get(value.__class__)
     return handler(value) if handler is not None else Grounded(value)

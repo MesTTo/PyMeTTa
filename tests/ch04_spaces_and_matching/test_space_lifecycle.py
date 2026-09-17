@@ -16,7 +16,7 @@ Guarantees:
     commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
   - and clear() drops that claim with the rows, so a later registration in
     the same life declares again [tested:
-    test_clearing_a_space_lets_a_later_link_declare_again; commit=WORKTREE]
+    test_clearing_a_space_lets_a_later_link_declare_again; commit=e01a1a46a1bcbce16862c3a2cd4175bb9127fd13]
   - nor its past life's user typing rules, which are the declaration made by
     a call rather than by a stored atom and were the one kind that stayed
     [tested

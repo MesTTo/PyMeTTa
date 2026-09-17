@@ -7,7 +7,7 @@ Guarantees:
   - value consumers execute through _python-call-value with the keyword
     frame crossing as pairs, so the callee receives the atoms and held values
     themselves [tested: test_compiled_host_calls_keep_data_out_of_keyword_control,
-    test_host_call_frames_do_not_inspect_callable_signatures; commit=WORKTREE]
+    test_host_call_frames_do_not_inspect_callable_signatures; commit=e01a1a46a1bcbce16862c3a2cd4175bb9127fd13]
   - carried values and host-island locals remain data inside independent call
     frames [tested: test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_carried_native_calls_hold_completed_operand_values; commit=86756da11eade288973b0dfaab7486a29e598cfd]

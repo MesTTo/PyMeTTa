@@ -9,7 +9,7 @@ Guarantees:
     exceptions and cardinality failures propagate, while returned Error data
     stays a value [tested: test_call_value_holds_native_results,
     test_call_value_refuses_zero_and_multiple_answers,
-    test_expanded_operations_use_each_registered_arity; commit=WORKTREE].
+    test_expanded_operations_use_each_registered_arity; commit=e01a1a46a1bcbce16862c3a2cd4175bb9127fd13].
   - host value calls preserve their exact result without inspecting a
     signature or consuming an iterator [tested:
     test_call_value_does_not_start_or_replace_deferred_host_results;
@@ -29,7 +29,7 @@ Guarantees:
     editable frames and the raw host floor [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_reflected_host_application_frames_remain_editable,
-    test_host_call_frames_do_not_inspect_callable_signatures; commit=WORKTREE]
+    test_host_call_frames_do_not_inspect_callable_signatures; commit=e01a1a46a1bcbce16862c3a2cd4175bb9127fd13]
   - method and constructor values keep positional data separate from keyword
     entries [tested:
     test_keyword_named_atoms_remain_positional_method_and_constructor_values;
@@ -232,7 +232,7 @@ def value_declarations() -> tuple[Expression, ...]:
     # engine/translator/special_forms.pl:translate_special_dl(noeval,...);
     # tested: test_call_value_holds_native_results,
     # test_call_value_refuses_zero_and_multiple_answers,
-    # test_expanded_operations_use_each_registered_arity; commit=WORKTREE]
+    # test_expanded_operations_use_each_registered_arity; commit=e01a1a46a1bcbce16862c3a2cd4175bb9127fd13]
     body = _expr(S.let, source, binding, _expr(S.evalc, source, home))
     # Four Atom operands, since the callable image and its operand frames
     # must reach the binder unevaluated, and an undefined result, since an
