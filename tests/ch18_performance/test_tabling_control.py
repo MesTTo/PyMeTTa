@@ -17,7 +17,7 @@ Guarantees:
   - a reference-face refresh that finds the same roots announces no change,
     so a table filled by a live call survives the first use of a deferred
     library function in a space holding a `from` row [tested:
-    test_a_reference_refresh_that_changes_nothing_keeps_the_table; commit=WORKTREE]
+    test_a_reference_refresh_that_changes_nothing_keeps_the_table; commit=689745c3bb9ef9a36b5427bb3e7289a69da9b71b]
 Open Obligations:
   To Do: None
   Hacks: None

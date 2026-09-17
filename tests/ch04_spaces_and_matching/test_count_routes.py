@@ -26,7 +26,7 @@ Guarantees:
     - the retained bag survives an arbitrary generated answer multiset
       [tested: test_a_generated_answer_bag_survives_both_routes]
     - a repeatable guard is counted by the engine rather than declined
-      [tested: test_a_guarded_length_counts_inside_the_engine; commit=WORKTREE]
+      [tested: test_a_guarded_length_counts_inside_the_engine; commit=689745c3bb9ef9a36b5427bb3e7289a69da9b71b]
     - inspecting an Answers iterator never delays its engine release through
       a frame reference cycle [tested:
       test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle,
