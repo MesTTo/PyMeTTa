@@ -6,7 +6,7 @@ Guarantees:
     named as a value is its class symbol [tested:
     test_operators_on_a_declared_value_lower_to_its_special_methods,
     test_containers_iterate_index_contain_and_truth_test_through_their_methods,
-    test_keyword_class_patterns_place_fields_through_match_args; commit=WORKTREE]
+    test_keyword_class_patterns_place_fields_through_match_args; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0]
   - proved native sequence results retain their structural image while
     unknown protocol results keep the borrowed value boundary [tested:
     test_native_sequence_operator_results_retain_images;

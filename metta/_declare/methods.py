@@ -36,7 +36,7 @@ Guarantees:
     test_operators_on_a_declared_value_lower_to_its_special_methods,
     test_comparisons_derive_from_dataclass_order_and_total_ordering,
     test_properties_static_and_class_methods_and_memoised_members,
-    test_abstract_final_override_dispatch_and_partial_members; commit=WORKTREE]
+    test_abstract_final_override_dispatch_and_partial_members; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0]
 Decides:
   - which special methods compile (_COMPILED_DUNDERS) and the formulas
     total_ordering's partners derive from (_TOTAL_ORDERING), both read from

@@ -63,13 +63,13 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure
 #: examples/ch17-concurrency-and-the-loop/10-class_entities.metta; fixture=min of three
 #: serial fresh processes in a provisioned battery worktree with the .qlf set
-#: warm; commit=WORKTREE].
+#: warm; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0].
 #: RE-PINNED 2026-09-18, 5161225 to 5161376 (+151), The classes package's
 #: special-method and decorator rows: the twin declares its classes and the
 #: declaration derives the arrows, dispatch and binding contracts and
 #: documentation rows beside the equations the example writes by hand [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0].
 BUDGET = 5161376
 OVERRUN = 5078082
 
@@ -80,5 +80,5 @@ OVERRUN = 5078082
 #: writes by hand, so the referenced content differs by exactly those derived
 #: rows [measured 2026-09-18: the two stored-atom surpluses, one fresh process
 #: per side; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0].
 DIVERGENCE = "faeeea409059c7d1cb1f46057cca72ff0ef555ba95b034f0038ef40a16102f41"

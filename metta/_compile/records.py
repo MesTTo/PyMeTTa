@@ -31,11 +31,11 @@ Guarantees:
     test_operators_on_a_declared_value_lower_to_its_special_methods,
     test_containers_iterate_index_contain_and_truth_test_through_their_methods,
     test_calls_context_managers_and_augmented_assignment_reach_their_methods,
-    test_keyword_class_patterns_place_fields_through_match_args; commit=WORKTREE]
+    test_keyword_class_patterns_place_fields_through_match_args; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0]
   - the operator form costs exactly the method call it stands for [tested:
-    test_an_operator_costs_exactly_the_method_call_it_stands_for; commit=WORKTREE]
+    test_an_operator_costs_exactly_the_method_call_it_stands_for; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0]
   - a property read is its getter's call and a property write its setter's
-    [tested: test_properties_static_and_class_methods_and_memoised_members; commit=WORKTREE]
+    [tested: test_properties_static_and_class_methods_and_memoised_members; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0]
 """
 
 from __future__ import annotations

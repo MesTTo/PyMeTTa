@@ -4,7 +4,7 @@ Guarantees:
   - syntax Python routes to a special method lowers to the class's own
     dispatch entry when the operand's static type is declared, and Python's
     operators on the instance reach the same equation [tested:
-    extensions/python/tests/ch09_types/test_class_protocols.py; commit=WORKTREE]
+    extensions/python/tests/ch09_types/test_class_protocols.py; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0]
 """
 
 import functools

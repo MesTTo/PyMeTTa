@@ -12,7 +12,7 @@ Guarantees:
     the syntax it quotes, and a yield-context loop over a computed source
     evaluates it once before superposing its value [tested:
     test_operators_on_a_declared_value_lower_to_its_special_methods,
-    test_containers_iterate_index_contain_and_truth_test_through_their_methods; commit=WORKTREE]
+    test_containers_iterate_index_contain_and_truth_test_through_their_methods; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0]
   - local annotation claims and source type aliases admit the same container
     images as runtime_type_atoms at call boundaries, preserving scalar claims
     [tested: test_local_alias_accepts_its_structural_and_borrowed_images;

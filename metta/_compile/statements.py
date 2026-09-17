@@ -6,7 +6,7 @@ Guarantees:
     special methods [tested:
     test_calls_context_managers_and_augmented_assignment_reach_their_methods,
     test_properties_static_and_class_methods_and_memoised_members,
-    test_keyword_class_patterns_place_fields_through_match_args; commit=WORKTREE]
+    test_keyword_class_patterns_place_fields_through_match_args; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0]
   - augmented assignments share binary expression result-image proofs
     [tested: test_native_sequence_operator_results_retain_images; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
   - lifted definitions and continuations retain Python underscore binders

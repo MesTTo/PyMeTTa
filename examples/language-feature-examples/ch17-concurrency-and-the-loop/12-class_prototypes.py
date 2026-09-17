@@ -55,7 +55,7 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure
 #: examples/ch17-concurrency-and-the-loop/12-class_prototypes.metta; fixture=min of three
 #: serial fresh processes in a provisioned battery worktree with the .qlf set
-#: warm; commit=WORKTREE].
+#: warm; commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0].
 BUDGET = 8621275
 OVERRUN = 8407909
 
@@ -66,5 +66,5 @@ OVERRUN = 8407909
 #: writes by hand, so the referenced content differs by exactly those derived
 #: rows [measured 2026-09-18: the two stored-atom surpluses, one fresh process
 #: per side; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=a8cfae1f5c0be628bc40eb7c18b07749d995e9a0].
 DIVERGENCE = "a3e79abae0b5d5ca62ccdbcfd75fc630b20c7f355fa8cd3055c82e42208ee70a"
