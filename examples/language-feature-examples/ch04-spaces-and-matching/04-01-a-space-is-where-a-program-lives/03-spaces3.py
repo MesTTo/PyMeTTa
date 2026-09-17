@@ -161,4 +161,12 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: each commit [measured 2026-09-16: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
-BUDGET = 545
+#: RE-PINNED 2026-09-17, 545 to 504 (-41), the assertion ownership journal that
+#: swi-nested-retract-loses-outer-assert required goes at 7ead07e09, 545 to
+#: 518, and the inert sentinel clause that swi-empty-indexed-snapshot required
+#: goes at c6337b740, 518 to 504; placed by the same first-parent bisect of
+#: a428cf905..2f1be9e0b as the identity twin's, and stock 10.1.13, stock
+#: 10.1.14 and the patched 10.1.14 host all read 504 at the tip [measured
+#: 2026-09-17: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 504

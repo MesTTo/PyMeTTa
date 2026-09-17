@@ -1108,7 +1108,18 @@ def twin(m):
 #: provisioned worktrees of each commit [measured 2026-09-16: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=23dee6dc5b745a57ade43bd5fd2d317116634f6f].
-BUDGET = 4244
+#: RE-PINNED 2026-09-17, 4244 to 3871 (-373), the assertion ownership journal
+#: that swi-nested-retract-loses-outer-assert required goes at 7ead07e09, three
+#: inferences per stored clause, 4247 to 3900 under the patched host, and the
+#: inert sentinel clause that swi-empty-indexed-snapshot required goes at
+#: c6337b740, 3900 to 3868; placed by a first-parent bisect of
+#: a428cf905..2f1be9e0b that measured 079de6d64, 7ead07e09, 5c7a46576,
+#: c4ec6e8a0 and the tip in fresh worktrees with the .qlf set cleared, where
+#: stock 10.1.13 and 10.1.14 read 3868 at the tip and the patched 10.1.14 host
+#: the seat runs reads 3871, inside the allowance [measured 2026-09-17: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3871
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same
