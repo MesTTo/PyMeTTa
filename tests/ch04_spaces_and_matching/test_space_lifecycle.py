@@ -530,6 +530,26 @@ def test_a_library_origin_binds_a_name_whose_local_definition_was_removed(metta)
             assert "lib_thread" in source
 
 
+def test_a_drop_leaves_the_scope_the_handle_entered(metta):
+    """A dropped space is nobody's active space: a drop inside its own
+    with-block, or after an ``__enter__()`` nothing exits, ends the scope, so
+    a later ``current_space()`` never names a dead space (one did, for every
+    test after ch20's typing-row test, and a delayed async injection captured it).
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    from metta._spaces.handle import current_space
+
+    default = current_space()
+    entered = metta._new_space().__enter__()
+    assert current_space() == entered.name
+    entered.drop()
+    assert current_space() == default
+    with metta._new_space() as inner:
+        assert current_space() == inner.name
+        inner.drop()
+        assert current_space() == default
+    assert current_space() == default
+
+
 def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
     """A parent refuses to drop while a live child inherits from its name."""
     parent = metta._new_space()

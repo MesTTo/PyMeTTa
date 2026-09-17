@@ -669,6 +669,7 @@ class SpaceHandle(Handle):
         """
         if self._dropped or self._drop_pending:
             return
+        self._leave_scopes()
         if self._cell is not None and self._cell.dead:
             # Another party retired the space, or this handle's own retirement
             # committed and its cleanup failed; only this side's cleanup remains.
@@ -721,7 +722,8 @@ class SpaceHandle(Handle):
                     # transcript around it, as transaction() does for a body.
                     original = original_exception(teardown_error)
                     if original is not None and original is not teardown_error:
-                        raise original from teardown_error
+                        # The guard above rules None out; pylint does not narrow the Optional.
+                        raise original from teardown_error  # pylint: disable=raising-bad-type
                     raise
                 self._drop_pending = False
                 if provider is not None:
@@ -862,13 +864,34 @@ class SpaceHandle(Handle):
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        _spaces_scope_module._ACTIVE_SPACE.reset(self._context_tokens.pop())
+        if self._context_tokens:  # a drop inside the block already left the scope
+            _spaces_scope_module._ACTIVE_SPACE.reset(self._context_tokens.pop())
         # _autodrop, not the cell's ephemeral: an anonymous name is always
         # pooled at drop (the life's ephemeral), but only a scratch space whose
         # lifetime IS the with-block dies on exit. A context home minted by MeTTa() is
         # ephemeral yet owned by its context, which drops it at close().
         if self._autodrop and not self._context_tokens:
             self.drop()
+
+    def _leave_scopes(self) -> None:
+        """End every scope this handle entered, latest first.
+
+        A dropped space is nobody's active space: a drop inside its own
+        with-block, or after an ``__enter__()`` nothing exits, otherwise left
+        the scope variable naming a dead space for every later
+        ``current_space()`` in the process (a delayed async injection then
+        captured it: ch20 test_typing_point ahead of ch17 test_async_scheduler).
+        A token belongs to the context that entered it; one entered elsewhere
+        stays for that context's own exit
+        [tested: test_a_drop_leaves_the_scope_the_handle_entered; commit=WORKTREE].
+        """
+        while self._context_tokens:
+            token = self._context_tokens.pop()
+            try:
+                _spaces_scope_module._ACTIVE_SPACE.reset(token)
+            except ValueError:
+                self._context_tokens.append(token)
+                break
 
     def __repr__(self) -> str:
         state = ", dropped" if self._dropped else ""

@@ -989,6 +989,18 @@ class StatementCompilerMixin(CompilerContext):
             if owner.grain == "value":
                 return Expression([])
             return Expression([Symbol(f"retire-{owner.name}"), self.expression(target)])
+        if isinstance(target, ast.Attribute):
+            # `del obj.field` is the field record's delete: the value goes and
+            # the owner stays. A value's positions are fixed, as its writes are.
+            owner = _records.record_type(self, target.value)
+            field = owner.field(_records.field_name(self, target.attr)) if owner is not None else None
+            if owner is None or field is None:
+                msg = "a compiled del of an attribute names a stored field of a declared class"
+                raise CompileError(msg, construct="delete", line=getattr(target, "lineno", None))
+            if owner.grain == "value":
+                msg = f"{owner.name} is a value; its fields cannot be deleted"
+                raise CompileError(msg, construct="delete", line=getattr(target, "lineno", None))
+            return _records.field_call(owner, field.name, self.expression(target.value), delete=True)
         if not isinstance(target, ast.Subscript) or isinstance(target.slice, ast.Slice):
             msg = "a compiled del target is space[pattern], with one nonslice pattern"
             raise CompileError(

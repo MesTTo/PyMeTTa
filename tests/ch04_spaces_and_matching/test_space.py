@@ -1872,6 +1872,52 @@ def test_a_copy_leaves_projected_rows_to_the_origins_it_copies(metta):
                 assert len(documents(twice)) == 1
 
 
+def test_a_bulk_write_publishes_its_references_once(metta):
+    """``add(*atoms)`` is one definition batch, as a Python transaction and a
+    class definition are: the origin rows it stores publish their references
+    once, at its end, not once each. ``copy()`` of a space borrowing from K
+    homes re-adds K ``(from ...)`` rows, and each publishing on its own walked
+    every row before it, so a copy cost K squared.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    from contextlib import ExitStack
+
+    def borrower_of(stack, count):
+        borrower = stack.enter_context(metta._new_space())
+        for index in range(count):
+            home = stack.enter_context(metta._new_space())
+            home.run(f"(= (bulk-f{index} $x) (bulk-g{index} $x))")
+            borrower.add(S["from"](S[home.name]))
+        return borrower
+
+    with ExitStack() as stack:
+        borrower = borrower_of(stack, 8)
+        metta._rt.must(
+            "flag(test_reference_publications,_,0),"
+            "wrap_predicate(metta_engine:metta_reference_refresh_now,test_publication_counter,_Wrapped,"
+            "(metta_engine:metta_reference_pending(_Pending),"
+            "(_Pending==[]->true;flag(test_reference_publications,_N,_N+1)),_Wrapped))")
+        try:
+            clone = borrower.copy()
+        finally:
+            publications = metta._rt.must(
+                "flag(test_reference_publications,Count,Count),"
+                "unwrap_predicate(metta_engine:metta_reference_refresh_now,test_publication_counter)")["Count"]
+        with clone:
+            assert clone.run("!(bulk-f7 1)") == [[S["bulk-g7"](1)]]
+        assert publications == 1, publications
+
+    costs = {}
+    for count in (10, 40):
+        with ExitStack() as stack:
+            borrower = borrower_of(stack, count)
+            with metta.stats() as spent, borrower.copy():
+                pass
+            costs[count] = spent.inferences
+    # Linear in the origins copied: four times the rows within six times the
+    # cost, where the per-row publication read sixteen.
+    assert costs[40] <= 6 * costs[10], costs
+
+
 def test_a_variable_headed_pattern_answers_through_every_door(metta):
     """P2.30, and the seam:pattern_modifier marker defect under it: a pattern
     whose head is a variable is ordinary structure, so it answers stored

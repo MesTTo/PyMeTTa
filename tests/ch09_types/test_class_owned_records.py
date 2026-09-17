@@ -51,6 +51,43 @@ def test_record_patterns_follow_the_class_program_not_its_instances(base):
         assert _schemas(plan) == []
 
 
+@pytest.mark.parametrize("base", [object, Space])
+def test_a_field_delete_removes_the_value_and_keeps_the_owner(base):
+    """``del obj.field``, live or compiled inside a method, is the record's
+    delete door: the value goes, the owner and its other fields stay, a read
+    then raises AttributeError as Python does for a missing instance attribute,
+    a second delete has nothing to remove, and a write brings the value back.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    with MeTTa() as context:
+        home = context.space()
+
+        @dataclass
+        class Slot(base):
+            value: int
+            other: int = 4
+
+            def clear(self) -> bool:
+                del self.value
+                return True
+
+        home.define(Slot)
+        slot = Slot(3)
+        assert (slot.value, slot.other) == (3, 4)
+        assert slot.clear() is True
+        with pytest.raises(AttributeError, match="value"):
+            _ = slot.value
+        assert slot.other == 4
+        with pytest.raises(AttributeError, match="value"):
+            del slot.value
+        slot.value = 5
+        assert slot.value == 5
+        del slot.value
+        with pytest.raises(AttributeError, match="value"):
+            _ = slot.value
+        slot.value = 6
+        assert (slot.value, slot.other) == (6, 4)
+
+
 def test_record_declaration_withdrawal_preserves_an_independent_equal_occurrence():
     """A class releases only the catalog occurrences its publication added."""
     with MeTTa() as context:

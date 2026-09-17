@@ -130,7 +130,7 @@ def field_key(name: str) -> str:
 
 def value_receiver(compiler: CompilerContext) -> Atom:
     construction = compiler.construction
-    assert construction is not None
+    assert construction is not None  # nosec B101 # a value receiver is compiled inside the construction that set it
     plan, _receiver = construction
     missing = [field.name for field in plan.stored_fields if field_key(field.name) not in compiler.scope]
     if missing:
@@ -142,8 +142,8 @@ def value_receiver(compiler: CompilerContext) -> Atom:
     return plan.term(*(Variable(compiler.scope[field_key(field.name)]) for field in plan.stored_fields))
 
 
-def field_call(owner: Any, name: str, *arguments: Atom, write: bool = False) -> Atom:
-    head = owner.accessor(name, write=write)
+def field_call(owner: Any, name: str, *arguments: Atom, write: bool = False, delete: bool = False) -> Expression:
+    head = owner.accessor(name, write=write, delete=delete)
     body = _expr(head, *arguments)
     if not owner.public_accessors:
         return _expr(S.evalc, body, Symbol(owner.space.name))
@@ -355,7 +355,7 @@ def method_reference(compiler: CompilerContext, node: ast.expr) -> Any:
         return None
     name = field_name(compiler, node.attr)
     method = lazy('metta._declare.methods').selected(home, name, after=after)
-    if method is None and after is None:
+    if method is after is None:
         return None
     compiler.class_dependencies.add(home.cls)
     return MethodReference(method, home, name, receiver, after)

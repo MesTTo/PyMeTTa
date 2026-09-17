@@ -152,14 +152,14 @@ def test_a_row_that_does_not_fill_the_template_refuses(fixture_library, metta):
 def test_a_dropped_space_takes_its_typing_rows_with_it(fixture_library, metta):
     """`(owned-by-space typing)` puts the row in the retirement walk."""
     del fixture_library
-    space = metta._new_space().__enter__()
-    named = S[str(space.name)]
-    typing.declare(space, "pick6", "column-select", 6)
-    assert any(str(row.head) == "pick6" for row in typing.rules(space))
-    catalog = metta._at("&metta")
-    pattern = Expression([S[typing.ROW_HEAD], named, V.head, V.kind, V.width])
-    assert list(catalog.match(pattern))
-    space.drop()
-    # The row is in `&metta`, which outlives the space, so the retirement walk
-    # is what has to have taken it.
-    assert not list(catalog.match(pattern))
+    with metta._new_space() as space:
+        named = S[str(space.name)]
+        typing.declare(space, "pick6", "column-select", 6)
+        assert any(str(row.head) == "pick6" for row in typing.rules(space))
+        catalog = metta._at("&metta")
+        pattern = Expression([S[typing.ROW_HEAD], named, V.head, V.kind, V.width])
+        assert list(catalog.match(pattern))
+        space.drop()
+        # The row is in `&metta`, which outlives the space, so the retirement walk
+        # is what has to have taken it.
+        assert not list(catalog.match(pattern))

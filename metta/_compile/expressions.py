@@ -1366,7 +1366,7 @@ class ExpressionCompilerMixin(CompilerContext):
         value = self._host_callable_value(node.func)
         mention = callable_mention(value)
         selector = operator_callable_selector(value)
-        if mention is None and selector is None:
+        if mention is selector is None:
             return None
         if node.keywords or not callable_accepts_positional(value, len(node.args)):
             return self._implicit_island(node)
@@ -1376,7 +1376,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 for argument in node.args
             ]
             return self._python_operator(selector, *arguments)
-        assert mention is not None
+        assert mention is not None  # nosec B101 # the guard above returned when neither was set and the selector branch returned
         return self._adapt_mentioned_call(value, mention, [self.expression(argument) for argument in node.args])
 
     def _adapt_mentioned_call(

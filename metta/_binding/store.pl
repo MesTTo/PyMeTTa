@@ -66,9 +66,17 @@ metta_py_decode_for_add(Tagged, Term) :-
 %bypassed metta_add_atoms/2 entirely, which is where the rule that a batch may
 %not skip per-atom work lives: an equation added to a MORK space alongside any
 %other atom was stored inert [measured 2026-08-16].
+%The batch is one definition batch, as a Python transaction is
+%(metta_py_transaction/2), so its reference publication runs once at the end
+%rather than once per origin row it stores: copying a space that borrows from
+%K homes re-adds K `(from ...)` rows, and each row published on its own,
+%walking every row before it, so a copy cost K^2 [measured 2026-09-17:
+%67,690, 211,905, 731,155 and 2,722,368 inferences for 5, 10, 20 and 40
+%origins, 13,538 to 68,059 per origin, before; command=ai probe over
+%Space.copy() with m.stats(); commit=WORKTREE].
 metta_py_add_many(Space, TaggedList) :-
     maplist(metta_py_decode_for_add, TaggedList, Terms),
-    metta_add_atoms(Space, Terms).
+    filereader:with_definition_batch(metta_add_atoms(Space, Terms)).
 
 %The unit-answering face, as metta_py_add/3 is to metta_py_add/2.
 metta_py_add_many(Space, TaggedList, true) :-

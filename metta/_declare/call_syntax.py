@@ -127,7 +127,8 @@ def bind_call(home: Atom, function: Atom, positional: Atom, keywords: Atom, cons
     if not isinstance(positional, Expression) or not isinstance(keywords, Grounded) or not isinstance(keywords.value, dict):
         msg = "call binding requires evaluated positional and keyword arguments"
         raise TypeError(msg)
-    if not isinstance(consumer, Grounded) or consumer.value not in get_args(call_values.CallConsumer.__value__):
+    # A PEP 695 type alias carries its Literal in __value__, which pylint does not model.
+    if not isinstance(consumer, Grounded) or consumer.value not in get_args(call_values.CallConsumer.__value__):  # pylint: disable=no-member
         msg = "call binding requires its value or iterable consumer"
         raise TypeError(msg)
     if any(not isinstance(name, str) for name in keywords.value):

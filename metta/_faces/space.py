@@ -1314,6 +1314,17 @@ class Space(SpaceHandle):
         stored Python objects keep their identity across the clone, the
         shallow reading, and a deep clone of a live engine handle has no
         meaning to promise.
+
+        The contents are the space's OWN rows, the enumeration ``save()``
+        persists: an origin row ``(from ...)`` copies, and the declarations
+        and ``(@doc ...)`` rows that origin projected do not, because the
+        clone's origin projects them again; copying them too gave every
+        projected document a second, authored copy in the clone and a third
+        in a copy of the copy, while a projected declaration was shadowed by
+        its authored twin [source: engine/filereader/source_lifecycle.pl,
+        metta_source_occurrence/4; tested:
+        test_a_copy_leaves_projected_rows_to_the_origins_it_copies;
+        commit=1bf85bb150defced36894b48722a861fee616609].
         """  # noqa: D205 -- preserve the declared documentation
         return _body_metta__spaces_store.copy(self)
 

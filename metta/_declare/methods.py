@@ -345,6 +345,54 @@ def _entry_pattern(concrete: Any, target: Symbol, arity: int) -> Expression:
     return _expr(target, receiver, *arguments)
 
 
+def _synchronize_selection(
+    concrete: Any, home: Any, name: str, after: Any, *, public: set[str],
+    rows: dict[tuple[str, Atom], Any], providers: dict[tuple[Any, Any], dict[str, list[Atom]]],
+) -> None:
+    """The rows and provider targets one MRO selection contributes to a home."""
+    method = selected(concrete, name, after=after)
+    if method is None:
+        return
+    source, arity = method.name, len(method.signature.parameters)
+    expected = selected(home, name, after=after)
+    if expected is not None:
+        expected_parameters = tuple(expected.call_signature.parameters.values())
+        actual_parameters = tuple(method.call_signature.parameters.values())
+        positional = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        if all(parameter.kind in positional for parameter in expected_parameters) and (
+            len(actual_parameters) != len(expected_parameters)
+            or any(parameter.kind not in positional for parameter in actual_parameters)
+        ):
+            source = f"{home.name}-adapt-{concrete.name}-{attribute_name(name)}"
+            if after is not None:
+                source += "-super"
+            arity = len(expected.signature.parameters)
+            arguments = tuple(Variable(f"adapt-argument-{index}") for index in range(arity))
+            application = _expr(Symbol(method.apply_name), arguments[0], Expression(arguments[1:]), Expression([]))
+            rows[method.owner.space.name, _expr(S["="], _expr(Symbol(source), *arguments), application)] = method.owner.space
+            rows[method.owner.space.name, _expr(S[":"], Symbol(source), _expr(
+                S["->"], Symbol(concrete.name), *(S["%Undefined%"] for _ in arguments[1:]), S["%Undefined%"],
+            ))] = method.owner.space
+    entries = [
+        (selector(home, name, after=after), source, arity),
+        (selector(home, name, after=after, applied=True), method.apply_name, 3),
+        (selector(home, name, after=after, value=True), method.bind_name, 1),
+    ]
+    if after is None and name in public:
+        entries.append((Symbol(attribute_name(name)), method.name, len(method.signature.parameters)))
+    for target, source, arity in entries:
+        pattern = _entry_pattern(concrete, target, arity)
+        if method.private:
+            body = _expr(Symbol(source), *pattern.args)
+            if home is not method.owner:
+                body = _expr(S.evalc, body, Symbol(method.owner.space.name))
+            rows[home.space.name, _expr(S["="], pattern, body)] = home.space
+            rows[home.space.name, _expr(S.internal, target)] = home.space
+        else:
+            providers.setdefault((home, method.owner), {}).setdefault(source, []).append(pattern)
+
+
+
 def synchronize(plans: tuple[Any, ...]) -> None:
     """Materialize MRO-selected edges; each concrete declaration owns its rows."""
     for plan in plans:
@@ -369,46 +417,7 @@ def synchronize(plans: tuple[Any, ...]) -> None:
                 providers.setdefault((home, concrete), {}).setdefault(concrete.name, []).append(Symbol(concrete.name))
             for name in names:
                 for after in (None, home.cls):
-                    method = selected(concrete, name, after=after)
-                    if method is None:
-                        continue
-                    source, arity = method.name, len(method.signature.parameters)
-                    expected = selected(home, name, after=after)
-                    if expected is not None:
-                        expected_parameters = tuple(expected.call_signature.parameters.values())
-                        actual_parameters = tuple(method.call_signature.parameters.values())
-                        positional = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-                        if all(parameter.kind in positional for parameter in expected_parameters) and (
-                            len(actual_parameters) != len(expected_parameters)
-                            or any(parameter.kind not in positional for parameter in actual_parameters)
-                        ):
-                            source = f"{home.name}-adapt-{concrete.name}-{attribute_name(name)}"
-                            if after is not None:
-                                source += "-super"
-                            arity = len(expected.signature.parameters)
-                            arguments = tuple(Variable(f"adapt-argument-{index}") for index in range(arity))
-                            application = _expr(Symbol(method.apply_name), arguments[0], Expression(arguments[1:]), Expression([]))
-                            rows[method.owner.space.name, _expr(S["="], _expr(Symbol(source), *arguments), application)] = method.owner.space
-                            rows[method.owner.space.name, _expr(S[":"], Symbol(source), _expr(
-                                S["->"], Symbol(concrete.name), *(S["%Undefined%"] for _ in arguments[1:]), S["%Undefined%"],
-                            ))] = method.owner.space
-                    entries = [
-                        (selector(home, name, after=after), source, arity),
-                        (selector(home, name, after=after, applied=True), method.apply_name, 3),
-                        (selector(home, name, after=after, value=True), method.bind_name, 1),
-                    ]
-                    if after is None and name in public:
-                        entries.append((Symbol(attribute_name(name)), method.name, len(method.signature.parameters)))
-                    for target, source, arity in entries:
-                        pattern = _entry_pattern(concrete, target, arity)
-                        if method.private:
-                            body = _expr(Symbol(source), *pattern.args)
-                            if home is not method.owner:
-                                body = _expr(S.evalc, body, Symbol(method.owner.space.name))
-                            rows[home.space.name, _expr(S["="], pattern, body)] = home.space
-                            rows[home.space.name, _expr(S.internal, target)] = home.space
-                        else:
-                            providers.setdefault((home, method.owner), {}).setdefault(source, []).append(pattern)
+                    _synchronize_selection(concrete, home, name, after, public=public, rows=rows, providers=providers)
         # rename keeps unlisted heads. A finite case map selects only the
         # canonical providers and emits their complete target set in one row.
         # Parallel alias edges would make the reference reader traverse the

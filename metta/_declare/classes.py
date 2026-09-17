@@ -118,10 +118,6 @@ def owner_of(space: Any) -> ClassDeclaration | None:
 
 def callable_dependencies(fn: Any) -> set[type]:
     """Return declared classes named by a callable's resolved signatures."""
-    from metta._catalog.annotations import (  # noqa: PLC0415 -- the annotation layer also reads declarations
-        resolved_annotations,
-    )
-
     annotations = [annotation for signature in (fn, *typing.get_overloads(fn))
                    for annotation in resolved_annotations(signature).values()]
     return {cls for cls in referenced_classes(annotations) if declaration(cls) is not None}
@@ -376,7 +372,12 @@ class ClassDeclaration:
     def field(self, name: str) -> Field | None:
         return self.field_map.get(name)
 
-    def accessor(self, name: str, *, write: bool = False) -> Symbol:
+    def accessor(self, name: str, *, write: bool = False, delete: bool = False) -> Symbol:
+        """The field's getter, its writer (`!`), or its deleter (`retire-`, as the object's)
+        [tested: test_a_field_delete_removes_the_value_and_keeps_the_owner; commit=WORKTREE].
+        """
+        if delete:
+            return Symbol(f"retire-{self.name}-{attribute_name(name)}")
         return Symbol(f"{self.name}-{attribute_name(name)}{'!' if write else ''}")
 
     @staticmethod
@@ -417,7 +418,7 @@ class ClassDeclaration:
             raise TypeError(msg)
         wrapped = self.space.op(fn, name=name, **options)
         registered = operations._registered_operation(wrapped)
-        assert registered is not None
+        assert registered is not None  # nosec B101 # space.op registered wrapped on the line above
         self.operations[name] = registered.fn
         return wrapped
 
@@ -730,6 +731,13 @@ class ClassDeclaration:
                 rows.append(_expr(S["="], _expr(writer, pattern, new), body))
                 rows.extend(_expr(S[":"], writer, _expr(S["->"], Symbol(self.name), type_, S.Bool))
                             for type_ in self.field_types(field.annotation))
+                # `del obj.field`: the record's delete keeps the owner and answers
+                # False when there is nothing to remove, as remove-atom does.
+                deleter = owner.accessor(field.name, delete=True)
+                rows.extend((
+                    _expr(S["="], _expr(deleter, pattern), record.delete(Grounded(value=False))),
+                    _expr(S[":"], deleter, _expr(S["->"], Symbol(self.name), S.Bool)),
+                ))
             for row in rows:
                 if owner is self:
                     owner.space.add(row)
@@ -759,7 +767,13 @@ class ClassDeclaration:
             def read(instance: Any, name: str = field.name) -> Any:
                 actual = declaration(type(instance)) or plan
                 receiver = actual.receiver(instance)
-                return build(actual.answer(_expr(actual.accessor(name), receiver)), actual.field_map[name].annotation)
+                expression = _expr(actual.accessor(name), receiver)
+                if actual.grain != "value" and not actual.space.eval(expression):
+                    # The record holds no value: deleted, as Python spells a
+                    # missing instance attribute.
+                    msg = f"{type(instance).__name__!r} object has no attribute {name!r}"
+                    raise AttributeError(msg)
+                return build(actual.answer(expression), actual.field_map[name].annotation)
 
             def write(instance: Any, value: Any, name: str = field.name) -> None:
                 actual = declaration(type(instance)) or plan
@@ -768,7 +782,17 @@ class ClassDeclaration:
                     _expr(S.noeval, actual.encode(value)),
                 )))
 
-            self.replace_attribute(field.name, property(read, write))
+            def delete(instance: Any, name: str = field.name) -> None:
+                actual = declaration(type(instance)) or plan
+                removed = actual.answer(_expr(actual.accessor(name, delete=True),
+                                              _expr(S.noeval, actual.receiver(instance))))
+                if removed != Grounded(value=True):
+                    msg = f"{type(instance).__name__!r} object has no attribute {name!r}"
+                    raise AttributeError(msg)
+
+            self.replace_attribute(
+                field.name, property(read, write) if self.grain == "value" else property(read, write, delete)
+            )
         if "__match_args__" not in vars(self.cls):
             self.replace_attribute("__match_args__", tuple(field.name for field in self.stored_fields if not field.kw_only))
         if self.grain == "prototype":

@@ -169,10 +169,6 @@ _DEFINED_FUNCTION_NAMES: dict[tuple[str, types.FunctionType], set[str]] = {}
 
 _DEFINE_LOCK = threading.RLock()
 
-def _convert_api():
-    """Load structural conversion only for class-backed definitions."""
-    return lazy('metta.convert')
-
 def clear_definitions(space: Any) -> None:
     """Clear one space and the process state describing its definitions.
 

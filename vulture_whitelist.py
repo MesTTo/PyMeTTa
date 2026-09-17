@@ -411,3 +411,29 @@ _AnswersSugar
 # A provider name is a generated descriptor resolved from its live door rows.
 # [tested: tests/repository/test_door_rows.py::test_a_retained_namespace_observes_replacement_and_withdrawal; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _.arrays
+
+# The generated protocol tables (extensions/python/tools/protocolgen.py): the
+# rows' fields and the module's indexes are read by the generator's drift check
+# and by tools/doorgen.py, both outside the scanned package.
+_.revision
+_.full_sha256
+_.c_member
+_.generic
+_.macro
+_.alias_of
+_.accepts_keywords
+SCHEMA_VERSION
+SOURCE_REVISION
+BY_SOURCE
+BY_MEMBER
+BY_FORM
+REQUIRED
+# The engine reads a value's length through py_call
+# (metta/_binding/provides/ownership.pl, metta/_binding/provides_engine_user.pl).
+sized_length
+# The engine's lease callbacks (metta/_binding/callbacks.py names the module
+# functions by string), the provider-admission count the ch19 admission tests
+# read, and the LiveView deltas door the ch16 live-view tests drive.
+aborted
+admitted
+_.changes
