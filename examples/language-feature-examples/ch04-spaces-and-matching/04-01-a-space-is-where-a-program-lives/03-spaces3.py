@@ -177,5 +177,5 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: validating reader under a snapshot: the door tax the participant capture put
 #: on every crossing at 05fae56ad comes off, and the MeTTa halves keep their
 #: counts [measured 2026-09-17: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=d60277df18afee021990c754b6e593fbb32d69a2].
 BUDGET = 447

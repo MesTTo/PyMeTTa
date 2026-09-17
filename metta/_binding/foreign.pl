@@ -7,7 +7,7 @@
 %   the one indexed fact the registration and unregistration doors keep in
 %   step with the provider record inside the same transaction [tested:
 %   extensions/python/tests/ch19_spaces_backed_by_anything/test_foreign.py;
-%   commit=WORKTREE].
+%   commit=d60277df18afee021990c754b6e593fbb32d69a2].
 % Owns resources: native provider values and their owned-record markers until
 %   metta_py_unregister_foreign/1 removes them; captured clause references keep
 %   the original participant alive through completion.
@@ -44,7 +44,7 @@ metta_py_provider_declaration(Space,
 %question [measured 2026-09-17: the door profile and the claim-against-record
 %probe recorded in docs/journal/2026-09-11-classes-on-metta.md, "the door tax
 %behind the participant capture", claim and record agreeing across register,
-%unregister and a rolled-back registration; commit=WORKTREE].
+%unregister and a rolled-back registration; commit=d60277df18afee021990c754b6e593fbb32d69a2].
 metta_py_foreign(Space) :-
     metta_space_claim(Space, python).
 
@@ -65,7 +65,7 @@ metta_py_provider_reference(Space, Provider, Ref) :-
 %cardinality check on every crossing, twice per foreign match since Python's
 %PROVIDERS mapping asks the engine back from inside the hook [measured
 %2026-09-17: foreign-match 561 inferences a query with two snapshots in each,
-%wt-battery-3/ai-tmp/ai_foreign_match_profile.py; commit=WORKTREE].
+%wt-battery-3/ai-tmp/ai_foreign_match_profile.py; commit=d60277df18afee021990c754b6e593fbb32d69a2].
 metta_py_provider(Space0, Provider) :-
     metta_py_space_atom(Space0, Space),
     once(metta_contract_fact(['@python-provider', ['HostSpace', Space], Provider])).
