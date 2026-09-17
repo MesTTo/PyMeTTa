@@ -175,5 +175,6 @@ def test_host_island_nested_scopes_see_compiled_locals(m):
     def island_lambda(value):
         return py((lambda: value + 1)())  # noqa: PLC3002 -- the nested scope is the scenario
 
-    assert list(island_generator((1, 2, 3))) == [Expression(2, 4, 6)]
+    # A tuple the island returns is a held Python value, and one() hands it back as that tuple.
+    assert island_generator((1, 2, 3)).one() == (2, 4, 6)
     assert list(island_lambda(41)) == [42]

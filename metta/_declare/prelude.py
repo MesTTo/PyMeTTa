@@ -64,7 +64,7 @@ import metta._declare.operations as _ops_module
 from metta._atoms.designation import _OperationName
 from metta._atoms.factories import Expression, Grounded, S, Symbol, _expr
 from metta._atoms.mentions import OPERATOR_CALLABLES
-from metta._catalog.call_values import returned
+from metta._catalog.call_values import pythonic, returned
 
 __all__ = ["NAMES", "install", "pythonic"]
 
@@ -279,18 +279,6 @@ def _error_instance(error: Any) -> BaseException | None:
         return resolved(message) if message is not None else resolved()
     except Exception:  # noqa: BLE001  -- a custom constructor signature refuses reconstruction; the atom stands
         return None
-
-
-def pythonic(value: Any) -> Any:
-    """An atom as the Python value the twin computes with: grounded values
-    unwrap, expressions become tuples, a symbol stays itself (the twin
-    cannot hold one, and hazard tracking keeps it out of twin paths).
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if isinstance(value, Grounded):
-        return value.value
-    if isinstance(value, Expression):
-        return tuple(pythonic(c) for c in value)
-    return value
 
 
 def _carried_error(operands: tuple[Any, ...]) -> Expression | None:

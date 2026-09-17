@@ -4,9 +4,12 @@ Guarantees:
   - native consumer validation derives from CallConsumer and retains its
     existing wire values [tested:
     test_call_consumer_source.CallConsumerSourceTests; commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
-  - _python-call-value observes one held immediate result through eval-one;
+  - _python-call-value observes one held immediate result: the binder wraps
+    a one-answer native application in eval-one and leaves a stream bare;
     exceptions and cardinality failures propagate, while returned Error data
-    stays a value [tested: test_call_value_holds_native_results and test_call_value_refuses_zero_and_multiple_answers; commit=d78d867637047c164be4bc1ab63c40b46d2cff5d].
+    stays a value [tested: test_call_value_holds_native_results,
+    test_call_value_refuses_zero_and_multiple_answers,
+    test_expanded_operations_use_each_registered_arity; commit=WORKTREE].
   - host value calls preserve their exact result without inspecting a
     signature or consuming an iterator [tested:
     test_call_value_does_not_start_or_replace_deferred_host_results;
@@ -20,11 +23,13 @@ Guarantees:
     data and returns source without evaluating the body [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
     test_native_parameter_binding_observes_graph_rewrites; commit=1796cf0f581aa767db9289b807f66238cb747065]
-  - host applications retain editable native argument frames and the existing
-    raw host codec [tested:
+  - compiled value calls cross the seam with their keyword frame as pairs and
+    hand the callee the twin's Python values, pythonic in and returned out,
+    the codec py-operator shares; the iterable route keeps its
+    editable frames and the raw host floor [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_reflected_host_application_frames_remain_editable,
-    test_host_call_frames_do_not_inspect_callable_signatures; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
+    test_host_call_frames_do_not_inspect_callable_signatures; commit=WORKTREE]
   - method and constructor values keep positional data separate from keyword
     entries [tested:
     test_keyword_named_atoms_remain_positional_method_and_constructor_values;
@@ -181,20 +186,27 @@ def bind_value(home: Atom, function: Atom, positional: Atom, keywords: Atom) -> 
         return call_values.apply_sources(S["_python-apply-host-value"], tuple(
             _expr(S.noeval, value) for value in (home, function, positional, keywords)
         ))
-    application, _stream = _native_application(home, function, arguments, named)
-    return application
+    application, stream = _native_application(home, function, arguments, named)
+    # An explicit stream stays a stream under the value consumer, the
+    # CallConsumer contract; every other native application is one value,
+    # observed to exactly one answer where it evaluates.
+    return application if stream else _expr(S["eval-one"], application)
 
 
-def apply_host_value(home: Atom, function: Atom, positional: Atom, keywords: Atom) -> Atom:
+def apply_host_value(_home: Atom, function: Atom, positional: Atom, keywords: Atom) -> Atom:
     """Call the exact host object once with values and retain its result image."""
     arguments, named = _argument_values(positional, keywords)
     if not isinstance(function, Grounded):
         msg = "a host value application requires a grounded callable"
         raise TypeError(msg)
-    space = call_values.lexical_space(home)
-    target = build(function, space=space)
-    value = target(*(build(argument, space=space) for argument in arguments),
-                   **{name: build(argument, space=space) for name, argument in named.items()})
+    # The callable is the held object itself: build() reads a held object as
+    # a value to rebuild, and a host island answered "no door namespace". Its
+    # operands are the Python values the twin computes with, the codec every
+    # prelude operator applies, so an island's `value * 2` over a compiled
+    # local multiplies numbers rather than building `(* 1 2)`.
+    target = host.unboxed(function.value)
+    value = target(*(call_values.pythonic(argument) for argument in arguments),
+                   **{name: call_values.pythonic(argument) for name, argument in named.items()})
     return call_values.returned(value)
 
 
@@ -206,18 +218,22 @@ def value_declarations() -> tuple[Expression, ...]:
     source = Variable("call-source")
     head = _expr(S["_python-call-value"], home, function, positional, keywords)
     binding = _expr(S["_python-bind-call-value"], home, function, positional, keywords)
-    # No function frame: this engine's eval and evalc are full evaluations
-    # and step only inside a function frame, where chain observes the step,
-    # so a frame around eval-one handed back the callable's body after one
-    # step and a zero-answer body never reached the cardinality check. Outside
-    # a frame eval-one observes the whole answer set, and a body's noeval
-    # mask is what keeps returned syntax from being reduced at the boundary.
+    # The binder decides how many answers the source may have: a one-answer
+    # native application arrives wrapped in eval-one, a stream and a host
+    # application arrive bare, so the equation only evaluates the bound
+    # source in the callable's home. No function frame around it: this
+    # engine's eval and evalc are full evaluations and step only inside a
+    # function frame, where chain observes the step, so a frame handed back
+    # the callable's body after one step and a zero-answer body never reached
+    # the cardinality check. Outside a frame eval-one observes the whole
+    # answer set, and a body's noeval mask is what keeps returned syntax from
+    # being reduced at the boundary.
     # [source: engine/metta/control.pl:metta_evalc_step/3;
     # engine/translator/special_forms.pl:translate_special_dl(noeval,...);
     # tested: test_call_value_holds_native_results,
-    # test_call_value_refuses_zero_and_multiple_answers; commit=d78d867637047c164be4bc1ab63c40b46d2cff5d]
-    body = _expr(S.let, source, binding,
-                 _expr(S["eval-one"], _expr(S.evalc, source, home)))
+    # test_call_value_refuses_zero_and_multiple_answers,
+    # test_expanded_operations_use_each_registered_arity; commit=WORKTREE]
+    body = _expr(S.let, source, binding, _expr(S.evalc, source, home))
     # Four Atom operands, since the callable image and its operand frames
     # must reach the binder unevaluated, and an undefined result, since an
     # Atom result type hands the right-hand side back as written.
@@ -272,7 +288,7 @@ def _argument_values(positional: Atom, keywords: Atom) -> tuple[tuple[Atom, ...]
             raise TypeError(msg)
         key, value = pair.children
         if not isinstance(key, Grounded) or not isinstance(key.value, str):
-            msg = "keyword names must be strings"
+            msg = "keywords must be strings"
             raise TypeError(msg)
         if key.value in named:
             msg = f"got multiple values for keyword argument {key.value!r}"

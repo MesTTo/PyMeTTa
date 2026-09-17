@@ -90,6 +90,7 @@ from metta._atoms.model import (
     Handle,
     Symbol,
     Variable,
+    hold,
     register_object_repr,
     unregister_object_repr,
 )
@@ -156,6 +157,7 @@ __all__ = [
     "arrow",
     "fresh",
     "ground",
+    "hold",
     "if_",
     "in_",
     "not_",

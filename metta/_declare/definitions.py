@@ -143,7 +143,7 @@ from metta._compile.twins import (
     dispatcher_owns_clause,
     select_clause_twin,
 )
-from metta._declare import call_syntax, classes
+from metta._declare import call_syntax, classes, operations
 from metta._declare import functions as _space_functions
 from metta._errors.errors import CompileError, EngineError, Remedy
 from metta._lazy import lazy
@@ -189,6 +189,12 @@ def clear_definitions(space: Any) -> None:
         run_void_write(space.runtime, "metta_py_clear", space.name)
     if not speculative_enabled():
         release_definitions(space)
+        # The declaration rows the linked operations held here went with the
+        # store, and the ownership counts saying they were there must go too,
+        # or the next define links an operation that declares nothing
+        # [tested: test_clear_starts_a_new_twin_family,
+        # test_clearing_a_space_lets_a_later_link_declare_again; commit=WORKTREE].
+        operations._forget_space(space.name)
 
 def release_definitions(space: Any) -> None:
     """Drop the process state describing a space's definitions, the

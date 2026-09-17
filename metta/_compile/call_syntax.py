@@ -4,6 +4,10 @@ Guarantees:
   - result consumers use the call-values domain, preserving its native
     strings [tested: test_call_consumer_source.CallConsumerSourceTests;
     commit=b8f5c6b9a3ef41b173d6af81e1b9bb526977a908]
+  - value consumers execute through _python-call-value with the keyword
+    frame crossing as pairs, so the callee receives the atoms and held values
+    themselves [tested: test_compiled_host_calls_keep_data_out_of_keyword_control,
+    test_host_call_frames_do_not_inspect_callable_signatures; commit=WORKTREE]
   - carried values and host-island locals remain data inside independent call
     frames [tested: test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_carried_native_calls_hold_completed_operand_values; commit=86756da11eade288973b0dfaab7486a29e598cfd]
@@ -46,7 +50,19 @@ def value_source(value: Atom) -> Atom:
 
 def bound_application(compiler: CompilerContext, function: Atom, positional: Atom,
                       keywords: Atom, *, consumer: CallConsumer = "value") -> Atom:
-    """Execute the live application described by independent argument frames."""
+    """Execute the live application described by independent argument frames.
+
+    A value consumer calls through the seam, `_python-call-value`, which binds
+    the callable value and evaluates it in its home for one answer. The
+    keyword frame is the real dictionary the merges above assembled, and the
+    seam takes keyword data as pairs, so it crosses as `(py-dict-pairs frame)`
+    at this boundary rather than the seam accepting a grounded mapping.
+    """
+    if consumer == "value":
+        compiler.runtime_ops.update(("_python-call-value", "py-dict", "py-dict-pairs"))
+        pairs = Variable(compiler._temp("call-keyword-pairs"))
+        return _expr(S.let, pairs, _expr(S["py-dict-pairs"], keywords),
+                     _expr(S["_python-call-value"], Symbol("&self"), function, positional, pairs))
     compiler.runtime_ops.update(("_python-bind-call", "py-dict"))
     assembled = Variable(compiler._temp("call-application"))
     binding = _expr(S["_python-bind-call"], Symbol("&self"), function, positional, keywords, Grounded(consumer))

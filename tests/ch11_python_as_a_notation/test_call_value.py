@@ -204,15 +204,20 @@ def test_call_value_uses_the_callable_home_and_linking_does_not_stack_equations(
 
 
 def test_call_value_does_not_replace_the_explicit_stream_consumer():
-    """An explicitly published stream still enumerates through its existing door."""
+    """An explicitly published stream collapses only through the iterable consumer.
+
+    Under the value seam it stays a stream, one answer per element, neither
+    collapsed nor refused: the binder leaves a stream application bare and
+    wraps every other native application in eval-one, which is the
+    CallConsumer contract compiled value calls rely on.
+    """
     with MeTTa() as context:
         home = context.self
         call_syntax.link(home, ("_python-call-value",))
         image, _equation = _native(home, S.superpose(Expression([G(1), G(2)])), stream=True)
         application = call_syntax.bind_call(home, image, Expression([]), G({}), G("iterable"))
         assert home.eval(application) == [Expression([1, 2])]
-        with pytest.raises(EngineError, match="cardinality"):
-            home.eval(_call(home, image), on_error="abort")
+        assert home.eval(_call(home, image), on_error="abort") == [G(1), G(2)]
 
 
 def test_call_value_keeps_explicit_host_images():
@@ -225,3 +230,16 @@ def test_call_value_keeps_explicit_host_images():
         home = context.self
         call_syntax.link(home, ("_python-call-value",))
         assert home.eval(_call(home, G(Declared))) == [S.Declared(S.payload)]
+
+
+def test_call_value_observes_a_returned_answer_view():
+    """A returned view is observed to its one answer, as a view entering a term is."""
+    with MeTTa() as context:
+        home = context.self
+        call_syntax.link(home, ("_python-call-value",))
+        home.add(S.row(1))
+        rows = S.match(S[home.name], S.row(V.x), V.x)
+        assert home.eval(_call(home, G(lambda: home.answers(rows)))) == [1]
+        home.add(S.row(2))
+        with pytest.raises(EngineError, match="exactly one answer"):
+            home.eval(_call(home, G(lambda: home.answers(rows))), on_error="abort")

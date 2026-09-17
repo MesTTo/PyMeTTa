@@ -1916,6 +1916,21 @@ def _encode_fast_rebuild() -> None:
     _ENCODE_FAST.update(resolved)
 
 
+def hold(value: Any) -> Atom:
+    """The atom a Python value is held as while it stays a Python value.
+
+    A value a compiled body computes with is the twin's value: a scalar is
+    its atom, and anything else is carried whole and by identity. Exact class
+    only, as the fast table is keyed: a subclass of a scalar is a class of its
+    own with its own meaning, and is held rather than encoded through its
+    base's handler. The caller has already asked for an explicit image where
+    one applies; this is the answer where none does [tested:
+    test_call_value_source.CallValueSourceTests; commit=WORKTREE].
+    """
+    handler = _ENCODE_FAST.get(value.__class__)
+    return handler(value) if handler is not None else Grounded(value)
+
+
 def encode(value: Any) -> Atom:
     """Turn a Python value into an atom.
 

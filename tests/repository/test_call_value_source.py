@@ -101,13 +101,17 @@ class CallValueSourceTests(unittest.TestCase):
             argument=Grounded,
             rebuild=lambda *_args: self.native,
             apply_sources=lambda head, sources: _expr(head, *sources),
+            pythonic=lambda value: value.value if isinstance(value, Grounded) else value,
         )
         self.namespace = {
             "Atom": Atom, "Expression": Expression, "Grounded": Grounded,
             "Symbol": Symbol, "Variable": Variable, "S": _Symbols(), "_expr": _expr,
             "inspect": inspect, "Any": Any, "call_values": self.values,
             "build": self.build, "argument": Grounded,
+            "hold": Grounded, "runtime_annotation": lambda _value: None,
+            "deferred": lambda _value: False,
             "explicit_projection": lambda value: self.images.get(id(value)),
+            "host": types.SimpleNamespace(unboxed=lambda value: value),
         }
         _helpers(ROOT / "metta/_catalog/call_values.py", {"returned"}, self.namespace)
         self.values.returned = self.namespace["returned"]
@@ -161,9 +165,9 @@ class CallValueSourceTests(unittest.TestCase):
         home = Symbol("Home")
         actual = self.namespace["apply_host_value"](home, Grounded(Opaque()), positional, keywords)
         self.assertIs(actual.value, result)
-        self.assertEqual(self.events[-1], ("call", left, right))
-        self.assertEqual(len(self.events), 4)
-        self.assertTrue(all(event[-1] is home for event in self.events[:-1]))
+        # The operands cross as the twin's values and the callable is the held
+        # object itself; nothing passes through build.
+        self.assertEqual(self.events, [("call", left, right)])
 
     def test_successful_results_keep_their_existing_image_policy(self):
         """Explicit images win and ordinary results remain exact held objects."""
@@ -206,6 +210,25 @@ class CallValueSourceTests(unittest.TestCase):
         with self.assertRaises(RuntimeError) as caught:
             self.namespace["apply_host_value"](Symbol("Home"), Grounded(fails), Expression([]), Expression([]))
         self.assertIs(caught.exception, failure)
+
+    def test_a_one_answer_native_binding_is_observed_through_eval_one(self):
+        """The binder wraps a one-answer application; a stream application stays bare."""
+        application = Symbol("Application")
+        shapes = []
+
+        class Native:
+            space = Symbol("NativeHome")
+
+            def application(self, _arguments, _keywords):
+                return application, inspect.Signature(), shapes.pop()
+
+        self.native = Native()
+        shapes.append(False)
+        wrapped = self.namespace["bind_value"](Symbol("Caller"), Symbol("Native"), Expression([]), Expression([]))
+        self.assertEqual(_shape(wrapped), ("eval-one", ("evalc", "Application", "NativeHome")))
+        shapes.append(True)
+        bare = self.namespace["bind_value"](Symbol("Caller"), Symbol("Native"), Expression([]), Expression([]))
+        self.assertEqual(_shape(bare), ("evalc", "Application", "NativeHome"))
 
     def test_native_binding_reuses_the_current_application_and_lexical_home(self):
         """The current native applicator owns source and its lexical home."""
@@ -261,7 +284,7 @@ class CallValueSourceTests(unittest.TestCase):
             "=", ("_python-call-value", "$call-home", "$call-function", "$call-positionals", "$call-keywords"),
             ("let", "$call-source",
                 ("_python-bind-call-value", "$call-home", "$call-function", "$call-positionals", "$call-keywords"),
-                ("eval-one", ("evalc", "$call-source", "$call-home"))),
+                ("evalc", "$call-source", "$call-home")),
         ))
         self.assertEqual(_shape(declarations[2]), ("internal", "_python-call-value"))
 

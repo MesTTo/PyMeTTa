@@ -14,6 +14,9 @@ Guarantees:
     in the name, which made the new life register one with no rows at all
     [tested: test_a_recycled_space_name_declares_its_own_operations;
     commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
+  - and clear() drops that claim with the rows, so a later registration in
+    the same life declares again [tested:
+    test_clearing_a_space_lets_a_later_link_declare_again; commit=WORKTREE]
   - nor its past life's user typing rules, which are the declaration made by
     a call rather than by a stored atom and were the one kind that stayed
     [tested
@@ -244,6 +247,34 @@ def _execution_module_owns(metta, space_name):
 # because the lambda counter is process-global and the specialization rebuilds,
 # so the harm was a module that grew by one dead predicate per lambda per life
 # and an escape hatch that reached into a finished one.
+def test_clearing_a_space_lets_a_later_link_declare_again(drained):
+    """clear() drops the declaration counts with the rows they counted.
+
+    The rows go with the store, but the count that said they were there was
+    keyed by the space's name, which the space keeps, so a re-registration
+    after clear() added nothing back and the operation stood declared
+    nowhere; the same leak the recycled name below had at drop.
+    """
+    def declared(space, name):
+        return sorted(str(atom) for atom in space.atoms() if name in str(atom))
+
+    def widen(value: int) -> int:
+        return value + 1
+
+    space = drained._new_space()
+    try:
+        space.op(widen, name="cleared-decl-op", effect="pureStructural")
+        before = declared(space, "cleared-decl-op")
+        assert before != []
+        space.clear()
+        assert declared(space, "cleared-decl-op") == []
+        space.op(widen, name="cleared-decl-op", effect="pureStructural")
+        assert declared(space, "cleared-decl-op") == before
+    finally:
+        space.unregister_op("cleared-decl-op")
+        space.drop()
+
+
 def test_a_recycled_space_name_declares_its_own_operations(drained):
     """The Python half of the same rule, and the third leak of this kind.
 

@@ -88,6 +88,7 @@ from metta._atoms.factories import (
     _expr,
     _variables,
     fresh,
+    hold,
 )
 from metta._catalog import call_signatures
 from metta._catalog.containers import runtime_annotation
@@ -106,11 +107,38 @@ def argument(value: Any) -> Atom:
 
 
 def returned(value: Any) -> Atom:
-    """Carry one successful Python result through its existing value image."""
+    """Carry one successful Python result through its existing value image.
+
+    An author's declared image projects first, since a declared class
+    instance is a face of a native value whatever else it is (a prototype
+    instance is a space, and a space is an atom), and an answer view is
+    observed to its one answer through its own image, the observation point
+    term construction already is for a view; an Atom result is then held
+    under a data wrapper so returned syntax is not reduced; a container is
+    borrowed by identity; and anything else is held by its exact class,
+    which is where a generator or a coroutine stays unstarted: neither has
+    an image, so the twin receives the object it returned.
+    """
     projected = explicit_projection(value)
     if projected is not None:
         return projected
-    return Grounded(value) if isinstance(value, Atom) else argument(value)
+    if isinstance(value, Atom) or runtime_annotation(value) is not None:
+        return Grounded(value)
+    return hold(value)
+
+
+def pythonic(value: Any) -> Any:
+    """An atom as the Python value the twin computes with: grounded values
+    unwrap, expressions become tuples, a symbol stays itself (the twin
+    cannot hold one, and hazard tracking keeps it out of twin paths). The
+    prelude's operators and the seam's host application share it, so a
+    Python callable computes on the same values whichever way it is reached.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    if isinstance(value, Grounded):
+        return value.value
+    if isinstance(value, Expression):
+        return tuple(pythonic(c) for c in value)
+    return value
 
 
 def argument_sources(signature: inspect.Signature, supplied: Mapping[str, Any],
