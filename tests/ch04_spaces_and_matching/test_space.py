@@ -1846,6 +1846,32 @@ def test_a_copy_reproduces_the_space_it_copied(metta):
             clone.drop()
 
 
+def test_a_copy_leaves_projected_rows_to_the_origins_it_copies(metta):
+    """copy() copies a space's own rows, an origin row ``(from &provider)``
+    among them, and leaves the declarations and documentation that origin
+    projected to the clone's own origin: copying the projections too gave the
+    clone a second ``(@doc ...)`` for every documented name and a copy of the
+    copy a third, while a projected declaration was shadowed by its authored
+    twin, so ``&self`` and its clone disagreed on exactly the documents.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    from collections import Counter
+
+    def documents(space):
+        return [atom for atom in space.atoms() if str(atom).startswith("(@doc shout ")]
+
+    with metta._new_space() as provider, metta._new_space() as borrower:
+        provider.run("(= (shout $x) (loud $x))")
+        provider.run('(@doc shout (@desc "Says it louder."))')
+        borrower.add(S["from"](S[provider.name]))
+        assert len(documents(borrower)) == 1
+        with borrower.copy() as clone:
+            assert Counter(map(str, clone.atoms())) == Counter(map(str, borrower.atoms()))
+            assert len(documents(clone)) == 1
+            assert clone.run("!(shout 1)") == [[S.loud(1)]]
+            with clone.copy() as twice:
+                assert len(documents(twice)) == 1
+
+
 def test_a_variable_headed_pattern_answers_through_every_door(metta):
     """P2.30, and the seam:pattern_modifier marker defect under it: a pattern
     whose head is a variable is ordinary structure, so it answers stored

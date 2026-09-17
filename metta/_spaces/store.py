@@ -458,12 +458,24 @@ def copy(space: _root.Space) -> _root.Space:
     stored Python objects keep their identity across the clone, the
     shallow reading, and a deep clone of a live engine handle has no
     meaning to promise.
+
+    The contents are the space's OWN rows, the enumeration ``save()``
+    persists: an origin row ``(from ...)`` copies, and the declarations
+    and ``(@doc ...)`` rows that origin projected do not, because the
+    clone's origin projects them again; copying them too gave every
+    projected document a second, authored copy in the clone and a third
+    in a copy of the copy, while a projected declaration was shadowed by
+    its authored twin [source: engine/filereader/source_lifecycle.pl,
+    metta_source_occurrence/4; tested:
+    test_a_copy_leaves_projected_rows_to_the_origins_it_copies;
+    commit=WORKTREE].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     lazy('metta.foreign').require_capability(space._space, "enumerate", "copy")
     # Enumerate the SOURCE before minting: a provider whose enumeration
     # fails then costs nothing, where minting first leaked an anonymous
     # clone on every such failure.
-    atoms = list(space.atoms())
+    wires = space._rt.apply_must("metta_py_source_atoms", space._space)
+    atoms = [_atom_from_wire(w) for w in wires]
     # Specializer-generated equations add LAST, stably. Re-adding a base
     # equation invalidates the clone's specializations of that name, so
     # an enumeration that interleaves a base between two generated
