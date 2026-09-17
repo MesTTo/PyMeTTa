@@ -25,6 +25,8 @@ Guarantees:
       test_list_materializes_a_match_without_a_second_query]
     - the retained bag survives an arbitrary generated answer multiset
       [tested: test_a_generated_answer_bag_survives_both_routes]
+    - a repeatable guard is counted by the engine rather than declined
+      [tested: test_a_guarded_length_counts_inside_the_engine; commit=WORKTREE]
     - inspecting an Answers iterator never delays its engine release through
       a frame reference cycle [tested:
       test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle,
@@ -451,3 +453,29 @@ def test_a_counted_view_releases_its_engine_when_it_is_dropped(metta) -> None:
     del view
     gc.collect()
     assert live_engines(metta) == before
+
+
+def test_a_guarded_length_counts_inside_the_engine(metta, monkeypatch) -> None:
+    """A repeatable guard keeps ``len`` on the engine-side count.
+
+    From 2026-09-02 until 98540fdb2 the count door declined every guard: its
+    conjunction builder was undefined where the door called it, and the
+    evaluator's catch-all read the missing procedure as "not repeatable", so
+    every guarded length fell back to the cursor route, whose work runs in an
+    SWI engine the caller's inference counter cannot see.
+    """
+    metta.add(*(S["route-guarded-row"](value) for value in range(6)))
+    runtime = metta.runtime
+    original = type(runtime).apply_must
+    answers: list[Any] = []
+
+    def observe(self, predicate, *inputs):
+        result = original(self, predicate, *inputs)
+        if predicate == "metta_py_query_count_if_repeatable":
+            answers.append(result)
+        return result
+
+    monkeypatch.setattr(type(runtime), "apply_must", observe)
+    guarded = metta.match(S["route-guarded-row"](V.value), where=S[">="](V.value, 3))
+    assert len(guarded) == 3
+    assert [int(answer[0]) for answer in answers] == [3], "a repeatable guard is counted, not declined"

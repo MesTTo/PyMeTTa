@@ -14,6 +14,10 @@ Guarantees:
     [tested:
     test_a_second_live_call_reuses_the_table_but_an_undeclared_control_does_not;
     commit=e3787593132a7ece2d300397045f7415709847c9]
+  - a reference-face refresh that finds the same roots announces no change,
+    so a table filled by a live call survives the first use of a deferred
+    library function in a space holding a `from` row [tested:
+    test_a_reference_refresh_that_changes_nothing_keeps_the_table; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -180,6 +184,34 @@ def test_live_call_populates_the_shared_table(m):
         ]
     finally:
         assert m.eval(S.untabled(call)) == [True]
+
+
+def test_a_reference_refresh_that_changes_nothing_keeps_the_table(m, metta):
+    """A `from` row makes every settled deferred translation refresh the
+    space's reference face; a refresh that finds the same roots must not
+    announce the head as changed, or the table its live call filled is
+    abolished before table-stats, itself a deferred library function on its
+    first use, can read it. A class definition is one way a `from` row
+    arrives, which is how the shared-table test above went red behind one.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    with metta._new_space() as origin:
+        origin.add(S.origin_row(1))
+        m.from_(origin)
+        m.add(S.live_route_edge(S.a, S.b))
+
+        @m.define(name="refreshed-route-reach")
+        def refreshed_route_reach(x, y):
+            return match(m, S.live_route_edge(x, y), y)
+
+        call = S["refreshed-route-reach"](V.x, V.y)
+        assert m.eval(S.tabled(call)) == [True]
+        try:
+            assert list(iter(refreshed_route_reach(S.a, V.y))) == [S.b]
+            [counted] = m.fn.table_stats(call)
+            assert S.answers(1) in list(counted)
+            assert S.tables(1) in list(counted)
+        finally:
+            assert m.eval(S.untabled(call)) == [True]
 
 
 def test_a_second_live_call_reuses_the_table_but_an_undeclared_control_does_not(m):
