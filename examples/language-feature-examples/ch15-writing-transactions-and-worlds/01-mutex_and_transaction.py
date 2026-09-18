@@ -322,9 +322,22 @@ def twin(m):
 #: GATE_ONLY=1 sh check.sh twins four times, ai-observe-558f40c9c.log, ai-
 #: observe-c6448858b.log, ai-twins-K5.log, ai-twins-K6-interim.log, ai-
 #: twins-K6-final.log, ai-twins-K6-final-2.log; commit=bf5f100591493a91324b1d7552b5ad2731601691].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/294/workers=32', 23345..23357 over
+#: 24 under 'full-lane/294/workers=32' to 23345..23357 over 25: every full-lane
+#: run under one protocol is an observation, so the envelope pools the two ten-
+#: round observations on this tree with the five full-lane runs that measured
+#: it (the K5 tip's lane, the assembled tree before its envelopes, after them,
+#: after the first pooling, and the tip e28c4f2f5 beside a second battery), the
+#: union of the extrema over the sum of the counts, as the 2026-09-08 entry
+#: pools two runs [measured 2026-09-18: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 twice and
+#: GATE_ONLY=1 sh check.sh twins five times, ai-observe-558f40c9c.log, ai-
+#: observe-c6448858b.log, ai-twins-K5.log, ai-twins-K6-interim.log, ai-
+#: twins-K6-final.log, ai-twins-K6-final-2.log, ai-twins-tip-e28c4f2f5.log;
+#: commit=WORKTREE].
 BUDGET = {
     "minimum": 23345,
     "maximum": 23357,
-    "observations": 24,
+    "observations": 25,
     "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }

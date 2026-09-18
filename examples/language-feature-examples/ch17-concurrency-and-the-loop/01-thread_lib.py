@@ -424,10 +424,23 @@ def twin(m):
 #: observe-558f40c9c.log, ai-observe-c6448858b.log, ai-twins-K5.log, ai-
 #: twins-K6-interim.log, ai-twins-K6-final.log, ai-twins-K6-final-2.log;
 #: commit=bf5f100591493a91324b1d7552b5ad2731601691].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/294/workers=32', 322447..356658 over
+#: 24 under 'full-lane/294/workers=32' to 322447..416925 over 25: every full-
+#: lane run under one protocol is an observation, so the envelope pools the two
+#: ten-round observations on this tree with the five full-lane runs that
+#: measured it (the K5 tip's lane, the assembled tree before its envelopes,
+#: after them, after the first pooling, and the tip e28c4f2f5 beside a second
+#: battery), the union of the extrema over the sum of the counts, as the
+#: 2026-09-08 entry pools two runs [measured 2026-09-18: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 twice and
+#: GATE_ONLY=1 sh check.sh twins five times, ai-observe-558f40c9c.log, ai-
+#: observe-c6448858b.log, ai-twins-K5.log, ai-twins-K6-interim.log, ai-
+#: twins-K6-final.log, ai-twins-K6-final-2.log, ai-twins-tip-e28c4f2f5.log;
+#: commit=WORKTREE].
 BUDGET = {
     "minimum": 322447,
-    "maximum": 356658,
-    "observations": 24,
+    "maximum": 416925,
+    "observations": 25,
     "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }
 
@@ -487,7 +500,18 @@ BUDGET = {
 #: ai-tmp/ai-join-recovery-relative-controls.py; fixture=full-
 #: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot;
 #: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-OVERRUN = 242090
+#: OVERRUN 2026-09-18, 242090 to 242102 (+12): the twin costs 416925 against
+#: the example's 152623 and a ceiling of 416913 with the earlier declaration; a
+#: minimal twin of this example costs 159808, inside the 167885 the band alone
+#: allows, so the distance is this twin's own program. the loser's spin ran to
+#: 416925 while a second battery ran the tip's other lanes beside the lane, and
+#: the declaration follows the envelope's top as the 2026-09-08 entry decided:
+#: the spin loop that proves a race really races is cut wherever the winning
+#: branch happens to be, so it costs whatever the schedule gives it [measured
+#: 2026-09-18: one fresh process per side through the lane's run_example and
+#: run_twin, the floor from a minimal twin built by the probe; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 242102
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 5 the example does not (3 :, 2 =): the twin is an ordinary
