@@ -402,9 +402,21 @@ def twin(m):
 #: the final tree and under the gate's concurrent lanes, wt-battery-2 ai-full-
 #: gate-10da82e4a.log, ai-full-gate-19fdb0b86.log, ai-lanes-exports-back.log;
 #: commit=1ccbb142315d16a719807cd2c9754e4a2fcefdf1].
+#: ENVELOPED 2026-09-19: the envelope 23258..23267 over 14 becomes the envelope
+#: 23257..23267 over 15: under the lane's own protocol (full-
+#: lane/294/workers=32, ten rounds) the counter reads 23258 every time, and
+#: under the gate's concurrent lanes (one run, below the envelope by one) it
+#: reads 23257, each reading exact on its run; the extra mode is the same
+#: program's work done on a different thread under load, a loader flight or a
+#: settle step the foreground runs itself when the worker is late, which the
+#: join accounting does not reach; an envelope states what was observed and the
+#: point was a lie under the gate [measured 2026-09-19: the twins lane alone on
+#: the final tree and under the gate's concurrent lanes, wt-battery-2 ai-full-
+#: gate-10da82e4a.log, ai-full-gate-19fdb0b86.log, ai-lanes-exports-back.log;
+#: commit=WORKTREE].
 BUDGET = {
-    "minimum": 23258,
+    "minimum": 23257,
     "maximum": 23267,
-    "observations": 14,
+    "observations": 15,
     "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }

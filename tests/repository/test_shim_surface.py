@@ -428,6 +428,7 @@ FLOOR_REASONS = {
     "metta_space_registered/1": "door",
     "metta_actor/1": "door",
     "metta_host_blame/3": "host-orchestration",
+    "metta_discarded_inferences/1": "door",
     "catch_recover/2": "host-choice",
     "metta_deprecation/3": "door",
     "metta_cost_declaration/4": "door",

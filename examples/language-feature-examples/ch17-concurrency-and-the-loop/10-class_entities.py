@@ -137,7 +137,21 @@ BUDGET = {
     "observations": 11,
     "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }
-OVERRUN = 5078082
+#: OVERRUN 2026-09-19, 5078082 to 5085304 (+7222): the twin costs 5178578
+#: against the example's 83025 and a ceiling of 5171356 with the earlier
+#: declaration; a minimal twin of this example costs 89193, inside the 91328
+#: the band alone allows, so the distance is this twin's own program. the
+#: twin's second exact mode under the gate's concurrent lanes (4,677,080 and
+#: 5,178,578 against 4,655,324 and 5,157,302 under the lane's own protocol),
+#: the same class work done on a different thread under load, a loader flight
+#: or settle step the foreground runs itself when the worker is late, which the
+#: join accounting does not reach; the budget is an envelope over both modes
+#: (the ENVELOPED paragraph) and this overrun prices the parity band at the
+#: loaded mode [measured 2026-09-19: one fresh process per side through the
+#: lane's run_example and run_twin, the floor from a minimal twin built by the
+#: probe; command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 5085304
 
 #: DIVERGED 2026-09-18, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 29 atoms the example does not (28 :, 1 @doc): The twin's
