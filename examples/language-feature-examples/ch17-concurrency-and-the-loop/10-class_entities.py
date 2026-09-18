@@ -150,7 +150,7 @@ BUDGET = {
 #: loaded mode [measured 2026-09-19: one fresh process per side through the
 #: lane's run_example and run_twin, the floor from a minimal twin built by the
 #: probe; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=e1bc448fdf30906af83fb62c5ecc5feb8bd67ce3].
 OVERRUN = 5085304
 
 #: DIVERGED 2026-09-18, the example holds 0 atoms the twin does not (none) and

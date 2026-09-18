@@ -413,7 +413,7 @@ def twin(m):
 #: point was a lie under the gate [measured 2026-09-19: the twins lane alone on
 #: the final tree and under the gate's concurrent lanes, wt-battery-2 ai-full-
 #: gate-10da82e4a.log, ai-full-gate-19fdb0b86.log, ai-lanes-exports-back.log;
-#: commit=WORKTREE].
+#: commit=e1bc448fdf30906af83fb62c5ecc5feb8bd67ce3].
 BUDGET = {
     "minimum": 23257,
     "maximum": 23267,
