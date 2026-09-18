@@ -48,5 +48,5 @@ def twin(m):
 #: 0.8538x the example's 30891, min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/07-tagged_fixpoint.metta;
-#: commit=WORKTREE].
+#: commit=12609a929638e7a2b08d3ff8f517abc1a399e7a9].
 BUDGET = 26374
