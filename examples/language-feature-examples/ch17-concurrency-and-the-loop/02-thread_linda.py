@@ -452,7 +452,7 @@ def twin(m):
 #: probing the owner once per set, so the envelope is this tree's own
 #: observation under the same 294-wide protocol [measured 2026-09-19: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10, ai-
-#: observe-4c0533704.log; commit=WORKTREE].
+#: observe-4c0533704.log; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
 BUDGET = {
     "minimum": 149803,
     "maximum": 149803,

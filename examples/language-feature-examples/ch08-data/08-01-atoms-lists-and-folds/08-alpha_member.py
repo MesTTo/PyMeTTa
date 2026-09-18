@@ -295,7 +295,7 @@ def twin(m):
 #: rows), the host listener door and the receipts loop probing the owner once
 #: per set; serial minimum of three fresh processes through the lane's run_twin
 #: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
 BUDGET = 25408
 
 #: OVERRUN 2026-09-07, 3600: it puts Python's own `in` beside `is-alpha-member`

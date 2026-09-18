@@ -379,7 +379,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: rows), the host listener door and the receipts loop probing the owner once
 #: per set; serial minimum of three fresh processes through the lane's run_twin
 #: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
 BUDGET = 42169
 
 #: RE-PINNED 2026-09-08, 17475 to 17843 (+368), The engine and library

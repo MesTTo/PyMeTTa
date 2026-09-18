@@ -458,7 +458,7 @@ def twin(m):
 #: owner once per set; serial minimum of three fresh processes through the
 #: lane's run_twin [measured 2026-09-18: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
 BUDGET = 27896806
 
 #: DIVERGED 2026-09-07, the example holds 6 atoms the twin does not (6 =) and

@@ -212,7 +212,7 @@ def twin(m):
 #: rows), the host listener door and the receipts loop probing the owner once
 #: per set; serial minimum of three fresh processes through the lane's run_twin
 #: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
 BUDGET = 89557
 #: OVERRUN 2026-09-09, 0 to 242 (+242): the compiled vocabulary seed, the
 #: membership index, base-module type lookups and the singleton decoder landed
