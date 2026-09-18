@@ -408,7 +408,7 @@ def twin(m):
 #: minimum of three fresh processes through the lane's run_twin with
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 BUDGET = 74388
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
@@ -427,5 +427,5 @@ BUDGET = 74388
 #: example's spelling where they did not, and where they still differ the twin
 #: stores what its own Python spelling stores [measured 2026-09-18: the two
 #: stored-atom surpluses, one fresh process per side; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 DIVERGENCE = "924004ca5af3664a816568bc7aff25d16303d197554eccdd603b181690513277"

@@ -365,7 +365,7 @@ def twin(m):
 #: minimum of three fresh processes through the lane's run_twin with
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 BUDGET = 45856
 
 
@@ -390,5 +390,5 @@ DIVERGENCE = "230acfc89f628d20a71888230be17b02c8e79d3d49807890dd7a1a8027f3b30c"
 #: f06186a96 [measured 2026-09-18: one fresh process per side through the
 #: lane's run_example and run_twin, the floor from a minimal twin built by the
 #: probe; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 OVERRUN = 1705

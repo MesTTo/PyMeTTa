@@ -433,7 +433,7 @@ def twin(m):
 #: minimum of three fresh processes through the lane's run_twin with
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 BUDGET = 330037
 
 #: OVERRUN 2026-09-07, 17700: it names every lib_roman function at every claim

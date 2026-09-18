@@ -50,12 +50,12 @@ def twin(m):
 #: scheduler this counter answers to is a new one and the observations are this
 #: tree's own rather than pooled with the earlier protocol's [measured
 #: 2026-09-18: python extensions/python/tools/twin_coverage.py --observe
-#: --rounds 10, wt-battery-6 ai-tmp/ai-observe-f06186a96.log; commit=WORKTREE].
+#: --rounds 10, wt-battery-6 ai-tmp/ai-observe-f06186a96.log; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 #: POOLED 2026-09-18: the lane's own reading on the same tree, 369745, sits
 #: under the ten rounds' floor of 370077 by 332, so it joins them under the
 #: same protocol, 369745..373706 over 11, as the 2026-09-08 entry pools two
 #: runs [measured 2026-09-18: python extensions/python/tools/twin_coverage.py,
-#: wt-battery-4 ai-tmp/ai-twins-lane-residuals.log; commit=WORKTREE].
+#: wt-battery-4 ai-tmp/ai-twins-lane-residuals.log; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 BUDGET = {
     "minimum": 369745,
     "maximum": 373706,

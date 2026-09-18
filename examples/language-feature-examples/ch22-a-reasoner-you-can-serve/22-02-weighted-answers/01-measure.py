@@ -350,7 +350,7 @@ def twin(m):
 #: scheduler this counter answers to is a new one and the observations are this
 #: tree's own rather than pooled with the earlier protocol's [measured
 #: 2026-09-18: python extensions/python/tools/twin_coverage.py --observe
-#: --rounds 10, wt-battery-6 ai-tmp/ai-observe-f06186a96.log; commit=WORKTREE].
+#: --rounds 10, wt-battery-6 ai-tmp/ai-observe-f06186a96.log; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 BUDGET = {
     "minimum": 134811,
     "maximum": 134910,

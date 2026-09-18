@@ -358,7 +358,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: minimum of three fresh processes through the lane's run_twin with
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 BUDGET = 42955
 
 #: RE-PINNED 2026-09-08, 17475 to 17843 (+368), The engine and library
