@@ -395,7 +395,7 @@ def twin(m):
 #: GATE_ONLY=1 sh check.sh twins five times, ai-observe-558f40c9c.log, ai-
 #: observe-c6448858b.log, ai-twins-K5.log, ai-twins-K6-interim.log, ai-
 #: twins-K6-final.log, ai-twins-K6-final-2.log, ai-twins-tip-e28c4f2f5.log;
-#: commit=WORKTREE].
+#: commit=0e767924501d8b25d1994f128d96c503d867e408].
 BUDGET = {
     "minimum": 134811,
     "maximum": 134910,

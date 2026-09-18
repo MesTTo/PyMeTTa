@@ -436,7 +436,7 @@ def twin(m):
 #: GATE_ONLY=1 sh check.sh twins five times, ai-observe-558f40c9c.log, ai-
 #: observe-c6448858b.log, ai-twins-K5.log, ai-twins-K6-interim.log, ai-
 #: twins-K6-final.log, ai-twins-K6-final-2.log, ai-twins-tip-e28c4f2f5.log;
-#: commit=WORKTREE].
+#: commit=0e767924501d8b25d1994f128d96c503d867e408].
 BUDGET = {
     "minimum": 322447,
     "maximum": 416925,
@@ -510,7 +510,7 @@ BUDGET = {
 #: branch happens to be, so it costs whatever the schedule gives it [measured
 #: 2026-09-18: one fresh process per side through the lane's run_example and
 #: run_twin, the floor from a minimal twin built by the probe; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=0e767924501d8b25d1994f128d96c503d867e408].
 OVERRUN = 242102
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
