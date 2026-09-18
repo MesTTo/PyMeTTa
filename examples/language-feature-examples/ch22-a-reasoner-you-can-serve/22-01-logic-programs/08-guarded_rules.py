@@ -69,7 +69,7 @@ BUDGET = 23621
 #: [measured 2026-09-18: one fresh process per side through the lane's
 #: run_example and run_twin, the floor from a minimal twin built by the probe;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=bf5f100591493a91324b1d7552b5ad2731601691].
 OVERRUN = 3385
 
 #: DIVERGED 2026-09-18, the example holds 0 atoms the twin does not (none) and
@@ -80,5 +80,5 @@ OVERRUN = 3385
 #: the MeTTa function above-half, which the twin mirrors first [measured
 #: 2026-09-18: the two stored-atom surpluses, one fresh process per side;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=bf5f100591493a91324b1d7552b5ad2731601691].
 DIVERGENCE = "bdb3f2dcbafa7ac4abb5860bb62b1676e66d0d354482f067629aa25cf4cf836e"

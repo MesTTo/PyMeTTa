@@ -435,7 +435,7 @@ def twin(m):
 #: twins between -4212 and +2841, the reference twins +208 and +317, the tagged
 #: fixpoint twin +610, the documentation twins -22 and -50, types_nondet +5)
 #: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=bf5f100591493a91324b1d7552b5ad2731601691].
 BUDGET = 38190
 
 #: DIVERGED 2026-09-07, the example holds 3 atoms the twin does not (3 =) and
