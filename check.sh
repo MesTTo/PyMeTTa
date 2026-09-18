@@ -334,7 +334,7 @@ run REPORT determinism check_determinism_coverage
 # tools/ is this component's generators and it was in NO lane: not here, and
 # not in the root gate's ruff-drivers, which excludes extensions/python/
 # wholesale. 38 findings had accumulated there unseen [measured 2026-09-04].
-run GATE   ruff        in_py "$PY" -m ruff check metta tests tools examples/language-feature-examples bench.py ext conftest.py _workspace.py
+run GATE   ruff        in_py "$PY" -m ruff check metta tests tools examples/language-feature-examples bench.py conftest.py _workspace.py
 # The root stub hides its runtime implementation from package scans. Check
 # both separately, then ask real consumers about callable modules and doors.
 check_python_types() {
@@ -378,7 +378,9 @@ run GATE   stubtest    in_py "$PY" -m mypy.stubtest --mypy-config-file stubtest-
 run GATE   ty          in_py "$PY" -m ty check --python "$(dirname "$(dirname "$PY")")" metta
 # Residual Pylint findings describe deliberate facades, compiler mixins,
 # resource cleanup catches, and public compatibility surfaces.
-# `ext` is NOT here, where ruff, mypy, vulture and bandit all read it: pylint
+# `ext` is NOT here and no longer on this seat's lanes at all: it is its own
+# component with its own driver (ext/check.sh), because the distributions there
+# exist to show this seat does not need them. pylint
 # and refurb RESOLVE imports, and a member's module is importable only through
 # the workspace path helper, which neither tool runs. Asking anyway reports
 # `E0401 Unable to import 'metta_websocket'` for every member's own test, which
@@ -420,7 +422,7 @@ run REPORT xenon       in_py "$PY" -m xenon metta --max-absolute D --max-modules
 # equivalents at the package boundaries they flag.
 run GATE   refurb      in_py "$PY" -m refurb metta bench.py
 # Both Bandit findings are the fixed swipl argv call with shell mode disabled.
-run GATE   bandit      in_py "$PY" -m bandit -q -c pyproject.toml -r metta ext
+run GATE   bandit      in_py "$PY" -m bandit -q -c pyproject.toml -r metta
 # Deptry derives local modules from each source root, including tools' siblings
 # and repository checker helpers used by generators. The latter root is
 # discovery-only because this manifest governs the Python package, not checkers
@@ -429,7 +431,7 @@ run GATE   bandit      in_py "$PY" -m bandit -q -c pyproject.toml -r metta ext
 run GATE   deptry      in_py "$PY" -m deptry . tools ../../tests/checks
 run GATE   audit       in_py "$PY" -m pip_audit --progress-spinner off
 # ledger F: public API documentation is held above the 80% target
-run GATE   interrogate in_py "$PY" -m interrogate metta ext
+run GATE   interrogate in_py "$PY" -m interrogate metta
 
 # ---------------------------------------------------------------------------
 # What the suite does not say about itself. Five REPORT lanes, each measuring a

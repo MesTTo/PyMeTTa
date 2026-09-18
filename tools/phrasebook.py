@@ -1,5 +1,6 @@
-"""Purpose: the MeTTa standard library, said in Python, with every saying
-executed. `phrasebook_entries.py` carries one row for each stdlib
+"""Purpose: the MeTTa standard library, said in Python, with every saying executed.
+
+`phrasebook_entries.py` carries one row for each stdlib
 name: the MeTTa form, the Python spelling, and a note. This lane runs both
 sides of every row, compares them against each other and against the frozen
 answers in `phrasebook_answers.json`, and prints the coverage as a number per
