@@ -535,7 +535,6 @@ FLOOR_REASONS = {
     "metta_compensation/2": "door",
     "metta_transport_failure/1": "error-vocabulary",
     "metta_with_state_write_fence/1": "door",
-    "metta_with_trailed/3": "door",
     "metta_listen/2": "door",
     "metta_live_state_cell/1": "door",
     "metta_platform/4": "census",
