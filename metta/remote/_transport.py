@@ -14,6 +14,7 @@ import threading
 from collections.abc import Callable, Iterable
 from copy import deepcopy
 from http.client import HTTPException
+from ssl import SSLContext
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -27,7 +28,7 @@ from metta.remote._network import HTTPEndpoint, validated_timeout
 
 logger = logging.getLogger(__name__)
 
-Transport = Callable[[str, dict], dict]
+Transport = Callable[[str, dict[str, object]], dict[str, object]]
 
 class _HTTPTransport:
     """connect()'s transport validates replies and negotiates mutation replay.
@@ -38,13 +39,13 @@ class _HTTPTransport:
 
     def __init__(
         self,
-        operate: Callable[[str, dict], dict],
-        health: Callable[[], dict],
+        operate: Transport,
+        health: Callable[[], dict[str, object]],
     ) -> None:
         self._operate = operate
         self._health = health
 
-    def __call__(self, operation: str, payload: dict) -> dict:
+    def __call__(self, operation: str, payload: dict[str, object]) -> dict[str, object]:
         if operation in _MUTATIONS:
             return _mutate(self._operate, self.health, operation, payload)
         answer = self._operate(operation, payload)
@@ -55,7 +56,7 @@ class _HTTPTransport:
             return answer
         return _response(operation, answer, payload)
 
-    def health(self) -> dict:
+    def health(self) -> dict[str, object]:
         return _response("health", self._health())
 
 _MUTATIONS = frozenset({"add", "add_many", "remove"})
@@ -71,7 +72,7 @@ class OutcomeUnknown(TransportFailure):
     outcome = "unknown"
     operation: str
 
-    def __init__(self, operation: str, retry: Callable[[], dict] | None = None) -> None:
+    def __init__(self, operation: str, retry: Callable[[], dict[str, object]] | None = None) -> None:
         """Retain the mutation name and its optional keyed recovery operation."""
         super().__init__(
             f"the remote mutation {operation} has an unknown outcome; "
@@ -81,7 +82,7 @@ class OutcomeUnknown(TransportFailure):
         self.operation = operation
         self._retry = retry
 
-    def retry(self) -> dict:
+    def retry(self) -> dict[str, object]:
         """Recover the original result without issuing a new logical write."""
         if self._retry is None:
             msg = "this mutation has no negotiated idempotency key; reconcile with the server"
@@ -382,7 +383,7 @@ def connect(
     *,
     token: str | None = None,
     headers: dict[str, str] | None = None,
-    ssl_context: Any = None,
+    ssl_context: SSLContext | None = None,
 ) -> Transport:
     """The HTTP transport for a serve()d engine: one POST per operation,
     JSON both ways, errors surfaced with the remote's own message.
@@ -416,7 +417,7 @@ def connect(
     if headers:
         sent.update(headers)
 
-    def transport(operation: str, payload: dict) -> dict:
+    def transport(operation: str, payload: dict[str, object]) -> dict[str, object]:
         logger.debug("sending remote engine operation %s", operation)
         asked = sent if payload.get("format") != "arrow" else sent | {"accept": _arrow.IPC_MEDIA_TYPE}
         try:
@@ -467,7 +468,7 @@ def connect(
             raise MettaError(msg)
         return answer
 
-    def health() -> dict:
+    def health() -> dict[str, object]:
         """GET /health, the server describing itself: revision, atom
         count, capabilities, and whether /match honors bound.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

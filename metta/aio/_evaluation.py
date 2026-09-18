@@ -4,6 +4,13 @@ Assumes: an evaluation returns Answers or a closable stream for each target.
 Guarantees: iteration, refusal and cleanup run on the owning worker; Answers
   replay their cached prefix while streams consume once [tested:
   test_async_evaluation_choices_preserve_demand_and_replay; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+  Cached value and caller-row projections read the same immutable answer
+  record without advancing a closed source [tested:
+  test_closed_answer_record_replays_both_faces_without_resuming_source;
+  commit=96b907668ca5afde3cdaddd29bbdbe7ca506c953].
+  Context exit retains the body error, including cancellation, together
+  with a failed release [tested:
+  test_async_exit_preserves_cancellation_and_normal_exit; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
 Owns resources: one tracked group owns every source in an acquired batch.
   Closing a view releases its source; closing the parent releases the group.
   Failed cleanup remains tracked for retry [tested:
@@ -17,10 +24,11 @@ from __future__ import annotations
 import asyncio
 import threading
 from collections.abc import AsyncIterator, Callable
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, Self
 
 from metta._errors.errors import MettaError
-from metta._spaces.results import Answers
+from metta._spaces.results import Answers, _raise_exit_errors
 from metta.aio._worker import _acquire, _raise_lifecycle_failures, _shielded
 
 _END = object()
@@ -111,16 +119,15 @@ class _EvaluationGroup:
     def _cached(self, index: int, position: int, *, rows: bool) -> Any:
         source = self.sources[index]
         if isinstance(source, Answers):
-            if position < len(source._cache):
+            item = source._cached_item(position)
+            if item is not None:
                 if rows:
-                    row = source._row_cache[position]
+                    row = item.row
                     if row is None:
-                        msg = f"answer {source._cache[position]!r} carries no variable row"
+                        msg = f"answer {item.value!r} carries no variable row"
                         raise TypeError(msg)
                     return row
-                return source._cache[position]
-            if source._error is not None:
-                raise source._error
+                return item.value
         return _END
 
     def _pull(self, index: int, position: int, *, rows: bool) -> Any:
@@ -147,7 +154,7 @@ class _EvaluationGroup:
                 await self.close(index)
             except BaseException as cleanup:  # noqa: BLE001 -- preserve cancellation and its cleanup failure
                 msg = "asynchronous evaluation and cleanup failed"
-                raise BaseExceptionGroup(msg, [error, cleanup]) from None
+                _raise_exit_errors(msg, error, (cleanup,))
             raise
 
     async def close(self, index: int) -> None:
@@ -213,8 +220,16 @@ class EvaluationView:
     async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, exc_type, exc, traceback) -> None:
-        await self.aclose()
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        try:
+            await self.aclose()
+        except BaseException as cleanup:  # noqa: BLE001 -- retain cancellation and failed release together
+            _raise_exit_errors("asynchronous answer scope and cleanup failed", exc, (cleanup,))
 
 # Resolve annotations after definitions so peer imports can finish.
 from metta._lazy import lazy  # noqa: E402 -- deferred annotation bindings

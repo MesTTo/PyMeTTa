@@ -48,6 +48,26 @@ Assumes:
     the finder `extensions/python/_workspace.py` installs [source 2026-09-07:
     https://docs.python.org/3/library/importlib.metadata.html#entry-points]
 Guarantees:
+  - failed registration publication restores the local preimage and
+    compensates completed observers; inverse failures remain retryable and
+    every independent failure is reported [tested:
+    test_registration_failure_restores_all_required_views,
+    test_registration_inverse_retries_only_failed_actions,
+    test_registration_compensates_observers_in_reverse_order,
+    test_registration_retry_inside_a_caught_failure_retains_its_inverse,
+    test_transaction_rollback_replays_each_seam_mutation; commit=7491c22b7db3c6a242dde38cebb597a0f179042c]
+  - registered rows own a read-only copy of their field mapping and immutable
+    registration metadata; field payloads retain their own ownership [tested:
+    test_registered_rows_cannot_bypass_snapshot_generation; commit=23c1156bbecfa534f228853b06c9b4868ad1c645]
+  - colliding entry-point names refuse before any provider loads and name
+    both distribution origins in a stable order [tested:
+    test_entry_point_collision_reports_both_owners; commit=4716ce2d8c4483d50fdb5146f296c019d7470dd4]
+  - inverse sequences attempt both actions and retain every failure,
+    including control exceptions [tested:
+    test_inverse_sequence_attempts_every_action; commit=7491c22b7db3c6a242dde38cebb597a0f179042c]
+  - registration listeners receive the exact point and registrant names,
+    including quotes and the words " registration " [tested:
+    test_registration_identity_is_not_parsed_from_prose; commit=56a8207a945675056312e206a000442b857ced03]
   - concurrent discovery waits for registration to finish, failed entries
     remain retryable, and cycles among discovery waits refuse [tested:
     test_concurrent_discovery_waits_for_complete_registration,
@@ -55,9 +75,8 @@ Guarantees:
     test_a_discovery_wait_cycle_refuses_and_releases_its_entries,
     test_a_failed_entry_point_can_be_retried; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a withdrawal notifies every registration listener with the inverse that
-    restores the row, as a registration does with the inverse that withdraws it
-    [tested: test_door_catalog_publication_is_atomic_and_idempotent;
-    commit=58bf75947fc58ec32b2372ef0d2c14a00aa2390a]
+    inserts the removed row at its original position [tested:
+    test_unregister_rollback_restores_each_position; commit=0be728864c734f8ac470ff5795398307984dff20]
   - frame builders and accessor door contracts are separate registrations
     [tested: test_the_row_is_registered_against_the_frame_point; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a point is declared once with one kind, and a second declaration of the
@@ -92,12 +111,12 @@ Guarantees:
     so a MeTTa program matches the extension surface it is running on
     [tested: test_the_seam_publishes_itself_into_the_catalog]
 Owns:
-  - _POINTS and _ROWS hold the process-wide seam; a registration made inside an
-    integration's transaction frame is undone with it, through the same
-    registry-undo the operation registry uses [tested:
-    test_a_registration_inside_a_failed_integration_is_undone_with_it]
+  - _POINTS and _ROWS hold the process-wide seam; each _Inverse retains its
+    failed actions until a caller retries it successfully [tested:
+    test_registration_inverse_retries_only_failed_actions; commit=7491c22b7db3c6a242dde38cebb597a0f179042c]
 Guarded by:
-  - _LOCK serializes declaration, registration and the one-shot discovery flag
+  - _LOCK serializes declaration, registration publication, inverse actions
+    and the one-shot discovery flag
 Open Obligations:
   To Do: None
   Hacks: None
@@ -109,9 +128,12 @@ from __future__ import annotations
 import functools
 import importlib
 import inspect
+import re
 import threading
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 from importlib import metadata
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final, NamedTuple
 
 from metta._lazy import lazy
@@ -284,6 +306,7 @@ ARROW_KINDS: Final[tuple[str, str, str, str, str]] = (
 ARROW_FORMAT: Final[Mapping[str, str]] = {"l": "int64", "g": "float64", "b": "bool", "u": "text"}
 
 
+@dataclass(frozen=True, slots=True, eq=False)
 class Row:
     """One registration: a point, who registered, and the fields they gave.
 
@@ -292,7 +315,11 @@ class Row:
     mapping for a caller that has the name as data.
     """
 
-    __slots__ = ("fallback", "fields", "name", "point", "source")
+    point: str
+    name: str
+    fields: Mapping[str, Any]
+    source: str
+    fallback: bool
 
     def __init__(
         self,
@@ -304,11 +331,11 @@ class Row:
         fallback: bool = False,
     ) -> None:
         """Hold one registration against the named point, under `name`."""
-        self.point = against
-        self.name = name
-        self.fields = dict(fields)
-        self.source = source
-        self.fallback = fallback
+        object.__setattr__(self, "point", against)
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "fields", MappingProxyType(dict(fields)))
+        object.__setattr__(self, "source", source)
+        object.__setattr__(self, "fallback", fallback)
 
     def __getattr__(self, field: str) -> Any:
         """One declared field, or a refusal naming what this row carries."""
@@ -371,16 +398,16 @@ class Point:
         validator: Callable[[Row, tuple[Row, ...]], None] | None,
     ) -> None:
         """Record one declaration; `seam.point` validates before calling this."""
-        self.name = name
-        self.kind = kind
-        self.fields = fields
-        self.optional = optional
-        self.doc = doc
-        self.shipped = shipped
-        self.extra = extra
-        self.reader = reader
-        self.adder = adder
-        self.validator = validator
+        self.name: str = name
+        self.kind: str = kind
+        self.fields: tuple[str, ...] = fields
+        self.optional: tuple[str, ...] = optional
+        self.doc: str = doc
+        self.shipped: str | None = shipped
+        self.extra: str | None = extra
+        self.reader: Callable[[], Iterable[Row]] | None = reader
+        self.adder: Callable[[Row], Callable[[], None] | None] | None = adder
+        self.validator: Callable[[Row, tuple[Row, ...]], None] | None = validator
 
     def register(
         self,
@@ -511,7 +538,8 @@ _POINTS: Final[dict[str, Point]] = {}
 _ROWS: Final[dict[str, list[Row]]] = {}
 _LOCK: Final = threading.RLock()
 _LOADED: set[str] = set()
-_LISTENERS: list[Callable[[str, str, Callable[[], None]], None]] = []
+type _RegistrationListener = Callable[[str, str, Callable[[], None]], Callable[[], None] | None]
+_LISTENERS: list[_RegistrationListener] = []
 _LOADED_ENTRIES: set[tuple[str, str]] = set()
 _ENTRY_CHANGED = threading.Condition(_LOCK)
 _LOADING_ENTRIES: dict[tuple[str, str], int] = {}
@@ -709,9 +737,33 @@ def advertised(group: str = GROUP) -> dict[str, metadata.EntryPoint]:
 
     Asking imports nothing, so a program can list what is installed without
     paying for any of it. Loading is what `discover()` does explicitly and what
-    a dispatch does on demand.
+    a dispatch does on demand. A name identifies one distribution and target;
+    competing declarations refuse before that identity becomes a dictionary key.
     """
-    return {entry.name: entry for entry in metadata.entry_points(group=group)}
+    found: dict[str, metadata.EntryPoint] = {}
+    for entry in metadata.entry_points(group=group):
+        previous = found.get(entry.name)
+        if previous is not None:
+            origins = []
+            for candidate in (previous, entry):
+                dist = candidate.dist
+                owner = (
+                    (re.sub(r"[-_.]+", "-", dist.name).lower(), dist.version)
+                    if dist is not None else ("<unknown distribution>", "")
+                )
+                origins.append((*owner, candidate.group, candidate.name, candidate.value))
+            if previous.dist is not None and origins[0] == origins[1]:
+                continue
+            descriptions = [
+                f"{owner!r} {version!r}: {target!r}"
+                for owner, version, _, _, target in sorted(origins)
+            ]
+            raise ValueError(
+                f"competing entry point {entry.name!r} in {group!r}: "
+                + "; ".join(descriptions)
+            )
+        found[entry.name] = entry
+    return found
 
 
 def discover(group: str = GROUP) -> tuple[str, ...]:
@@ -812,38 +864,51 @@ def _register(
     # side effect through its adder and hands back the inverse. Without this a
     # name registered into a store that keeps none, the reflector list among
     # them, read back as the callable's own name.
-    added = declared.adder(row) if declared.adder is not None else None
     with _LOCK:
         held = _ROWS[declared.name]
         if declared.validator is not None:
             declared.validator(row, tuple(item for item in held if item.name != name))
+        added = declared.adder(row) if declared.adder is not None else None
         for position, standing in enumerate(held):
             if standing.name == name:
                 held[position] = row
                 _enlist(
+                    declared.name,
+                    name,
                     _both(added, functools.partial(_restore, declared.name, position, standing)),
-                    f"{declared.name} registration {name!r}",
                 )
                 return row
         held.append(row)
-
-    def withdraw_row() -> None:
-        _unregister(declared, name)
-
-    _enlist(_both(added, withdraw_row), f"{declared.name} registration {name!r}")
+        _enlist(declared.name, name, _both(added, functools.partial(held.remove, row)))
     return row
 
 
-def _both(first: Callable[[], None] | None, second: Callable[[], None]) -> Callable[[], None]:
+class _Inverse:
+    """An ordered rollback whose successful actions are consumed under _LOCK."""
+
+    def __init__(self, actions: Iterable[Callable[[], object]]) -> None:
+        self.actions: list[Callable[[], object]] = list(actions)
+
+    def __call__(self) -> None:
+        failures: list[BaseException] = []
+        with _LOCK:
+            pending, self.actions = self.actions, []
+            for action in pending:
+                try:
+                    action()
+                except BaseException as error:  # noqa: BLE001 -- every inverse runs even after interruption
+                    self.actions.append(action)
+                    failures.append(error)
+        if len(failures) == 1:
+            raise failures[0]
+        if failures:
+            msg = "registration inverse actions failed"
+            raise BaseExceptionGroup(msg, failures)
+
+
+def _both(first: Callable[[], None] | None, second: Callable[[], None]) -> _Inverse:
     """Undo a foreign store's half and this table's half, in that order."""
-    if first is None:
-        return second
-
-    def undo() -> None:
-        first()
-        second()
-
-    return undo
+    return _Inverse((second,) if first is None else (first, second))
 
 
 def _restore(name: str, position: int, row: Row) -> None:
@@ -853,8 +918,14 @@ def _restore(name: str, position: int, row: Row) -> None:
             held[position] = row
 
 
-def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) -> None:
-    """Hear every registration, with the inverse that withdraws it.
+def _reinsert(name: str, position: int, row: Row) -> None:
+    """Undo deletion without replacing the row that followed it."""
+    with _LOCK:
+        _ROWS[name].insert(position, row)
+
+
+def on_registration(callback: _RegistrationListener) -> None:
+    """Publish each registration, retaining its inverse when needed.
 
     The direction is deliberate. A registration made inside an integration's
     installer has to be undone when that installer fails, and the frame that
@@ -862,17 +933,55 @@ def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) ->
     a seam that imported it would drag metta._errors.errors up the stack with it. So
     the OWNER of the frame subscribes, the way metta._catalog.kinds subscribes to
     the conversion registry's own listener list.
+
+    A stateful listener returns a callable that restores its own preimage.
+    Returning None declares a projection that reconciles from the registry
+    when called again after rollback. A listener that raises must leave its
+    own state unchanged. Transaction journals retain each supplied inverse
+    independently and return a compensator that removes that exact record.
+
+    Publication runs under the reentrant seam lock. Listeners may read the
+    seam on this thread; they must not wait for another thread to mutate it.
     """
-    _LISTENERS.append(callback)
+    with _LOCK:
+        _LISTENERS.append(callback)
 
 
-def _enlist(undo: Callable[[], None] | None, description: str) -> None:
-    """Tell every listener how to withdraw this registration."""
+def _registration_compensator(
+    callback: _RegistrationListener, declared: str, name: str, undo: _Inverse,
+) -> Callable[[], object]:
+    """Publish one registration to one listener and return its compensation.
+
+    A callable is the listener's exact compensation; None declares a projection
+    that reconciles from the registry when called again after rollback, so the
+    same publication call is its compensation. Anything else is a contract
+    violation caught here, before the listener's receipt joins the inverse.
+    """
+    compensate = callback(declared, name, undo)
+    if compensate is None:
+        return functools.partial(callback, declared, name, undo)
+    if not callable(compensate):
+        msg = "a registration listener returns a compensation callable or None"
+        raise TypeError(msg)
+    return compensate
+
+
+def _enlist(declared: str, name: str, undo: _Inverse | None) -> None:
+    """Publish atomically with completed observers' rollback receipts."""
     if undo is None:
         return
-    declared, _, name = description.partition(" registration ")
-    for callback in tuple(_LISTENERS):
-        callback(declared, name.strip("'"), undo)
+    with _LOCK:
+        restored = len(undo.actions)
+        try:
+            for callback in tuple(_LISTENERS):
+                undo.actions.insert(restored, _registration_compensator(callback, declared, name, undo))
+        except BaseException as error:  # rollback also covers interrupted publication
+            try:
+                undo()
+            except BaseException as cleanup:  # noqa: BLE001 -- retain both publication and rollback failures
+                msg = "registration publication and rollback failed"
+                raise BaseExceptionGroup(msg, [error, cleanup]) from None
+            raise
 
 
 def _unregister(declared: Point, name: str) -> bool:
@@ -884,14 +993,13 @@ def _unregister(declared: Point, name: str) -> bool:
                 break
         else:
             return False
-    # A withdrawal is a registry change like a registration: every listener
-    # hears it, with the inverse that puts the row back where it stood, so a
-    # projection of the registry (the door catalog) and an installer's undo
-    # frame follow the registry in both directions.
-    _enlist(
-        functools.partial(_restore, declared.name, position, standing),
-        f"{declared.name} registration {name!r}",
-    )
+        # Withdrawal publishes under the same lock and failure boundary as
+        # insertion and replacement; its local inverse remains an insertion.
+        _enlist(
+            declared.name,
+            name,
+            _Inverse((functools.partial(_reinsert, declared.name, position, standing),)),
+        )
     return True
 
 
@@ -1037,10 +1145,11 @@ def _load_entries(group: str) -> list[str]:
 # extra that installs the packages this repository ships for the point, which is
 # what a refusal ends in.
 
-frame = point(
+frame: Point = point(
     "frame",
     "declaration",
     fields=("module", "accessor", "build"),
+    optional=("rows",),
     extra="dataframes",
     doc=(
         "A dataframe library. `accessor(module, name, door)` installs "
@@ -1049,11 +1158,13 @@ frame = point(
         "projection, taking the Arrow view instead when the library reads one "
         "and there is a builder. `rows.to(<module>)` is the general spelling "
         "every registrant gets. Short receiver methods are separate contracts "
-        "on the door point, fixing that conversion's library argument."
+        "on the door point, fixing that conversion's library argument. "
+        "Optional `rows(source)` returns this provider's row iterator, or "
+        "None when it does not own the source."
     ),
 )
 
-sql = point(
+sql: Point = point(
     "sql",
     "ownership",
     fields=("claims", "define"),
@@ -1069,7 +1180,7 @@ sql = point(
     ),
 )
 
-array = point(
+array: Point = point(
     "array",
     "declaration",
     fields=("module", "default"),
@@ -1087,7 +1198,7 @@ array = point(
     ),
 )
 
-index = point(
+index: Point = point(
     "index",
     "declaration",
     fields=("available", "build", "search"),
@@ -1104,7 +1215,7 @@ index = point(
     ),
 )
 
-arrow = point(
+arrow: Point = point(
     "arrow",
     "ownership",
     fields=("claims", "schema", "stream", "batches"),
@@ -1120,7 +1231,7 @@ arrow = point(
     ),
 )
 
-ipc = point(
+ipc: Point = point(
     "ipc",
     "ownership",
     fields=("claims", "schema", "stream", "read", "concat"),
@@ -1139,7 +1250,7 @@ ipc = point(
     ),
 )
 
-transport_error = point(
+transport_error: Point = point(
     "transport-error",
     "declaration",
     fields=("module", "classes"),
@@ -1152,7 +1263,7 @@ transport_error = point(
     ),
 )
 
-image = point(
+image: Point = point(
     "image",
     "ownership",
     fields=("claims",),
@@ -1169,7 +1280,7 @@ image = point(
     ),
 )
 
-law = point(
+law: Point = point(
     "law",
     "declaration",
     fields=("arity", "sides"),
@@ -1187,7 +1298,7 @@ law = point(
     ),
 )
 
-typing = point(
+typing: Point = point(
     "typing",
     "declaration",
     fields=("equations", "doc"),
@@ -1208,7 +1319,7 @@ typing = point(
     ),
 )
 
-graphql = point(
+graphql: Point = point(
     "graphql",
     "ownership",
     fields=("claims", "schema", "execute"),
@@ -1425,7 +1536,7 @@ def _validate_door_registration(row: Row, standing: tuple[Row, ...]) -> None:
     _root.doors.validate_registration(row, standing)
 
 
-door = point(
+door: Point = point(
     "door", "declaration", fields=("doors",),
     doc="Typed host doors contributed as namespace members or declared receiver sugars.",
     validator=_validate_door_registration,

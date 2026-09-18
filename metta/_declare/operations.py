@@ -242,13 +242,26 @@ def _record_registry_undo(
         return
     frame.append(_RegistryUndo(callback, description, key))
 
-def _record_seam_undo(point: str, name: str, undo: Callable[[], None]) -> None:
-    """Enlist one seam registration's inverse in the current frame."""
-    _record_registry_undo(
-        undo,
-        description=f"{point} registration {name!r}",
-        key=("seam", point, name),
-    )
+def _record_seam_undo(
+    point: str, name: str, undo: Callable[[], None],
+) -> Callable[[], None] | None:
+    """Retain each seam inverse and compensate its exact journal record.
+
+    Seam receipts undo individual mutations. Coalescing by registrant would
+    discard later inverses, including a retry after failed publication.
+    """
+    frames = _REGISTRY_UNDO.get()
+    if not frames:
+        return None
+    record = _RegistryUndo(undo, f"{point} registration {name!r}")
+    frames[-1].append(record)
+
+    def unrecord() -> None:
+        # A completed nested frame transfers this record object to a parent.
+        for frame in frames:
+            frame[:] = [held for held in frame if held is not record]
+
+    return unrecord
 
 _seam.on_registration(_record_seam_undo)
 

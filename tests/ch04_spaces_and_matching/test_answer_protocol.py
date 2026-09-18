@@ -1309,7 +1309,8 @@ def test_answers_are_lazy_cached_and_cardinality_aware():  # noqa: D103 -- the t
     assert list(answers) == [0, 1, 2, 3]
     assert list(answers) == [0, 1, 2, 3]
     assert pulled == [0, 1, 2, 3]
-    assert hash(answers) == hash((0, 1, 2, 3))
+    with pytest.raises(TypeError, match="unhashable"):
+        hash(answers)
 
     demanded = []
 

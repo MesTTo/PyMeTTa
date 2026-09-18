@@ -4,6 +4,35 @@ A Rows is a mutable sequence of Row tuples, one per query answer, while
 Answers progressively caches one evaluation source for replay, projections,
 and exact-cardinality reads.
 Guarantees:
+  - Answers preserves broad sequence equality and is unhashable, so equal
+    strings, bytes, ranges and tuples cannot become inconsistent dictionary
+    keys [tested: test_audit_a3_broad_sequence_equality_is_unhashable;
+    commit=4ecded66c4478341c5010c8f242d3c727ec0cf8f]
+  - one immutable record retains each value and caller row through replay,
+    slicing, source failure and asynchronous projection after close [tested:
+    test_answer_record_survives_replay_slice_and_async_projection,
+    test_closed_answer_record_replays_both_faces_without_resuming_source;
+    commit=96b907668ca5afde3cdaddd29bbdbe7ca506c953]
+  - context exit retains body and cleanup failures together, including
+    cancellation, while single failures keep their identity [tested:
+    test_owned_views_preserve_body_and_cleanup_errors,
+    test_owned_exit_zero_one_or_two_failures; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6]
+  - row conversion follows named constructor inputs and native defaults,
+    including positional-only, keyword-only and InitVar parameters, while
+    omitted optional TypedDict keys stay absent [tested:
+    test_rows_into_uses_constructor_inputs,
+    test_registered_constructor_binds_positional_only_and_keyword_only_inputs,
+    test_dataclass_factory_and_initvar_are_constructor_inputs,
+    test_namedtuple_constructor_defaults_are_optional_columns,
+    test_typed_mapping_keeps_omitted_optional_keys_absent; commit=c07bb08a0553f5e4e542baf7913b548327277bde]
+  - a downstream checker reads a positional index as the value kind, a
+    Variable or column projection as Answers, a record replay as the same
+    value kind and Answers as unhashable, under mypy and ty alike [tested:
+    test_audit_owned_type_surface; commit=dadbf46932d66398832764c82384dfd0ecf1daa1]
+  - Answers positions and slice bounds use Python's lossless index protocol
+    without pulling beyond the selected prefix [tested:
+    test_answers_accepts_index_protocol_like_rows,
+    test_answers_slices_use_lossless_indices_without_extra_pulls; commit=e882171509ff90183b34f24da3189e6136695312]
   - Rows with the same columns share one bounded cached Row subclass [tested
     test_row_classes_are_reused_and_bounded]
   - slicing, copying, concatenation, and repetition preserve Rows and its
@@ -114,6 +143,9 @@ Guarantees:
     library's sentence agree about the same mistake [tested:
     test_a_row_offers_its_own_columns,
     test_a_projection_answers_its_columns_from_dir; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+Owns resources: Answers closes its source; a failed close keeps that source
+  available for another attempt [tested:
+  test_failed_answer_exit_retains_its_source_for_retry; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -127,6 +159,7 @@ import html
 import importlib as _importlib
 import inspect
 import itertools
+import operator
 import reprlib
 import threading
 import typing
@@ -134,7 +167,18 @@ from collections import UserList
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from difflib import get_close_matches
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
+from types import TracebackType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Final,
+    NamedTuple,
+    Self,
+    SupportsIndex,
+    cast,
+    overload,
+)
 
 import metta.doors as _doors
 from metta import seam
@@ -442,10 +486,26 @@ def _array_library(what: str) -> Any:
     raise TypeError(seam.array.refusal(what))
 
 
-class _AnswerItem(NamedTuple):
+def _raise_exit_errors(
+    message: str,
+    body: BaseException | None,
+    cleanup_failures: Iterable[BaseException],
+) -> None:
+    """Preserve each exit failure and let successful cleanup propagate the body."""
+    failures = list(cleanup_failures)
+    if not failures:
+        return
+    if body is not None:
+        failures.insert(0, body)
+    if len(failures) == 1:
+        raise failures[0]
+    raise BaseExceptionGroup(message, failures) from None
+
+
+class _AnswerItem[T](NamedTuple):
     """One engine answer and the caller bindings produced alongside it."""
 
-    value: Any
+    value: T
     row: Row | None
 
 
@@ -758,16 +818,16 @@ class Rows(UserList[Row], _doors.DoorOwner):
         state=_doors.State.any,
     )
     def one(self, *, default: Any = _MISSING) -> Row | Any:
-        """THE row, when the query is asserted to have exactly one answer;
-        none or several raise naming the count, so a lookup that silently
-        picked an arbitrary row cannot hide.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """Return the sole row, using an explicit default only for absence.
+
+        Several rows always raise with their count.
+        """
         if not self and default is not _MISSING:
             return default
         if len(self) != 1:
             msg = (
                 f"one() expected exactly one row, got {len(self)}; "
-                f"use first() for row-or-None, or iterate for all"
+                "use first(default=None) for row-or-None, or iterate for all"
             )
             raise EngineError(
                 msg
@@ -941,15 +1001,13 @@ class Rows(UserList[Row], _doors.DoorOwner):
         state=_doors.State.any,
     )
     def into(self, cls: type) -> list:
-        """Each row as one ``cls``, matched by field name.
+        """Each row as one ``cls``, matched to named constructor inputs.
 
-        ``match(..., into=cls)`` is sugar for this and says so: the
-        conversion was only ever reachable through that keyword, so a
-        prepared query's solve(), or any other Rows, could not ask for it
-        even though rows_into() never cared where the rows came from
-        [measured 2026-08-31]. build(cls) is the neighbouring method and a
-        different question: it rebuilds ONE column of complete constructor
-        expressions, where this maps every column onto a field.
+        Dataclasses, NamedTuples and registered classes use their constructor
+        defaults for omitted inputs. TypedDicts preserve omitted optional
+        keys. Extra query columns are ignored. ``match(..., into=cls)`` uses
+        this conversion too. A single column of complete constructor
+        expressions rebuilds through ``build(cls)``.
         """
         return rows_into(self, cls)
 
@@ -1225,26 +1283,52 @@ class Rows(UserList[Row], _doors.DoorOwner):
 
 
 
-def _into_fields(cls: type) -> dict[str, Any]:
-    """Field name to resolved annotation for a dataclass, NamedTuple, or
-    TypedDict; anything else is refused naming the three.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if dataclasses.is_dataclass(cls):
-        hints = typing.get_type_hints(cls)
-        return {field.name: hints.get(field.name) for field in dataclasses.fields(cls)}
-    named_fields = getattr(cls, "_fields", None)
-    if isinstance(cls, type) and issubclass(cls, tuple) and named_fields is not None:
-        hints = typing.get_type_hints(cls)
-        return {name: hints.get(name) for name in named_fields}
-    if hasattr(cls, "__annotations__") and hasattr(cls, "__total__"):
-        return dict(typing.get_type_hints(cls))
-    msg = (
-        f"into= takes a dataclass, NamedTuple, or TypedDict; "
-        f"{getattr(cls, '__name__', cls)!r} is none of those"
-    )
-    raise TypeError(
-        msg
-    )
+class _Into(NamedTuple):
+    """How a row becomes one instance: its named inputs, the ones a row must supply, and the call."""
+
+    fields: dict[str, Any]
+    required: frozenset[str]
+    build: Callable[[dict[str, Any]], Any]
+
+
+def _into_fields(cls: type) -> _Into:
+    """Named constructor inputs, or the independently declared TypedDict keys."""
+    if typing.is_typeddict(cls):
+        # The TypedDict metaclass writes the required/optional split into the
+        # class namespace; `type` itself declares no such attribute.
+        return _Into(
+            typing.get_type_hints(cls),
+            frozenset(vars(cls)["__required_keys__"]),
+            lambda kwargs: cls(**kwargs),
+        )
+    named_tuple = isinstance(cls, type) and issubclass(cls, tuple) and hasattr(cls, "_fields")
+    if not dataclasses.is_dataclass(cls) and not named_tuple:
+        _importlib.import_module("metta.convert").ensure_registered(cls)
+    signature = inspect.signature(cls, eval_str=True)
+    hints = typing.get_type_hints(cls)
+    fields = {}
+    required = set()
+    for parameter in signature.parameters.values():
+        if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            continue
+        annotation = parameter.annotation
+        if annotation is inspect.Parameter.empty:
+            annotation = hints.get(parameter.name)
+        if isinstance(annotation, dataclasses.InitVar):
+            annotation = annotation.type
+        fields[parameter.name] = annotation
+        if parameter.default is inspect.Parameter.empty:
+            required.add(parameter.name)
+
+    def build(kwargs: dict[str, Any]) -> Any:
+        # BoundArguments retains positional-only slots when an earlier
+        # omitted input has a default. Python owns the final call shape.
+        # https://docs.python.org/3.12/library/inspect.html#inspect.BoundArguments
+        bound = inspect.BoundArguments(signature, kwargs)
+        bound.apply_defaults()
+        return cls(*bound.args, **bound.kwargs)
+
+    return _Into(fields, frozenset(required), build)
 
 
 def rows_into(rows: Rows, cls: type) -> list:
@@ -1258,8 +1342,8 @@ def rows_into(rows: Rows, cls: type) -> list:
     constructor_rows: list[Any] | None = _constructor_rows(rows, cls)
     if constructor_rows is not None:
         return constructor_rows
-    fields = _into_fields(cls)
-    missing = [name for name in fields if name not in rows.columns]
+    fields, required, build = _into_fields(cls)
+    missing = [name for name in fields if name in required and name not in rows.columns]
     if missing:
         msg = (
             f"{cls.__name__} needs column(s) {missing}; the query answered "
@@ -1268,13 +1352,14 @@ def rows_into(rows: Rows, cls: type) -> list:
         raise TypeError(
             msg
         )
-    indices = {name: rows.columns.index(name) for name in fields}
+    indices = {name: rows.columns.index(name) for name in fields if name in rows.columns}
     primitives = (str, int, float, bool)
     built = []
     for row in rows:
         kwargs = {}
-        for name, annotation in fields.items():
-            atom = row[indices[name]]
+        for name, index in indices.items():
+            annotation = fields[name]
+            atom = row[index]
             if annotation in (None, Any):
                 kwargs[name] = _plain(atom)
             elif annotation in primitives:
@@ -1300,7 +1385,7 @@ def rows_into(rows: Rows, cls: type) -> list:
                 kwargs[name] = _importlib.import_module(
                     "metta.convert"
                 ).build(atom, annotation)
-        built.append(cls(**kwargs))
+        built.append(build(kwargs))
     return built
 
 
@@ -1331,6 +1416,10 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
     it reaches the frontier. The sequence has no mutation methods.
     """
 
+    # None is how the data model spells unhashable, and typeshed's own
+    # unhashable classes (list, dict, set) carry this same assignment ignore.
+    __hash__: ClassVar[None] = None  # type: ignore[assignment]
+
     __slots__ = (
         "_bound_source",
         "_cache",
@@ -1341,7 +1430,6 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         "_known_length",
         "_lock",
         "_query",
-        "_row_cache",
         "_source",
         "_space",
         "_target",
@@ -1350,7 +1438,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
 
     def __init__(
         self,
-        source: Iterable[T | _AnswerItem],
+        source: Iterable[T | _AnswerItem[T]],
         *,
         columns: Iterable[str] = (),
         space: str | None = None,
@@ -1358,8 +1446,8 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         count: Callable[..., int | None] | None = None,
         query: _QueryContext | None = None,
         bound_source: Callable[
-            [int, Iterable[T | _AnswerItem]],
-            Iterable[T | _AnswerItem] | None,
+            [int, Iterable[_AnswerItem[T]]],
+            Iterable[_AnswerItem[T]] | None,
         ]
         | None = None,
     ) -> None:
@@ -1371,8 +1459,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         self._space = space
         self._target = target
         self._query = query
-        self._cache: list[T] = []
-        self._row_cache: list[Row | None] = []
+        self._cache: list[_AnswerItem[T]] = []
         self._done = False
         self._error: Exception | None = None
         # True once an iterator over these answers has been handed out, which
@@ -1386,6 +1473,25 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         # overhead rather than answer differently.
         self._values_demanded = False
         self._lock = threading.RLock()
+
+    @classmethod
+    def _from_records(
+        cls,
+        records: Iterable[_AnswerItem[T]],
+        *,
+        columns: Iterable[str],
+        space: str | None,
+        target: object,
+        query: _QueryContext | None = None,
+    ) -> Self:
+        """A view replaying records already paired with their rows.
+
+        The constructor admits bare values beside records, and a checker that
+        collects every union member's constraint reads a record source as
+        widening the value kind. Rebuilding from the cache is the one place a
+        record source is known statically, so it names the record type alone.
+        """
+        return cls(records, columns=columns, space=space, target=target, query=query)
 
     @property
     @_doors.door(
@@ -1408,12 +1514,9 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             while len(self._cache) <= index and not self._done:
                 try:
                     item = next(self._source)
-                    if isinstance(item, _AnswerItem):
-                        self._cache.append(item.value)
-                        self._row_cache.append(item.row)
-                    else:
-                        self._cache.append(item)
-                        self._row_cache.append(None)
+                    self._cache.append(
+                        item if isinstance(item, _AnswerItem) else _AnswerItem(item, None)
+                    )
                 except StopIteration:
                     self._done = True
                 except Exception as exc:  # noqa: BLE001 -- replay requires caching the source's terminal failure unchanged
@@ -1425,6 +1528,15 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                 raise self._error
             return False
 
+    def _cached_item(self, position: int) -> _AnswerItem[T] | None:
+        """Read an available record or terminal failure without advancing the source."""
+        with self._lock:
+            if position < len(self._cache):
+                return self._cache[position]
+            if self._error is not None:
+                raise self._error
+            return None
+
     def _at(self, index: int) -> T:
         if index < 0:
             self._materialize()
@@ -1432,18 +1544,18 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         if index < 0 or not self._pull(index):
             msg = "Answers index out of range"
             raise IndexError(msg)
-        return self._cache[index]
+        return self._cache[index].value
 
     def _materialize(self) -> tuple[T, ...]:
         position = len(self._cache)
         while self._pull(position):
             position += 1
-        return tuple(self._cache)
+        return tuple(item.value for item in self._cache)
 
     def _iterate(self) -> Iterator[T]:
         position = 0
         while self._pull(position):
-            yield self._cache[position]
+            yield self._cache[position].value
             position += 1
 
     def __iter__(self) -> Iterator[T]:
@@ -1487,12 +1599,12 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             del frame
         return reversed(self._materialize())
 
-    def _items(self) -> Iterator[_AnswerItem]:
+    def _items(self) -> Iterator[_AnswerItem[T]]:
         """Replay values together with their private caller-row metadata."""
         self._values_demanded = True
         position = 0
         while self._pull(position):
-            yield _AnswerItem(self._cache[position], self._row_cache[position])
+            yield self._cache[position]
             position += 1
 
     def __bool__(self) -> bool:
@@ -1547,31 +1659,36 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             raise
 
     @overload
+    def __getitem__(self, key: Variable | str) -> Answers[Any]: ...
+
+    @overload
     def __getitem__(self, key: int) -> T: ...
 
     @overload
     def __getitem__(self, key: slice) -> Answers[T]: ...
 
     @overload
-    def __getitem__(self, key: Variable) -> Answers[Any]: ...
-
-    @overload
-    def __getitem__(self, key: str) -> Answers[Any]: ...
+    def __getitem__(self, key: SupportsIndex) -> T | Answers[Any]: ...
 
     def __getitem__(
-        self, key: int | slice | Variable | str
+        self, key: SupportsIndex | slice | Variable | str
     ) -> T | Answers[T] | Answers[Any]:
         if isinstance(key, (Variable, str)):
             return self._project(key.name if isinstance(key, Variable) else key)
         if isinstance(key, slice):
-            return self._slice(key)
-        if not isinstance(key, int):
+            return self._slice(slice(*(
+                None if bound is None else operator.index(bound)
+                for bound in (key.start, key.stop, key.step)
+            )))
+        try:
+            index = operator.index(key)
+        except TypeError:
             msg = (
                 "Answers indices are integers, slices, Variables, or exact "
                 f"column strings, not {type(key).__name__}"
             )
-            raise TypeError(msg)
-        return self._at(key)
+            raise TypeError(msg) from None
+        return self._at(index)
 
     @property
     def _pristine(self) -> bool:
@@ -1611,7 +1728,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         ):
             replacement = self._bound_source(stop, self._items())
             if replacement is not None:
-                base = Answers(
+                base = self._from_records(
                     replacement,
                     columns=self._columns,
                     space=self._space,
@@ -1619,11 +1736,11 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                     query=self._query,
                 )
 
-        def selected() -> Iterator[T | _AnswerItem]:
+        def selected() -> Iterator[_AnswerItem[T]]:
             if not nonnegative:
                 base._materialize()
                 for index in range(len(base._cache))[window]:
-                    yield _AnswerItem(base._cache[index], base._row_cache[index])
+                    yield base._cache[index]
                 return
             indices = itertools.islice(
                 itertools.count(),
@@ -1634,9 +1751,9 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             for index in indices:
                 if not base._pull(index):
                     return
-                yield _AnswerItem(base._cache[index], base._row_cache[index])
+                yield base._cache[index]
 
-        return Answers(
+        return self._from_records(
             selected(), columns=self._columns, space=self._space, target=self._target
         )
 
@@ -1665,10 +1782,11 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         def values() -> Iterator[Any]:
             position = 0
             while self._pull(position):
-                row = self._row_cache[position]
+                item = self._cache[position]
+                row = item.row
                 if row is None:
                     msg = (
-                        f"answer {self._cache[position]!r} carries no variable "
+                        f"answer {item.value!r} carries no variable "
                         f"row for {name!r}"
                     )
                     raise TypeError(msg)
@@ -1721,9 +1839,10 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         def values() -> Iterator[Row]:
             position = 0
             while self._pull(position):
-                row = self._row_cache[position]
+                item = self._cache[position]
+                row = item.row
                 if row is None:
-                    msg = f"answer {self._cache[position]!r} carries no variable row"
+                    msg = f"answer {item.value!r} carries no variable row"
                     raise TypeError(msg)
                 yield row
                 position += 1
@@ -1756,7 +1875,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         which keeps an empty match on the table face and with it the
         caption pointing at `why()`.
         """
-        return self._pull(0) and not isinstance(self._cache[0], Row)
+        return self._pull(0) and not isinstance(self._cache[0].value, Row)
 
     def _eager_rows(self) -> Rows:
         """Materialize this binding view as the eager Rows face.
@@ -1772,7 +1891,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         if self._answers_are_terms():
             msg = (
                 f"the table face needs caller bindings and these answers are "
-                f"terms; answer 0 is {self._cache[0]!r}. Ask .rows for the "
+                f"terms; answer 0 is {self._cache[0].value!r}. Ask .rows for the "
                 f"bindings behind each answer, or read the answers themselves "
                 f"as a sequence"
             )
@@ -1970,7 +2089,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         shown = config.display_rows
         values: list[T] = []
         while len(values) < shown and self._pull(len(values)):
-            values.append(self._cache[len(values)])
+            values.append(self._cache[len(values)].value)
         lines = [str(value) for value in values]
         if self._pull(shown):
             lines.append("… more answers")
@@ -2051,7 +2170,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                 return default
             msg = "one() expected exactly one answer, got 0"
             raise EngineError(msg)
-        first = self._cache[0]
+        first = self._cache[0].value
         raise_error_answers((first,), space=self._space, target=self._target)
         if self._pull(1):
             msg = "one() expected exactly one answer, got more than 1"
@@ -2075,7 +2194,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                 msg = "first() found no answers; pass default= for absence"
                 raise EngineError(msg)
             return default
-        first = self._cache[0]
+        first = self._cache[0].value
         raise_error_answers((first,), space=self._space, target=self._target)
         return self._scalar(first)
 
@@ -2086,16 +2205,13 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             return self._materialize() == tuple(other)
         return NotImplemented
 
-    def __hash__(self) -> int:
-        return hash(self._materialize())
-
     def __repr__(self) -> str:
         shown: list[Any] = []
         shown_items = config.repr_items
         for index in range(shown_items + 1):
             if not self._pull(index):
                 break
-            shown.append(self._cache[index])
+            shown.append(self._cache[index].value)
         if len(shown) > shown_items:
             inner = ", ".join(repr(value) for value in shown[:shown_items])
             return f"[{inner}, ...]"
@@ -2150,8 +2266,16 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_exception: object) -> None:
-        self.close()
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        try:
+            self.close()
+        except BaseException as cleanup:  # noqa: BLE001 -- retain cancellation and failed release together
+            _raise_exit_errors("answer scope and cleanup failed", exc, (cleanup,))
 
     def __del__(self) -> None:
         # The backstop under close(). The source owns everything the engine

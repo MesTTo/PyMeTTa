@@ -1,5 +1,12 @@
 """Purpose: serve spaces through retained cursors, HTTP threads and engine workers.
 
+Guarantees: context exit preserves body and cleanup failures together, and
+single failures retain their identity [tested:
+test_owned_exit_zero_one_or_two_failures; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
+Gateway removal delegates every decoded atom species to the local store
+[tested: test_remote_removal_preserves_the_local_atom_domain; commit=7a8f8c25bfeb84eb3f1cdea2621170b9ef3bbf6d].
+HTTP authorization names the resolved home when serving a context or space
+[tested: test_serving_a_context_authorizes_its_resolved_home; commit=e7dcd195b9503712092268d9845c4481791dc13e].
 Owns resources: Server.close stops the HTTP server and its engine worker;
 Gateway.close releases retained cursors
 [source: extensions/python/metta/remote/_gateway.py:1464, Gateway.close; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -24,7 +31,8 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from itertools import islice
-from types import MappingProxyType
+from ssl import SSLContext
+from types import MappingProxyType, TracebackType
 from typing import Any, NamedTuple, Self
 
 import metta._binding.json as _json
@@ -38,6 +46,7 @@ from metta._catalog.declarations import declared
 from metta._errors.errors import Interrupted, MettaError
 from metta._faces.space import Space as MeTTa
 from metta._spaces.cursor import Cursor
+from metta._spaces.results import _raise_exit_errors
 from metta.remote import _schemas
 from metta.remote._defaults import (
     _CURSOR_IDLE,
@@ -548,7 +557,7 @@ class Gateway:
 
     def __init__(
         self,
-        m,
+        m: object,
         spaces: list[str] | None = None,
         *,
         cursor_idle: float = _CURSOR_IDLE,
@@ -568,7 +577,7 @@ class Gateway:
         self._allowed = None if spaces is None else set(spaces)
         self._cursors = _Cursors(cursor_idle, cursor_limit)
 
-    def __call__(self, operation: str, payload: dict) -> dict:
+    def __call__(self, operation: str, payload: dict[str, object]) -> dict[str, object]:
         if operation in _MUTATIONS and "idempotency" in payload:
             return self._mutate(operation, payload)
         if operation == "match":
@@ -649,7 +658,7 @@ class Gateway:
             raise MettaError(msg)
         # Reserve before execution. Reentrancy or a partially applied provider
         # failure must never create an opportunity to execute this key twice.
-        answer = {"error": "mutation did not complete", "outcome": "unknown"}
+        answer: dict[str, object] = {"error": "mutation did not complete", "outcome": "unknown"}
         reservation = (token["expires"], digest, answer)
         self._mutations[key] = reservation
         heapq.heappush(self._mutation_expiries, (token["expires"], key))
@@ -664,7 +673,7 @@ class Gateway:
             self._mutations[key] = (token["expires"], digest, dict(answer))
         return answer
 
-    def health(self) -> dict:
+    def health(self) -> dict[str, object]:
         """The transport-side spelling of GET /health, so a Gateway is a
         drop-in Transport and RemoteSpace.server_capabilities() can ask
         one the same question it asks a connected server.
@@ -688,7 +697,7 @@ class Gateway:
             for name in names
         }
 
-    def openapi(self, *, secured: bool = False) -> dict:
+    def openapi(self, *, secured: bool = False) -> dict[str, object]:
         """This gateway as an OpenAPI 3.1.1 document, `GET /openapi.json`.
 
             print(metta._binding.json.dumps(gateway.openapi()))
@@ -727,7 +736,7 @@ class Gateway:
         """
         return _schemas.graphql_sdl(self.served())
 
-    def graphql(self, request: dict) -> dict:
+    def graphql(self, request: dict[str, object]) -> dict[str, object]:
         """Execute one GraphQL request, `POST /graphql`.
 
             gateway.graphql({"query": "{ users { x1 x2 } }"})
@@ -850,9 +859,17 @@ class Gateway:
         """
         return self
 
-    def __exit__(self, *_exception: object) -> None:
-        """Release the cursors, whether the block ended well or not."""
-        self.close()
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Release the cursors and retain every exit failure."""
+        try:
+            self.close()
+        except BaseException as cleanup:  # noqa: BLE001 -- retain the body and failed release together
+            _raise_exit_errors("gateway scope and cleanup failed", exc, (cleanup,))
 
     # ------------------------------------------------------------ operations
 
@@ -1107,12 +1124,6 @@ class Gateway:
 
     def _remove(self, payload: dict) -> dict:
         pattern = _atom_of(payload, "atom")
-        if not isinstance(pattern, (Expression, Variable)):
-            # A stored atom is always an expression; a symbol or a
-            # grounded value can unify with none of them.
-            return {"removed": False}
-        # A bare variable is the remove-everything reading, and the
-        # engine owns it now, each atom leaving through its own path.
         return {"removed": self._space(payload).remove(pattern)}
 
     def _health(self) -> dict:
@@ -1156,7 +1167,7 @@ class _RemoteWorker:
         self._current: _RemoteRequest | None = None
         self._swi_thread: Any = None
         self._work: queue.Queue[_RemoteRequest | None] = queue.Queue()
-        self.thread = threading.Thread(
+        self.thread: threading.Thread = threading.Thread(
             target=self._run,
             name="metta-remote-engine",
             daemon=True,
@@ -1194,7 +1205,7 @@ class _RemoteWorker:
             if self._state == "starting":
                 self._state = "live"
 
-    def call(self, operation: str, payload: dict, timeout: float) -> tuple[str, Any]:
+    def call(self, operation: str, payload: dict[str, object], timeout: float) -> tuple[str, Any]:
         with self._lock:
             if self._state != "live" or not self.thread.is_alive():
                 msg = f"remote engine worker is {self._state}"
@@ -1443,9 +1454,10 @@ class Server:
         self._gateway = gateway
         self._close_lock = threading.Lock()
         self._closed = False
-        raw_host, self.port = httpd.server_address[:2]
-        self.host = raw_host.decode("ascii") if isinstance(raw_host, bytes) else raw_host
-        self.url = f"{scheme}://{self.host}:{self.port}"
+        raw_host, raw_port = httpd.server_address[:2]
+        self.port: int = raw_port
+        self.host: str = raw_host.decode("ascii") if isinstance(raw_host, (bytes, bytearray)) else raw_host
+        self.url: str = f"{scheme}://{self.host}:{self.port}"
         # attach() reads this to refuse the one configuration that cannot
         # work, so the entry has to exist for as long as the socket does.
         # str(): server_address carries bytes on some families, and the
@@ -1458,9 +1470,17 @@ class Server:
         """The server itself, so `with serve(m) as server:` names it."""
         return self
 
-    def __exit__(self, *_exception: object) -> None:
-        """Close on the way out, on the exception path too."""
-        self.close()
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Close on exit and retain both body and cleanup failures."""
+        try:
+            self.close()
+        except BaseException as cleanup:  # noqa: BLE001 -- retain the body and failed release together
+            _raise_exit_errors("server scope and cleanup failed", exc, (cleanup,))
 
     def close(self, timeout: float = _SERVER_TIMEOUT) -> None:
         """Stop accepting, detach the engine worker, join both threads, and
@@ -1535,14 +1555,14 @@ class Server:
         return []
 
 def serve(
-    m,
+    m: object,
     host: str = "127.0.0.1",
     port: int = 0,
     spaces: list[str] | None = None,
     *,
     token: str | None = None,
     authorize: Callable[[Request], bool] | None = None,
-    ssl_context: Any = None,
+    ssl_context: SSLContext | None = None,
     cursor_idle: float = _CURSOR_IDLE,
     cursor_limit: int = _CURSOR_LIMIT,
     mutation_ttl: float = _MUTATION_TTL,
@@ -1642,7 +1662,7 @@ def serve(
                 held = gateway.cursor_space(payload.get("cursor"))
                 if held is not None:
                     return held
-            return str(payload.get("space", m.name))
+            return str(payload.get("space", gateway._metta.name))
 
         def do_GET(self) -> None:
             # A GET path is one word, except the document paths, whose spelling
@@ -1664,7 +1684,7 @@ def serve(
             # the connection and answers the client nothing
             # [tested test_a_failing_authorize_hook_answers_json_on_health].
             try:
-                request = Request(operation, m.name, headers)
+                request = Request(operation, gateway._metta.name, headers)
                 if authorize is not None and not authorize(request):
                     self._refuse_unauthorized(operation)
                     return

@@ -33,6 +33,24 @@ connection)` reads every one back, so a program carries its schema as
 knowledge and the attach is one line.
 
 Guarantees:
+  - one ingestion transaction covers input reads, conversion, writes and
+    iterator release across every row representation [tested:
+    test_table_ingestion_has_one_declared_failure_boundary,
+    test_table_writer_failure_rolls_back_and_closes_input;
+    commit=01b2a9b3dfb721804cd8378610566e1985502289]
+  - a registered frame library's rows reach ingestion through the reader it
+    declares on the frame point, and an unreadable source is refused naming
+    that declaration [tested:
+    tests/test_pandas.py::test_frame_rows_use_the_declared_native_extractor,
+    tests/test_polars.py::test_frame_rows_use_the_declared_native_extractor,
+    tests/test_tables_doors.py::test_tables_add_refuses_an_unsupported_source;
+    commit=179bcf460e69f3f7e05683027983a063df0b482e]
+  - unsupported foreign stores refuse before input acquisition, and a nested
+    foreign ingestion requires the declared savepoint capability [tested:
+    test_unsupported_table_store_refuses_before_input_acquisition,
+    test_table_provider_protocol_is_checked_before_input_acquisition,
+    test_nested_foreign_table_ingestion_refuses_without_a_provider_savepoint;
+    commit=01b2a9b3dfb721804cd8378610566e1985502289]
   - tagged atom cells preserve explicit s and p species instead of applying
     process-local engine provenance [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -92,6 +110,12 @@ Guarantees:
   - a head registered as a SQL function answers NULL for no answer and
     refuses several [tested: test_a_head_is_a_duckdb_scalar_function,
     test_a_head_is_a_sqlite_scalar_function; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
+Owns resources: add releases acquired row, column and Arrow batch iterators
+  before deciding the transaction outcome; release failures retain the body
+  failure and every cleanup failure [tested:
+  test_partial_column_acquisition_releases_every_acquired_iterator,
+  test_table_cleanup_attempts_every_column_and_preserves_each_failure;
+  commit=01b2a9b3dfb721804cd8378610566e1985502289].
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in
@@ -105,9 +129,11 @@ Open Obligations:
 from __future__ import annotations
 
 import inspect
+import itertools
 import json
 import sys
 from collections.abc import Callable, Iterable, Iterator, Mapping
+from contextlib import contextmanager
 from typing import Any, Protocol, cast
 
 from metta import seam
@@ -125,26 +151,16 @@ from metta._atoms.factories import (
     substitute,
 )
 from metta._atoms.wire import _atom_from_wire
+from metta._catalog.arrow import Projection
+from metta._catalog.bounds import config
+from metta._errors.errors import EngineError, refuse
+from metta._spaces.results import _raise_exit_errors
 from metta.convert import auto_image, project
 from metta.foreign import SpaceProvider
+from metta.vocabularies import RefusalKind
 
 _ATOM_CELL_PREFIX = "\x00metta-atom-v1\x00"
 _NO_GROUNDED_VALUE = object()
-
-
-def _row_values(row: Any, keys: list[Any]) -> Any:
-    """Read a record by values while fixing one stable column order."""
-    if not isinstance(row, Mapping):
-        return row
-    if not keys:
-        keys.extend(row.keys())
-    elif list(row.keys()) != keys:
-        msg = (
-            "every record must carry the same keys in the same order; "
-            f"expected {keys}, got {list(row.keys())}"
-        )
-        raise ValueError(msg)
-    return row.values()
 
 
 def add(space: SpaceLike, head: Any, data: Any) -> int:
@@ -152,62 +168,148 @@ def add(space: SpaceLike, head: Any, data: Any) -> int:
 
     space may be a context or a space.
 
-    The source may offer rows its own way (``iter_rows()`` for polars,
-    ``itertuples()`` for pandas, a mapping of columns, any iterable of rows)
-    or speak the Arrow PyCapsule Interface, which is how a DuckDB relation, a
-    pyarrow Table, a Parquet reader or an Ibis expression hands over rows
-    without a row-at-a-time Python door. A source with both keeps its own:
-    the two produce identical atoms, and the row door is the faster of them
-    [measured 2026-09-06: 10,000 rows, polars 14.07 ms through iter_rows
-    against 14.36 ms through the stream, pandas 20.39 ms against 25.11 ms].
+    A registered frame provider may declare its row extraction. Otherwise
+    the source is a mapping of columns, an Arrow PyCapsule stream, or an
+    iterable of rows. Mapping records keep one key order, including an empty
+    first record. Arrow batches stream through unchanged; other rows use the
+    existing chunk capacity.
 
-    An Arrow source is written one record batch at a time, so a reader larger
-    than memory loads, and the writes are one transaction each; wrap the call
-    in ``m.transaction(...)`` to make the whole load one.
+    One transaction covers reading, conversion, writes and input release.
+    A foreign store must declare transactional writes and implement their
+    protocol. Inside an existing transaction it must also declare savepoint
+    support; until the engine and provider implement that protocol, ingest
+    at top level or into a native store. Refusal precedes input acquisition.
     """
     home = space.self
     head_atom = head if isinstance(head, Atom) else Symbol(str(head))
-    accessors()
-    keys: list[Any] = []
-    if hasattr(data, "iter_rows"):
-        rows = data.iter_rows()
-    elif hasattr(data, "itertuples"):
-        rows = data.itertuples(index=False)
-    elif isinstance(data, Mapping):
-        rows = zip(*data.values(), strict=True)
-    elif hasattr(data, "__arrow_c_stream__"):
-        return _add_arrow_stream(home, head_atom, data)
-    elif isinstance(data, Iterable):
-        rows = iter(data)
-    else:
-        msg = (
-            "tables.add reads iter_rows(), itertuples(), a mapping of "
-            f"columns, __arrow_c_stream__(), or an iterable of rows; "
-            f"{type(data).__name__} offers none"
+    nested = bool(home._rt.once("metta_in_user_transaction"))
+
+    def ingest() -> int:
+        provider = home._rt.once(
+            "seam:foreign_space(Space), metta_writes(Space, Atomicity)",
+            Space=home._space,
         )
-        raise TypeError(msg)
-    facts = [
-        Expression([head_atom, *(_encode(value) for value in _row_values(row, keys))])
-        for row in rows
-    ]
-    home.add(*facts)
-    return len(facts)
+        if provider:
+            if provider["Atomicity"] != "transactional":
+                msg = (
+                    f"tables.add needs a transactional foreign store; {home.name} "
+                    f"declares {provider['Atomicity']}. Use a provider with "
+                    "transactional writes or a native store"
+                )
+                raise EngineError(msg)
+            requirements = [("add", "tables.add requires a provider that can add rows")]
+            if nested:
+                requirements.append((
+                    "savepoint",
+                    "tables.add cannot enter a nested provider savepoint; "
+                    "the engine and provider must implement that protocol. "
+                    "Ingest at top level, or into a native store",
+                ))
+            for capability, message in requirements:
+                if not home._rt.once(
+                    "foreign_provides(Space, Capability)",
+                    Space=home._space, Capability=capability,
+                ):
+                    raise refuse(
+                        RefusalKind.capability, message, space=home.name,
+                        operation="tables.add", capability=capability,
+                    )
+            home._rt.must("metta_enlist_foreign(Space)", Space=home._space)
+        accessors()
+        keys: tuple[Any, ...] | None = None
+        written = 0
+        with _row_batches(data) as batches:
+            for batch in batches:
+                facts = []
+                for row in batch:
+                    cells = row
+                    if isinstance(row, Mapping):
+                        row_keys = tuple(row)
+                        if keys is None:
+                            keys = row_keys
+                        elif row_keys != keys:
+                            msg = (
+                                "every record must carry the same keys in the same order; "
+                                f"expected {list(keys)}, got {list(row_keys)}"
+                            )
+                            raise ValueError(msg)
+                        cells = row.values()
+                    facts.append(Expression([head_atom, *(_encode(value) for value in cells)]))
+                if facts:
+                    home.add(*facts)
+                    written += len(facts)
+        return written
+
+    return home.transaction(ingest)
 
 
-def _add_arrow_stream(space: Any, head_atom: Atom, data: Any) -> int:
-    """Write one Arrow stream's record batches as facts, a batch per write."""
-    from metta._catalog.arrow import read_batches  # noqa: PLC0415  -- the optional Arrow extra
+def _batches_of(
+    data: Any, acquire: Callable[[Iterable[Any]], Iterator[Any]],
+) -> Iterator[Iterable[Any]]:
+    """Batches of rows from whichever shape this input actually offers.
 
-    _names, batches = read_batches(data)
-    written = 0
-    for batch in batches:
-        facts = [
-            Expression([head_atom, *(_encode(value) for value in row)]) for row in batch
-        ]
-        if facts:
-            space.add(*facts)
-            written += len(facts)
-    return written
+    Every iterator this opens goes through `acquire`, so the caller owns the
+    release whichever shape answered. Declared frame readers come first: the
+    core reads no library's method name, and a reader answers None for a
+    source it does not claim.
+    """
+    rows = next((
+        selected
+        for provider in seam.frame.table().values()
+        if callable(extract := provider.fields.get("rows"))
+        and (selected := extract(data)) is not None
+    ), None)
+    if rows is not None:
+        return itertools.batched(acquire(rows), config.chunk_cap)
+    if isinstance(data, Mapping):
+        columns = [acquire(column) for column in data.values()]
+        return itertools.batched(zip(*columns, strict=True), config.chunk_cap)
+    if hasattr(data, "__arrow_c_stream__"):
+        from metta._catalog.arrow import (  # noqa: PLC0415 -- the optional Arrow extra
+            read_batches,
+        )
+
+        _names, source = read_batches(data)
+        return acquire(source)
+    if isinstance(data, Iterable):
+        return itertools.batched(acquire(data), config.chunk_cap)
+    msg = (
+        "tables.add reads a registered frame, a mapping of columns, "
+        "__arrow_c_stream__(), or an iterable of rows; "
+        f"{type(data).__name__} offers none. A frame library declares "
+        "its own row reader on the frame point, "
+        "seam.frame.register(<module>, ..., rows=<callable>), which "
+        "answers None for a source it does not claim"
+    )
+    raise TypeError(msg)
+
+
+@contextmanager
+def _row_batches(data: Any) -> Iterator[Iterator[Iterable[Any]]]:
+    """Own acquired input iterators until their final transaction outcome."""
+    owned: dict[int, Iterator[Any]] = {}
+    body: BaseException | None = None
+
+    def acquire(values: Iterable[Any]) -> Iterator[Any]:
+        iterator = iter(values)
+        owned[id(iterator)] = iterator
+        return iterator
+
+    try:
+        yield _batches_of(data, acquire)
+    except BaseException as error:
+        body = error
+        raise
+    finally:
+        failures = []
+        for iterator in reversed(owned.values()):
+            try:
+                close = getattr(iterator, "close", None)
+                if callable(close):
+                    close()
+            except BaseException as error:  # noqa: BLE001 -- release every input and retain cancellation
+                failures.append(error)
+        _raise_exit_errors("table ingestion and input cleanup failed", body, failures)
 
 
 def _contains_native_handle(wire: Any) -> bool:
@@ -646,7 +748,7 @@ class TableBridge(SpaceProvider):
 
     # -- the rows as an Arrow stream -----------------------------------------
 
-    def _projection(self):
+    def _projection(self) -> Projection:
         """Every declared shape's rows as one typed projection.
 
         The declaration fixes the columns and their order, which is what makes
@@ -657,8 +759,6 @@ class TableBridge(SpaceProvider):
         image catalog, so the stream carries exactly the values `atoms()`
         would have built atoms from.
         """
-        from metta._catalog.arrow import Projection  # noqa: PLC0415  -- the one projection
-
         names = self._shapes[0].column_names()
         for shape in self._shapes[1:]:
             if shape.column_names() != names:
@@ -676,7 +776,7 @@ class TableBridge(SpaceProvider):
         ]
         return Projection.of(names, rows)
 
-    def __arrow_c_schema__(self):
+    def __arrow_c_schema__(self) -> object:
         """The declared columns as an "arrow_schema" PyCapsule."""
         from metta._catalog.arrow import (  # noqa: PLC0415 -- the optional Arrow extra
             schema_capsule,
@@ -684,7 +784,7 @@ class TableBridge(SpaceProvider):
 
         return schema_capsule(self._projection())
 
-    def __arrow_c_stream__(self, requested_schema=None):
+    def __arrow_c_stream__(self, requested_schema: object | None = None) -> object:
         """This bridge's rows as an "arrow_array_stream" PyCapsule.
 
             pl.DataFrame(bridge)
