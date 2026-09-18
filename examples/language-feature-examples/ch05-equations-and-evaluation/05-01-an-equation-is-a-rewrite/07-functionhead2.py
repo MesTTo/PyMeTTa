@@ -363,7 +363,22 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 14323
+#: RE-PINNED 2026-09-18, 14323 to 14712 (+389), the branch's landings since the
+#: 09-10 pins, re-taken on the tip f06186a96: the compiled call law (e59104ace:
+#: an Atom argument enters as written, a Python object crosses as a value, a
+#: positional call of a bound callee is the plain application and a compiled
+#: lambda is bare where it is applied), the one codec at the grounded call
+#: (fd0af38f7, whose read of a call site's written keyword tail costs about six
+#: inferences per translated site, read once since 7cc8fb863), the runnable
+#: cache's dependency index written by the producer (a9e2c06d3, which takes
+#: back the walk of the generated code 5416e741d charged at every miss), the
+#: host patches of 09-17 and the class units of 09-13 to 09-16 the ladder in
+#: docs/journal/2026-09-14-runnable-artifact-dependencies.md places; serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 14712
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python
@@ -374,4 +389,12 @@ BUDGET = 14323
 #: docstrings that come with it are stored beside them [measured 2026-09-07:
 #: the two stored-atom surpluses, one fresh process per side; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-DIVERGENCE = "45f33941ab23ce785d3f3c847146e14a22a9fc0c3c92538db86181edf3c74153"
+#: DIVERGED 2026-09-18, the example holds 2 atoms the twin does not (2 =) and
+#: the twin holds 2 atoms the example does not (2 =): a compiled body spells a
+#: positional call of a bound callee as the plain application and a lambda bare
+#: where it is applied (e59104ace), so the twin's stored equations meet the
+#: example's spelling where they did not, and where they still differ the twin
+#: stores what its own Python spelling stores [measured 2026-09-18: the two
+#: stored-atom surpluses, one fresh process per side; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+DIVERGENCE = "94c29e7758f4a2b23979aed3d0562b4750edb79af0706b9fa499e74ad05df022"

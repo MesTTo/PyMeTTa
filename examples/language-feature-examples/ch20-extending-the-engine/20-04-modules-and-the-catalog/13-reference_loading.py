@@ -41,9 +41,24 @@ def twin(m):
 #: [measured 2026-09-10: 329737..332588 inferences over 10 observations;
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
 #: fixture=full-lane/280/workers=32; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/293/workers=32', 329737..332588 over
+#: 10 under 'full-lane/280/workers=32' to 370077..373706 over 10: the branch's
+#: tip f06186a96 after the landings the point re-pin names (the compiled call
+#: law, the one codec at the grounded call, the runnable cache's dependency
+#: index written by the producer, the host patches of 09-17, the class units)
+#: and a corpus of 293 twinned examples under the lane's 32-worker pool, so the
+#: scheduler this counter answers to is a new one and the observations are this
+#: tree's own rather than pooled with the earlier protocol's [measured
+#: 2026-09-18: python extensions/python/tools/twin_coverage.py --observe
+#: --rounds 10, wt-battery-6 ai-tmp/ai-observe-f06186a96.log; commit=WORKTREE].
+#: POOLED 2026-09-18: the lane's own reading on the same tree, 369745, sits
+#: under the ten rounds' floor of 370077 by 332, so it joins them under the
+#: same protocol, 369745..373706 over 11, as the 2026-09-08 entry pools two
+#: runs [measured 2026-09-18: python extensions/python/tools/twin_coverage.py,
+#: wt-battery-4 ai-tmp/ai-twins-lane-residuals.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 329737,
-    "maximum": 332588,
-    "observations": 10,
-    "protocol": "full-lane/280/workers=32",
+    "minimum": 369745,
+    "maximum": 373706,
+    "observations": 11,
+    "protocol": "full-lane/293/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }

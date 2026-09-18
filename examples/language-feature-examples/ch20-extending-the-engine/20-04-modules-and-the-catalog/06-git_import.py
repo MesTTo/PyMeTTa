@@ -372,9 +372,19 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
 #: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
 #: time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/293/workers=32', 26073..26074 over
+#: 67 under 'full-lane/277/workers=32' to 30508..30508 over 10: the branch's
+#: tip f06186a96 after the landings the point re-pin names (the compiled call
+#: law, the one codec at the grounded call, the runnable cache's dependency
+#: index written by the producer, the host patches of 09-17, the class units)
+#: and a corpus of 293 twinned examples under the lane's 32-worker pool, so the
+#: scheduler this counter answers to is a new one and the observations are this
+#: tree's own rather than pooled with the earlier protocol's [measured
+#: 2026-09-18: python extensions/python/tools/twin_coverage.py --observe
+#: --rounds 10, wt-battery-6 ai-tmp/ai-observe-f06186a96.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 26073,
-    "maximum": 26074,
-    "observations": 67,
-    "protocol": "full-lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot"
+    "minimum": 30508,
+    "maximum": 30508,
+    "observations": 10,
+    "protocol": "full-lane/293/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }

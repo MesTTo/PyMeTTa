@@ -257,45 +257,19 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 10142
-
-#: OVERRUN 2026-09-07, 500: it unpacks each error-algebra answer as a one-
-#: element assignment, so the `let` the example wraps around them is Python's
-#: own and priced separately. Measured 9711 against a ceiling of 9302; a
-#: minimal twin of this example costs 8573, inside the ceiling's 9302, so the
-#: distance is this twin's own program [measured 2026-09-07: one fresh process
-#: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-#: OVERRUN 2026-09-08, 500 to 663 (+163): the module boundary merged with
-#: trunk (refactor/engine-and-libraries-as-modules at b64291369): the twin's
-#: host crossings each resolve through one more chain link, prelude ->
-#: metta_engine -> user, while the example runs inside the engine; every
-#: crossing this twin makes pays it and the example pays none. Measured 10103
-#: against a ceiling of 9940; a minimal twin costs 8680 against the band's
-#: 9440, within that ceiling, so the rest is this twin's own program [measured
-#: 2026-09-08: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-#: OVERRUN 2026-09-09, 663 to 665 (+2): the door table landed
-#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
-#: reconciliation fixes at 58bf75947): every Space door is a generated alias
-#: over its body, the catalog publishes the door contracts at boot as typed
-#: atoms, and the seam's listeners publish on every registration, so boot
-#: content and clause layout moved; every crossing this twin makes pays it and
-#: the example pays none. Measured 10103 against a ceiling of 10101; a minimal
-#: twin costs 8678 against the band's 9438, within that ceiling, so the rest
-#: is this twin's own program [measured 2026-09-09: one fresh process per
-#: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-#: OVERRUN 2026-09-09, 665 to 969 (+304): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved -17 and the example -49, and
-#: the twin sat 266 over its ceiling there already. Measured 10360 against a
-#: ceiling of 10057; a minimal twin costs 8805 against the band's 9392, within
-#: that ceiling, so the rest is this twin's own program [measured 2026-09-09:
-#: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 969
+#: RE-PINNED 2026-09-18, 10142 to 37669 (+27527), the branch's landings since
+#: the 09-10 pins, re-taken on the tip f06186a96: the compiled call law
+#: (e59104ace: an Atom argument enters as written, a Python object crosses as a
+#: value, a positional call of a bound callee is the plain application and a
+#: compiled lambda is bare where it is applied), the one codec at the grounded
+#: call (fd0af38f7, whose read of a call site's written keyword tail costs
+#: about six inferences per translated site, read once since 7cc8fb863), the
+#: runnable cache's dependency index written by the producer (a9e2c06d3, which
+#: takes back the walk of the generated code 5416e741d charged at every miss),
+#: the host patches of 09-17 and the class units of 09-13 to 09-16 the ladder
+#: in docs/journal/2026-09-14-runnable-artifact-dependencies.md places; serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 37669

@@ -233,7 +233,22 @@ def twin(m):
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 26031
+#: RE-PINNED 2026-09-18, 26031 to 27317 (+1286), the branch's landings since
+#: the 09-10 pins, re-taken on the tip f06186a96: the compiled call law
+#: (e59104ace: an Atom argument enters as written, a Python object crosses as a
+#: value, a positional call of a bound callee is the plain application and a
+#: compiled lambda is bare where it is applied), the one codec at the grounded
+#: call (fd0af38f7, whose read of a call site's written keyword tail costs
+#: about six inferences per translated site, read once since 7cc8fb863), the
+#: runnable cache's dependency index written by the producer (a9e2c06d3, which
+#: takes back the walk of the generated code 5416e741d charged at every miss),
+#: the host patches of 09-17 and the class units of 09-13 to 09-16 the ladder
+#: in docs/journal/2026-09-14-runnable-artifact-dependencies.md places; serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 27317
 
 #: OVERRUN 2026-09-07, 2400: the mutually recursive pair takes the `@m.rules`
 #: door, which stages two equations where the example writes two. Measured
@@ -254,4 +269,17 @@ BUDGET = 26031
 #: above that ceiling, so no twin of it fits the band at all, as before
 #: [measured 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 2806
+#: OVERRUN 2026-09-18, 2806 to 3373 (+567): the twin costs 27317 against the
+#: example's 19180 and a ceiling of 26750 with the earlier declaration; a
+#: minimal twin of this example costs 26794, above the 21098 the band alone
+#: allows, so the distance is the library's own floor for this shape, debt the
+#: tracker carries rather than this twin's program. The landings the point re-
+#: pin names moved this twin and its example apart: the compiled call law and
+#: the one codec at the grounded call charge the twin's Python-side crossings,
+#: which the example never pays, and the runnable cache's dependency index
+#: written by the producer took most of that back on the branch tip f06186a96
+#: [measured 2026-09-18: one fresh process per side through the lane's
+#: run_example and run_twin, the floor from a minimal twin built by the probe;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 3373

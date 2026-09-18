@@ -331,7 +331,22 @@ def twin(m):
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 4378
+#: RE-PINNED 2026-09-18, 4378 to 4709 (+331), the branch's landings since the
+#: 09-10 pins, re-taken on the tip f06186a96: the compiled call law (e59104ace:
+#: an Atom argument enters as written, a Python object crosses as a value, a
+#: positional call of a bound callee is the plain application and a compiled
+#: lambda is bare where it is applied), the one codec at the grounded call
+#: (fd0af38f7, whose read of a call site's written keyword tail costs about six
+#: inferences per translated site, read once since 7cc8fb863), the runnable
+#: cache's dependency index written by the producer (a9e2c06d3, which takes
+#: back the walk of the generated code 5416e741d charged at every miss), the
+#: host patches of 09-17 and the class units of 09-13 to 09-16 the ladder in
+#: docs/journal/2026-09-14-runnable-artifact-dependencies.md places; serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4709
 
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
@@ -344,3 +359,16 @@ BUDGET = 4378
 #: the two stored-atom surpluses, one fresh process per side; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "db70feb36aced1522def3193499d1bd5b74de7df57a85daa7fe94ea96ee98ba1"
+
+#: OVERRUN 2026-09-18, 0 to 124 (+124): the twin costs 4709 against the
+#: example's 1581 and a ceiling of 4585 with the earlier declaration; a minimal
+#: twin of this example costs 1143, inside the 1739 the band alone allows, so
+#: the distance is this twin's own program. The landings the point re-pin names
+#: moved this twin and its example apart: the compiled call law and the one
+#: codec at the grounded call charge the twin's Python-side crossings, which
+#: the example never pays, and the runnable cache's dependency index written by
+#: the producer took most of that back on the branch tip f06186a96 [measured
+#: 2026-09-18: one fresh process per side through the lane's run_example and
+#: run_twin, the floor from a minimal twin built by the probe; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 124
