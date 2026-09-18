@@ -68,11 +68,12 @@ Guarantees:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - Python argument values enter native functions after source binding, while
-    rule variables retain their staged call terms [tested:
-    test_python_call_values_preserve_expression_arguments,
+  - a Python call spells the MeTTa application: an Atom argument enters as
+    written and the arrow decides its evaluation, a Python object crosses as
+    a value, and rule variables retain their staged call terms [tested:
+    test_python_call_arguments_follow_the_arrow,
     test_computed_receivers_preserve_their_stored_syntax,
-    test_the_staging_split_folds_ground_calls_and_stages_op_terms; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    test_the_staging_split_folds_ground_calls_and_stages_op_terms; commit=WORKTREE]
   - flat independent yield statements compile to separate equation bodies,
     while control-flow yields retain one superpose body [tested:
     test_flat_generator_emits_one_equation_per_yield,
@@ -156,7 +157,7 @@ from metta._atoms.factories import (
 )
 from metta._atoms.names import binding_name, resolve_known_name
 from metta._catalog.annotations import runtime_type_atoms
-from metta._catalog.call_values import apply_sources
+from metta._catalog.call_values import apply_sources, source
 from metta._catalog.fn import fn as fn_namespace
 from metta._compile import records as _records
 from metta._compile.expressions import ExpressionCompilerMixin
@@ -380,8 +381,8 @@ def canonical_aux_set(equations: tuple[Expression, ...], name: str) -> tuple[Exp
 class Defined[**P, R]:
     """A function that exists twice: as MeTTa equations and as Python.
 
-    Calling the name applies it to encoded argument values and returns every
-    engine answer; applying ``S[name]`` stages the term explicitly. The Python body
+    Calling the name evaluates the MeTTa application of its arguments and
+    returns every engine answer; applying ``S[name]`` stages the term explicitly. The Python body
     stays reachable as ``.py``, with recursion inside it resolving to itself.
     That pair is a differential oracle carried in one object: ``fact(5)``
     against ``fact.py(5)``, for every ground input.
@@ -464,11 +465,16 @@ class Defined[**P, R]:
         head = Symbol(self.name)
         term = Expression([head, *(_encode(a) for a in args)])
         staged = _declare_rules_module._defined_calls_are_staged()
-        # Rule variables stage the written application. Ground calls evaluate
-        # their argument values; a single answer can be folded into the law.
+        # Rule variables stage the written application. Ground calls run now;
+        # a single answer can be folded into the law.
         if staged and _variables(term):
             return term
-        application = apply_sources(head, tuple(Expression([S.noeval, value]) for value in term.args))
+        # A Python call spells the MeTTa application. An Atom argument is
+        # syntax written at the call site and enters as written, so the arrow
+        # decides it: `f(S.add(1, 1))` IS `!(f (+ 1 1))`, 44 under Number and
+        # `(+ (+ 1 1) 42)` under Atom. Any other Python object is a value and
+        # crosses unevaluated, as a compiled body passes a bound variable.
+        application = apply_sources(head, tuple(source(a, encode=_encode) for a in args))
         if staged:
             folded = list(self.space.answers(application))
             if len(folded) == 1:

@@ -191,14 +191,19 @@ def test_native_application_frames_retain_scoped_streams():
 @pytest.mark.parametrize("home_name", ("&carried-application-home", S["carried-application-home"](1)))
 @pytest.mark.parametrize("foreign", (False, True))
 def test_native_application_frames_preserve_values_in_carried_homes(home_name, foreign):
-    """Lexical application retains argument data while selecting its own home."""
+    """Lexical application retains argument data while selecting its own home.
+
+    The collectors are Atom-typed, so written syntax enters the frames as
+    written; an unannotated collector would evaluate `(+ 1 2)` to 3 first,
+    as the same application does in MeTTa.
+    """
     with MeTTa() as context:
         home = context.self
         destination = Space(home_name) if foreign else home
         try:
             signature = inspect.Signature([
-                inspect.Parameter("values", inspect.Parameter.VAR_POSITIONAL),
-                inspect.Parameter("options", inspect.Parameter.VAR_KEYWORD),
+                inspect.Parameter("values", inspect.Parameter.VAR_POSITIONAL, annotation=Atom),
+                inspect.Parameter("options", inspect.Parameter.VAR_KEYWORD, annotation=Atom),
             ])
             image = _declaration(home, signature)
             destination.run("(: carried-frames (-> Expression Expression %Undefined%)) "
@@ -218,7 +223,11 @@ def test_native_application_frames_preserve_values_in_carried_homes(home_name, f
 
 @pytest.mark.parametrize("kind", ("fixed", "segment", "pattern"))
 def test_native_value_binding_keeps_lambda_parameter_patterns(kind):
-    """The original binder matches before values enter the lexical evaluator."""
+    """The original binder matches before values enter the lexical evaluator.
+
+    The declared parameter is Atom-typed: the lambda has no arrow of its own,
+    so the declaration is what holds `(+ 1 2)` as written through the binder.
+    """
     data = S["+"](1, 2)
     with MeTTa() as context:
         home = context.self
@@ -229,7 +238,7 @@ def test_native_value_binding_keeps_lambda_parameter_patterns(kind):
         image = S["|->"](Expression([parameter]), S.evalc(S["syntax-frame"](V.payload), home))
         signature = inspect.Signature([
             inspect.Parameter("payload", inspect.Parameter.VAR_POSITIONAL
-                              if kind == "segment" else inspect.Parameter.POSITIONAL_ONLY),
+                              if kind == "segment" else inspect.Parameter.POSITIONAL_ONLY, annotation=Atom),
         ])
         home.add(S["@python-callable"](image, call_signatures.project(signature, G), S.one))
         callback = convert.build(image, Callable[..., Atom], space=home)

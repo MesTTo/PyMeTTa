@@ -330,12 +330,17 @@ def test_a_head_without_a_row_shows_no_cost_item():
 
 
 def test_the_docstring_carries_the_declared_cost():
-    """help() shows the class, and says whether the lane has measured it."""
+    """help() shows the class, and says whether the lane has measured it.
+
+    The date is the ledger's own, read here as the docstring reads it, so a
+    re-pin of the cost rows moves both together.
+    """
+    measured = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))["rows"]["car-atom"]["measured"]
     m = MeTTa()
     documented = m.self.fn["car-atom"].__doc__
     assert documented is not None
     assert "cost: linear in $n (length)" in documented
-    assert documented.rstrip().endswith("measured 2026-09-07") or documented.rstrip().endswith(
+    assert documented.rstrip().endswith(f"measured {measured}") or documented.rstrip().endswith(
         "declared"
     )
 

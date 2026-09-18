@@ -1,10 +1,12 @@
 """Purpose: preserve constructor values while evaluating default computations.
 
 Guarantees:
-  - supplied and default atoms survive Python, compiled and native construction;
-    factories run once before typed initialization, including fields excluded
-    from __init__ [tested: test_constructor_arguments_preserve_values_and_run_factories;
-    commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]
+  - supplied and default atoms survive Python, compiled and native construction
+    under the initializer's arrow, Expression positions through the
+    payload-preserving noeval spelling; factories run once before typed
+    initialization, including fields excluded from __init__ [tested:
+    test_constructor_arguments_preserve_values_and_run_factories;
+    commit=WORKTREE]
   - supplied expressions finish before factory defaults and post-init runs
     [tested: test_constructor_sources_finish_before_factories_and_post_init;
     commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]
@@ -49,10 +51,16 @@ def test_constructor_arguments_preserve_values_and_run_factories(grain, annotati
             )
 
         m.define(SyntaxArgument, methods=False)
+        # A Python call spells the MeTTa application, so the constructor's
+        # arrow decides a written atom: Atom and its refinements take it as
+        # written, Expression evaluates it, as `!(make-SyntaxArgument (+ 1
+        # 2))` does, so the syntax crosses under the payload-preserving
+        # spelling `(noeval (+ 1 2))`, which evaluates to the syntax once.
+        spelled = S.noeval(value) if annotation is Expression else value
         if entry == "python":
             instance = (
-                SyntaxArgument(value) if route == "positional" else
-                SyntaxArgument(payload=value) if route == "keyword" else
+                SyntaxArgument(spelled) if route == "positional" else
+                SyntaxArgument(payload=spelled) if route == "keyword" else
                 SyntaxArgument()
             )
         elif entry == "compiled":

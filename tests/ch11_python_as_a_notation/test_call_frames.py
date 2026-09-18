@@ -21,7 +21,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from metta import Atom, Expression, G, MeTTa, S, py
+from metta import Atom, Expression, G, MeTTa, S, V, py
 from metta._catalog.call_values import pythonic
 
 
@@ -69,9 +69,15 @@ def _native_triple(left: Atom, right: Atom, payload: Atom):
     S["+"](1, 2),
     G((1, S.Kwargs())),
 ])
-@pytest.mark.parametrize("source", [_direct, _expanded, _keyword, _mixed, _implicit, _explicit])
+@pytest.mark.parametrize("source", [_expanded, _keyword, _mixed, _implicit, _explicit])
 def test_compiled_host_calls_keep_data_out_of_keyword_control(source, payload):
-    """The callee receives the twin's Python value while call syntax keeps data separate."""
+    """The callee receives the twin's Python value while call syntax keeps data separate.
+
+    An expanded or keyword call crosses as call frames, which MeTTa has no
+    syntax for, and a host island is applied by the seam; both hand the
+    callee Python values. A plain positional call of a bound callee is MeTTa's
+    own application instead, the next test.
+    """
     received = pythonic(payload)
     with MeTTa() as context:
         compiled = context.self.define(source, name=f"framed-{source.__name__}")
@@ -80,6 +86,27 @@ def test_compiled_host_calls_keep_data_out_of_keyword_control(source, payload):
         else:
             for callback in (_received, partial(_received)):
                 assert compiled(callback, payload).one() == source(callback, received)
+
+
+@pytest.mark.parametrize("payload", [S.Kwargs(S.entry(3)), S["+"](1, 2), S.live_scalar])
+def test_a_positional_call_of_a_bound_callee_is_the_written_application(payload):
+    """`function(value)` on a parameter is `($function $value)`, whatever the callee holds.
+
+    `(= (f $g $x) (repra ($g $x)))` is how the examples spell it, and an
+    Atom-typed result shows that body as written. A native head applies
+    natively and receives the bound value as it is; a grounded host callable
+    is applied by the engine's own grounded call, Kwargs convention and janus
+    codec included, exactly as the same application written in MeTTa.
+    """
+    with MeTTa() as context:
+        m = context.self
+        compiled = m.define(_direct, name="positional-direct")
+        native = m.define(_native_single, name="positional-native-frame")
+        assert compiled(native, payload).one() == S.observed(payload)
+        for callback in (_received, partial(_received)):
+            written = m.eval(S.let(V.f, S.noeval(G(callback)),
+                                   S.let(V.v, S.noeval(payload), Expression([V.f, V.v]))))
+            assert compiled(callback, payload).one() == written[0].value
 
 
 @pytest.mark.parametrize("source", [_direct, _expanded, _keyword, _mixed])
@@ -160,7 +187,10 @@ def test_arbitrary_keyword_shaped_data_keeps_its_argument_place():
     )
     trees = st.recursive(leaves, lambda inner: st.lists(inner, max_size=4).map(Expression), max_leaves=12)
     with MeTTa() as context:
-        sources = (_direct, _expanded, _keyword, _mixed, _implicit, _explicit)
+        # A positional call of a bound callee is the engine's own application,
+        # whose Kwargs convention the previous test states; the frames and
+        # islands here are the routes that carry data as data.
+        sources = (_expanded, _keyword, _mixed, _implicit, _explicit)
         compiled = [context.self.define(source, name=f"arbitrary-frame-{source.__name__}") for source in sources]
 
         @given(st.lists(trees, max_size=4))

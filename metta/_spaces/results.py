@@ -2013,6 +2013,13 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             return f"<pre>{html.escape(self._display_text())}</pre>"
         return self._eager_rows()._repr_html_()
 
+    #: This view's image is an OBSERVATION, not a picture: entering a term reads
+    #: one answer, so a value boundary that only carries the view (a compiled
+    #: body's returned host value) holds it by identity and leaves the reading
+    #: to the term that receives it. The codec reads this mark rather than the
+    #: class, which keeps the catalog layer below the spaces layer.
+    __metta_observes__ = True
+
     def __metta__(self) -> Atom:
         """Observe exactly one answer when this view enters a term."""
         return _encode(self.one())

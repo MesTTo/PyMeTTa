@@ -24,12 +24,15 @@ Guarantees:
     test_an_exact_positional_port_precedes_variadic_ports,
     test_overlapping_variadic_ports_require_an_explicit_native_image;
     commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
-  - Python calls preserve computed syntax and record arguments through native
-    source bindings [tested:
-    test_python_call_values_preserve_expression_arguments,
+  - a Python call spells the MeTTa application: an Atom argument is syntax
+    written at the call site and the arrow decides its evaluation (Atom and
+    its refinements take it as written, every other position evaluates it),
+    a Python object crosses as a value bound unevaluated, and a lambda image
+    holds the positions its Callable annotation or signature rows declare
+    Atom [tested: test_python_call_arguments_follow_the_arrow,
     test_computed_receivers_preserve_their_stored_syntax,
-    test_python_call_values_preserve_symbols_with_live_scalar_rules;
-    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
+    test_written_symbol_arguments_follow_live_scalar_rules,
+    test_native_value_binding_keeps_lambda_parameter_patterns; commit=WORKTREE]
   - nonsymbol literal arguments retain direct cursor application [tested:
     test_function_calls_suspend_endless_producers; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - quoted variables retain their value boundary when callable templates
@@ -73,7 +76,7 @@ from __future__ import annotations
 import inspect
 import typing
 from collections.abc import Callable, Collection, Mapping, Sequence
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 from metta._atoms.factories import (
     Atom,
@@ -91,6 +94,7 @@ from metta._atoms.factories import (
     hold,
 )
 from metta._catalog import call_signatures
+from metta._catalog.annotations import type_atoms_for
 from metta._catalog.containers import runtime_annotation
 from metta._catalog.project import explicit_projection
 from metta._lazy import lazy
@@ -109,8 +113,9 @@ def argument(value: Any) -> Atom:
 def returned(value: Any) -> Atom:
     """Carry one successful Python result through its existing value image.
 
-    An answer view is held by identity: observation is what term construction
-    does to a view, and a returned view is not in a term yet, so `len(m.match(...))`
+    A view whose image is an observation (`__metta_observes__`) is held by
+    identity: observation is what term construction does to a view, and a
+    returned view is not in a term yet, so `len(m.match(...))`
     in a compiled body counts it and `.one()` reads it. An author's declared
     image projects next, since a declared class instance is a face of a native
     value whatever else it is (a prototype instance is a space, and a space is
@@ -120,9 +125,7 @@ def returned(value: Any) -> Atom:
     stays unstarted: neither has an image, so the twin receives the object it
     returned.
     """
-    from metta._spaces.results import Answers  # noqa: PLC0415 -- results imports this codec
-
-    if isinstance(value, Answers):
+    if getattr(type(value), "__metta_observes__", False):
         return hold(value)
     projected = explicit_projection(value)
     if projected is not None:
@@ -146,29 +149,138 @@ def pythonic(value: Any) -> Any:
     return value
 
 
+class Written(NamedTuple):
+    """Syntax the caller wrote at a Python call site.
+
+    apply_sources places it in the application as written, so the callee's
+    declared parameter type decides its evaluation exactly as for the same
+    application written in MeTTa: an Atom position takes it as it stands and
+    every other position evaluates it. `f(S.add(1, 1))` IS `!(f (+ 1 1))`.
+    """
+
+    atom: Atom
+
+
+def held_position(annotation: Any) -> bool:
+    """True when a declared parameter type takes its argument as written.
+
+    That is MeTTa's Atom and every refinement of it: `Annotated[Atom,
+    MinLen(2)]` publishes `(Annotated Atom (MinLen 2))`, a predicate over the
+    written atom, so the engine masks the position the way it masks Atom
+    [source: engine/translator/typing.pl:non_evaluated_parameter_type/1]. An
+    unannotated or Any parameter is `%Undefined%`, which evaluates.
+    """
+    if annotation is inspect.Parameter.empty or annotation is Any:
+        return False
+    return any(
+        atom == S.Atom or (isinstance(atom, Expression) and atom.head == S.Annotated
+                           and bool(atom.args) and atom.args[0] == S.Atom)
+        for atom in type_atoms_for(annotation)
+    )
+
+
+def source(value: Any, *, held: bool = False, encode: Callable[[Any], Atom] = argument) -> Atom | Written:
+    """One Python argument as the source it is at an engine door.
+
+    Syntax WRITTEN at the call site is an Atom the caller built, or a Python
+    literal the codec spells: a number, a string, a container (`(43,)` is
+    `(43)`). It enters the application as written and the callee's arrow
+    decides its evaluation. Every other Python object, a declared class
+    instance, a class, a function, a space, a view, encodes to an IMAGE of
+    itself, and an image is a VALUE the caller computed: it crosses under
+    noeval, which apply_sources binds to a fresh variable, so the callee
+    receives it unevaluated the way a compiled body passes a bound variable,
+    and an instance's syntax fields survive the call. A grounded image is a
+    literal either way. A position the door already knows is held (a lambda's
+    Atom-typed parameter has no arrow the engine could read) takes written
+    syntax as a value too.
+    """
+    image = value if isinstance(value, Atom) else encode(value)
+    if held or (not isinstance(value, Atom) and runtime_annotation(value) is None and not isinstance(image, Grounded)):
+        return _expr(S.noeval, image)
+    return Written(image)
+
+
+def _literal(atom: Atom) -> bool:
+    # The wire decoder makes these tags nonsymbol literals, which eager
+    # argument translation already passes through. A variable can still be
+    # instantiated in a callable template, so it keeps its binding. Boolean
+    # and space tags decode to atoms and can have scalar rules.
+    return not isinstance(atom, Expression) and atom.to_wire()[0] in ("n", "g", "o", "h")
+
+
+def pack(parts: Sequence[Atom | Written], *, keys: Sequence[Atom] | None = None,
+         head: Atom | None = None) -> Atom:
+    """A data frame of argument sources, `(noeval (v1 v2 ...))`.
+
+    A frame is data by construction, so a value's atom sits in it as it is.
+    Written syntax and computations are evaluated first, in order, and their
+    results bound into the frame: `(let $e (+ 1 1) (noeval ($e)))`. The result
+    is itself a computation when anything had to run and a value otherwise,
+    and apply_sources binds either correctly. `keys` pairs each element with
+    its key, `head` prefixes the frame.
+    """
+    elements: list[Atom] = []
+    bindings: list[tuple[Variable, Atom]] = []
+    for part in parts:
+        if isinstance(part, Expression) and part.head == S.noeval and len(part.args) == 1:
+            element = part.args[0]
+        else:
+            computation = part.atom if isinstance(part, Written) else part
+            if _literal(computation):
+                element = computation
+            else:
+                element = fresh()
+                bindings.append((element, computation))
+        elements.append(element)
+    if keys is not None:
+        elements = [Expression([key, element]) for key, element in zip(keys, elements, strict=True)]
+    frame: Atom = _expr(S.noeval, Expression(elements if head is None else [head, *elements]))
+    for variable, computation in reversed(bindings):
+        frame = _expr(S.let, variable, computation, frame)
+    return frame
+
+
 def argument_sources(signature: inspect.Signature, supplied: Mapping[str, Any],
-                     encode: Callable[[Any], Atom],
-                     defaults: Mapping[str, Atom]) -> tuple[Atom, ...]:
-    """Pack canonical parameters, retaining the caller's default source policy."""
-    result: list[Atom] = []
+                     defaults: Mapping[str, Atom], *, written: bool) -> tuple[Atom | Written, ...]:
+    """Pack canonical parameters, retaining the caller's default source policy.
+
+    `written` says the supplied objects come from a Python call site, where an
+    Atom is syntax the caller wrote and a parameter's annotation says whether
+    its position is held. A frame of completed values is not written: every
+    atom in it crosses as a value.
+    """
+    def one(value: Any, parameter: inspect.Parameter) -> Atom | Written:
+        if written:
+            return source(value, held=held_position(parameter.annotation))
+        return _expr(S.noeval, argument(value))
+
+    result: list[Atom | Written] = []
     for name, parameter in signature.parameters.items():
         if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-            result.append(_expr(S.noeval, Expression([encode(part) for part in supplied.get(name, ())])))
+            result.append(pack([one(part, parameter) for part in supplied.get(name, ())]))
         elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
-            pairs = Expression([
-                Expression([Grounded(key), encode(part)])
-                for key, part in supplied.get(name, {}).items()
-            ])
-            result.append(_expr(S.noeval, pairs))
+            entries = supplied.get(name, {})
+            result.append(pack([one(part, parameter) for part in entries.values()],
+                               keys=[Grounded(key) for key in entries]))
         elif name in supplied:
-            result.append(_expr(S.noeval, encode(supplied[name])))
+            result.append(one(supplied[name], parameter))
         else:
             result.append(defaults[name])
     return tuple(result)
 
 
-def apply_sources(head: Atom, sources: Sequence[Atom]) -> Atom:
-    """Evaluate source computations before applying their resulting values."""
+def apply_sources(head: Atom, sources: Sequence[Atom | Written]) -> Atom:
+    """Apply a head to its argument sources.
+
+    Written syntax is placed as it stands, so the head's declared parameter
+    type decides whether it is evaluated. A `(noeval v)` source is a value: a
+    nonsymbol literal is passed directly, anything else is bound unevaluated
+    to a fresh variable. Every other source is a computation, bound to a fresh
+    variable after it runs, the administrative binding of an A-normal form,
+    which is what lets a default factory run before an Atom-typed entry that
+    would otherwise take the factory call as syntax.
+    """
     if isinstance(head, Expression) and head.head == S["|->"] and len(head.args) == 2:
         binders, body = head.args
         if isinstance(body, Expression) and body.head == S.evalc and len(body.args) == 2:
@@ -181,23 +293,23 @@ def apply_sources(head: Atom, sources: Sequence[Atom]) -> Atom:
                 for parameter, replacement in reversed(tuple(replacements.items())):
                     held = _expr(S.let, replacement, _expr(S.noeval, parameter), held)
                 head = _expr(S["|->"], binders, _expr(S.evalc, held, body.args[1]))
-    operands, bindings = [], []
-    for source in sources:
-        value = (source.args[0] if isinstance(source, Expression)
-                 and source.head == S.noeval and len(source.args) == 1 else source)
-        # The wire decoder makes these tags nonsymbol literals, which eager
-        # argument translation already passes through. A quoted variable can
-        # still be instantiated in a callable template, so retain its binding.
-        # Boolean and space tags decode to atoms and can have scalar rules.
-        if not isinstance(value, Expression) and value.to_wire()[0] in ("n", "g", "o", "h"):
+    operands: list[Atom] = []
+    bindings: list[tuple[Variable, Atom]] = []
+    for item in sources:
+        if isinstance(item, Written):
+            operands.append(item.atom)
+            continue
+        value = (item.args[0] if isinstance(item, Expression)
+                 and item.head == S.noeval and len(item.args) == 1 else item)
+        if _literal(value):
             operands.append(value)
         else:
             parameter = fresh()
             operands.append(parameter)
-            bindings.append((parameter, source))
+            bindings.append((parameter, item))
     body = _expr(head, *operands)
-    for parameter, source in reversed(bindings):
-        body = _expr(S.let, parameter, source, body)
+    for parameter, item in reversed(bindings):
+        body = _expr(S.let, parameter, item, body)
     return body
 
 
@@ -276,6 +388,10 @@ class NativeCallable:
         self.atom, self.space = atom, space
         result = typing.get_args(annotation)
         self.result_type = result[-1] if result else Any
+        # `Callable[[Atom, int], R]` is the arrow a lambda image has nowhere
+        # else: its positional types say which positions take their argument
+        # as written when the signature rows leave a parameter unannotated.
+        self.parameter_types: list[Any] | None = list(result[0]) if result and isinstance(result[0], list) else None
 
     def __metta__(self) -> Atom:
         return self.atom
@@ -412,19 +528,70 @@ class NativeCallable:
                  else _application_image(source, captures, count - len(captures), self.space))
         return image, remaining, stream, applicator
 
-    def application(self, args: Any, kwargs: Any) -> tuple[Atom, inspect.Signature, bool]:
-        """Bind call syntax without evaluating the resulting native term."""
+    def _sources(self, signature: inspect.Signature, args: Any, kwargs: Any, *,
+                 written: bool) -> tuple[list[Atom | Written], dict[str, Atom | Written]]:
+        """Each supplied argument as its source, held where its parameter takes syntax as written.
+
+        A positional argument meets the positional parameters in order and the
+        variadic collector after them; a keyword argument meets its named
+        parameter or the keyword collector. An unannotated position falls back
+        to the Callable annotation's positional types. A frame's atoms
+        (`written=False`) are values whatever their parameter says.
+        """
+        parameters = list(signature.parameters.values())
+        positional_parameters = [parameter for parameter in parameters if parameter.kind in (
+            inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )]
+        variadic = next((parameter for parameter in parameters if parameter.kind is inspect.Parameter.VAR_POSITIONAL), None)
+        collector = next((parameter for parameter in parameters if parameter.kind is inspect.Parameter.VAR_KEYWORD), None)
+
+        def held(parameter: inspect.Parameter | None, index: int | None) -> bool:
+            annotation = inspect.Parameter.empty if parameter is None else parameter.annotation
+            if (annotation is inspect.Parameter.empty and index is not None
+                    and self.parameter_types is not None and index < len(self.parameter_types)):
+                annotation = self.parameter_types[index]
+            return held_position(annotation)
+
+        def one(value: Any, parameter: inspect.Parameter | None, index: int | None) -> Atom | Written:
+            return source(value, held=held(parameter, index)) if written else _expr(S.noeval, argument(value))
+
+        positional = [
+            one(value, positional_parameters[index] if index < len(positional_parameters) else variadic, index)
+            for index, value in enumerate(args)
+        ]
+        named = {}
+        for name, value in kwargs.items():
+            parameter = signature.parameters.get(name)
+            # A keyword reaches a parameter only where Python would bind it
+            # there; a positional-only namesake and a collector send it on to
+            # the keyword collector.
+            if parameter is None or parameter.kind not in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY,
+            ):
+                parameter = collector
+            named[name] = one(value, parameter, None)
+        return positional, named
+
+    def application(self, args: Any, kwargs: Any, *, written: bool = True) -> tuple[Atom, inspect.Signature, bool]:
+        """Bind call syntax without evaluating the resulting native term.
+
+        `written` marks a Python call site, where each argument crosses as the
+        source it is (`source`): written syntax follows the parameter's
+        declared type, a Python object is a value. A frame of completed values
+        handed on by a compiled body is not written: every atom in it is a
+        value.
+        """
         image, signature, stream, applicator = self._layout(len(args) + len(kwargs), kwargs)
         bound = signature.bind(*args, **kwargs)
+        positional, named = self._sources(signature, args, kwargs, written=written)
         if applicator is not None:
-            # Bind the frames before application. An executable head inside a
-            # positional vector is data, including when the applicator is an
-            # untyped lambda rather than an Expression-typed native function.
+            # Bind the frames before application. A frame is data, including
+            # when the applicator is an untyped lambda rather than an
+            # Expression-typed native function, so written syntax bound for an
+            # evaluated position runs before it enters the frame.
             expression = apply_sources(applicator, (
-                _expr(S.noeval, Expression([argument(value) for value in args])),
-                _expr(S.noeval, Expression([
-                    Expression([Grounded(name), argument(value)]) for name, value in kwargs.items()
-                ])),
+                pack(positional),
+                pack(list(named.values()), keys=[Grounded(name) for name in named]),
             ))
             return expression, signature, stream
         # A segment binder receives the native application's arguments. A
@@ -433,16 +600,29 @@ class NativeCallable:
             isinstance(parameter, Expression) and parameter.head == S[":seg"]
             for parameter in image.args[0].children
         )
+        values: list[Atom | Written]
         if segmented:
-            values = [argument(value) for value in args]
+            values = list(positional)
             if kwargs:
-                values.append(_expr(S.Kwargs, *(Expression([Symbol(name), argument(value)]) for name, value in kwargs.items())))
+                values.append(pack(list(named.values()), keys=[Symbol(name) for name in named], head=S.Kwargs))
         else:
+            supplied = set(bound.arguments)
             bound.apply_defaults()
-            # A fixed binder holds one parameter value. BoundArguments.args
-            # flattens *args and excludes keyword-only and **kwargs values.
-            values = [argument(value) for value in bound.arguments.values()]
-        return apply_sources(image, tuple(_expr(S.noeval, value) for value in values)), signature, stream
+            # A fixed binder holds one parameter value: a supplied argument as
+            # its source, a collector's whole Python tuple or dict, and a
+            # signature default as the value it is. Python's own binding says
+            # which parameter each argument reached.
+            remaining = iter(positional)
+            values = []
+            for name, parameter in signature.parameters.items():
+                if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+                    values.append(_expr(S.noeval, argument(bound.arguments[name])))
+                elif name in supplied:
+                    values.append(named[name] if name in named and parameter.kind is not inspect.Parameter.POSITIONAL_ONLY
+                                  else next(remaining))
+                else:
+                    values.append(_expr(S.noeval, argument(bound.arguments[name])))
+        return apply_sources(image, tuple(values)), signature, stream
 
     def __call__(self, /, *args: Any, **kwargs: Any) -> Any:
         expression, signature, stream = self.application(args, kwargs)

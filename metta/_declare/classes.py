@@ -621,7 +621,7 @@ class ClassDeclaration:
         image = constructors.image(self)
         signature = NativeCallable(image, self.space, Any).__signature__
         bound = signature.bind(*args, **kwargs)
-        sources = self.argument_sources(bound.arguments, argument, signature=signature)
+        sources = self.argument_sources(bound.arguments, signature=signature, written=True)
 
         def construct() -> None:
             if self.grain == "value":
@@ -638,8 +638,13 @@ class ClassDeclaration:
 
         self.space.transaction(construct)
 
-    def argument_sources(self, supplied: dict[str, Any], encode: Any, *, signature: inspect.Signature | None = None, defaults: dict[str, Atom] | None = None) -> tuple[Atom, ...]:
-        """Quote supplied values; omitted parameters retain their default code."""
+    def argument_sources(self, supplied: dict[str, Any], *, written: bool, signature: inspect.Signature | None = None,
+                         defaults: dict[str, Atom] | None = None) -> tuple[Atom | call_values.Written, ...]:
+        """Sources for a make-Class application; omitted parameters retain their default code.
+
+        `written` marks a Python call site, where an Atom argument is syntax
+        the initializer's arrow decides; a frame of completed values is not.
+        """
         if defaults is None:
             defaults = self.defaults if signature is None else {
                 name: argument(parameter.default)
@@ -647,7 +652,7 @@ class ClassDeclaration:
                 if parameter.default is not inspect.Parameter.empty
             }
         signature = self.signature if signature is None else signature
-        return call_values.argument_sources(signature, supplied, encode, defaults)
+        return call_values.argument_sources(signature, supplied, defaults, written=written)
 
     def install_storage(self) -> None:
         part = Variable("identity")
@@ -782,9 +787,12 @@ class ClassDeclaration:
 
             def write(instance: Any, value: Any, name: str = field.name) -> None:
                 actual = declaration(type(instance)) or plan
+                # The writer's arrow decides a written atom: an Atom field
+                # stores the syntax, a Number field its value, as `(C-name!
+                # $r (+ 1 1))` does in MeTTa. A Python object is a value.
                 actual.answer(apply_sources(actual.accessor(name, write=True), (
                     _expr(S.noeval, actual.receiver(instance)),
-                    _expr(S.noeval, actual.encode(value)),
+                    call_values.source(value, encode=actual.encode),
                 )))
 
             def delete(instance: Any, name: str = field.name) -> None:

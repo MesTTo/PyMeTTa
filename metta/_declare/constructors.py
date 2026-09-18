@@ -217,7 +217,7 @@ def _callable(plan: Any) -> None:
     def bind(positional: Atom, keywords: Atom) -> Atom:
         signature = call_values.NativeCallable(image(plan), plan.space, Any).__signature__
         supplied = call_syntax.bind_arguments(signature, positional, keywords)
-        sources = plan.argument_sources(supplied.arguments, call_values.argument, signature=signature)
+        sources = plan.argument_sources(supplied.arguments, signature=signature, written=False)
         return _expr(S.transaction, call_values.apply_sources(Symbol(f"make-{plan.name}"), sources))
 
     name = f"make-{plan.name}:apply"

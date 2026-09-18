@@ -219,7 +219,7 @@ class CallValueSourceTests(unittest.TestCase):
         class Native:
             space = Symbol("NativeHome")
 
-            def application(self, _arguments, _keywords):
+            def application(self, _arguments, _keywords, **_flags):
                 return application, inspect.Signature(), shapes.pop()
 
         self.native = Native()
@@ -238,8 +238,8 @@ class CallValueSourceTests(unittest.TestCase):
         class Native:
             space = native_home
 
-            def application(self, arguments, keywords):
-                calls.append((arguments, keywords))
+            def application(self, arguments, keywords, *, written=True):
+                calls.append((arguments, keywords, written))
                 return application, inspect.Signature(), True
 
         self.native = Native()

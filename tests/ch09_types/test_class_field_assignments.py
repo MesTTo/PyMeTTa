@@ -46,8 +46,15 @@ def test_field_assignment_keeps_computed_syntax_values(base, annotation, entry):
             target.payload = source()
             return target.payload
 
+        # A Python write spells the writer's application, so the field's arrow
+        # decides a written atom: Atom and its refinements store it as written,
+        # Expression evaluates it, as `(WrittenSyntax-payload! $r (+ 3 4))`
+        # does, so the syntax crosses under the payload-preserving spelling.
+        def spelled(atom):
+            return S.noeval(atom) if annotation is Expression else atom
+
         if entry == "python":
-            instance.payload = value
+            instance.payload = spelled(value)
         else:
             assert write_syntax(instance, field_source).one() == value
         assert instance.payload == value
@@ -58,7 +65,7 @@ def test_field_assignment_keeps_computed_syntax_values(base, annotation, entry):
         assert m.eval(S["field-source"]()) == [replacement]
         assert field_source() == replacement
         if entry == "python":
-            instance.payload = replacement
+            instance.payload = spelled(replacement)
         else:
             assert write_syntax(instance, field_source).one() == replacement
         assert instance.payload == replacement

@@ -11,9 +11,17 @@ Guarantees:
     unknown protocol results keep the borrowed value boundary [tested:
     test_native_sequence_operator_results_retain_images;
     test_unknown_reflected_sequence_result_remains_borrowed; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
-  - ordinary carried calls and host islands keep completed values separate
-    from keyword control [tested:
-    test_compiled_host_calls_keep_data_out_of_keyword_control; commit=86756da11eade288973b0dfaab7486a29e598cfd]
+  - expanded and keyword calls and host islands keep completed values
+    separate from keyword control, while a positional call of a bound callee
+    is MeTTa's own application `($g $x)`, whatever the callee holds [tested:
+    test_compiled_host_calls_keep_data_out_of_keyword_control,
+    test_a_positional_call_of_a_bound_callee_is_the_written_application; commit=WORKTREE]
+  - a lambda lowers to the bare `|->` where it is applied or bound, the form
+    higher-order heads such as maplist apply, and to its quoted syntax where
+    a function returns it, the form a caller rebuilds through the published
+    contract [tested: test_a_compiled_lambda_is_applied_where_it_stands,
+    test_a_returned_lambda_is_its_syntax,
+    test_class_methods_keep_full_python_signatures_and_native_bodies; commit=WORKTREE]
   - lambda and comprehension binders preserve Python underscore identity
     [tested: test_python_underscore_bindings_retain_their_values; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - dictionary get selects its optional default only for an absent key;
@@ -971,9 +979,12 @@ class ExpressionCompilerMixin(CompilerContext):
             inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in params
         ])
         self.aux.append(Expression([Symbol("@python-callable"), value, call_signatures.project(signature, Grounded), Symbol("one")]))
-        # A Python lambda creates a value. A bare MeTTa lambda at an equation's
-        # tail instead eta-expands that equation's arity and delays its body.
-        return Expression([Symbol("noeval"), value])
+        # The bare `|->` is the applicable form: in an argument or a let it
+        # evaluates to the engine's closure, which `maplist` and every other
+        # higher-order head apply, exactly as the written `(maplist (|-> ($a)
+        # (+ 1 $a)) $items)` does. A function returning a lambda returns its
+        # syntax instead, see _return_statement.
+        return value
 
     def _x_ListComp(self, node: ast.ListComp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """[f(x) for x in xs] is (map-atom xs (|-> ($x) (f $x))), an
@@ -1070,8 +1081,16 @@ class ExpressionCompilerMixin(CompilerContext):
         composite = self._composite_operator_call(node)
         if composite is not None:
             return composite
-        if call_syntax.expanded(node) or call_syntax.dynamic(self, node):
+        if call_syntax.expanded(node) or (call_syntax.dynamic(self, node) and node.keywords):
             return call_syntax.application(self, node)
+        if call_syntax.dynamic(self, node):
+            # A positional call of a bound callee is MeTTa's own application,
+            # `($g $x)`, whatever the callee turns out to hold: a symbol, a
+            # lambda, a grounded host callable the engine applies itself.
+            # `(= (f $g $x) (repra ($g $x)))` is the example's spelling and an
+            # Atom-typed result shows the body as written. Keywords and
+            # expansions, which MeTTa cannot spell, cross as call frames above.
+            return Expression([self.expression(node.func), *(self.expression(a) for a in node.args)])
         standard = self._mentioned_call(node)
         if standard is not None:
             return standard

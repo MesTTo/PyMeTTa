@@ -54,17 +54,26 @@ def twin(m):
     assert kind(S.Rex) == [S.Dog, S.Animal, S.LivingThing]
 
     # Two things are NOT widened, both deliberately: a grounded literal's
-    # built-in type, and the return type of an application.
+    # built-in type, and the return type of an IMPLEMENTED operation, a symbol
+    # with an arrow type and an equation.
     # (:< Number Countable)
     # !(test (collapse (get-type 1)) (Number))
     m += BELOW(S.Number, S.Countable)
     assert kind(1) == [S.Number]
 
-    # (: half (-> Number Fraction)) (:< Fraction Rational)
+    # (: half (-> Number Fraction)) (= (half $n) (/ $n 2)) (:< Fraction Rational)
     # !(test (collapse (get-type (half 3))) (Fraction))
     m += typed(S.half, arrow(int, S.Fraction))
+    m += S["="](S.half(V.n), S["/"](V.n, 2))
     m += BELOW(S.Fraction, S.Rational)
     assert kind(S.half(3)) == [S.Fraction]
+
+    # A symbol with an arrow type and NO equation is a data constructor, and
+    # its application is sorted data, widened the way a symbol is.
+    # (: ratio (-> Number Number Fraction))
+    # !(test (collapse (get-type (ratio 1 2))) (Fraction Rational))
+    m += typed(S.ratio, arrow(int, int, S.Fraction))
+    assert kind(S.ratio(1, 2)) == [S.Fraction, S.Rational]
 
     # A diamond answers its join TWICE, and that is not a bug to report:
     # widening checks against the list as it stood when the round BEGAN, so

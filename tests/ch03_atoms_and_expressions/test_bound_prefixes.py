@@ -30,9 +30,14 @@ def _bound_application(home, signature, captured):
 
 @pytest.mark.parametrize("captured", ((), (S.Receiver,), tuple(G(index) for index in range(13))))
 def test_bound_application_prefixes_keep_variadic_collectors(captured):
-    """Every captured value and later operand reaches one ordered call frame."""
+    """Every captured value and later operand reaches one ordered call frame.
+
+    The collector is Atom-typed, so `(+ 2 3)` written at the call site enters
+    the frame as written; an unannotated collector would evaluate it to 5, as
+    the same application does in MeTTa.
+    """
     signature = inspect.Signature([
-        inspect.Parameter("items", inspect.Parameter.VAR_POSITIONAL),
+        inspect.Parameter("items", inspect.Parameter.VAR_POSITIONAL, annotation=Atom),
         inspect.Parameter("flag", inspect.Parameter.KEYWORD_ONLY, default=3),
         inspect.Parameter("options", inspect.Parameter.VAR_KEYWORD),
     ])

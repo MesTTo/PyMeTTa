@@ -378,7 +378,16 @@ class StatementCompilerMixin(CompilerContext):
             return self.constructor_return(self)
         if head.value is None:
             return Grounded(None)
-        return self.expression(head.value)
+        value = self.expression(head.value)
+        if isinstance(value, Expression) and value.head == Symbol("|->"):
+            # A returned lambda is the value it spells, its `|->` syntax, which
+            # a caller rebuilds through the contract _x_Lambda published; a
+            # bare lambda at an equation's tail would answer the engine's
+            # closure object instead [measured 2026-09-18: `(= (make-inc)
+            # (|-> ($x) (+ $x 1)))` answers `lambda_4`, the noeval tail answers
+            # the syntax, and both apply to 41 as 42].
+            return Expression([Symbol("noeval"), value])
+        return value
 
     def _assert_statement(self, node: ast.Assert, rest: list[ast.stmt]) -> Atom:
         """Continue on a true condition and produce the language's Error value."""

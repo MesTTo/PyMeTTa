@@ -175,7 +175,9 @@ def _native_application(home: Atom, function: Atom, positional: tuple[Atom, ...]
     if native is None:
         msg = "the value has no native callable image"
         raise TypeError(msg)
-    application, _signature, stream = native.application(positional, named)
+    # The frames hold completed values a compiled body handed on, not syntax
+    # written at a Python call site.
+    application, _signature, stream = native.application(positional, named, written=False)
     return _expr(S.evalc, application, native.space), stream
 
 
@@ -306,7 +308,7 @@ def bind_parameters(home: Atom, image: Atom, positional: Atom, keywords: Atom) -
         for name, parameter in signature.parameters.items()
         if parameter.default is not inspect.Parameter.empty
     }
-    sources = call_values.argument_sources(signature, supplied.arguments, call_values.argument, defaults)
+    sources = call_values.argument_sources(signature, supplied.arguments, defaults, written=False)
     return call_values.apply_sources(image, sources)
 
 

@@ -53,12 +53,16 @@ def twin(m):
     send(two, S.two).one()
     assert (try_recv(two), try_recv(two), try_recv(two)) == ([S.one], [S.two], [])
 
-    # `channel-close` closes it, and the channel is GONE.
+    # `channel-close` closes it, and the channel is GONE. The example reads
+    # the engine's existence_error(metta_channel ...) out of a catch; here the
+    # channel is a Python handle, and a handle whose space was dropped is
+    # dead, so the seat refuses the second close and the receive at the door,
+    # before the engine is asked, naming the drop that ended it.
     assert close(channel()[0]) == [True]
     closed = channel()[0]
     close(closed).one()
-    assert "metta_channel" in str(raised(close, closed))
-    assert "does not exist" in str(raised(try_recv, closed))
+    assert "is dead: its space was dropped" in str(raised(close, closed))
+    assert "is dead: its space was dropped" in str(raised(try_recv, closed))
 
     # `pool-stats` is what a bounded pool reports about itself.
     pool, stats = m.fn.pool, m.fn["pool-stats"]
