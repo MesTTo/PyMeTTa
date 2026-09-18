@@ -235,6 +235,7 @@ if TYPE_CHECKING:
         match: Symbol
         "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript form and `space.match(pattern)` the named method; the TEMPLATE is built in Python from the answer's bindings. `under=counting|tropical|prov|ranked` changes the annotation algebra; `answers(call, under=...)` is its call twin, `with metta.under(...)` scopes the default, and an annotated answer exposes `.annotation`, `.why()` and `.under(other)` without a re-query. `metta.algebra(...)` constructs arbitrary carriers while remaining their namespace."
         match_types: Symbol
+        match_under: Symbol
         max: Symbol
         max_atom: Symbol
         "max-atom: (-> %Undefined% Number)\n\nPython's builtin `max` over the children."
@@ -599,6 +600,7 @@ _NAMES = frozenset(
         "match",
         "match-type-or",
         "match-types",
+        "match-under",
         "max",
         "max-atom",
         "member",
@@ -884,6 +886,7 @@ _ALIASES.update(
         ("match", "match"),
         ("match_type_or", "match-type-or"),
         ("match_types", "match-types"),
+        ("match_under", "match-under"),
         ("max", "max"),
         ("max_atom", "max-atom"),
         ("member", "member"),
