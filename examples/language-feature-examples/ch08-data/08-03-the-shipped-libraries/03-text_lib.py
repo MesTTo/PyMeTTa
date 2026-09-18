@@ -332,6 +332,51 @@ def twin(m):
 #: tree under the normalised protocol; these are this tree's measured prices
 #: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-11, 37228 to 110303 (+73075), String now imports its
+#: complete typed native surface and checks its declared native inputs; an
+#: unchanged-cut control with identical engine and MORK binaries attributes
+#: these exact movements to the String provider and shared native_object/6
+#: dependency argument [measured 2026-09-11: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+#: RE-PINNED 2026-09-12, 110303 to 140561 (+30258), The File library publishes
+#: 56 documented heads at 60 arities where it published 32, so every direct and
+#: transitive importer pays the larger generated face and the module's own
+#: export list. An identical-binary control at 8eb04b55a with artifacts purged
+#: measured each of these ten twins before the change (ai-tmp/ai-lib2-file-
+#: importers-before.log) and attributes the whole movement to that face:
+#: +22,479 on the four twins that only import it through another library,
+#: +24,552 to +24,862 where the example also calls it, and +30,258 and +30,687
+#: on the two whose own claims are file operations [measured 2026-09-12: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
+#: RE-PINNED 2026-09-12, 140561 to 140583 (+22), File transfers newly owned
+#: streams through adopt_file_stream/2 and claims a close atomically; HTTP also
+#: verifies transaction refusal before server lifecycle effects [measured
+#: 2026-09-12: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=0f22b69cfca5c108e4126bdd56ab9bb2e493744d].
+#: RE-PINNED 2026-09-13, 140583 to 140603 (+20), File exports its shared stream
+#: borrowing and rollback operations; failed Socket and HTTP publication now
+#: withdraws the registered stream before closing it [measured 2026-09-13: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=781ee98e188c23ea7ef9298636d6e5e6c7fdc727].
+#: RE-PINNED 2026-09-13, 140603 to 140617 (+14), File privately exports its
+#: existing staged publisher with callback qualification; Compression shares
+#: that ownership and publication protocol [measured 2026-09-13: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+#: RE-PINNED 2026-09-13, 140617 to 141148 (+531), File exports its staged
+#: publisher to Compression; the shared native builder accepts the private
+#: archive provider recipe. All consumers are remeasured after those dependency
+#: changes [measured 2026-09-13: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+#: RE-PINNED 2026-09-14, 141148 to 258779 (+117631), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
 #: RE-PINNED 2026-09-11, 37228 to 36171 (-1057), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

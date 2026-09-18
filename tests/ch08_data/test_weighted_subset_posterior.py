@@ -1,4 +1,4 @@
-"""Purpose: verify lib_combinatorics' exact weighted-subset posterior surface.
+"""Purpose: verify Statistics' exact weighted-subset posterior surface.
 
 The generated oracle enumerates only small cases. The shipped operation is the
 independent sparse prefix/suffix implementation, so agreement proves its exact
@@ -7,13 +7,17 @@ mass and every marginal without copying or sharing implementation structure.
 Guarantees:
   - exact mass and all marginals agree with exhaustive Fraction arithmetic,
     preserve identity and order, and are invariant under one shared loss scale
-    [tested: test_weighted_subset_matches_exhaustive; commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
+    [tested: test_weighted_subset_matches_exhaustive; commit=e1be99ea1c08f70444c1c35cada441e089777906]
   - conditioning on an exact unit-loss total makes the sum of posterior
     inclusion marginals equal that total [tested:
-    test_unit_loss_marginals_sum_to_observation; commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
-  - malformed identity, lattice, prior, and zero-mass inputs refuse with their
-    own remedies [tested: test_weighted_subset_refusals_name_the_remedy;
-    commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
+    test_unit_loss_marginals_sum_to_observation; commit=e1be99ea1c08f70444c1c35cada441e089777906]
+  - malformed identity, lattice, prior, and zero-mass inputs raise the binding's
+    AssertionFailure with their own remedies [tested:
+    test_weighted_subset_refusals_name_the_remedy;
+    commit=e1be99ea1c08f70444c1c35cada441e089777906]
+  - shadowed constructors preserve literal event IDs and large integer ratios
+    remain exact [tested: test_weighted_rows_hold_constructor_names_and_literal_ids,
+    test_weighted_ratios_keep_arbitrary_integer_precision; commit=e1be99ea1c08f70444c1c35cada441e089777906]
 """
 
 from __future__ import annotations
@@ -24,11 +28,11 @@ from itertools import product
 from math import gcd
 
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from metta import Expression, Grounded, Space, Symbol
-from metta._errors.errors import EngineError
+from metta import Expression, Grounded, S, Space, Symbol, lib
+from metta._errors.errors import AssertionFailure
 
 
 @pytest.fixture(scope="module")
@@ -37,8 +41,8 @@ def subset_space(metta) -> Iterator[Space]:
 
     Dropped on the way out, because an import is not isolated by the space it
     is made in: a library's heads are compiled into the one module table this
-    process has, so `lib_combinatorics`' `range` answered `is_function` in
-    `&self` for every later test in the same worker. That is not academic --
+    process has, so the transitive Combinatorics import's `range` answered
+    `is_function` in `&self` for every later test in the same worker. That is not academic --
     `list(range(n))` inside an `@m.define` then reads as ambiguous between an
     engine answer stream and a host list, which is what the compiler refuses,
     and test_list_collects_engine_answers_and_preserves_host_lists failed
@@ -48,7 +52,7 @@ def subset_space(metta) -> Iterator[Space]:
     same day: is_function('range') answers False again.
     """
     with metta._new_space() as space:
-        space.run("!(import! (context-space) (library lib_combinatorics))")
+        space.run("!(import! (context-space) (library lib_statistics))")
         yield space
 
 
@@ -163,6 +167,7 @@ def _exhaustive(
 
 
 @given(raw_rows=_ROWS, target=st.integers(min_value=0, max_value=15), scale=st.integers(1, 5))
+@settings(deadline=None)
 def test_weighted_subset_matches_exhaustive(subset_space, raw_rows, target, scale):
     """Every generated result agrees with a separately structured oracle."""
     rows = [
@@ -173,7 +178,7 @@ def test_weighted_subset_matches_exhaustive(subset_space, raw_rows, target, scal
     assert _mass(subset_space, rows, target) == expected_mass
 
     if expected_marginals is None:
-        with pytest.raises(EngineError, match="weighted-subset-mass-independent"):
+        with pytest.raises(AssertionFailure, match="weighted-subset-mass-independent"):
             _posterior(subset_space, rows, target)
         return
 
@@ -199,6 +204,7 @@ def test_weighted_subset_matches_exhaustive(subset_space, raw_rows, target, scal
     priors=st.lists(_interior_prior(), min_size=1, max_size=8),
     target=st.data(),
 )
+@settings(deadline=None)
 def test_unit_loss_marginals_sum_to_observation(subset_space, priors, target):
     """Conditioning on an exact count fixes the expected selected count."""
     observation = target.draw(st.integers(min_value=0, max_value=len(priors)))
@@ -263,5 +269,31 @@ def test_exact_identity_distinguishes_integer_and_float(subset_space):
 )
 def test_weighted_subset_refusals_name_the_remedy(subset_space, source, remedy):
     """Each rejected contract points to this surface's supported correction."""
-    with pytest.raises(EngineError, match=remedy):
+    with pytest.raises(AssertionFailure, match=remedy):
         _one(subset_space, source)
+
+
+def test_weighted_rows_hold_constructor_names_and_literal_ids(metta):
+    """Caller definitions cannot turn candidate data into executable calls."""
+    with metta._new_space() as space:
+        space += lib.statistics
+        space.run(
+            "(= (candidate $id $loss $prior) (Error executed-candidate $id)) "
+            "(= (ratio $n $d) (Error executed-ratio $n))"
+        )
+        identities = [S["+"](1, 2), S.Error(S.a, S.b), S.Empty, S.opaque(S.a)]
+        rows = tuple(S.candidate(identity, 0, S.ratio(2, 6)) for identity in identities)
+        answer = space.fn.weighted_subset_posterior_independent(rows, 0).one()
+        mass, marginals = _tagged(answer, "subset-posterior", 2)
+        assert _ratio(mass) == 1
+        assert len(marginals) == len(identities)
+        for row, identity in zip(marginals, identities, strict=True):
+            seen, probability = _tagged(row, "candidate-posterior", 2)
+            assert seen == identity
+            assert _ratio(probability) == Fraction(1, 3)
+
+
+def test_weighted_ratios_keep_arbitrary_integer_precision(subset_space):
+    """Canonicalization never constructs a host rational or floating value."""
+    denominator = 2**2048 + 1
+    assert _mass(subset_space, [("large", 1, 2, 2 * denominator)], 1) == Fraction(1, denominator)

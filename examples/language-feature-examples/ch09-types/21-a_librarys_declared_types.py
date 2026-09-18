@@ -141,6 +141,22 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-13, 23578 to 103861 (+80283), Immutable maps and priority
+#: queues are MeTTa equations over the shared collection libraries, replacing
+#: the native tree adaptation [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=9c9e60542491416e2c5e431a2672bb20f04264fa].
+#: RE-PINNED 2026-09-14, 103861 to 99859 (-4002), Functional applies finished
+#: callback arguments through reduce; Statistics derives exact coefficient rows
+#: and Combinatorics retires its native probability provider [measured
+#: 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
+#: RE-PINNED 2026-09-14, 99859 to 99865 (+6), Closure publishes the shared
+#: rendering and IEEE services, refreshes the callable projection and annotates
+#: native protocol domains; every direct and transitive library consumer is
+#: measured again [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 #: RE-PINNED 2026-09-11, 23578 to 23987 (+409), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

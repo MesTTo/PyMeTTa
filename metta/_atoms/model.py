@@ -12,14 +12,16 @@ Guarantees:
     remedy [tested:
     extensions/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
-  - Grounded preserves every non-primitive Python value by identity; only
+  - Grounded(value) preserves every non-primitive Python value by identity; only
     exact bool, int, float and str values use native wire terms [tested:
     extensions/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
-    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
-  - engine rational wire values decode to exact Fraction payloads, while a
-    Python-created Fraction follows the non-primitive identity law [tested:
-    test_rational_payloads_cross_the_scalar_door and
-    test_non_primitive_numbers_keep_their_python_identity; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
+    commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
+  - _NativeRational retains native wire, value equality, hashing, ordering
+    and pickle through repeated crossings; opaque Fractions stay distinct
+    [tested: test_native_rational_wire_round_trip, test_native_rational_identity,
+    test_native_rational_copy_pickle_and_format,
+    test_rational_payloads_cross_the_scalar_door,
+    test_non_primitive_numbers_keep_their_python_identity; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - pathlib paths encode as symbols rather than opaque host boxes [tested:
     test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Ellipsis encodes as the gap symbol, so `...` in a pattern child position is
@@ -135,10 +137,10 @@ Guarantees:
     native blobs retain process-local registry identity
     [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
-  - a native blob's public wire value preserves its registry id and display
-    text, the two fields its decoder requires [tested:
+  - native blobs preserve their registry id and display text through the
+    public wire codec and Python container repr [tested:
     test_native_handles_round_trip_through_the_public_wire_codec;
-    commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
+    commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0]
   - a symbol answers the ambient space's origins for the head it names, and
     the empty tuple where nothing compiled under it [tested:
     test_a_symbol_answers_the_ambient_spaces_origins; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
@@ -1150,6 +1152,45 @@ class Grounded(Atom):
         return "Grounded"
 
 
+class _NativeRational(Grounded):
+    """A native nonintegral number whose Python payload is an exact Fraction.
+
+    The species preserves the incoming number tag. Grounded(Fraction) remains
+    the separate object-channel value, so a payload alone cannot decide equality
+    or retransmission. Integral wire rationals are canonical integer atoms.
+    """
+
+    __slots__ = ()
+    value: Fraction
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _NativeRational) and self.value == other.value
+
+    def __hash__(self) -> int:
+        return hash(self.value)
+
+    def __reduce__(self):
+        return _NativeRational, (self.value,)
+
+    def _ordered(self, other: Any):
+        if type(other) in (int, float):
+            return self.value, other
+        return None
+
+    def __format__(self, spec: str) -> str:
+        from metta._atoms.templates import (  # noqa: PLC0415 -- templates reads the atom model
+            formatted,
+        )
+
+        return formatted(self, spec, self.value) if spec else str(self)
+
+    def __repr__(self) -> str:
+        return f"_NativeRational({self.value!r})"
+
+    def to_wire(self) -> list:
+        return ["n", self.value]
+
+
 class Handle(Grounded):
     """A grounded executable reference carried as an atom.
 
@@ -1303,6 +1344,9 @@ class _NativeHandle(Handle):
 
     def __str__(self) -> str:
         return self.text
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.ident}, {self.text!r})"
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, _NativeHandle) and other.ident == self.ident

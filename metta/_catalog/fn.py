@@ -281,9 +281,9 @@ if TYPE_CHECKING:
         parse: Symbol
         parse_command: Symbol
         pow: Symbol
-        "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float."
+        "pow-math: (-> Number Number Number)\n\nPython's `**` operator. Both preserve integer powers for integer operands; this row uses a floating base and returns a float."
         pow_math: Symbol
-        "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float."
+        "pow-math: (-> Number Number Number)\n\nPython's `**` operator. Both preserve integer powers for integer operands; this row uses a floating base and returns a float."
         pragma: Symbol
         prefix: Symbol
         pretty_atom: Symbol
@@ -1120,7 +1120,7 @@ _DOCUMENTATION = {
     "on-unwind": "on-unwind: (-> Atom Atom Atom)\n\nEvaluate a held source and apply a held native handler once on failure, cut or exception. The handler receives the native catcher as a product, such as `(fail)` or `(exception Ball)`. Deterministic completion leaves the handler untouched; cleanup exceptions follow SWI's urgency rules.",
     "or": "or: (-> Bool Bool Bool)\n\nPython's own keyword; `|` is the operator form on atoms.",
     "owned-record-read": "owned-record-read: (-> Atom Atom)\n\nRead a native owned record as data: the held `@owned-record` key names the home, the owner, the storage and the row prefix; the answer is the record's zero or one complete rows, with a stored expression left unevaluated. A retired owner or a second value refuses.",
-    "pow-math": "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float.",
+    "pow-math": "pow-math: (-> Number Number Number)\n\nPython's `**` operator. Both preserve integer powers for integer operands; this row uses a floating base and returns a float.",
     "println!": "println!: (-> %Undefined% Bool)\n\nPython's `print`. It answers True rather than unit, which is upstream's own answer: `'println!'(Arg, true)` [source: PeTTa@ae66fa8 src/metta.pl:212].",
     "quote": "quote: (-> Atom Atom)\n\nThere is nothing to quote: building a term with `S[...]` never evaluates it, so the quoting question does not arise. `S.quote(x)` builds the term itself where a program needs the constructor.",
     "remove-atom": "remove-atom: (-> SpaceType Atom Bool)\n\nDrains every atom that unifies and answers True either way. `del space[pattern]` is this operation, and raises when the pattern matches nothing as Python's `del` does; `subtract-atom` is the one-occurrence grain beside it, which `space -= atom` and `space.remove(atom)` both spell.",

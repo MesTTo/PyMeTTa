@@ -6,6 +6,9 @@ difference is a recorded ruling, and one claiming agreement while differing
 
 The pin is a temporary directory rather than the shipped one, through
 PETTA_PIN, so the proof runs on every checkout and needs no upstream.
+Guarantees: an exact recorded difference passes and further output drift fails
+[tested: test_a_recorded_ruling_passes_while_it_stays_exactly_that,
+test_a_recorded_ruling_blocks_when_its_output_drifts; commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -74,6 +77,18 @@ def test_a_recorded_ruling_passes_while_it_stays_exactly_that(tmp_path):
     done = _gate(pin)
     assert done.returncode == 0, done.stdout + done.stderr
     assert "recorded rulings: 1" in done.stdout
+
+
+def test_a_recorded_ruling_blocks_when_its_output_drifts(tmp_path):
+    """A recorded difference cannot admit any later output difference."""
+    pin = _pin(tmp_path, {"drifted.metta": (AGREES, "4\n", "diverges")})
+    manifest_path = pin / "MANIFEST.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["entries"]["drifted.metta"]["ours"] = "3\n"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    done = _gate(pin)
+    assert done.returncode != 0, done.stdout
+    assert "drifted.metta" in done.stdout
 
 
 def test_a_file_claiming_agreement_while_differing_blocks(tmp_path):

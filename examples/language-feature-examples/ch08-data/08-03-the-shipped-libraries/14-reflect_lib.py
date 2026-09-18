@@ -4,7 +4,9 @@ Every enumeration answers a name per solution, so a Python list IS the
 collapse and `len` is the count. The `engine-` enumeration predicates under
 the MeTTa names are the same operations. `origin-of` projects defining
 occurrences from the common property reader; `engine-origin` retains its
-implementation-tier classification [tested: twin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+implementation-tier classification. Literal replacement retains exact identity,
+root precedence, complete answer bags and shared variables [tested: twin;
+commit=505ce25b9384e782afa26f621527d4b1fd695924].
 
 `surface-counts` moves as libraries are imported, so what is pinned here is
 the SHAPE rather than the numbers.
@@ -18,7 +20,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import S, lib
+from metta import S, V, lib
 
 
 def twin(m):
@@ -91,6 +93,43 @@ def twin(m):
     assert len(m.fn["engine-function"]()) == len(functions())
     assert len(m.fn["engine-user-function"]()) == len(mine_only())
     assert len(m.fn["engine-extension-point"]()) == len(points())
+
+    replace, variables = m.fn.atom_replace, m.fn.atom_variables
+    assert replace(S["+"](1, 2), ((1, 10),)) == [S["+"](10, 2)]
+    assert replace(S.f(S.a), ((S.f(S.a), S.root), (S.a, S.child))) == [S.root]
+    assert replace((S.a, S.a), ((S.a, S.b), (S.b, S.c))) == [(S.b, S.b)]
+    assert replace((S.a, S.a), ((S.a, S.b), (S.a, S.c))) == [
+        (S.b, S.b), (S.b, S.c), (S.c, S.b), (S.c, S.c),
+    ]
+    assert replace(S.a, ((S.a, S.b), (S.a, S.b))) == [S.b, S.b]
+    assert replace(S.f(()), ((S.f, S.g), ((), S.empty_value))) == [S.g(S.empty_value)]
+    assert replace((), (((), S.f(S.a)),)) == [S.f(S.a)]
+    assert replace(S["+"](1, 2), ()) == [S["+"](1, 2)]
+    assert replace(S.a, ((S.a, S.Error(S.data, S.code)),)) == [S.Error(S.data, S.code)]
+    assert replace(S.a, ((S.a, S.Empty),)) == [S.Empty]
+    assert replace((S.a, S.a), ((S.a, S.Empty), (S.a, S.b))) == [
+        (S.Empty, S.Empty), (S.Empty, S.b), (S.b, S.Empty), (S.b, S.b),
+    ]
+    assert replace((1, 1.0), ((1, S.integer), (1.0, S.float))) == [(S.integer, S.float)]
+    assert m.eval(S["=="](S.atom_variables((V.x, (V.y, V.x), V.z, V.y)), S.quote((V.x, V.y, V.z)))) == [True]
+    # A binder is literal tuple data here, not a Python assignment to execute.
+    binder = (S.let, V.x, V.y, S.f(V.x, V.z))
+    assert m.eval(S["=="](S.atom_variables(binder), S.quote((V.x, V.y, V.z)))) == [True]
+    assert variables(S["+"](1, 2)) == [()]
+    assert m.eval(S["=="](S.atom_replace((V.x, V.y, V.x), ((V.x, V.z),)), S.quote((V.z, V.y, V.z)))) == [True]
+    assert m.eval(S["=="](S.atom_replace(S.p(V.x), ((S.p(V.y), S.wrong),)), S.quote(S.p(V.x)))) == [True]
+    m.add(S.reflect_rule(S.a, S.b), S.reflect_rule(S.a, S.c))
+    rules = tuple((row[0], row[1]) for row in m.match(S.reflect_rule(V["from"], V.to)))
+    assert replace(S.h(S.a), rules) == [S.h(S.b), S.h(S.c)]
+    assert m.fn.alltd(S.fail, S["+"](1, 2)) == [S["+"](1, 2)]
+    assert m.fn.seq(S["+"](1, 2)) == [S["+"](1, 2)]
+    assert m.fn.seq(S.id, S.id, S.id, S["+"](1, 2)) == [S["+"](1, 2)]
+    assert m.fn.choice(S["+"](1, 2)) == []
+    assert m.fn.repeat(3, S.noeval(S.token)) == [S.token, S.token, S.token]
+    assert m.eval(S.if_error(S.catch(S.atom_replace(S.a, ((S.a,),))), S.refused, S.accepted)) == [S.refused]
+    row = m.match(S["="](S.atom_variables(V.term), V.body)).one()
+    inspect = m.eval(S["|->"]((row.term,), row.body))[0]
+    assert m.eval(S["=="]((inspect, S.quote((V.x, V.x))), S.quote((V.x,)))) == [True]
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -291,6 +330,44 @@ def twin(m):
 #: reconciliations.md [measured 2026-09-10: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-11, 117490 to 193660 (+76170), The Prolog String surface
+#: publishes 34 documented heads and its native provider validates declared
+#: build inputs. These direct and transitive importers pay the changed
+#: declarations and provider setup; an identical-binary CSV-cut control
+#: attributes the increment from the live CSV cut to String. The journal
+#: separately records the older difference between each stored budget and
+#: that unchanged-cut baseline [measured 2026-09-11:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+#: RE-PINNED 2026-09-13, 193660 to 194191 (+531), Dict and Reflect transitively
+#: import the native String provider and pay the shared native builder callback
+#: dispatch introduced for Compression; the full twin lane identifies the same
+#: 531-inference load increase as the other native consumers [measured
+#: 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+#: RE-PINNED 2026-09-13, 194191 to 1256535 (+1062344), Reflect composes exact
+#: literal replacement and variable inspection through the newly ordinary
+#: Strategy equations, variadic plans and binding-preserving topmost traversal;
+#: Strategy consumers pay the changed library declarations and derivations
+#: [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=505ce25b9384e782afa26f621527d4b1fd695924].
+#: RE-PINNED 2026-09-14, 1256535 to 1252300 (-4235), Functional applies
+#: finished callback arguments through reduce; Statistics derives exact
+#: coefficient rows and Combinatorics retires its native probability provider
+#: [measured 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
+#: RE-PINNED 2026-09-14, 1252300 to 1258064 (+5764), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
+#: RE-PINNED 2026-09-14, 1258064 to 1258124 (+60), Closure publishes the shared
+#: rendering and IEEE services, refreshes the callable projection and annotates
+#: native protocol domains; every direct and transitive library consumer is
+#: measured again [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 #: RE-PINNED 2026-09-11, 117490 to 121843 (+4353), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

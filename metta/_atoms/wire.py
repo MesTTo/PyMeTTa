@@ -15,9 +15,12 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - n decodes Python integers without a width conversion, so Number and
     BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
-  - n decodes SWI rationals as exact Fractions in both leaf and expression
-    positions [tested: test_rational_payloads_cross_the_scalar_door;
-    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - n decodes SWI rationals as exact Fractions in leaf and expression positions;
+    atoms keep their native species across later crossings and denominator-one
+    payloads canonicalize to integers
+    [tested: test_rational_payloads_cross_the_scalar_door,
+    test_native_rational_wire_round_trip,
+    test_integral_rational_wire_is_canonical; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - p decodes a canonical space name into the executable Space handle for
     the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -60,6 +63,7 @@ from metta._atoms.model import (
     Expression,
     Grounded,
     _NativeHandle,
+    _NativeRational,
     _new_expression,
     _set_children,
     _set_hash,
@@ -148,7 +152,9 @@ def _string_from_wire(payload: Any) -> Atom:
 
 
 def _number_from_wire(payload: Any) -> Atom:
-    if type(payload) not in (int, float, Fraction):
+    if type(payload) is Fraction:
+        return Grounded(payload.numerator) if payload.denominator == 1 else _NativeRational(payload)
+    if type(payload) not in (int, float):
         msg = f"wire number payload must be numeric, got {payload!r}"
         raise ValueError(msg)
     return Grounded(payload)
@@ -276,6 +282,7 @@ def _expression_from_wire(payload: Any) -> Expression:
     # half the query path's whole cost, profiled. The less common tag paths
     # stay separate so their validation remains readable.
     wire_sym, gnd, seq = _wire_sym, Grounded, (list, tuple)
+    number_from_wire = _number_from_wire
     string_from_wire, append_nontext = _string_from_wire, _append_nontext_child
     while stack:
         children, pending = stack.pop()
@@ -299,10 +306,7 @@ def _expression_from_wire(payload: Any) -> Expression:
                     raise ValueError(msg)
                 items.append(wire_sym(payload))
             elif tag == "n":
-                if type(payload) not in (int, float, Fraction):
-                    msg = f"wire number payload must be numeric, got {payload!r}"
-                    raise ValueError(msg)
-                items.append(gnd(payload))
+                items.append(gnd(payload) if type(payload) in (int, float) else number_from_wire(payload))
             elif tag == "g":
                 items.append(string_from_wire(payload))
             elif tag == "p":

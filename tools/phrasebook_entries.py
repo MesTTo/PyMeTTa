@@ -39,8 +39,9 @@ Guarantees:
   - the Python-first additions table names the two effect-safety declarations
     and the saga runner they gate [tested:
     test_python_first_public_faces_are_in_the_phrasebook; commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0]
-  - strategy rows import lib_strategy only on MeTTa
-    [tested: python extensions/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+  - strategy rows import lib_strategy on both surfaces and distinguish its
+    held repeat plan from the direct strategy-repeat operation
+    [tested: python extensions/python/tools/phrasebook.py --gate; commit=505ce25b9384e782afa26f621527d4b1fd695924]
   - space write rows teach the scalar-atom versus fact-stream boundary shipped
     by ``Space +=`` [tested: test_the_phrasebook_page_is_up_to_date;
     commit=012413efb73b4dd27c71354c7f654862f349c03f]
@@ -133,7 +134,6 @@ class Entry:
     unrun: str | None = None
     ruled: str | None = None
     metta_setup: str | None = None
-    unary_metta: str | None = None
     metta_fuel: int | None = None
     visibility: str = ""
 
@@ -416,8 +416,8 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "pow-math", (NUMBER2,), "Grounded", "math", "dissolves",
-        "Python's `**` operator. MeTTa answers a float where Python's integer "
-        "power answers an integer, so the row raises a float.",
+        "Python's `**` operator. Both preserve integer powers for integer "
+        "operands; this row uses a floating base and returns a float.",
         metta="!(pow-math 2.0 3)", python="2.0 ** 3",
     ),
     Entry(
@@ -814,7 +814,7 @@ ENTRIES: list[Entry] = [
         metta="!(unquote (quote (+ 1 2)))", python="m.eval(S['+'](1, 2))",
     ),
     Entry(
-        "gtry", ("(-> Atom Atom Atom)",), "Symbol", "control", "method",
+        "gtry", ("(-> Atom Atom %Undefined%)",), "Symbol", "control", "method",
         "the guarded try is lib_strategy's binary failure-to-identity "
         "spelling. Python builds the same gtry atom and evaluates it in the space.",
         metta="!(gtry id a)",
@@ -1152,7 +1152,7 @@ ENTRIES: list[Entry] = [
         unrun="this engine does not declare the name",
     ),
     Entry(
-        "◁", ("(-> Atom Type Atom Atom)",), "Symbol", "types", "method",
+        "◁", ("(-> Atom Type Atom %Undefined%)",), "Symbol", "types", "method",
         "The typed strategy-application atom selects the TP or TU scheme before "
         "running the named strategy.",
         metta="!(get-type ◁)",
@@ -1635,96 +1635,89 @@ ENTRIES: list[Entry] = [
     ),
     # ----------------------------------------------------------- strategies
     Entry(
-        "try", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
-        "Stratego's `try(s) = s <+ id`. This engine reifies `s` in the plan and the mechanised interpreter "
-        "specialises the same law to one equality rewrite.",
+        "try", ("(-> Atom Atom %Undefined%)",), "Symbol", "strategies", "method",
+        "Stratego's `try(s) = s <+ id`. The held plan uses ordinary MeTTa "
+        "application and returns the original term when the rule has no answers.",
         metta="(= (pb-try-step strategy-a) strategy-b)\n"
-              "(= (pb-try-step $x) Empty)\n"
+              "(= (pb-try-step $x) (empty))\n"
               "!(strategy-apply (try pb-try-step) strategy-a)",
         python=(
             PY_STRATEGY_SETUP
             + "space.run('(= (pb-try-step strategy-a) strategy-b) "
-              "(= (pb-try-step $x) Empty)')\n"
+              "(= (pb-try-step $x) (empty))')\n"
               "space.eval(S['strategy-apply'](strategy.try_(S['pb-try-step']), "
               "S['strategy-a']))"
         ),
         metta_setup=STRATEGY_SETUP,
-        unary_metta="(= strategy-a strategy-b)\n!(try strategy-a)",
         metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
-        "repeat", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
-        "Stratego's `repeat(s) = try(s ; repeat(s))`, root steps to a normal form.",
+        "repeat", ("(-> Number Atom %Undefined%)",), "Symbol", "strategies", "method",
+        "The held `(repeat Rule)` plan takes root steps to a normal form. "
+        "Its direct call is strategy-repeat; the displayed repeat signature "
+        "belongs to Functional's numeric operation. The example holds a rewrite plan as data.",
         metta="(= (pb-repeat-step strategy-a) strategy-b)\n"
               "(= (pb-repeat-step strategy-b) strategy-c)\n"
-              "(= (pb-repeat-step $x) Empty)\n"
+              "(= (pb-repeat-step $x) (empty))\n"
               "!(strategy-apply (repeat pb-repeat-step) strategy-a)",
         python=(
             PY_STRATEGY_SETUP
             + "space.run('(= (pb-repeat-step strategy-a) strategy-b) "
               "(= (pb-repeat-step strategy-b) strategy-c) "
-              "(= (pb-repeat-step $x) Empty)')\n"
-              "space.eval(S['strategy-apply'](strategy.repeat(S['pb-repeat-step']), "
+              "(= (pb-repeat-step $x) (empty))')\n"
+              "space.eval(S['strategy-apply'](S.repeat(S['pb-repeat-step']), "
               "S['strategy-a']))"
         ),
         metta_setup=STRATEGY_SETUP,
-        unary_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
-                     "!(repeat strategy-a)",
         metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
-        "topdown", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
+        "topdown", ("(-> Atom Atom %Undefined%)",), "Symbol", "strategies", "method",
         "Stratego's `topdown(s) = s ; all(topdown(s))`, preorder traversal.",
         metta="(= (pb-topdown-step strategy-a) strategy-b)\n"
-              "(= (pb-topdown-step $x) Empty)\n"
+              "(= (pb-topdown-step $x) (empty))\n"
               "!(strategy-apply (topdown (try pb-topdown-step)) "
               "(strategy-node strategy-a))",
         python=(
             PY_STRATEGY_SETUP
             + "space.run('(= (pb-topdown-step strategy-a) strategy-b) "
-              "(= (pb-topdown-step $x) Empty)')\n"
+              "(= (pb-topdown-step $x) (empty))')\n"
               "plan = strategy.topdown("
               "strategy.try_(S['pb-topdown-step']))\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
-        unary_metta="(= strategy-a strategy-b)\n"
-                     "(= (strategy-node strategy-b) strategy-bottomup-root)\n"
-                     "!(topdown (strategy-node strategy-a))",
         metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
-        "bottomup", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
+        "bottomup", ("(-> Atom Atom %Undefined%)",), "Symbol", "strategies", "method",
         "Stratego's `bottomup(s) = all(bottomup(s)) ; s`, postorder traversal.",
         metta="(= (pb-bottomup-step strategy-a) strategy-b)\n"
               "(= (pb-bottomup-step (strategy-node strategy-b)) "
               "strategy-bottomup-root)\n"
-              "(= (pb-bottomup-step $x) Empty)\n"
+              "(= (pb-bottomup-step $x) (empty))\n"
               "!(strategy-apply (bottomup (try pb-bottomup-step)) "
               "(strategy-node strategy-a))",
         python=(
             PY_STRATEGY_SETUP
             + "space.run('(= (pb-bottomup-step strategy-a) strategy-b) "
               "(= (pb-bottomup-step (strategy-node strategy-b)) "
-              "strategy-bottomup-root) (= (pb-bottomup-step $x) Empty)')\n"
+              "strategy-bottomup-root) (= (pb-bottomup-step $x) (empty))')\n"
               "plan = strategy.bottomup("
               "strategy.try_(S['pb-bottomup-step']))\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
-        unary_metta="(= strategy-a strategy-b)\n"
-                     "(= (strategy-node strategy-b) strategy-bottomup-root)\n"
-                     "!(bottomup (strategy-node strategy-a))",
         metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
-        "innermost", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
+        "innermost", ("(-> Atom Atom %Undefined%)",), "Symbol", "strategies", "method",
         "Stratego's `innermost(s) = bottomup(try(s ; innermost(s)))`.",
         metta="(= (pb-innermost-step strategy-a) strategy-b)\n"
               "(= (pb-innermost-step strategy-b) strategy-c)\n"
               "(= (pb-innermost-step (strategy-node strategy-c)) "
               "strategy-innermost-root)\n"
-              "(= (pb-innermost-step $x) Empty)\n"
+              "(= (pb-innermost-step $x) (empty))\n"
               "!(strategy-apply (innermost pb-innermost-step) "
               "(strategy-node strategy-a))",
         python=(
@@ -1732,18 +1725,15 @@ ENTRIES: list[Entry] = [
             + "space.run('(= (pb-innermost-step strategy-a) strategy-b) "
               "(= (pb-innermost-step strategy-b) strategy-c) "
               "(= (pb-innermost-step (strategy-node strategy-c)) "
-              "strategy-innermost-root) (= (pb-innermost-step $x) Empty)')\n"
+              "strategy-innermost-root) (= (pb-innermost-step $x) (empty))')\n"
               "plan = strategy.innermost(S['pb-innermost-step'])\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
-        unary_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
-                     "(= (strategy-node strategy-c) strategy-innermost-root)\n"
-                     "!(innermost (strategy-node strategy-a))",
         metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
-        "stratego-all", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "method",
+        "stratego-all", ("(-> Atom Atom %Undefined%)",), "Symbol", "strategies", "method",
         "Stratego's `all(s)`, applying a strategy to every immediate child.",
         metta="!(stratego-all id (f a b))",
         python=(
@@ -1755,10 +1745,9 @@ ENTRIES: list[Entry] = [
         metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
-        "stratego-one", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "method",
-        "Stratego's `one(s)`, applying to one child. the mechanised interpreter deliberately diverges "
-        "from Stratego's committed choice by answering EVERY successful position "
-        "through MeTTa's own nondeterminism.",
+        "stratego-one", ("(-> Atom Atom %Undefined%)",), "Symbol", "strategies", "method",
+        "Stratego's `one(s)`, applying to one child. MeTTa's nondeterminism "
+        "retains every successful position, whereas Stratego commits to one.",
         metta="!(stratego-one id (f a b))",
         python=(
             PY_STRATEGY_SETUP
@@ -1774,7 +1763,7 @@ ENTRIES: list[Entry] = [
         "`one`: apply the strategy to every immediate child it succeeds on, keep "
         "each declining child as written, and fail when no child succeeded. The "
         "non-emptiness guard is the whole content, since `all` composed with "
-        "`gtry` can never fail. A the mechanised interpreter extension beyond corelib.",
+        "`gtry` can never fail. The shipped Strategy library does not declare this operation.",
         metta="!(stratego-some id (f a b))", unrun="this engine leaves the call unreduced",
     ),
     Entry(

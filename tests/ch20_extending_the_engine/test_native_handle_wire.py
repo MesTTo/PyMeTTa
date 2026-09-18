@@ -2,9 +2,9 @@
 
 Guarantees:
   - a native handle and an expression containing one survive the public wire
-    round trip with identity and display text intact [tested:
+    round trip with identity, str and container repr intact [tested:
     test_native_handles_round_trip_through_the_public_wire_codec;
-    commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
+    commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0]
   - table storage refuses process-local native identities before executing an
     insert, while portable space references remain storable [tested:
     test_table_storage_refuses_native_handles_before_writing,
@@ -51,6 +51,8 @@ def test_native_handles_round_trip_through_the_public_wire_codec():
     assert encoded == ["h", 29_001, "<fixture-native-handle>"]
     assert decoded == handle
     assert str(decoded) == "<fixture-native-handle>"
+    assert repr(decoded) == "_NativeHandle(29001, '<fixture-native-handle>')"
+    assert repr([decoded]) == "[_NativeHandle(29001, '<fixture-native-handle>')]"
     assert nested == S.row(handle)
     assert str(nested.children[1]) == "<fixture-native-handle>"
 

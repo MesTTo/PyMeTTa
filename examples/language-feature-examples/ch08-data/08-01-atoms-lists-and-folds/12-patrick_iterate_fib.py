@@ -326,6 +326,12 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-14, 16319 to 15220 (-1099), The completed standard-library
+#: package derives shared collection, numeric, parsing, text and byte recipes
+#: in MeTTa and loads those changed providers through every direct and
+#: transitive consumer [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 #: RE-PINNED 2026-09-11, 16319 to 15220 (-1099), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

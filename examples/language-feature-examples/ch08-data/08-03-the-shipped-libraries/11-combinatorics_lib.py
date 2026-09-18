@@ -1,9 +1,10 @@
 """Purpose: examples/ch08-data/08-03-the-shipped-libraries/11-combinatorics_lib.metta in Python: choosing from a finite collection.
 
-Each operation comes in two shapes, a nondeterministic one answering a choice
-per solution and an `l` one answering the whole tuple, and Python reads the
-first as a LIST of answers and the second as one answer that IS a list. That
-is the same distinction, written the way each language writes it.
+Streams can be consumed a value at a time or collected. The existing collected
+choice forms use the same generators. Literal expressions remain data.
+
+Guarantees: the same claims as 11-combinatorics_lib.metta
+[tested: lib_combinatorics_surface; commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -11,6 +12,16 @@ Open Obligations:
 """
 
 from metta import S, lib
+from metta._errors.errors import MettaError
+
+
+def refused(m, call):
+    """Whether evaluating a call raises, which is what if-error reads."""
+    try:
+        list(m.eval(call))
+    except MettaError:
+        return True
+    return False
 
 #: The collection every claim is about, and its three unordered pairs.
 LETTERS = (S.a, S.b, S.c)
@@ -59,6 +70,95 @@ def twin(m):
     assert prefix(0, LETTERS) == [()]
     assert prefix(5, LETTERS) == [LETTERS]
     assert prefix(2, ()) == [()]
+
+    # `range` counts up, n excluded; `range-step` strides, and a negative stride
+    # counts down. A stride of zero would never arrive, so it is refused.
+    step = m.fn["range-step"]
+    assert list(m.fn.range(0, 4)) == [0, 1, 2, 3]
+    assert list(step(0, 10, 3)) == [0, 3, 6, 9]
+    assert list(step(5, 0, -2)) == [5, 3, 1]
+    assert list(step(0, 0, 1)) == []
+    assert list(step(0, 5, -1)) == []
+    assert refused(m, S.range_step(0, 5, 0))
+
+    # Every ordering, one per answer. A permutation counts POSITIONS, so a
+    # repeated item makes repeated answers.
+    orderings = m.fn.permutations
+    assert list(orderings(LETTERS)) == [
+        (S.a, S.b, S.c), (S.a, S.c, S.b), (S.b, S.a, S.c),
+        (S.b, S.c, S.a), (S.c, S.a, S.b), (S.c, S.b, S.a),
+    ]
+    assert list(orderings(())) == [()]
+    assert len(list(orderings((S.a, S.a)))) == 2
+
+    # The powerset, one subset per answer, each in the items' own order.
+    every = m.fn.subsets
+    assert list(every((S.a, S.b))) == [(S.a, S.b), (S.b,), (S.a,), ()]
+    assert list(every(())) == [()]
+    assert len(list(every((S.a, S.b, S.c, S.d)))) == 16
+
+    # One element from each set, the last varying fastest: an empty set anywhere
+    # means no answers, and no sets at all mean one answer, the empty tuple.
+    product, power = m.fn.tuples, m.fn["cartesian-power"]
+    assert list(product(((1, 2), (S.x, S.y)))) == [
+        (1, S.x), (1, S.y), (2, S.x), (2, S.y),
+    ]
+    assert list(product(((1, 2), ()))) == []
+    assert list(product(())) == [()]
+
+    # The product of one set with itself k times, repetition allowed.
+    assert list(power((0, 1), 2)) == [(0, 0), (0, 1), (1, 0), (1, 1)]
+    assert len(list(power((0, 1), 3))) == 8
+    assert list(power((S.a, S.b), 0)) == [()]
+
+    # The counts are exact and never build the choices they count.
+    factorial, binomial = m.fn.factorial, m.fn.binomial
+    ordered = m.fn["permutation-count"]
+    assert factorial(5) == [120]
+    assert factorial(0) == [1]
+    assert binomial(5, 2) == [10]
+    assert binomial(52, 5) == [2598960]
+    assert binomial(5, 0) == [1]
+    assert binomial(5, 9) == [0]
+    assert ordered(5, 2) == [20]
+    assert ordered(5, 5) == factorial(5)
+    assert ordered(5, 0) == [1]
+    assert refused(m, S.factorial(-1))
+
+    # And the counts agree with the enumerations, which is the same question
+    # asked two ways.
+    assert len(list(orderings(LETTERS))) == factorial(3).one()
+    assert len(list(k_stream((S.a, S.b, S.c, S.d), 2))) == binomial(4, 2).one()
+    assert len(list(every(LETTERS))) == 2**3
+    assert len(list(power((S.a, S.b), 3))) == 2**3
+
+    arithmetic, error_data = S["+"](1, 2), S.Error(S.a, S.b)
+    literal = (arithmetic, S.a)
+    assert two(S.quote(literal)) == [literal]
+    assert k_list(S.quote(literal), 1) == [((arithmetic,), (S.a,))]
+    assert prefix(1, S.quote(literal)) == [(arithmetic,)]
+    assert list(orderings(S.quote((arithmetic, error_data)))) == [
+        (arithmetic, error_data), (error_data, arithmetic),
+    ]
+    assert list(every(S.quote(literal))) == [literal, (S.a,), (arithmetic,), ()]
+    assert list(product(S.quote(((arithmetic, error_data), (S.a,))))) == [
+        (arithmetic, S.a), (error_data, S.a),
+    ]
+
+    # Taking the first answer does not collect the remaining combinations.
+    assert k_stream(tuple(range(100)), 50).first() == tuple(range(50))
+    assert list(power((), 9999999999999999999999999999999)) == []
+    assert refused(m, S.tuples(((), 3)))
+    assert refused(m, S.cartesian_power((0, 1), 1.0))
+    assert refused(m, S.factorial(1.0))
+    assert binomial(100, 50) == [100891344545564193334812497256]
+    assert list(step(0.5, 2.0, 1)) == [0.5, 1.5]
+    advancement = []
+    try:
+        advancement.extend(S.fine for _ in step(1.0e20, 1.0e21, 1))
+    except MettaError:
+        advancement.append(S.refused)
+    assert advancement == [S.fine, S.refused]
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -177,6 +277,40 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-12, 86991 to 122318 (+35327), lib_combinatorics adds
+#: permutations, subsets, tuples, cartesian-power, range-step, factorial,
+#: binomial and permutation-count, and gives its two weighted-subset heads
+#: declared modes, so the face is generated and the example proves 27 further
+#: claims [measured 2026-09-12: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=08b21037caed98b220eb50b39630b32bea62e535].
+#: RE-PINNED 2026-09-13, 122318 to 747785: collection operations now compose
+#: MeTTa matching, folds and application; segment continuations are protected
+#: compiler helpers. The example measures 850820 for the same claims
+#: [measured: 747785 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/11-combinatorics_lib.metta;
+#: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
+#: RE-PINNED 2026-09-13, 747785 to 749122 (+1337), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
+#: RE-PINNED 2026-09-13, 749122 to 741230 (-7892), Math and Statistics derive
+#: their recipes from MeTTa equations; Statistics consolidates finite laws and
+#: adds reflective claims. Their collection dependencies share the proper
+#: finite expression boundary in lib/_support/collections_data.pl [measured
+#: 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=6fa571d1b7059b610f73e9feed657711414251e5].
+#: RE-PINNED 2026-09-13, 741230 to 741252 (+22), Vector, Math and the shared
+#: collection boundary declare their native effects. The engine reads late
+#: provider declarations and retains definition analysis for computed function
+#: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
+#: RE-PINNED 2026-09-14, 741252 to 737251 (-4001), Functional applies finished
+#: callback arguments through reduce; Statistics derives exact coefficient rows
+#: and Combinatorics retires its native probability provider [measured
+#: 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
 #: RE-PINNED 2026-09-11, 86991 to 87957 (+966), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

@@ -1,6 +1,9 @@
 """Purpose: pin the single package manifest, optional extras, entry points,
 and version source that wheel builds publish.
 Guarantees:
+  - the optional mypyc wire/factory pair executes native rational decoding,
+    ordering and Vector composition in its built package [tested:
+    test_the_codec_builds_under_mypyc_as_an_option; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - release history and citation metadata exist and enter source archives
     [tested: test_release_and_citation_metadata_ship_in_source_archives;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -435,6 +438,41 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
         for path in (tmp_path / "compiled" / "lib" / "metta").rglob("*.so")
     )
     assert built == ["factories", "wire"]
+
+    # Complete the built package with interpreted modules. Its two compiled
+    # extensions win normal import resolution over the copied Python sources.
+    compiled_package = tmp_path / "compiled" / "lib"
+    shutil.copytree(
+        ROOT / "extensions/python/metta", compiled_package / "metta",
+        dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "_runtime"),
+    )
+    executed = subprocess.run(
+        [sys.executable, "-c", """
+import importlib.machinery
+import pickle
+from fractions import Fraction
+import metta._atoms.factories as factories
+import metta._atoms.wire as wire
+from metta import Expression, G, MeTTa, S, arrow, convert, lib, typed
+import sys
+for module in (factories, wire):
+    assert any(module.__file__.endswith(suffix) for suffix in importlib.machinery.EXTENSION_SUFFIXES)
+value = Fraction(1, 3)
+atom = convert.atom_from_wire(["n", value])
+assert atom != G(value)
+assert pickle.loads(pickle.dumps(atom)).to_wire() == ["n", value]
+assert Expression(sorted([G(1), atom, G(0)])) == Expression(G(0), atom, G(1))
+assert arrow(int, float) == Expression(S["->"], S.Number, S.Number)
+assert typed(S.f, int) == Expression(S[":"], S.f, S.Number)
+with MeTTa(metta_path=sys.argv[1]) as engine:
+    engine += lib.vector
+    ratios = engine.fn.vector_divide((1, 2), (3, 3)).one()
+    assert engine.fn.vector_scale(ratios, 3).one() == (1, 2)
+""", str(ROOT)],
+        cwd=tmp_path, env=os.environ | {"PYTHONPATH": str(compiled_package)},
+        capture_output=True, text=True, check=False,
+    )
+    assert executed.returncode == 0, executed.stdout + executed.stderr
 
     # Asked for and impossible: the build stops and names the fix, rather
     # than quietly handing back the pure-Python wheel nobody asked for. The

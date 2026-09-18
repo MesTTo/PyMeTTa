@@ -1,50 +1,64 @@
-"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/04-regex_lib.metta in Python: PCRE2 through lib_regex.
+"""Purpose: call every lib_regex head from Python with the MeTTa example's claims.
 
-Every claim is about one of the library's six functions, so the twin names all
-six through the function namespace. Two things are Python's: the patterns,
-written as raw strings so a backslash is a backslash without the doubling
-MeTTa's string reader needs, and the answer shapes, which are lists and plain
-values.
-
-`re-find` answers one match per solution, so the whole answer view is the list
-of matches; `re-captures` answers whole-match, named and typed groups in one
-expression, which stays an expression because that is what the library returns.
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+Patterns use Python raw strings. Scans return one answer per match; capture
+records remain expressions. The compiled native handle is released after use.
+Guarantees: the example and its twin make the same 26 assertions
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/04-regex_lib.metta; commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0].
 """
 
 from metta import Expression, G, S, lib
 
 
 def twin(m):
-    """Match, find, capture, split and replace, all through lib_regex."""
+    """Match, compile, scan, split and replace through every public head."""
     m += lib.regex
-
-    # A boolean guard: (?i) is PCRE2's inline case-insensitivity flag.
-    re_match = m.fn.re_match
-    assert re_match(G("(?i)^needle"), G("Needle in a haystack")) == [True]
-    assert re_match(G("^x"), G("abc")) == [False]
-
-    # Enumeration: one answer per match, which is nondeterminism, not a list.
-    found = m.fn.re_find(G(r"\d+"), G("a1 b22 c333"))
-    assert found == [G("1"), G("22"), G("333")]
-
-    # A capture name ending in _I asks for the group as a Number, so `month`
-    # and `year` arrive as 4 and 2017 rather than as "04" and "2017".
+    assert m.fn.re_match(G("(?i)^needle"), G("Needle in a haystack")) == [True]
+    assert m.fn.re_match(G("^x"), G("abc")) == [False]
+    assert m.fn.re_find(G(r"\d+"), G("a1 b22 c333")) == [G("1"), G("22"), G("333")]
     [captures] = m.fn.re_captures(
         G(r"(?<year_I>\d\d\d\d)-(?<month_I>\d\d)"), G("2017-04-20")
     )
     assert list(captures) == [Expression((0, G("2017-04"))), S.month(4), S.year(2017)]
-
-    # Split keeps the separator it matched, so the pieces and the gaps alternate.
-    [pieces] = m.fn.re_split(G(r":\s*"), G("Age: 33"))
-    assert list(pieces) == [G("Age"), G(": "), G("33")]
-
+    assert list(m.fn.re_split(G(r":\s*"), G("Age: 33"))[0]) == [G("Age"), G(": "), G("33")]
     assert m.fn.re_replace_all(G("a+"), G("X"), G("banana")) == [G("bXnXnX")]
     assert m.fn.re_replace(G(r"(?<y>\d+)"), G("[$y]"), G("n 42 n")) == [G("n [42] n")]
 
+    # Bracket lookup retains the native spellings containing underscores.
+    assert m.fn["regex_match"](G("^x"), G("xyz")) == [True]
+    assert m.fn["regex_find"](G("x"), G("x-x")) == [G("x"), G("x")]
+    assert list(m.fn["regex_captures"](G("(x)"), G("x"))[0]) == [
+        Expression((0, G("x"))), Expression((1, G("x"))),
+    ]
+    assert list(m.fn["regex_split"](G(","), G("a,b"))[0]) == [G("a"), G(","), G("b")]
+    assert m.fn["regex_replace"](G("x"), G("y"), G("xx")) == [G("yx")]
+    assert m.fn["regex_replace_all"](G("x"), G("y"), G("xx")) == [G("yy")]
+
+    [pattern] = m.fn.re_compile(G(r"\d+"))
+    try:
+        assert m.fn.re_find(pattern, G("n7 n8")) == [G("7"), G("8")]
+    finally:
+        pattern.release()
+    assert m.fn.re_fullmatch(G("a|ab"), G("ab")) == [True]
+    assert m.fn.re_fullmatch(G("a|ab"), G("abc")) == [False]
+    assert m.fn.re_scan(G(r"(?<n_I>\d+)"), G("a1 b22")) == [
+        Expression((Expression((0, G("1"))), S.n(1))),
+        Expression((Expression((0, G("22"))), S.n(22))),
+    ]
+    assert m.fn.re_ranges(G("."), G("é🦊")) == [Expression((0, 1)), Expression((1, 1))]
+    assert m.fn.re_count(G(""), G("é🦊")) == [3]
+    [quoted] = m.fn.re_escape(G(r"a.*\E #"))
+    assert m.fn.re_fullmatch(quoted, G(r"a.*\E #")) == [True]
+
+    assert m.fn.re_find(G("a*?"), G("aa")) == [G(""), G("a"), G(""), G("a"), G("")]
+    assert list(m.fn.re_split(G(""), G("a"))[0]) == [G(""), G(""), G("a"), G(""), G("")]
+    assert m.fn.re_replace_all(G("a*?"), G("X"), G("aa")) == [G("XXXXX")]
+    assert list(m.fn.re_captures(G("((a)?b)"), G("b"))[0]) == [
+        Expression((0, G("b"))), Expression((1, G("b"))),
+    ]
+    assert m.fn.re_replace(G("(?<term_T>1-2)"), G("$term"), G("before 1-2 after")) == [G("before 1-2 after")]
+    assert m.fn.re_captures(G("(?<span_R>é)(?<term_T>1-2)"), G("é1-2")) == [
+        Expression((Expression((0, G("é1-2"))), S.span(S["-"](0, 1)), S.term(S["-"](1, 2)))),
+    ]
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -217,6 +231,34 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-11, 28947 to 103258 (+74311), The regex library derives
+#: all 18 typed and documented heads from native exports and its example
+#: exercises 26 claims. The private PCRE2 binding repairs empty-match
+#: progression, Unicode ranges and compiled split and replacement. Compound
+#: captures become explicit MeTTa expressions before host wire conversion, and
+#: the loader declares every dependency for autoload-disabled hosts [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0].
+#: RE-PINNED 2026-09-11, 103258 to 107645 (+4387), The shared atomic native
+#: builder adds one source module and provider availability checks. A control
+#: at 6dab7f8c1 with only the two loader files changed reproduces exactly the
+#: 4375 MeTTa and 4387 Python inference increase; the regex program and
+#: matching implementation are unchanged [measured 2026-09-11: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=28c6146d805b5adba3047ffc72b2508c11816636].
+#: RE-PINNED 2026-09-11, 107645 to 107668 (+23), String now imports its
+#: complete typed native surface and checks its declared native inputs; an
+#: unchanged-cut control with identical engine and MORK binaries attributes
+#: these exact movements to the String provider and shared native_object/6
+#: dependency argument [measured 2026-09-11: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+#: RE-PINNED 2026-09-13, 107668 to 108199 (+531), File exports its staged
+#: publisher to Compression; the shared native builder accepts the private
+#: archive provider recipe. All consumers are remeasured after those dependency
+#: changes [measured 2026-09-13: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
 #: RE-PINNED 2026-09-11, 28947 to 29109 (+162), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

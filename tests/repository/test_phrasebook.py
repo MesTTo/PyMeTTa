@@ -15,6 +15,11 @@ commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 Internal catalog rows never enter the public generated page [tested:
 test_internal_rows_are_absent_from_the_public_phrasebook;
 commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa].
+The Strategy table reads descriptions and variadic arrows from library rows
+and refuses missing descriptions [tested:
+test_strategy_basis_reads_new_heads_and_descriptions_from_source,
+test_strategy_basis_refuses_an_undocumented_head,
+test_strategy_forms_preserve_parameter_splices; commit=505ce25b9384e782afa26f621527d4b1fd695924].
 
 Open Obligations:
   To Do: None
@@ -26,6 +31,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -138,6 +144,48 @@ def test_the_phrasebook_page_is_up_to_date():
     assert book.PAGE.read_text(encoding="utf-8") == book.page(list(ENTRIES), answers), (
         "run `python extensions/python/tools/phrasebook.py --markdown`"
     )
+
+
+def test_strategy_basis_reads_new_heads_and_descriptions_from_source(monkeypatch):
+    """A new declared head needs no second name or description registry."""
+    from metta import S, library
+
+    original = library.rows("lib_strategy")
+    fresh = library.Declaration(
+        name="fresh-strategy",
+        types=(S["->"](S.Atom, S[":seg"](S.Atom), S["%Undefined%"]),),
+        documentation=S["@doc"](S.fresh_strategy, S["@desc"]("Read the source | keep every case.")),
+    )
+    monkeypatch.setattr(library, "rows", lambda _name, **_kwargs: (*original, fresh))
+    rendered = "\n".join(book._strategy_basis_section())
+    assert "`fresh-strategy`" in rendered
+    assert "(fresh-strategy $arg1 (:seg $arg2))" in rendered
+    assert "Read the source \\| keep every case." in rendered
+
+
+def test_strategy_basis_refuses_an_undocumented_head(monkeypatch):
+    """Source-derived coverage still reports a missing public explanation."""
+    from metta import library
+
+    original = library.rows("lib_strategy")
+    missing = replace(original[0], documentation=None)
+    monkeypatch.setattr(library, "rows", lambda _name, **_kwargs: (missing, *original[1:]))
+    with pytest.raises(ValueError, match="has no @desc; document it at its source"):
+        book._strategy_basis_section()
+
+
+@pytest.mark.parametrize(
+    ("parameters", "expected"),
+    [((), "`(operation)`"), (("Atom",), "`(operation $arg1)`"),
+     (("Atom", "segment"), "`(operation $arg1 (:seg $arg2))`")],
+)
+def test_strategy_forms_preserve_parameter_splices(parameters, expected):
+    """The declared arrow retains the distinction between one and any arguments."""
+    from metta import S, library
+
+    types = tuple(S[":seg"](S.Atom) if item == "segment" else S[item] for item in parameters)
+    row = library.Declaration(name="operation", types=(S["->"](*types, S["%Undefined%"]),))
+    assert book._strategy_form(row) == expected
 
 
 def test_python_first_public_faces_are_in_the_phrasebook():

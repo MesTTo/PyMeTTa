@@ -35,9 +35,12 @@ from __future__ import annotations
 import argparse
 import difflib
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
+
+from example_parity import corpus
 
 #: Below this, a resemblance is coincidence rather than derivation. Chosen
 #: because the examples between 0.75 and 0.85 are recognisably the same
@@ -50,6 +53,27 @@ MANIFEST = REPO / "examples" / "ORIGINS.tsv"
 UPSTREAM_SOURCE = "https://github.com/patham9/PeTTa"
 UPSTREAM_COMMIT = "43705f5d9ff8958ffe7f0aa6777fb8477f2401f2"
 UPSTREAM_DATE = "2026-07-24"
+
+
+def readme_counts(text: str, *, derived_count: int, total: int,
+                  credited: int, runnable: int) -> str:
+    """Refresh the README's corpus and lineage counts from the same census.
+
+    Missing prose anchors refuse rather than replacing unrelated text
+    [tested: tests/checks/check_library_records_selftest.py; commit=9b22993447a5ddba93643895e3025661ba9f693e].
+    """
+    claims = (
+        (r"The merged corpus contains \d+ examples", f"The merged corpus contains {runnable} examples"),
+        (r"\d+ of the \d+ programs here derive", f"{derived_count} of the {total} programs here derive"),
+        (r"(?:Thirteen|\d+) people wrote them", f"{credited} people wrote them"),
+        (r"The other\s+\d+ examples were written", f"The other\n{total - derived_count} examples were written"),
+    )
+    for pattern, replacement in claims:
+        text, found = re.subn(pattern, replacement, text)
+        if found != 1:
+            message = f"README count anchor missing or repeated: {pattern}"
+            raise ValueError(message)
+    return text
 
 
 def upstream_root() -> Path | None:
@@ -166,8 +190,18 @@ def main(argv: list[str] | None = None) -> int:
     rows = derived(root)
     total = len(list((REPO / "examples").rglob("*.metta")))
     rendered = render(rows, total)
+    readme = REPO / "examples/README.md"
+    current_readme = readme.read_text(encoding="utf-8")
+    credited = {name for *_, names in rows for name in names.split("; ") if name}
+    try:
+        wanted_readme = readme_counts(current_readme, derived_count=len(rows), total=total,
+                                      credited=len(credited), runnable=len(corpus(REPO)))
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return 1
     if arguments.write:
         MANIFEST.write_text(rendered)
+        readme.write_text(wanted_readme, encoding="utf-8")
         print(f"{MANIFEST.relative_to(REPO)}: {len(rows)} derived, {total - len(rows)} original")
         return 0
     if not MANIFEST.exists():
@@ -193,6 +227,9 @@ def main(argv: list[str] | None = None) -> int:
             print(line)
         if len(difference) > 20:
             print(f"... {len(difference) - 20} more line(s)")
+        return 1
+    if current_readme != wanted_readme:
+        print("examples/README.md corpus or origin counts drifted; run with --write")
         return 1
     print(f"{MANIFEST.relative_to(REPO)}: {len(rows)} derived, {total - len(rows)} original")
     return 0

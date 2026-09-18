@@ -65,6 +65,32 @@ def twin(m):
         S.pear,
     ]
 
+    # `dict-get` answers a value where `dict-values` answers nothing: a lookup
+    # that has to produce something takes its default with it.
+    get, update = m.fn["dict-get"], m.fn["dict-update"]
+    merge, pop = m.fn["dict-merge"], m.fn["dict-pop"]
+    assert get(stock, S.apple, 0) == [12]
+    assert get(stock, S.durian, 0) == [0]
+
+    # `dict-update` applies a function to the value that is there and puts the
+    # result back; an absent key leaves the dict alone.
+    add_six = S["|->"]((V.v,), V.v + 6)  # (|-> ($v) (+ $v 6))
+    assert get(update(stock, S.plum, add_six)[0], S.plum, 0) == [10]
+    assert get(update(stock, S.durian, add_six)[0], S.durian, S.absent) == [S.absent]
+
+    # `dict-merge` puts every pair of the second dict into the first, so the
+    # second's value wins on a key they share.
+    delivery = m.fn["dict-space"](((S.pear, 20), (S.fig, 2)))[0]
+    assert m.fn.sort_atom(pairs(merge(stock, delivery)[0])[0]) == [
+        ((S.apple, 12), (S.fig, 2), (S.pear, 20), (S.plum, 10)),
+    ]
+
+    # `dict-pop` reads and removes in one operation; an absent key has no
+    # answer, which is what tells it apart from a stored value.
+    assert pop(stock, S.fig) == [2]
+    assert has(stock, S.fig) == [False]
+    assert pop(stock, S.fig) == []
+
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move
@@ -203,6 +229,40 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-11, 54190 to 125362 (+71172), The Prolog String surface
+#: publishes 34 documented heads and its native provider validates declared
+#: build inputs. These direct and transitive importers pay the changed
+#: declarations and provider setup; an identical-binary CSV-cut control
+#: attributes the increment from the live CSV cut to String. The journal
+#: separately records the older difference between each stored budget and
+#: that unchanged-cut baseline [measured 2026-09-11:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+#: RE-PINNED 2026-09-12, 125362 to 127630 (+2268), lib_dict adds dict-get with
+#: a default, dict-update over the stored value, dict-merge and dict-pop, each
+#: an equation over the space operations the dict already is; the example
+#: proves them with eight further claims [measured 2026-09-12: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=a8b4bab6eb0bf1b42eb441e9145144cf91befa7d].
+#: RE-PINNED 2026-09-12, 127630 to 166909 (+39279), lib_dict adds dict-get with
+#: a default, dict-update over the stored value, dict-merge and dict-pop, each
+#: one equation over the space operations a dict already is; the example and
+#: the twin prove them with eight further claims each, and the two spaces hold
+#: the same atoms again [measured 2026-09-12: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=a8b4bab6eb0bf1b42eb441e9145144cf91befa7d].
+#: RE-PINNED 2026-09-13, 166909 to 167440 (+531), Dict and Reflect transitively
+#: import the native String provider and pay the shared native builder callback
+#: dispatch introduced for Compression; the full twin lane identifies the same
+#: 531-inference load increase as the other native consumers [measured
+#: 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+#: RE-PINNED 2026-09-14, 167440 to 189399 (+21959), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
 #: RE-PINNED 2026-09-11, 54190 to 55204 (+1014), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

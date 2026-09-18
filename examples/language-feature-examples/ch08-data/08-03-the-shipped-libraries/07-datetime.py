@@ -1,19 +1,8 @@
 """Purpose: examples/ch08-data/08-03-the-shipped-libraries/07-datetime.metta in Python: clocks and calendars.
 
-`now`, `day-of-week` and `format-date` are lib_datetime's own and the subject
-of the file, so the twin names them. Everything around them is Python: the
-example's `let` and `let*` bindings are assignments and its comparison of two
-readings is Python's `==`.
-
-Two of the example's three bare demonstration forms bind an intermediate name
-and hand it to the claim written just below them, so the Python that says both
-is the claim itself, with the `let*` it translates on the line. The third has
-no claim under it and reads the clock in local time, so it PRINTS, which is
-what a top-level `!` form does in the example's own run.
-
-What is checkable about a clock is that it runs forward from a date already
-past and that formatting one reading twice is stable; the fixed timestamps
-check `format-date`'s output itself.
+Guarantees: every example claim is asserted through ordinary Python and the
+library's native heads [tested: python extensions/python/tools/twin_coverage.py
+examples/ch08-data/08-03-the-shipped-libraries/07-datetime.metta; commit=9b22993447a5ddba93643895e3025661ba9f693e].
 """
 
 from metta import G, S, lib
@@ -26,7 +15,7 @@ ISO_DAY, CLOCK, MONTH_NAME = G("%Y-%m-%d"), G("%H:%M:%S"), G("%B")
 
 
 def twin(m):
-    """Read the clock, then format and name three fixed timestamps."""
+    """Read the clock and check every calendar operation against fixed dates."""
     m += lib.datetime
 
     now = m.fn.now
@@ -48,10 +37,36 @@ def twin(m):
     assert 1736294400 - NEW_YEAR_2025 == 604800
 
     # (let* (($ts 1735725045) ($time-only (format-date $ts "%H:%M:%S"))) ($time-only)):
-    # a wall-clock reading, so what it prints moves with the machine's zone.
+    # A fixed UTC clock reading, as in the MeTTa demonstration.
     print(format_date(1735725045, CLOCK))
 
     assert format_date(NEW_YEAR_2025, MONTH_NAME) == [S.January]
+
+    assert m.fn["format_date"](NEW_YEAR_2025, MONTH_NAME) == [S.January]
+    assert m.fn["day_of_week"](a_saturday) == [S.Saturday]
+    assert m.fn.format_datetime(NEW_YEAR_2025, G("%Y-%m-%d %H:%M"), -3600) == [G("2025-01-01 01:00")]
+    assert m.fn.parse_date(G("2025-01-01T00:00:00Z")) == [1735689600.0]
+    assert m.fn.parse_date(G("Wed, 01 Jan 2025 00:00:00 GMT"), S["rfc_1123"]) == [1735689600.0]
+
+    date = S.date(2025, 1, 1)
+    assert m.fn.date_timestamp(date) == [1735689600.0]
+    assert m.fn.timestamp_date(NEW_YEAR_2025 + 0.25, -3600) == [S.date(2025, 1, 1, 1, 0, 0.25, -3600, S["-"], S["-"])]
+    assert m.fn.date_timestamp(m.fn.timestamp_date(-0.25, S.UTC).one()) == [-0.25]
+    assert m.fn.date_field(date, S.year) == [2025]
+    assert m.fn.date_field(date, S.date) == [date]
+    assert m.fn.date_field(date, S["time_zone"]) == []
+    assert m.fn.date_fields(date) == [
+        S.year(2025), S.month(1), S.day(1), S.hour(0), S.minute(0), S.second(0),
+        S["utc_offset"](0), S.date(date), S.time(S.time(0, 0, 0)),
+    ]
+    assert m.fn.date_weekday(date) == [3]
+    assert m.fn.date_year_day(S.date(2024, 12, 31)) == [366]
+    assert m.fn.leap_year(2000) == [True]
+    assert m.fn.leap_year(1900) == [False]
+    assert m.fn.month_days(2024, 2) == [29]
+    assert m.fn.month_days(2025, 2) == [28]
+    assert m.fn.date_add(1738281600, (0, 1, 0, 0, 0, 0), S.UTC) == [1740960000.0]
+    assert m.fn.date_add(NEW_YEAR_2025, (0, 0, -1, 0, 0, 0.5), S.UTC) == [1735603200.5]
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
@@ -225,6 +240,12 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-11, 14983 to 44390 (+29407), datetime adds explicit-zone
+#: conversion, record and calendar operations, typed native faces and twenty
+#: checked Python claims; the changed program is measured with the existing
+#: allowance [measured 2026-09-11: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=9b22993447a5ddba93643895e3025661ba9f693e].
 #: RE-PINNED 2026-09-11, 14983 to 15120 (+137), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

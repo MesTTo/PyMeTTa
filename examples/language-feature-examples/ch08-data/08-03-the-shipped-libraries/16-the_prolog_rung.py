@@ -1,10 +1,11 @@
 """Purpose: examples/ch08-data/08-03-the-shipped-libraries/16-the_prolog_rung.metta in Python: the rung under five libraries.
 
-Every underscore name here is a Prolog predicate a library imported, and the
-hyphenated MeTTa name above it is one equation over it. Python's own map
-turns an underscore into a hyphen, so every one of these comes through the
-exact subscript door and the pairs that compare them are what says the two
-spellings are one operation.
+The libraries retain underscore spellings beside their MeTTa names. Their
+source declarations publish both spellings. Python's name map
+turns an underscore into a hyphen, so the original Prolog names use the exact
+subscript door. Paired calls check that the spellings share their results.
+Guarantees: the example's alias comparisons hold through Python values
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/16-the_prolog_rung.metta; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -43,7 +44,7 @@ def twin(m):
     for library in (lib.string, lib.regex, lib.crypto, lib.datetime, lib.conformance):
         m += library
 
-    # lib_regex's six. `re-match` is one equation over `regex_match`.
+    # The regex aliases retain the native operation's results.
     assert m.fn["regex_match"](G("(?i)^needle"), G("Needle in a haystack")) == [True]
     assert m.fn["regex_match"](G("^x"), G("abc")) == m.fn["re-match"](G("^x"), G("abc"))
     assert m.fn["regex_find"](G(r"\d+"), G("a1 b22 c333")) == [G("1"), G("22"), G("333")]
@@ -61,8 +62,7 @@ def twin(m):
     )
     assert m.fn["crypto_hash"](S.sha256, G("other")) != [TEXT_SHA256]
 
-    # Randomness is the other way round: two hex characters per byte asked
-    # for, and never the same ones twice.
+    # Check fixed-length output and compare two independent sixteen-byte draws.
     assert m.fn["string-length"](m.fn["crypto-random-hex"](8)[0]) == [16]
     assert m.fn["string-length"](m.fn["crypto_random_hex"](16)[0]) == [32]
     assert m.fn["crypto-random-hex"](16) != m.fn["crypto-random-hex"](16)
@@ -233,6 +233,27 @@ def twin(m):
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-11, 63602 to 203169 (+139567), The Prolog String surface
+#: publishes 34 documented heads and its native provider validates declared
+#: build inputs. These direct and transitive importers pay the changed
+#: declarations and provider setup; an identical-binary CSV-cut control
+#: attributes the increment from the live CSV cut to String. The journal
+#: separately records the older difference between each stored budget and
+#: that unchanged-cut baseline [measured 2026-09-11:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+#: RE-PINNED 2026-09-13, 203169 to 203700 (+531), File exports its staged
+#: publisher to Compression; the shared native builder accepts the private
+#: archive provider recipe. All consumers are remeasured after those dependency
+#: changes [measured 2026-09-13: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+#: RE-PINNED 2026-09-14, 203700 to 225661 (+21961), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
 #: RE-PINNED 2026-09-11, 63602 to 64314 (+712), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

@@ -11,6 +11,8 @@ answers, so a card, `(explain ...)` and a bound function's docstring cannot
 say different things about the same head.
 
 Guarantees:
+  - Vector's companion README supplies its numeric contract as the summary
+    [tested: test_the_summary_is_the_librarys_own_opening_prose; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - a companion README supplies escaped prose in every rendering and lib_he
     names its deliberate semantic differences [tested:
     test_a_companion_readme_supplies_the_summary_in_every_renderer,
@@ -210,7 +212,7 @@ def test_a_card_documents_what_the_library_documents():
     card = library.card("lib_file")
     documented = {head.name: head.doc for head in card.documented}
 
-    assert len(card.documented) == 18
+    assert len(card.documented) == 55
     assert "file-exists" in documented
     assert "True when a regular file exists at the path" in documented["file-exists"]
     assert documented["file-exists"].startswith("file-exists: ")
@@ -244,7 +246,11 @@ def test_the_summary_is_the_librarys_own_opening_prose():
     assert library.card("lib_memo").doc == (
         "expose the resident automatic and explicit memoization controls."
     )
-    assert library.card("lib_vector").doc is None
+    assert library.card("lib_vector").doc == (
+        "Numeric vectors are ordinary expressions. `lib_vector` computes exact finite "
+        "reductions before rounding and supplies component arithmetic, lengths, "
+        "directions, distances, construction and random positive directions."
+    )
 
 
 def test_a_companion_readme_supplies_the_summary_in_every_renderer(tmp_path):

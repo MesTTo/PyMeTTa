@@ -1,24 +1,23 @@
-"""Purpose: prove Python builds the same reified plans lib_strategy executes,
-through the library's own rows rather than through a list kept in the package.
+"""Purpose: prove Python builds the reified plans declared by lib_strategy.
 
 Assumes: ``m += lib.strategy`` imports ``lib/lib_strategy/lib_strategy.metta`` through the
 normal library door.
 Guarantees:
   - a library face is exactly the library's own declared heads, spelled Python's
     way, and every one of them is a Symbol rather than a host object [tested:
-    test_a_library_face_is_its_own_rows; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
+    test_a_library_face_is_its_own_rows; commit=505ce25b9384e782afa26f621527d4b1fd695924]
   - a head the library does not declare refuses on the line that names it, and
     says where it IS reachable; `id` is that case, because lib_strategy's own
     source says the engine supplies it [tested:
-    test_a_head_the_library_does_not_declare_refuses; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
+    test_a_head_the_library_does_not_declare_refuses; commit=505ce25b9384e782afa26f621527d4b1fd695924]
   - a Python-built plan remains queryable as stored data and executes through
     strategy-apply with the library's left-biased composition semantics
-    [tested: test_python_strategy_terms_use_the_shipped_basis; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+    [tested: test_python_strategy_terms_use_the_shipped_basis; commit=505ce25b9384e782afa26f621527d4b1fd695924]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -70,7 +69,7 @@ def test_python_strategy_terms_use_the_shipped_basis(metta):
     """One stored Python plan is queried whole, then lowered and evaluated.
 
     The library import goes into a scoped space, not the shared fixture:
-    lib_strategy declares three-argument arrows for `choice`, `seq` and kin,
+    lib_strategy declares variadic held arrows for `choice` and `seq`,
     and an import into the session's ``&self`` makes those declarations reach
     every space in the process for the rest of the worker's life. That is how
     this file broke test_per_ask_evaluation's zero-argument `choice` in
@@ -83,7 +82,7 @@ def test_python_strategy_terms_use_the_shipped_basis(metta):
         space.run(
             "(= (python-strategy-step python-a) python-b)\n"
             "(= (python-strategy-step python-b) python-c)\n"
-            "(= (python-strategy-step $x) Empty)"
+            "(= (python-strategy-step $x) (empty))"
         )
 
         plan = strategy.seq(

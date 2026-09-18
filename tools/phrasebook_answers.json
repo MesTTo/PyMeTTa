@@ -1598,12 +1598,12 @@
  },
  "\u25c1": {
   "metta": [
-   "(-> Atom Type Atom Atom)"
+   "(-> Atom Type Atom %Undefined%)"
   ],
-  "metta_inferences": 2779956,
+  "metta_inferences": 31482,
   "python": [
-   "(-> Atom Type Atom Atom)"
+   "(-> Atom Type Atom %Undefined%)"
   ],
-  "python_inferences": 2785718
+  "python_inferences": 40646
  }
 }

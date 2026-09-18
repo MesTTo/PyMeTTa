@@ -5,9 +5,13 @@ Guarantees:
     receiver retained by Scope [tested:
     test_a_kept_receiver_keeps_its_scoped_class_program; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - order_key matches the engine's msort across every public atom kind,
-    including float/integer ties, strings, opaque values, and the empty-list
-    atom [tested: test_order_key_matches_msort_across_kinds;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    including native rationals, float/integer ties, NaN, signed zeros, strings
+    and the empty-list atom; opaque numeric subclasses keep their own kind
+    [tested: test_order_key_matches_msort_across_kinds, test_native_number_order,
+    test_native_rational_sorts_before_an_opaque_numeric_subclass; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
+  - _type_atom defers annotation loading until a Python annotation is supplied,
+    including in the optional compiled codec [tested:
+    test_the_codec_builds_under_mypyc_as_an_option; commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6]
   - expression order keys use a flat prefix encoding, so 600 nested levels
     retain childwise ordering without consuming Python frames [tested:
     test_deep_atom_ordering_uses_a_constant_python_call_stack,
@@ -75,8 +79,9 @@ Open Obligations:
 from __future__ import annotations
 
 import importlib
+import math
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import metta._atoms.model as _core
 import metta._atoms.namespace as _namespace
@@ -90,6 +95,7 @@ from metta._atoms.model import (
     Handle,
     Symbol,
     Variable,
+    _NativeRational,
     hold,
     register_object_repr,
     unregister_object_repr,
@@ -98,13 +104,6 @@ from metta._atoms.model import encode as _encode
 from metta._atoms.operators import OPERATOR_LOWERINGS, OperatorLowering
 from metta._atoms.wire import Undefined
 from metta._lazy import lazy
-
-if TYPE_CHECKING:
-    import metta._catalog.annotations  # noqa: F401 -- child of the deferred package namespace
-if TYPE_CHECKING:
-    from metta import _catalog
-else:
-    _catalog = lazy('metta._catalog')
 
 _Namespace = _namespace._Namespace
 _NAMESPACE_CACHE_MAX = _namespace.NAMESPACE_CACHE_MAX
@@ -217,7 +216,11 @@ def _type_atom(value: Any) -> Atom:
     if isinstance(value, Atom):
         return value
 
-    return _catalog.annotations.type_atom_for(value)
+    # Resolve the higher layer at use, outside a TYPE_CHECKING/else split that
+    # mypyc compiles as unreachable:
+    # https://github.com/python/mypy/blob/v2.3.0/mypyc/irbuild/statement.py#L142-L165
+    annotations = lazy("metta._catalog.annotations")
+    return annotations.type_atom_for(value)
 
 
 def arrow(*positions: Any) -> Expression:
@@ -442,13 +445,17 @@ def order_key(atom: Atom) -> tuple:
             continue
         value = getattr(node, "value", node)
         # bool before int: True is an int in Python and a symbol in MeTTa.
-        if isinstance(value, bool):
+        if type(value) is bool:
             tokens.append((_ORDER_SYMBOL, str(value)))
-        elif isinstance(value, (int, float)):
+        elif type(value) in (int, float) or isinstance(node, _NativeRational):
             # SWI compares numeric value first and sorts a float before an
-            # integer at an arithmetic tie: msort([1, 1.0]) is [1.0, 1].
-            tokens.append((_ORDER_NUMBER, value, 0 if isinstance(value, float) else 1))
-        elif isinstance(value, str):
+            # equal exact number. NaN is first; negative zero precedes positive.
+            if type(value) is float:
+                key = (0, 0, 0) if math.isnan(value) else (1, value, math.copysign(1.0, value))
+            else:
+                key = (1, value, 2)
+            tokens.append((_ORDER_NUMBER, *key))
+        elif type(value) is str:
             tokens.append((_ORDER_STRING, value))
         else:
             tokens.append((_ORDER_OBJECT, type(value).__name__, repr(value)))

@@ -1,63 +1,99 @@
-"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta in Python: four operations a similarity search needs.
+"""Purpose: call every Vector head from the Python expression interface.
 
 There is no vector type: a vector is an ordinary expression, so every
-argument here is a Python tuple of floats and every list operation still
+vector argument here is a Python tuple of numbers and every list operation still
 applies to one.
 
-The random draws are checked to a TOLERANCE rather than to an equality,
-because a square root and a division are not exact.
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+Guarantees: exact reductions, component arithmetic and both random arities
+carry the same claims as 13-vector_lib.metta
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta; commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
 """
 
-from metta import lib
+import math
+
+from metta import S, V, lib
+from metta._errors.errors import MettaError
 
 TOLERANCE = 1e-6
 
 
 def twin(m):
-    """Dot, norm, cosine, the normalised shortcut, and a random direction."""
+    """Exact reductions, component arithmetic, construction and directions."""
     m += lib.vector
     dot, norm = m.fn.dot, m.fn.norm
-    cosine, quick = m.fn.cosine, m.fn["cosine-of-normalized"]
-    draw = m.fn["random-normal-vector"]
+    cosine, quick = m.fn.cosine, m.fn.cosine_of_normalized
+    draw = m.fn.random_normal_vector
 
-    # `dot` walks both expressions together, so it is defined exactly when
-    # they are the same length.
+    def refused(call):
+        """Read a public refusal through the evaluation boundary."""
+        try:
+            list(m.eval(call))
+        except MettaError:
+            return True
+        return False
+
+    # Dot validates dimensions and rounds the exact finite sum once.
     assert dot((1.0, 2.0), (3.0, 4.0)) == [11.0]
     assert dot((), ()) == [0.0]
     assert dot((1.0, 0.0), (0.0, 1.0)) == [0.0]
 
-    # `norm` is that product with itself under a square root.
+    # Norm takes the root before rounding the squared sum.
     assert norm((3.0, 4.0)) == [5.0]
     assert norm((1.0, 0.0)) == [1.0]
     assert norm(()) == [0.0]
 
-    # `cosine` divides by both lengths, so it measures ANGLE and ignores
-    # magnitude.
+    # Cosine measures angle and ignores magnitude.
     assert cosine((1.0, 0.0), (2.0, 0.0)) == [1.0]
     assert cosine((1.0, 0.0), (0.0, 1.0)) == [0.0]
     assert cosine((1.0, 0.0), (-2.0, 0.0)) == [-1.0]
 
-    # `cosine-of-normalized` skips both divisions, because on unit vectors
-    # the dot product IS the cosine.
+    # The shortcut is dot; on unit vectors it is the cosine.
     assert quick((1.0, 0.0), (1.0, 0.0)) == [1.0]
     assert quick((1.0, 0.0), (0.0, 1.0)) == [0.0]
     assert quick((1.0, 0.0), (0.6, 0.8)) == cosine((1.0, 0.0), (0.6, 0.8))
 
-    # It says `of-normalized` rather than checking, so a caller who has not
-    # normalised gets a number that is not a cosine, and that is the trade
-    # the name is warning about.
+    # Nonunit inputs keep the historical dot result.
     assert quick((3.0, 4.0), (3.0, 4.0)) == [25.0]
     assert cosine((3.0, 4.0), (3.0, 4.0)) == [1.0]
 
-    # A random DIRECTION, which is what the whole library is for.
-    assert len(draw(3)[0]) == 3
-    assert abs(norm(draw(5)[0])[0].value - 1.0) < TOLERANCE
-    unit = draw(4)[0]
+    # Positive uniform draws projected onto the sphere are not uniform directions.
+    assert len(m.fn.with_seed(17, S.random_normal_vector(3))[0]) == 3
+    assert abs(norm(m.fn.with_seed(17, S.random_normal_vector(5))[0])[0].value - 1.0) < TOLERANCE
+    unit = m.fn.with_seed(17, S.random_normal_vector(4))[0]
     assert abs(quick(unit, unit)[0].value - 1.0) < TOLERANCE
+
+    assert m.fn.vector_add((1, 2), (3, 4)) == [(4, 6)]
+    assert m.fn.vector_subtract((3, 4), (1, 2)) == [(2, 2)]
+    assert m.fn.vector_multiply((1, 2), (3, 4)) == [(3, 8)]
+    assert m.fn.vector_divide((6, 8), (2, 4)) == [(3, 2)]
+    assert m.fn.vector_scale((1, 2), 3) == [(3, 6)]
+    assert m.fn.vector_normalize((3, 4)) == [(0.6, 0.8)]
+    assert m.fn.vector_distance((1, 2), (4, 6)) == [5.0]
+    assert m.fn.vector_fill(3, 7) == [(7, 7, 7)]
+    assert m.fn.vector_fill(0, 7) == [()]
+    assert m.fn.vector_normalize(()) == [()]
+    assert dot((2.0**54, 1.0, -(2.0**54)), (1, 1, 1)) == [1.0]
+    assert norm((1e-300,)) == [1e-300]
+    assert cosine((1e308, 1e308), (1e308, 1e308)) == [1.0]
+    assert math.isnan(cosine((0, 0), (1, 2)).one())
+    assert math.isinf(norm((math.inf,)).one())
+    assert draw(0, (3, 4)) == [(0.6, 0.8)]
+    assert draw(-2) == [()]
+
+    assert m.fn.vector_fill(S.superpose((0, 2)), 7) == [(), (7, 7)]
+    row = m.match(S["="](S.vector_fill(V.n, V.x), V.body)).one()
+    constructor = m.eval(S["|->"]((row.n, row.x), row.body))[0]
+    assert m.eval((constructor, 3, 7)) == [(7, 7, 7)]
+    rational = m.fn.vector_divide((1,), (3,)).one()[0]
+    assert m.fn.vector_scale(m.fn.vector_fill(3, rational).one(), 3) == [(1, 1, 1)]
+    assert m.fn.vector_fill(2, -0.0) == [(-0.0, -0.0)]
+    assert refused(S.vector_fill(-1, 7))
+    assert refused(S.vector_fill(0, S.bad))
+    assert refused(S.random_normal_vector(1.5))
+    assert refused(S.random_normal_vector(0, (S.bad,)))
+    held = S.random_normal_vector(3, S.quote((S.random_float(0, 1),)))
+    assert m.fn.with_seed(17, S.if_error(S.catch(held), S.random_float(0, 1), 0)) == m.fn.with_seed(
+        17, S.random_float(0, 1))
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -164,6 +200,36 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-12, 31537 to 62208 (+30671), The Vector example now proves
+#: 34 claims over all thirteen native heads and both random arities: exact
+#: rational reductions round once through the integer quotient/remainder
+#: kernel, component arithmetic and normalization validate every input, and the
+#: three random draws run under with-seed 17 so the data-dependent rounding
+#: branches are reproducible (two unseeded runs read 61500 and 61503; ten
+#: seeded runs read 62208 with zero spread). The seventeen-claim example
+#: measured 32104 on this cut against its 31537 pin before any Vector change,
+#: so 567 of the movement predates this library [measured 2026-09-12: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
+#: RE-PINNED 2026-09-12, 62208 to 62215 (+7), Vector now exports its existing
+#: fraction_sqrt native service; the additional module export moves each
+#: measured library import by seven inferences while the numerical
+#: implementations and MeTTa heads stay unchanged [measured 2026-09-12: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
+#: RE-PINNED 2026-09-13, 62215 to 62326 (+111), Vector, Math and the shared
+#: collection boundary declare their native effects. The engine reads late
+#: provider declarations and retains definition analysis for computed function
+#: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
+#: RE-PINNED 2026-09-14, 62326 to 244365 (+182039), Vector derives fill, random
+#: construction and normalized-dot through MeTTa equations; Combinatorics
+#: supplies ranges, literal validation folds once before core seeded draws, and
+#: the Vector example adds nine construction and refusal claims. Native Math
+#: also imports the shared Vector kernels, so every MeTTa and native consumer
+#: is renewed [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
 #: RE-PINNED 2026-09-11, 31537 to 32104 (+567), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

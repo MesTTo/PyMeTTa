@@ -205,6 +205,27 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-11, 21614 to 83710 (+62096), The Prolog String surface
+#: publishes 34 documented heads and its native provider validates declared
+#: build inputs. These direct and transitive importers pay the changed
+#: declarations and provider setup; an identical-binary CSV-cut control
+#: attributes the increment from the live CSV cut to String. The journal
+#: separately records the older difference between each stored budget and
+#: that unchanged-cut baseline [measured 2026-09-11:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+#: RE-PINNED 2026-09-13, 83710 to 84241 (+531), File exports its staged
+#: publisher to Compression; the shared native builder accepts the private
+#: archive provider recipe. All consumers are remeasured after those dependency
+#: changes [measured 2026-09-13: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+#: RE-PINNED 2026-09-14, 84241 to 106207 (+21966), String now derives nine text
+#: recipes through MeTTa equations, with one function parameter for padding and
+#: complete validation before empty construction; all import consumers are
+#: measured after the provider change [measured 2026-09-14: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
 #: RE-PINNED 2026-09-11, 21614 to 21924 (+310), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

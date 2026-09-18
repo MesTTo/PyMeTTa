@@ -77,6 +77,11 @@ Guarantees:
     test_a_silent_divergence_is_a_finding]
   - the checked-in page equals what `--markdown` produces [tested:
     test_the_phrasebook_page_is_up_to_date]
+  - the Strategy table derives its descriptions and variadic call forms from
+    the library's declarations, and refuses an undocumented head [tested:
+    test_strategy_basis_reads_new_heads_and_descriptions_from_source,
+    test_strategy_basis_refuses_an_undocumented_head,
+    test_strategy_forms_preserve_parameter_splices; commit=505ce25b9384e782afa26f621527d4b1fd695924]
   - Python-first additions that have no stdlib declaration of their own are
     rendered in a separate exact-spelling table rather than corrupting coverage
     [tested: test_python_first_public_faces_are_in_the_phrasebook;
@@ -103,7 +108,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""  # noqa: D205  -- the lane's contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -344,8 +349,6 @@ def structural(entries: list[Entry]) -> list[str]:
             )
         if entry.metta_setup is not None and entry.metta is None:
             findings.append(f"{entry.name}: has setup but no MeTTa form")
-        if entry.unary_metta is not None and entry.metta is None:
-            findings.append(f"{entry.name}: has a unary form but no MeTTa form")
         if entry.metta_fuel is not None and entry.metta_fuel < 1:
             findings.append(f"{entry.name}: has a non-positive MeTTa inference limit")
     return findings
@@ -558,52 +561,12 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
                 line += f" The form is shown but not run here: {entry.unrun}."
             if entry.ruled:
                 line += f" Ruled rather than missing: {entry.ruled}."
-            if entry.unary_metta:
-                unary = entry.unary_metta.replace("\n", " ⏎ ")
-                line += f" Unary form: `{unary}`."
             out.append(line)
         out.append("")
     return "\n".join(out) + "\n"
 
 
-#: What each of lib_strategy's own heads MEANS, one line per head. The names,
-#: the MeTTa forms and the Python spellings are DERIVED from the library's own
-#: rows below; this is the half a row cannot carry, and a head with no line
-#: here, or a line here naming no head, stops the run rather than quietly
-#: shortening the table.
-_STRATEGY_LAWS: dict[str, str] = {
-    "fail": "answers no result",
-    "seq": "`s2(s1(t))`",
-    "choice": (
-        "complete left result bag, or `right(t)` only when that bag is empty"
-    ),
-    "try": "`choice(s, id)`",
-    "gtry": "`gtry(s, t) = try(s)(t)`, the direct call form",
-    "repeat": "`try(seq(s, repeat(s)))`",
-    "all": "apply `s` to every immediate child",
-    "one": "enumerate each successful one-child rewrite",
-    "topdown": "`seq(s, all(topdown(s)))`",
-    "bottomup": "`seq(all(bottomup(s)), s)`",
-    "innermost": "`bottomup(try(seq(s, innermost(s))))`",
-    "stratego-all": "public alias of `all(s)`",
-    "stratego-one": "public alias of `one(s)`",
-    "TP": "type-preserving strategy scheme",
-    "TU": "type-unifying strategy scheme",
-    "◁": "apply only when the declared strategy arrow fits the scheme",
-    "strategy-apply": "translator-lowers to the atom `(strategy-eval s t)`",
-    "strategy-eval": "the evaluator every plan is applied through",
-    "strategy-all": "the evaluator's own all-children step",
-    "strategy-all-tail": "the evaluator's own child-list recursion",
-    "strategy-one": "the evaluator's own one-child step",
-    "strategy-typed-tp": "the evaluator's `TP` scheme check",
-    "strategy-typed-tu": "the evaluator's `TU` scheme check",
-    "strategy-typed-apply": "the evaluator's scheme-checked application",
-}
-
-#: The one head this section shows that lib_strategy does NOT declare. The
-#: library says so in its own source: `id` is the engine's identity operation,
-#: so the library defines none [source: lib/lib_strategy/lib_strategy.metta,
-#: "`id` itself is already the engine's identity operation"].
+#: Show the engine's identity beside the library's own declared heads.
 _STRATEGY_ENGINE_HEAD = ("id", "`id`", "`fn.id`", "`id(t) = t`")
 
 
@@ -623,21 +586,6 @@ def _strategy_basis_section() -> list[str]:
         target: alias
         for alias, target in _face_aliases(library.face("lib_strategy")).items()
     }
-    declared = [row.name for row in heads]
-    missing = sorted(set(declared) - set(_STRATEGY_LAWS))
-    if missing:
-        msg = (
-            f"lib_strategy declares {', '.join(missing)} and the phrasebook "
-            f"says nothing about them; add a line to _STRATEGY_LAWS"
-        )
-        raise SystemExit(msg)
-    stale = sorted(set(_STRATEGY_LAWS) - set(declared))
-    if stale:
-        msg = (
-            f"_STRATEGY_LAWS names {', '.join(stale)}, which lib_strategy no "
-            f"longer declares; remove the line"
-        )
-        raise SystemExit(msg)
     rows = [_STRATEGY_ENGINE_HEAD]
     for row in heads:
         alias = aliases.get(row.name)
@@ -645,16 +593,16 @@ def _strategy_basis_section() -> list[str]:
             f"`face.{alias}`" if alias is not None else f"`face[{row.name!r}]`"
         )
         rows.append(
-            (row.name, _strategy_form(row), python, _STRATEGY_LAWS[row.name])
+            (row.name, _strategy_form(row), python, _strategy_law(row))
         )
     out = [
         "MeTTa's complete shipped basis is reified below. Every plan cell is ordinary",
-        "queryable atom data, and every row is exercised by",
-        "`examples/ch20-extending-the-engine/20-02-metta-written-in-metta/11-strategy.metta` through the normal library runner.",
+        "queryable atom data. The Strategy examples exercise its traversal and type",
+        "laws; the Reflect example composes topmost traversal with literal replacement.",
         "",
         "Each row is projected from the library's own source: the name and the form",
         "from its `(: ...)` declaration, one argument per position of the declared",
-        "arrow, and the Python spelling from the face's own attribute map. `face` is",
+        "arrow, its description from `@doc`, and its Python spelling from the face. `face` is",
         "`metta.library.face(\"lib_strategy\")`, the library's own heads as Python",
         "names; `fn` is `metta.fn`, the engine's.",
         "",
@@ -671,20 +619,36 @@ def _face_aliases(face: Any) -> dict[str, str]:
     return dict(object.__getattribute__(face, "_aliases"))
 
 
-def _strategy_form(row: Any) -> str:
-    """One head's MeTTa call form, one argument per declared arrow position.
+def _strategy_law(row: Any) -> str:
+    """Read a head's description from its own doc atom, refusing omissions."""
+    from metta import Expression  # noqa: PLC0415  -- rendering is engine-lazy
 
-    `(: seq (-> Atom Atom Atom %Undefined%))` is three arguments and a result,
-    so the form is `(seq $a $b $c)`. A head with no declared arrow, which is
-    every type scheme here, is the bare name.
-    """
+    parts = () if row.documentation is None else row.documentation.children[2:]
+    descriptions = [
+        str(getattr(part.children[1], "value", part.children[1]))
+        for part in parts
+        if isinstance(part, Expression)
+        and len(part.children) > 1 and str(part.head) == "@desc"
+    ]
+    if not descriptions or not any(descriptions):
+        msg = f"lib_strategy head {row.name!r} has no @desc; document it at its source"
+        raise ValueError(msg)
+    return " ".join(descriptions).replace("\n", " ").replace("|", "\\|")
+
+
+def _strategy_form(row: Any) -> str:
+    """Render a declared call, retaining zero arguments and parameter splices."""
+    from metta import Expression  # noqa: PLC0415  -- rendering is engine-lazy
+
     if not row.arrows:
         return f"`{row.name}`"
-    arity = max(len(row.arrows[0].children) - 2, 0)
-    if arity == 0:
-        return f"`{row.name}`"
-    arguments = " ".join(f"${chr(ord('a') + index)}" for index in range(arity))
-    return f"`({row.name} {arguments})`"
+    arguments = [
+        f"(:seg $arg{index})"
+        if isinstance(parameter, Expression) and str(parameter.head) == ":seg"
+        else f"$arg{index}"
+        for index, parameter in enumerate(row.arrows[0].children[1:-1], start=1)
+    ]
+    return "`(" + " ".join([row.name, *arguments]) + ")`"
 
 
 def _priced(answers: dict[str, Any], name: str) -> str:

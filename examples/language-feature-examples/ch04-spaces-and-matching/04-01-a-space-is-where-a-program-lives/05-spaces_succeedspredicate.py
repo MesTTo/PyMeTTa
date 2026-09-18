@@ -219,6 +219,12 @@ def twin(m):
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-14, 8029 to 11066 (+3037), The completed standard-library
+#: package derives shared collection, numeric, parsing, text and byte recipes
+#: in MeTTa and loads those changed providers through every direct and
+#: transitive consumer [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 #: RE-PINNED 2026-09-11, 8029 to 8271 (+242), end-of-wave re-pin on the merged
 #: tree after FROM's reference rows and four engine units, the closed-set
 #: derivations and two host services, BINDING's one native evaluation entry and

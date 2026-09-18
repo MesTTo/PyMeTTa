@@ -1,4 +1,4 @@
-"""Purpose: prove the laws of lib_distribution over generated finite supports.
+"""Purpose: prove finite probability laws in Statistics over generated supports.
 
 Assumes:
   - generated rows use positive integer weights and integer outcomes; binary64
@@ -8,12 +8,12 @@ Guarantees:
   - normalization, unary map, independent product, threshold, strict win
     probability, exact joint conditioning, independent average, and Bernoulli
     addition satisfy their stated laws over 100 generated examples per property
-    [tested: this module with HYPOTHESIS_PROFILE=ci; commit=f99382c5b4127b49de6e0a6e355d50eda39c5df6].
+    [tested: this module with HYPOTHESIS_PROFILE=ci; commit=6fa571d1b7059b610f73e9feed657711414251e5].
   - empty, zero, negative, and nonfinite mass expose exact remedy-bearing Error
     messages through normalization and every composition operation [tested:
     test_invalid_distributions_refuse_with_a_remedy,
     test_operations_preserve_the_normalization_refusal,
-    test_average_preserves_a_refusal_at_every_input_position; commit=f99382c5b4127b49de6e0a6e355d50eda39c5df6].
+    test_average_preserves_a_refusal_at_every_input_position; commit=6fa571d1b7059b610f73e9feed657711414251e5].
 Owns resources:
   - distribution_space closes its module-scoped fresh Space when the fixture
     exits.
@@ -22,7 +22,9 @@ Owns resources:
 from __future__ import annotations
 
 import math
+import statistics
 from collections import OrderedDict
+from itertools import product
 
 import pytest
 from hypothesis import given, settings
@@ -64,11 +66,14 @@ def joint_cases(draw):
 def distribution_space(metta):
     """Provide a fresh space containing the library and test-only functions."""
     with metta._new_space() as space:
-        space.run("!(import! (context-space) (library lib_distribution))")
+        space.run("!(import! (context-space) (library lib_statistics))")
         space.run(
             """
             (= (distribution-test-inc $x) (+ $x 1))
             (= (distribution-test-add $x $y) (+ $x $y))
+            (: distribution-test-sum (-> (:seg Number) Number))
+            (= (distribution-test-sum (:seg $values)) (stats-sum $values))
+            (= (distribution-test-branch $x) (superpose ($x (+ $x 1))))
             (= (distribution-test-pair-sum $pair)
                (+ (index-atom $pair 1) (index-atom $pair 2)))
             """
@@ -158,13 +163,13 @@ def test_normalization_is_idempotent_ordered_and_unit_mass(distribution_space, g
 
 @LAW_SETTINGS
 @given(generated=ROWS)
-def test_map2_with_a_point_mass_is_unary_map(distribution_space, generated):
-    """Adding a point mass through map2 agrees with unary increment."""
+def test_product_with_a_point_mass_is_unary_map(distribution_space, generated):
+    """Adding a point mass through an independent product agrees with unary map."""
     dist = distribution(generated)
     point = distribution([(1, 1)])
     binary = call(
         distribution_space,
-        "ws-map2-independent",
+        "ws-map-independent",
         S["distribution-test-add"],
         dist,
         point,
@@ -179,6 +184,33 @@ def test_map2_with_a_point_mass_is_unary_map(distribution_space, generated):
 
 
 @LAW_SETTINGS
+@given(generated=st.lists(ROWS, max_size=3))
+def test_variadic_independent_laws_match_cartesian_probability(distribution_space, generated):
+    """Zero through three independent inputs match an external product oracle."""
+    laws = [normalized(items) for items in generated]
+    expected = {}
+    for choices in product(*(law.items() for law in laws)):
+        outcome = sum(value for value, _weight in choices)
+        weight = math.prod(weight for _value, weight in choices)
+        expected[outcome] = expected.get(outcome, 0) + weight
+    actual = call(distribution_space, "ws-map-independent", S["distribution-test-sum"],
+                  *(distribution(items) for items in generated))
+    assert_masses_close(actual, expected)
+
+
+def test_function_rewrites_remain_separate_probability_laws(distribution_space):
+    """Two rewrites at each of two support points give four complete laws."""
+    source = distribution([(0.5, 1), (0.5, 3)])
+    answers = distribution_space.eval(
+        Expression(S["ws-map-independent"], S["distribution-test-branch"], source)
+    )
+    actual = {tuple(rows(law)) for law in answers}
+    expected = {((left, 0.5), (right, 0.5)) for left in (1, 2) for right in (3, 4)}
+    assert len(answers) == 4
+    assert actual == expected
+
+
+@LAW_SETTINGS
 @given(left=ROWS, right=ROWS, third=ROWS)
 def test_additive_convolution_is_commutative_associative_and_linear(
     distribution_space, left, right, third
@@ -186,13 +218,13 @@ def test_additive_convolution_is_commutative_associative_and_linear(
     """Independent addition obeys its algebraic and expectation laws."""
     add = S["distribution-test-add"]
     a, b, c = distribution(left), distribution(right), distribution(third)
-    ab = call(distribution_space, "ws-map2-independent", add, a, b)
-    ba = call(distribution_space, "ws-map2-independent", add, b, a)
+    ab = call(distribution_space, "ws-map-independent", add, a, b)
+    ba = call(distribution_space, "ws-map-independent", add, b, a)
     assert_masses_close(ab, masses(ba))
 
-    left_grouped = call(distribution_space, "ws-map2-independent", add, ab, c)
-    bc = call(distribution_space, "ws-map2-independent", add, b, c)
-    right_grouped = call(distribution_space, "ws-map2-independent", add, a, bc)
+    left_grouped = call(distribution_space, "ws-map-independent", add, ab, c)
+    bc = call(distribution_space, "ws-map-independent", add, b, c)
+    right_grouped = call(distribution_space, "ws-map-independent", add, a, bc)
     assert_masses_close(left_grouped, masses(right_grouped))
 
     normal_a = call(distribution_space, "ws-normalize", a)
@@ -289,7 +321,7 @@ def test_bernoulli_addition_is_independent_convolution(distribution_space, gener
     )
     expected = call(
         distribution_space,
-        "ws-map2-independent",
+        "ws-map-independent",
         S["distribution-test-add"],
         dist,
         distribution([(1.0 - probability, 0), (probability, 1)]),
@@ -301,7 +333,7 @@ def test_pair_order_duplicate_collapse_and_exact_dyadic_weights(distribution_spa
     """Left-major traversal and first-position collapse preserve dyadics."""
     actual = call(
         distribution_space,
-        "ws-map2-independent",
+        "ws-map-independent",
         S["distribution-test-add"],
         distribution([(0.25, 0), (0.75, 1)]),
         distribution([(0.5, 0), (0.5, 1)]),
@@ -342,7 +374,7 @@ def test_independent_marginals_and_a_correlated_joint_are_not_interchangeable(
     marginal = distribution([(0.5, 0), (0.5, 1)])
     independent = call(
         distribution_space,
-        "ws-map2-independent",
+        "ws-map-independent",
         S["distribution-test-add"],
         marginal,
         marginal,
@@ -364,6 +396,109 @@ def test_independent_marginals_and_a_correlated_joint_are_not_interchangeable(
     assert rows(independent) == [(0, 0.25), (1, 0.5), (2, 0.25)]
     assert rows(correlated_sum) == [(0, 0.5), (2, 0.5)]
     assert rows(conditioned) == [(1, 1.0)]
+
+
+
+@LAW_SETTINGS
+@given(generated=ROWS)
+def test_moments_agree_with_pythons_statistics(distribution_space, generated):
+    """The mean, variance and deviation are what statistics answers for the same law.
+
+    The oracle weights each outcome by its probability rather than counting
+    samples, which is the definition a finite law has; `statistics.fmean` with
+    weights is exactly that sum.
+    """
+    dist = distribution(generated)
+    # ws-expect reads the weights it is given, so the mean of a LAW is the
+    # expectation of the normalized carrier; the new heads normalize for
+    # themselves, which is why they take the raw rows here.
+    unit = call(distribution_space, "ws-normalize", dist)
+    expected = normalized(generated)
+    outcomes = list(expected)
+    weights = [expected[outcome] for outcome in outcomes]
+    mean = statistics.fmean(outcomes, weights=weights)
+    variance = statistics.fmean([(outcome - mean) ** 2 for outcome in outcomes], weights=weights)
+
+    assert number(call(distribution_space, "ws-expect", unit)) == pytest.approx(mean, abs=1e-9)
+    assert number(call(distribution_space, "ws-variance", dist)) == pytest.approx(variance, abs=1e-9)
+    assert number(call(distribution_space, "ws-deviation", dist)) == pytest.approx(
+        math.sqrt(variance), abs=1e-9
+    )
+    assert number(call(distribution_space, "ws-central-moment", dist, 1)) == 0.0
+    assert number(call(distribution_space, "ws-central-moment", dist, 2)) == pytest.approx(
+        variance, abs=1e-9
+    )
+
+
+@LAW_SETTINGS
+@given(generated=ROWS)
+def test_the_cumulative_function_and_the_quantile_are_inverses(distribution_space, generated):
+    """The mass at or below a value, and the value at a level, agree with the law.
+
+    Both are read off the same sorted support the oracle builds, so the claim is
+    that the library walks it the way the definition does: the CDF is
+    right-continuous and the quantile is its smallest value reaching a level.
+    """
+    dist = distribution(generated)
+    expected = normalized(generated)
+    support = sorted(expected)
+    running = 0.0
+    for outcome in support:
+        running += expected[outcome]
+        answered = number(call(distribution_space, "ws-mass-at-most", dist, outcome))
+        assert answered == pytest.approx(running, abs=1e-9)
+        # The quantile at that cumulative level is this outcome or an earlier one
+        # holding the same mass, never a later one.
+        level = min(running, 1.0)
+        at_level = number(call(distribution_space, "ws-quantile", dist, level))
+        assert at_level <= outcome
+
+    assert number(call(distribution_space, "ws-mass-at-most", dist, min(support) - 1)) == 0.0
+    assert number(call(distribution_space, "ws-quantile", dist, 1.0)) == max(support)
+    assert [number(value) for value in call(
+        distribution_space, "ws-support", dist
+    ).children] == support
+
+
+@LAW_SETTINGS
+@given(generated=ROWS, draws=st.integers(min_value=0, max_value=3))
+def test_a_sum_of_independent_draws_scales_its_moments(distribution_space, generated, draws):
+    """Summing n independent draws scales the mean and the variance by n.
+
+    That is the one law a convolution has to satisfy however the weights fall,
+    and it is checked against the library's own single-draw moments rather than
+    against a second implementation of them.
+    """
+    dist = distribution(generated)
+    total = call(distribution_space, "ws-sum-independent", dist, draws)
+    unit = call(distribution_space, "ws-normalize", dist)
+    mean = number(call(distribution_space, "ws-expect", unit))
+    variance = number(call(distribution_space, "ws-variance", dist))
+
+    assert math.fsum(mass for _outcome, mass in rows(total)) == pytest.approx(1.0)
+    assert number(call(distribution_space, "ws-expect", total)) == pytest.approx(
+        draws * mean, abs=1e-7
+    )
+    assert number(call(distribution_space, "ws-variance", total)) == pytest.approx(
+        draws * variance, abs=1e-7
+    )
+
+
+def test_the_order_statistics_refuse_outside_their_domains(distribution_space):
+    """A level outside (0, 1] and a negative draw count refuse with a remedy."""
+    dist = distribution([(1, 1), (1, 3)])
+    for level in (0.0, -0.5, 1.5, math.inf, math.nan):
+        answered = call(distribution_space, "ws-quantile", dist, level)
+        assert "ws-quantile takes a level in (0, 1]" in str(answered)
+    for count in (-1, 0.5, 1.0, math.inf, math.nan):
+        refused = call(distribution_space, "ws-sum-independent", dist, count)
+        assert "nonnegative count of independent draws" in str(refused)
+    for degree in (-1, 0.5, 1.0, math.inf, math.nan):
+        refused = call(distribution_space, "ws-central-moment", dist, degree)
+        assert "nonnegative integer degree" in str(refused)
+    for operation in ("ws-variance", "ws-deviation", "ws-support"):
+        answered = call(distribution_space, operation, distribution([]))
+        assert "nonempty finite distribution" in str(answered)
 
 
 @pytest.mark.parametrize(
@@ -423,12 +558,12 @@ def test_operations_preserve_the_normalization_refusal(distribution_space):
         ("ws-map", (S["distribution-test-inc"], negative), expected_negative),
         ("ws-map", (S["distribution-test-inc"], zero), expected_zero),
         (
-            "ws-map2-independent",
+            "ws-map-independent",
             (S["distribution-test-add"], valid, empty),
             expected_empty,
         ),
         (
-            "ws-map2-independent",
+            "ws-map-independent",
             (S["distribution-test-add"], negative, valid),
             expected_negative,
         ),

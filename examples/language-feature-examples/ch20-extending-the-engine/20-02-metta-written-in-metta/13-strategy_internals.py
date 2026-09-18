@@ -1,16 +1,14 @@
 """Purpose: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/13-strategy_internals.metta in Python: lib_strategy from the inside.
 
-A strategy is a NAME, so `S.mark` is what every operation here is handed:
-applying one lowers to a MeTTa call and never installs a host callback, which
-is the library's whole claim and the reason a Python callable would be the
-wrong argument.
+A strategy is a MeTTa function or plan value. These examples use S.mark;
+lambdas and partial applications use the same ordinary application boundary.
 
 The typed operations take a SORT, so the declarations below are the ordinary
 `typed` and `arrow` doors and the term's own type is what decides whether the
 strategy runs.
 Guarantees: an undeclared subject declines exact type selection [tested:
 examples/ch20-extending-the-engine/20-02-metta-written-in-metta/13-strategy_internals.metta;
-commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+commit=505ce25b9384e782afa26f621527d4b1fd695924].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,11 +16,6 @@ Open Obligations:
 """
 
 from metta import Expression, S, arrow, lib, typed
-
-
-def declined(answers):
-    """Whether a strategy answered nothing, `Empty` being how it says so."""
-    return [answer for answer in answers if answer != S.Empty] == []
 
 
 def twin(m):
@@ -37,11 +30,15 @@ def twin(m):
     evaluate, everywhere = m.fn["strategy-eval"], m.fn["strategy-all"]
     tail, one = m.fn["strategy-all-tail"], m.fn["strategy-one"]
 
-    # Application itself: a strategy NAME and a term. Every combinator
+    # Application itself: a strategy value and a term. Every combinator
     # bottoms out here.
     assert evaluate(S.mark, S.a) == [S.marked(S.a)]
     assert evaluate(S.id, S.a) == [S.a]
     assert evaluate(S.mark, S.a) == m.fn["strategy-apply"](S.mark, S.a)
+
+    # A runtime collection shares choice's first-nonempty-bag rule.
+    assert m.fn.strategy_choice_tail((S.fail, S.id, S.mark), S["+"](1, 2)) == [S["+"](1, 2)]
+    assert m.fn.strategy_choice_tail((), S.a) == []
 
     # `all`: the strategy at every immediate child, INCLUDING the written
     # expression head, because a head is a child in MeTTa's flat term model.
@@ -51,23 +48,19 @@ def twin(m):
     assert everywhere(S.mark, S.leaf) == [S.leaf]
     assert everywhere(S.mark, ()) == [()]
 
-    # The recursion inside it: `strategy-all` takes the head off and hands
-    # the TAIL to this one, so the two agree on an expression and differ on
-    # everything else.
+    # The expression-only map under strategy-all declines a leaf.
     assert tail(S.mark, (S.a, S.b)) == [(S.marked(S.a), S.marked(S.b))]
     assert tail(S.mark, ()) == [()]
     assert tail(S.mark, (S.a, S.b)) == [everywhere(S.mark, S.h(S.a, S.b))[0][1:]]
-    assert declined(tail(S.mark, S.leaf))
+    assert tail(S.mark, S.leaf) == []
     assert everywhere(S.mark, S.leaf) == [S.leaf]
 
     # `one`: every successful single-child rewrite, left to right, as
     # separate answers rather than one term with every child rewritten.
-    # The `Empty` a declining position answers is a sentinel the original's
-    # `collapse` prunes; a Python answer list keeps it, so it is filtered by
-    # name rather than pretended away.
-    rewrites = [answer for answer in one(S.mark, S.h(S.a)) if answer != S.Empty]
+    # A declining position contributes no rewrite to the answer stream.
+    rewrites = one(S.mark, S.h(S.a))
     assert rewrites == [Expression((S.marked(S.h), S.a)), S.h(S.marked(S.a))]
-    assert declined(one(S.mark, S.leaf))
+    assert one(S.mark, S.leaf) == []
 
     # The three typed operations under the application operator. A
     # type-preserving strategy has the same sort on both sides, and
@@ -83,7 +76,7 @@ def twin(m):
         return S.kept(x)
 
     assert m.fn["strategy-typed-tp"](S.preserve, S.da) == [S.kept(S.da)]
-    assert declined(m.fn["strategy-typed-tp"](S.preserve, 1))
+    assert m.fn["strategy-typed-tp"](S.preserve, 1) == []
 
     # The type-unifying scheme takes the RESULT sort instead.
     m += typed(S.summarize, arrow(S.DA, S.DS))
@@ -94,16 +87,16 @@ def twin(m):
         return S.sum(x)
 
     assert m.fn["strategy-typed-tu"](S.summarize, S.DS, S.da) == [S.sum(S.da)]
-    assert declined(m.fn["strategy-typed-tu"](S.summarize, S.DA, S.da))
+    assert m.fn["strategy-typed-tu"](S.summarize, S.DA, S.da) == []
 
     # Both hand the selected sort to the upstream-compatible identity check.
     apply_typed = m.fn["strategy-typed-apply"]
     assert apply_typed(S.preserve, S.DA, S.da) == [S.kept(S.da)]
-    assert declined(apply_typed(S.preserve, S.DA, 1))
+    assert apply_typed(S.preserve, S.DA, 1) == []
     assert apply_typed(S.preserve, S.DA, S.da) == m.fn["◁"](S.preserve, S.TP, S.da)
 
     # An undeclared subject has no type identical to DA, so it declines too.
-    assert declined(apply_typed(S.preserve, S.DA, S.undeclared_name()))
+    assert apply_typed(S.preserve, S.DA, S.undeclared_name()) == []
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -309,6 +302,12 @@ def twin(m):
 #: reconciliations.md [measured 2026-09-10: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-13, 400048 to 389508 (-10540), Strategy composes ordinary
+#: equations, variadic plans and binding-preserving traversal. Its internals
+#: example also exercises runtime collection choice with a literal operand and
+#: an empty strategy collection [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=505ce25b9384e782afa26f621527d4b1fd695924].
 #: RE-PINNED 2026-09-11, 400048 to 394704 (-5344), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry

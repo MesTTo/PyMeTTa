@@ -45,6 +45,12 @@ Assumes:
     [source: tests/data/prelude-spec.metta, the assert family; ai-python-first-revamp-discussion.md
     section 9d rule 1, "assert and pytest for the assert family"]
 Guarantees:
+  - source-call classification follows single-assignment local aliases,
+    keeps scope and rebinding barriers, and reports renamed source doors
+    [tested: test_source_aliases_follow_factory_origins,
+    test_source_aliases_keep_uncertain_bindings_visible,
+    test_source_aliases_report_renamed_source_doors,
+    test_source_aliases_do_not_depend_on_python_recursion_depth; commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e]
   - unanswered children retain their process status in the finding [tested:
     test_a_silent_child_failure_keeps_its_exit_status; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - file-search cache expiry cannot enter a measured first library load;
@@ -59,6 +65,8 @@ Guarantees:
     [tested: test_a_measurement_warms_stale_artifacts_once_per_process,
     test_a_first_library_load_is_independent_of_file_cache_age;
     commit=bde3d297922bcef86e840361749bced147323977]
+  - an attribute suggestion must round-trip through the factory's name map
+    [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one; commit=9b22993447a5ddba93643895e3025661ba9f693e]
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the five source-input doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
@@ -1217,7 +1225,7 @@ RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
 #: treats NaN as equal to itself, while Python answers the opposite in all
 #: three cases [tested:
 #: test_engine_operator_heads_require_syntax_only_for_native_operands;
-#: commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
 NATIVE_NUMBER_OPERATOR_HEADS = frozenset({"+", "-", "*", "%", "floor-div"})
 NATIVE_COMPARE_OPERATOR_HEADS = frozenset({"<", ">", "<=", ">="})
 OPERATOR_HEADS = NATIVE_NUMBER_OPERATOR_HEADS | NATIVE_COMPARE_OPERATOR_HEADS
@@ -1255,7 +1263,7 @@ def _operator_call(node: ast.Call) -> tuple[str | None, list[ast.expr]]:
     return operator, (parts[1:] if parts is not None else list(node.args))
 
 
-def _owned_nodes(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.AST]:
+def _owned_nodes(function: ast.Module | ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.AST]:
     """Nodes compiled in this definition, excluding nested scopes."""
     result: list[ast.AST] = []
     pending = list(function.body)
@@ -1263,6 +1271,14 @@ def _owned_nodes(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.A
         node = pending.pop()
         result.append(node)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            # Defaults, bases and decorators execute in the enclosing scope.
+            for field, value in ast.iter_fields(node):
+                if field == "body":
+                    continue
+                if isinstance(value, ast.AST):
+                    pending.append(value)
+                elif isinstance(value, list):
+                    pending.extend(item for item in value if isinstance(item, ast.AST))
             continue
         pending.extend(ast.iter_child_nodes(node))
     return result
@@ -1458,6 +1474,7 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str, str] | None:
             candidate.isidentifier()
             and candidate.isascii()
             and not keyword.iskeyword(candidate)
+            and attribute_name(candidate) == name
         ):
             return (namespace, name, candidate)
     return None
@@ -1684,6 +1701,104 @@ def _parse(twin: Path) -> ast.Module | None:
         return None
 
 
+def _source_call_origins(tree: ast.Module) -> dict[int, ast.expr]:
+    """Prove local aliases from one earlier assignment in the same scope.
+
+    Like Bandit's get_call_name, classify the resolved syntax rather than
+    the alias spelling. Unknown or multiply bound names retain the existing
+    conservative check; this does not establish Python runtime identity.
+    https://github.com/PyCQA/bandit/blob/92ae8b82fb422a639f0ed8d99e96cea769594e08/bandit/core/utils.py#L20-L53
+    """
+    indirect = {
+        name for node in ast.walk(tree) if isinstance(node, (ast.Global, ast.Nonlocal))
+        for name in node.names
+    }
+    origins: dict[int, ast.expr] = {}
+    for scope in ast.walk(tree):
+        if not isinstance(scope, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        nodes = _owned_nodes(scope)
+        values: dict[int, ast.expr] = {}
+
+        def assign(
+            target: ast.expr, value: ast.expr | None, assigned: dict[int, ast.expr],
+        ) -> None:
+            if isinstance(target, ast.Name) and value is not None:
+                assigned[id(target)] = value
+            elif (
+                isinstance(target, (ast.Tuple, ast.List))
+                and isinstance(value, (ast.Tuple, ast.List))
+                and len(target.elts) == len(value.elts)
+                and not any(isinstance(item, ast.Starred) for item in (*target.elts, *value.elts))
+            ):
+                for left, right in zip(target.elts, value.elts, strict=True):
+                    assign(left, right, assigned)
+
+        for node in nodes:
+            if isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for target in targets:
+                    assign(target, node.value, values)
+        bindings: dict[str, list[ast.expr | None]] = defaultdict(list)
+        if not isinstance(scope, ast.Module):
+            for argument in ast.walk(scope.args):
+                if isinstance(argument, ast.arg):
+                    bindings[argument.arg].append(None)
+        for node in nodes:
+            if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+                bindings[node.id].append(values.get(id(node)))
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                bindings[node.name].append(None)
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                for alias in node.names:
+                    bindings[alias.asname or alias.name.split(".")[0]].append(None)
+            elif isinstance(node, ast.ExceptHandler) and node.name is not None:
+                bindings[node.name].append(None)
+            elif isinstance(node, ast.Match):
+                for case in node.cases:
+                    for name in _target_names(case.pattern):
+                        bindings[name].append(None)
+
+        def resolve(
+            expression: ast.expr, bound: dict[str, list[ast.expr | None]],
+            known: dict[int, ast.expr | None],
+        ) -> ast.expr | None:
+            path: list[ast.expr] = []
+            while id(expression) not in known:
+                path.append(expression)
+                if _factory(expression) is not None:
+                    result = expression
+                    break
+                if isinstance(expression, ast.Name):
+                    sources = bound.get(expression.id, [])
+                    if expression.id not in indirect and "*" not in bound and len(sources) == 1:
+                        source = sources[0]
+                        if source is not None and (
+                            source.end_lineno, source.end_col_offset
+                        ) <= (expression.lineno, expression.col_offset):
+                            expression = source
+                            continue
+                    result = expression if expression.id in SOURCE_DOORS else None
+                else:
+                    result = expression if (
+                        isinstance(expression, ast.Attribute) and expression.attr in SOURCE_DOORS
+                    ) else None
+                break
+            else:
+                result = known[id(expression)]
+            for visited in path:
+                known[id(visited)] = result
+            return result
+
+        resolved: dict[int, ast.expr | None] = {}
+        for node in nodes:
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                origin = resolve(node.func, bindings, resolved)
+                if origin is not None:
+                    origins[id(node)] = origin
+    return origins
+
+
 def scan(twin: Path) -> list[str]:
     """What a twin says that is MeTTa source text rather than Python.
 
@@ -1696,24 +1811,17 @@ def scan(twin: Path) -> list[str]:
     if tree is None:
         return ["does not parse as Python, so nothing about it can be read"]
     permitted = _named_strings(tree)
+    origins = _source_call_origins(tree)
     findings: list[tuple[int, str]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             findings.extend(_declaration_vocabulary_findings(node))
-        if (
-            isinstance(node, ast.Call)
-            and _callee(node) in SOURCE_DOORS
-            # `S.parse(text)` BUILDS the term `(parse text)` and `m.fn.parse`
-            # names the engine's own function; only a real call takes MeTTa
-            # source. Without this a twin cannot name a head that shares a
-            # door's name at all, because the idiom check refuses the
-            # subscripted spelling too [found 2026-08-22 by the functions
-            # agent, which had no other spelling for the head].
-            and _factory(node.func) is None
-        ):
-            findings.append(
-                (node.lineno, f"calls {_callee(node)}(), which takes MeTTa source")
+            origin = origins.get(id(node), node.func)
+            name = origin.attr if isinstance(origin, ast.Attribute) else (
+                origin.id if isinstance(origin, ast.Name) else None
             )
+            if name in SOURCE_DOORS and _factory(origin) is None:
+                findings.append((node.lineno, f"calls {name}(), which takes MeTTa source"))
         elif (
             isinstance(node, ast.Constant)
             and isinstance(node.value, str)

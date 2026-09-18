@@ -1,4 +1,8 @@
-"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta in Python: a JSON object IS a space.
+"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta in Python: query JSON objects and exchange documents.
+
+Guarantees: the same object, path, formatting and file claims cross the wire
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta; commit=5e212d77a567d6d6c118529e4a226e5047ec2cfd].
+Owns resources: temporary file directories close after each file round trip.
 
 That is MeTTa HE's decision and the one worth showing: `json-decode` answers a
 SPACE of (key value) atoms rather than an opaque dict, so this twin never
@@ -15,6 +19,9 @@ A decoded object answers its space NAME as a Symbol, which is what the space
 door takes, so `opened` is `metta.space(answers.one())` with nothing between
 them and no name ever spelled as text.
 """
+
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import metta
 from metta import G, S, V, lib
@@ -59,6 +66,36 @@ def twin(m):
     # dict-space builds one from pairs directly, without going through text.
     pairs = opened(m.fn.dict_space(((S.name, G("ann")), (S.age, 3))))
     assert [row.v for row in pairs[S.name(V.v)]] == [G("ann")]
+
+    # Paths preserve alternatives through object keys and array indexes.
+    assert m.fn.json_at(decode(G('{"rows":[{"name":"ann"}]}')), (S.rows, 0, S.name)) == [G("ann")]
+    assert m.fn.json_at(decode(G('{"a":[1],"a":[2]}')), (S.a, 0)) == [1, 2]
+    assert m.fn.json_at(decode(G("{}")), (S.missing,)) == []
+    assert m.fn.json_at(42, ()) == [42]
+    assert encode(m.fn.dict_space(())) == [G("{}")]
+    special = opened(m.fn.dict_space(((S["from"], 1), (S.internal, 2))))
+    assert [atom[0] for atom in special] == [S["from"], S.internal]
+
+    assert m.fn.json_pretty((1, 2)) == [G("[1, 2 ]")]
+    assert m.fn.json_pretty((1, 2), 1) == [G("[\n  1,\n  2\n]")]
+    assert list(decode(m.fn.json_pretty((1, 2), 0)).one()) == [1, 2]
+
+    assert m.fn.json_lines_decode(G("1\r\ntrue\nnull\n")) == [1, True, S.Null]
+    assert m.fn.json_lines_encode((1, True, G("é"))) == [G('1\ntrue\n"é"\n')]
+    assert m.fn.json_lines_decode(G("")) == []
+    assert m.fn.json_lines_encode(()) == [G("")]
+
+    m += lib.file
+    with TemporaryDirectory(prefix="json-document-") as directory:
+        path = G(str(Path(directory) / "document.json"))
+        written = m.fn["json-write!"](path, (7, 8)).one()
+        value = list(m.fn["json-read!"](path).one())
+        assert (written, value) == (True, [7, 8])
+    with TemporaryDirectory(prefix="json-lines-") as directory:
+        path = G(str(Path(directory) / "records.jsonl"))
+        written = m.fn["json-lines-write!"](path, (1, True, G("é"))).one()
+        values = list(m.fn["json-lines-read!"](path))
+        assert (written, values) == (True, [1, True, G("é")])
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
@@ -242,6 +279,65 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-11, 24799 to 65839 (+41040), The JSON example now covers
+#: thirteen native heads and fourteen arities, adding formatting, paths, UTF-8
+#: document files and JSON Lines. Construction owns allocations until return,
+#: encoding memoizes object snapshots and refuses cycles, and generated type
+#: and documentation rows join the existing string-library import [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=5e212d77a567d6d6c118529e4a226e5047ec2cfd].
+#: RE-PINNED 2026-09-11, 65839 to 70088 (+4249), CSV fault injection exposed
+#: JSON constructor cleanup exception suppression. The shared deterministic
+#: resource guard captures exit, failure or exception before release; an
+#: unchanged-cut control applying only that guard and its JSON consumer exactly
+#: explains the increase [measured 2026-09-11: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
+#: RE-PINNED 2026-09-11, 70088 to 128844 (+58756), String now imports its
+#: complete typed native surface and checks its declared native inputs; an
+#: unchanged-cut control with identical engine and MORK binaries attributes
+#: these exact movements to the String provider and shared native_object/6
+#: dependency argument [measured 2026-09-11: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+#: RE-PINNED 2026-09-12, 128844 to 151582 (+22738), The File library publishes
+#: 56 documented heads at 60 arities where it published 32, so every direct and
+#: transitive importer pays the larger generated face and the module's own
+#: export list. An identical-binary control at 8eb04b55a with artifacts purged
+#: measured each of these ten twins before the change (ai-tmp/ai-lib2-file-
+#: importers-before.log) and attributes the whole movement to that face:
+#: +22,479 on the four twins that only import it through another library,
+#: +24,552 to +24,862 where the example also calls it, and +30,258 and +30,687
+#: on the two whose own claims are file operations [measured 2026-09-12: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
+#: RE-PINNED 2026-09-12, 151582 to 151596 (+14), File transfers newly owned
+#: streams through adopt_file_stream/2 and claims a close atomically; HTTP also
+#: verifies transaction refusal before server lifecycle effects [measured
+#: 2026-09-12: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=0f22b69cfca5c108e4126bdd56ab9bb2e493744d].
+#: RE-PINNED 2026-09-13, 151596 to 151615 (+19), File exports its shared stream
+#: borrowing and rollback operations; failed Socket and HTTP publication now
+#: withdraws the registered stream before closing it [measured 2026-09-13: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=781ee98e188c23ea7ef9298636d6e5e6c7fdc727].
+#: RE-PINNED 2026-09-13, 151615 to 151629 (+14), File privately exports its
+#: existing staged publisher with callback qualification; Compression shares
+#: that ownership and publication protocol [measured 2026-09-13: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+#: RE-PINNED 2026-09-13, 151629 to 152160 (+531), File exports its staged
+#: publisher to Compression; the shared native builder accepts the private
+#: archive provider recipe. All consumers are remeasured after those dependency
+#: changes [measured 2026-09-13: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+#: RE-PINNED 2026-09-14, 152160 to 174231 (+22071), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
 #: RE-PINNED 2026-09-11, 24799 to 25018 (+219), end-of-wave re-pin on the
 #: merged tree after FROM's reference rows and four engine units, the closed-
 #: set derivations and two host services, BINDING's one native evaluation entry
