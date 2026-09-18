@@ -442,3 +442,6 @@ grounded_apply
 aborted
 admitted
 _.changes
+# BenchmarkBaseline.collecting() is entered with `with` by benchmarks/test_benchmarks.py
+# and benchmarks/extension_cost.py, outside vulture's paths.
+collecting

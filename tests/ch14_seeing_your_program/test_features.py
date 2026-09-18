@@ -1123,13 +1123,14 @@ def test_a_cancelled_future_is_not_charged(m):
     m += lib.thread
 
     @m.define
-    def spin(n: int):
-        # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done))
-        return spin(n - 1) if n > 0 else S.done
+    def cancelled_spin(n: int):
+        # (= (cancelled-spin $n) (if (> $n 0) (cancelled-spin (- $n 1)) done)); its own
+        # name, because the session space is shared and another test defines `spin`.
+        return cancelled_spin(n - 1) if n > 0 else S.done
 
     def measured() -> int:
         with m.stats() as s, m:
-            future = spawn(S.spin(300000))
+            future = spawn(S.cancelled_spin(300000))
             future.cancel()
         return s.inferences
 

@@ -158,7 +158,7 @@ def test_counting_inference_growth_is_linear_when_answers_grow_in_depth(metta):
         "nb_setval(counting_test_cost,0),"
         "wrap_predicate(user:metta_py_query_count_under(_Space,_Patterns,_Guard,"
         "_Names,_Limit,_Algebra,_Count),counting_test_cost,_Original,"
-        "(metta_py_work(_Before),call(_Original),metta_py_work(_After),"
+        "(metta_py_work(open, _Before),call(_Original),metta_py_work(close, _After),"
         "_Used is _After-_Before,nb_setval(counting_test_cost,_Used)))"
     )
 

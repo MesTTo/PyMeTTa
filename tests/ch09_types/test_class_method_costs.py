@@ -66,9 +66,9 @@ def test_method_entry_inferences_match_the_equivalent_native_body(grain):
                 "space_module(Space,_Module),metta_py_decode_shared(Wire,_Term,_),"
                 "findall([_Name,_Samples],(member(_Name,Names),_Goal=..[_Name,_Term,_Out],"
                 "findall(_Cost,(between(1,3,_),with_metta_module(_Module,"
-                "(metta_py_work(_Before),"
+                "(metta_py_work(open, _Before),"
                 "forall(between(1,Count,_),(call(_Module:_Goal),_Out=25)),"
-                "metta_py_work(_After),_Cost is _After-_Before))),_Samples)),Costs)",
+                "metta_py_work(close, _After),_Cost is _After-_Before))),_Samples)),Costs)",
                 Space=owner.space.name, Wire=receiver.__metta__().to_wire(),
                 Names=names, Count=count,
             )

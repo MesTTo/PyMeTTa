@@ -64,6 +64,11 @@ HOST_SERVICES = {
     # Actor inspection and occurrence blame are engine-owned identity reads.
     "metta_actor/1",
     "metta_host_blame/3",
+    # The counters' discarded-work tally: the block reads it beside the
+    # interrupt poll's term so a stopped worker's spend comes out of the
+    # count, and the tally lives in the engine because the joins that write
+    # it are the engine's doors (engine/metta/control.pl).
+    "metta_discarded_inferences/1",
     # The callable doors' cost read, beside the deprecation one below: a bound
     # function's docstring shows the class its (cost ...) row declares, and the
     # measure an unnamed row takes from the head's arrow is resolved by the

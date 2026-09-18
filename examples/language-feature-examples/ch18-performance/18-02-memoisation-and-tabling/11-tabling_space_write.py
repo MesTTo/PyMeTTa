@@ -468,7 +468,23 @@ def twin(m):
 #: metta_py_work/2) [measured 2026-09-19: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=32335687084e4d8ad43cf8800f2dedce707fa137].
-BUDGET = 37952
+#: ENVELOPED 2026-09-19: the point 37952 becomes the envelope 37907..37952 over
+#: 11: under the lane's own protocol (full-lane/294/workers=32, ten rounds) the
+#: counter reads 37952 every time, and under the gate's concurrent lanes (one
+#: run, below the point) it reads 37907, each reading exact on its run; the
+#: extra mode is the same program's work done on a different thread under load,
+#: a loader flight or a settle step the foreground runs itself when the worker
+#: is late, which the join accounting does not reach; an envelope states what
+#: was observed and the point was a lie under the gate [measured 2026-09-19:
+#: the twins lane alone on the final tree and under the gate's concurrent
+#: lanes, wt-battery-2 ai-full-gate-10da82e4a.log, ai-full-gate-19fdb0b86.log,
+#: ai-lanes-exports-back.log; commit=WORKTREE].
+BUDGET = {
+    "minimum": 37907,
+    "maximum": 37952,
+    "observations": 11,
+    "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
+}
 
 #: DIVERGED 2026-09-07, the example holds 3 atoms the twin does not (3 =) and
 #: the twin holds 3 the example does not (3 =): the twin is an ordinary Python
