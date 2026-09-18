@@ -69,7 +69,7 @@ Guarantees:
     ``returned``, so a generator it answers stays the unstarted object and a
     tuple is the expression it spells [tested:
     test_grounded_applications_use_the_seam_codec,
-    test_grounded_applications_read_keywords_only_where_written; commit=WORKTREE]
+    test_grounded_applications_read_keywords_only_where_written; commit=fd0af38f748cedb593dd4e12c4dc19e8c283323a]
   - iterator objects crossing through resolve(), evaluate(), dot(), apply(), or
     a grounded transport envelope acquire one lazy shared cache; iterate()
     returns an independent cursor at index zero, while iterate_once() exposes

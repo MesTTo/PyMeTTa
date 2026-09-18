@@ -17,13 +17,13 @@ Guarantees:
     expression as a tuple under its Symbol head, a symbol as a Symbol, None
     held, returned syntax held [tested:
     test_a_positional_call_of_a_bound_callee_is_the_written_application,
-    test_grounded_applications_use_the_seam_codec; commit=WORKTREE]
+    test_grounded_applications_use_the_seam_codec; commit=fd0af38f748cedb593dd4e12c4dc19e8c283323a]
   - a `(Kwargs ...)` is keywords only where it is written last at a call
     site, after a grounded head, a Python-bound symbol or a bind! token, with
     the pair values evaluated and the names left as names; arriving in a
     value it is data, and after a MeTTa function it is that function's
     argument [tested: test_grounded_applications_read_keywords_only_where_written;
-    commit=WORKTREE]
+    commit=fd0af38f748cedb593dd4e12c4dc19e8c283323a]
 """
 
 from collections.abc import Callable
