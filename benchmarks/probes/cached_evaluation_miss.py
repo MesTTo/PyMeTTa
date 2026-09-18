@@ -11,7 +11,7 @@ Guarantees: prints `miss=<n> hit=<m> new_shape=<k> run=<r>`, the inferences
   [measured 2026-09-18: 69d1511c0 miss=1602 hit=332 new_shape=1549;
   5416e741d miss=2523 hit=332 new_shape=2470; the producer-written index
   miss=1530; command=python extensions/python/benchmarks/probes/cached_evaluation_miss.py;
-  commit=WORKTREE].
+  commit=c85001901fb1bec8013087ca31f63c3fcb318180].
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose
 
 import sys
