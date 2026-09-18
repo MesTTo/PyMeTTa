@@ -56,9 +56,41 @@ def twin(m):
 #: same protocol, 369745..373706 over 11, as the 2026-09-08 entry pools two
 #: runs [measured 2026-09-18: python extensions/python/tools/twin_coverage.py,
 #: wt-battery-4 ai-tmp/ai-twins-lane-residuals.log; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/294/workers=32', 369745..373706 over
+#: 11 under 'full-lane/293/workers=32' to 369880..373517 over 10: the corpus
+#: grew from 293 to 294 twinned examples when 08-guarded_rules joined it
+#: (49478d67a), and a full-lane protocol names the corpus width because the
+#: scheduler this counter answers to is the whole corpus under the lane's
+#: 32-worker pool, so the observations are this tree's own rather than pooled
+#: with the earlier protocol's [measured 2026-09-18: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10, wt-battery-5
+#: ai-tmp/ai-observe-558f40c9c.log; commit=WORKTREE].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/294/workers=32', 369880..373517 over
+#: 10 under 'full-lane/294/workers=32' to 369880..373517 over 23: every full-
+#: lane run under one protocol is an observation, so the envelope pools the two
+#: ten-round observations on this tree with the three full-lane runs that
+#: measured it (the K5 tip's lane, the assembled tree before its envelopes and
+#: after), the union of the extrema over the sum of the counts, as the
+#: 2026-09-08 entry pools two runs [measured 2026-09-18: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 twice and
+#: GATE_ONLY=1 sh check.sh twins three times, ai-observe-558f40c9c.log, ai-
+#: observe-c6448858b.log, ai-twins-K5.log, ai-twins-K6-interim.log, ai-
+#: twins-K6-final.log; commit=WORKTREE].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/294/workers=32', 369880..373517 over
+#: 23 under 'full-lane/294/workers=32' to 369880..373736 over 24: every full-
+#: lane run under one protocol is an observation, so the envelope pools the two
+#: ten-round observations on this tree with the four full-lane runs that
+#: measured it (the K5 tip's lane, the assembled tree before its envelopes,
+#: after them, and after the first pooling), the union of the extrema over the
+#: sum of the counts, as the 2026-09-08 entry pools two runs [measured
+#: 2026-09-18: python extensions/python/tools/twin_coverage.py --observe
+#: --rounds 10 twice and GATE_ONLY=1 sh check.sh twins four times, ai-
+#: observe-558f40c9c.log, ai-observe-c6448858b.log, ai-twins-K5.log, ai-
+#: twins-K6-interim.log, ai-twins-K6-final.log, ai-twins-K6-final-2.log;
+#: commit=WORKTREE].
 BUDGET = {
-    "minimum": 369745,
-    "maximum": 373706,
-    "observations": 11,
-    "protocol": "full-lane/293/workers=32/file-search-cache-time=9223372036854775807/before-boot"
+    "minimum": 369880,
+    "maximum": 373736,
+    "observations": 24,
+    "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }

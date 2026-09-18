@@ -49,4 +49,15 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/07-tagged_fixpoint.metta;
 #: commit=12609a929638e7a2b08d3ff8f517abc1a399e7a9].
-BUDGET = 26374
+#: RE-PINNED 2026-09-18, 26374 to 26984 (+610), 49478d67a landed the polynomial
+#: carrier, whose preset row and variable claim every catalog scan reads, the
+#: product carriers and the guard read in the fixpoint door, and the binding's
+#: five-element rule read: the examples that scan the catalog moved with their
+#: twins (restricted_spaces +522, the three pln twins +63 each, the two tabling
+#: twins +20 and +10, reflect_lib +6) and the twins that cross the seat's
+#: declaration and query paths moved with their examples unmoved (the class
+#: twins between -4212 and +2841, the reference twins +208 and +317, the tagged
+#: fixpoint twin +610, the documentation twins -22 and -50, types_nondet +5)
+#: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 26984

@@ -14,9 +14,9 @@ def twin(m):
     """The guard admits a and drops b, and the answer shows its witness."""
     m.add_tagged_fact(0.6, S.score(S.a))
     m.add_tagged_fact(0.3, S.score(S.b))
-    m.add(S["="](S["above-half"](V.s), S[">"](V.s, 0.5)))
-    stored = m.add_tagged_rule(1, S.trusted(V.x), S.score(V.x), where=S["above-half"])
-    assert stored.children[4] == S.where(S["above-half"])
+    m.add(S["="](S.above_half(V.s), S[">"](V.s, 0.5)))
+    stored = m.add_tagged_rule(1, S.trusted(V.x), S.score(V.x), where=S.above_half)
+    assert stored.children[4] == S.where(S.above_half)
 
     # Only a clears the bar, on the derived route and on the fixpoint.
     for derivations in (True, False):
@@ -29,7 +29,7 @@ def twin(m):
         return score > 0.5
 
     guarded = m.add_tagged_rule(1, S.vouched(V.x), S.score(V.x), where=strong)
-    assert guarded.children[4] == S.where(S["rule-strong"])
+    assert guarded.children[4] == S.where(S.rule_strong)
     assert [row.value for row in m.match(S.vouched(V.x), under=metta.prob)] == [S.vouched(S.a)]
 
     # The derived route shows the guard that held; the tabled route asks the
@@ -55,4 +55,30 @@ BUDGET = 23621
 #: no spelling for [measured 2026-09-18: one fresh process per side through the
 #: lane's run_example and run_twin; command=python
 #: extensions/python/tools/twin_coverage.py --measure; commit=49478d67a10793a114d27d01a51f09a685d5136a].
-OVERRUN = 538
+#: OVERRUN 2026-09-18, 538 to 3385 (+2847): the twin costs 23621 against the
+#: example's 18397 and a ceiling of 20775 with the earlier declaration; a
+#: minimal twin of this example costs 18461, inside the 20237 the band alone
+#: allows, so the distance is this twin's own program. the declaration of 538
+#: was priced while the twin authored one compiled definition, 2846 of
+#: allowance the lane grants for authoring; the twin since mirrors the
+#: example's guard as the MeTTa equation and registers its Python guard as a
+#: grounded operation, which the lane does not price as authoring, so the whole
+#: distance above the band is the twin's own program: the second rule with the
+#: callable guard, both routes asked for it, the witness rendered and the
+#: answer re-asked under another carrier, none of which the example does
+#: [measured 2026-09-18: one fresh process per side through the lane's
+#: run_example and run_twin, the floor from a minimal twin built by the probe;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 3385
+
+#: DIVERGED 2026-09-18, the example holds 0 atoms the twin does not (none) and
+#: the twin holds 4 atoms the example does not (1 :, 2 annotation, 1 rule): the
+#: twin adds a second rule whose guard is a Python callable registered as the
+#: function rule-strong, so its type row, its two annotation rows and the rule
+#: row naming (where rule-strong) are the twin's alone; the example's guard is
+#: the MeTTa function above-half, which the twin mirrors first [measured
+#: 2026-09-18: the two stored-atom surpluses, one fresh process per side;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "bdb3f2dcbafa7ac4abb5860bb62b1676e66d0d354482f067629aa25cf4cf836e"

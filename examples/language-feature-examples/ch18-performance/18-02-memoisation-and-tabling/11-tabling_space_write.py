@@ -425,7 +425,18 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 38180
+#: RE-PINNED 2026-09-18, 38180 to 38190 (+10), 49478d67a landed the polynomial
+#: carrier, whose preset row and variable claim every catalog scan reads, the
+#: product carriers and the guard read in the fixpoint door, and the binding's
+#: five-element rule read: the examples that scan the catalog moved with their
+#: twins (restricted_spaces +522, the three pln twins +63 each, the two tabling
+#: twins +20 and +10, reflect_lib +6) and the twins that cross the seat's
+#: declaration and query paths moved with their examples unmoved (the class
+#: twins between -4212 and +2841, the reference twins +208 and +317, the tagged
+#: fixpoint twin +610, the documentation twins -22 and -50, types_nondet +5)
+#: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 38190
 
 #: DIVERGED 2026-09-07, the example holds 3 atoms the twin does not (3 =) and
 #: the twin holds 3 the example does not (3 =): the twin is an ordinary Python

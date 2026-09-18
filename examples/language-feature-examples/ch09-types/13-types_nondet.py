@@ -377,7 +377,18 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 16232
+#: RE-PINNED 2026-09-18, 16232 to 16237 (+5), 49478d67a landed the polynomial
+#: carrier, whose preset row and variable claim every catalog scan reads, the
+#: product carriers and the guard read in the fixpoint door, and the binding's
+#: five-element rule read: the examples that scan the catalog moved with their
+#: twins (restricted_spaces +522, the three pln twins +63 each, the two tabling
+#: twins +20 and +10, reflect_lib +6) and the twins that cross the seat's
+#: declaration and query paths moved with their examples unmoved (the class
+#: twins between -4212 and +2841, the reference twins +208 and +317, the tagged
+#: fixpoint twin +610, the documentation twins -22 and -50, types_nondet +5)
+#: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 16237
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 2 the example does not (1 =, 1 @doc): the twin is an ordinary
@@ -404,4 +415,15 @@ DIVERGENCE = "ebd72579bd6332d99e221eec2c82a37abd9cf3029fac67379d0e312c42d7780a"
 #: run_example and run_twin, the floor from a minimal twin built by the probe;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-OVERRUN = 1404
+#: OVERRUN 2026-09-18, 1404 to 1409 (+5): the twin costs 16237 against the
+#: example's 10893 and a ceiling of 16232 with the earlier declaration; a
+#: minimal twin of this example costs 19907, above the 11982 the band alone
+#: allows, so the distance is the library's own floor for this shape, debt the
+#: tracker carries rather than this twin's program. 49478d67a moved this twin
+#: by five inferences with its example unmoved, through the seat's declaration
+#: and query paths the landing changed, the mechanism its RE-PINNED paragraph
+#: of the same day names [measured 2026-09-18: one fresh process per side
+#: through the lane's run_example and run_twin, the floor from a minimal twin
+#: built by the probe; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 1409

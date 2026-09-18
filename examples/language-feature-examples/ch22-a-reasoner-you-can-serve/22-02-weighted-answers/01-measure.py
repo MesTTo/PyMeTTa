@@ -351,11 +351,43 @@ def twin(m):
 #: tree's own rather than pooled with the earlier protocol's [measured
 #: 2026-09-18: python extensions/python/tools/twin_coverage.py --observe
 #: --rounds 10, wt-battery-6 ai-tmp/ai-observe-f06186a96.log; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/294/workers=32', 134811..134910 over
+#: 10 under 'full-lane/293/workers=32' to 134844..134910 over 10: the corpus
+#: grew from 293 to 294 twinned examples when 08-guarded_rules joined it
+#: (49478d67a), and a full-lane protocol names the corpus width because the
+#: scheduler this counter answers to is the whole corpus under the lane's
+#: 32-worker pool, so the observations are this tree's own rather than pooled
+#: with the earlier protocol's [measured 2026-09-18: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10, wt-battery-5
+#: ai-tmp/ai-observe-558f40c9c.log; commit=WORKTREE].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/294/workers=32', 134844..134910 over
+#: 10 under 'full-lane/294/workers=32' to 134811..134910 over 23: every full-
+#: lane run under one protocol is an observation, so the envelope pools the two
+#: ten-round observations on this tree with the three full-lane runs that
+#: measured it (the K5 tip's lane, the assembled tree before its envelopes and
+#: after), the union of the extrema over the sum of the counts, as the
+#: 2026-09-08 entry pools two runs [measured 2026-09-18: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 twice and
+#: GATE_ONLY=1 sh check.sh twins three times, ai-observe-558f40c9c.log, ai-
+#: observe-c6448858b.log, ai-twins-K5.log, ai-twins-K6-interim.log, ai-
+#: twins-K6-final.log; commit=WORKTREE].
+#: RE-OBSERVED 2026-09-18 under 'full-lane/294/workers=32', 134811..134910 over
+#: 23 under 'full-lane/294/workers=32' to 134811..134910 over 24: every full-
+#: lane run under one protocol is an observation, so the envelope pools the two
+#: ten-round observations on this tree with the four full-lane runs that
+#: measured it (the K5 tip's lane, the assembled tree before its envelopes,
+#: after them, and after the first pooling), the union of the extrema over the
+#: sum of the counts, as the 2026-09-08 entry pools two runs [measured
+#: 2026-09-18: python extensions/python/tools/twin_coverage.py --observe
+#: --rounds 10 twice and GATE_ONLY=1 sh check.sh twins four times, ai-
+#: observe-558f40c9c.log, ai-observe-c6448858b.log, ai-twins-K5.log, ai-
+#: twins-K6-interim.log, ai-twins-K6-final.log, ai-twins-K6-final-2.log;
+#: commit=WORKTREE].
 BUDGET = {
     "minimum": 134811,
     "maximum": 134910,
-    "observations": 10,
-    "protocol": "full-lane/293/workers=32/file-search-cache-time=9223372036854775807/before-boot"
+    "observations": 24,
+    "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
@@ -374,4 +406,12 @@ BUDGET = {
 #: the two spaces differ by exactly those [measured 2026-09-07: the two stored-
 #: atom surpluses, one fresh process per side; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-DIVERGENCE = "8703f431e0c562139c1cc3798e620e90a0460617385caa108ee856c1d191091d"
+#: DIVERGED 2026-09-18, the example holds 2 atoms the twin does not (2 =) and
+#: the twin holds 4 atoms the example does not (2 =, 2 @doc): a compiled body
+#: spells a positional call of a bound callee as the plain application and a
+#: lambda bare where it is applied (e59104ace), so the twin's stored equations
+#: meet the example's spelling where they did not, and where they still differ
+#: the twin stores what its own Python spelling stores [measured 2026-09-18:
+#: the two stored-atom surpluses, one fresh process per side; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+DIVERGENCE = "98e5f4b7422d1cd6d535895b94f00b154251a9e2f95db22d0b9a4d213052d7b8"
