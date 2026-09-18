@@ -11,6 +11,10 @@ Assumes:
   - seam:kind rows in engine/ext_points.pl are the one authority for a
     seam's kind [tested: static_checks:every_seam_declares_one_kind]
 Guarantees:
+  - metta_with_trailed/3 is classified as the binding's shared context door
+    in the published service manifest [tested:
+    test_the_host_service_scoreboard_matches_the_tree,
+    test_the_shim_surface_shrank_to_the_transport_floor; commit=cdcb23421809ec3a493059a381e0245cf08a1984]
   - host cursor services share transaction ownership and lifecycle across seats
     [tested: test_the_host_service_scoreboard_matches_the_tree,
     test_the_shim_surface_shrank_to_the_transport_floor; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084]
@@ -280,6 +284,11 @@ HOST_SERVICES = {
     "metta_compensation/2",
     "metta_transport_failure/1",
     "metta_with_state_write_fence/1",
+    # The one door for a host event listener: registered once, unnamed, never
+    # removed and under no mutex, because SWI holds a channel's event-list
+    # lock across every callback it delivers; a raw prolog_listen/2 in the
+    # binding half is refused by the prolog-static lane.
+    "metta_listen/2",
     "metta_live_state_cell/1",
     # The platform census. Not shim orchestration moving host-side: it is a
     # fact about the running build that only the engine can answer, and a host
@@ -526,6 +535,8 @@ FLOOR_REASONS = {
     "metta_compensation/2": "door",
     "metta_transport_failure/1": "error-vocabulary",
     "metta_with_state_write_fence/1": "door",
+    "metta_with_trailed/3": "door",
+    "metta_listen/2": "door",
     "metta_live_state_cell/1": "door",
     "metta_platform/4": "census",
     "metta_platform_absent/1": "census",

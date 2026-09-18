@@ -247,6 +247,36 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-11, 15097 to 15558 (+461), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: OVERRUN 2026-09-09, 0 to 256 (+256): the compiled vocabulary seed, the
+#: membership index, base-module type lookups and the singleton decoder landed
+#: (perf/cross-engine-waivers merged): a Python decode with one named variable
+#: builds no index and one with more builds it at the second distinct name,
+#: which moves a twin's engine-side cost while its example, which decodes
+#: nothing, holds; boot content and clause layout moved the rest; against the
+#: trunk's own run at da0e5755d the twin moved +622 and the example +0, and
+#: the twin sat 367 within its ceiling there. Measured 15309 against a ceiling
+#: of 15054; a minimal twin costs 22650 against the band's 15054, above that
+#: ceiling, so no twin of it fits the band at all [measured 2026-09-09: one
+#: fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
+#: OVERRUN 2026-09-10, 256 to 725: The existing program is priced after the
+#: reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 15771 against the unchanged band and authoring ceiling of
+#: 15046.9. The literal structured control costs 23138; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch08-data/08-01-atoms-lists-and-folds/09-alpha_unique_atom.metta;
+#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 #: RE-PINNED 2026-09-18, 15097 to 14794 (-303), the branch's landings since the
 #: 09-10 pins, re-taken on the tip f06186a96: the compiled call law (e59104ace:
 #: an Atom argument enters as written, a Python object crosses as a value, a
@@ -262,4 +292,5 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 14794
+BUDGET = BUDGET = 14794
+OVERRUN = OVERRUN = 725

@@ -1099,6 +1099,21 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-11, 2478 to 2586 (+108), end-of-wave re-pin on the merged
+#: tree after FROM's reference rows and four engine units, the closed-set
+#: derivations and two host services, BINDING's one native evaluation entry and
+#: boot import, W-OBSERVE's observer guard, PERF's receipts batching and cursor
+#: retirement, and the three REDS repairs (derived runtime resources and the
+#: shared loader, the tool-lane repairs, the corpus example); serial minimum of
+#: three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: RE-PINNED 2026-09-12, 2586 to 2500 (-86), the publication package's levers:
+#: installed typing witnesses compiled to indexed clauses (-60) and publication
+#: ownership resolved once per scope (-26) [measured 2026-09-12: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d9c15a2e39c743ee44f92dc4eedcd82b5f3f8509].
 #: RE-PINNED 2026-09-16, 2478 to 4244 (+1766), The interval since this pin's
 #: last move was never priced by the twin lane: 2478 to 2586 at the libraries
 #: merge c80041350, 3168 at 6f2b9576d, 3928 at 709e556c1 with the completion
@@ -1143,7 +1158,7 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 2953
+BUDGET = BUDGET = 2953
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same

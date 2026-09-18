@@ -341,6 +341,30 @@ def twin(m):
 #: readings; command=python extensions/python/tools/twin_coverage.py --observe
 #: --rounds 10 and sh check.sh twins; fixture=full-lane/277/workers=32/file-
 #: search-cache-time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-ENVELOPED 2026-09-11 under 'full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot': the lane grew from 277 to 282 twinned
+#: examples (the REDS corpus example and the wave's own), and the merged tree
+#: carries FROM's reference rows, BINDING's one native evaluation entry,
+#: W-OBSERVE's observer guard, PERF's receipts batching and cursor retirement,
+#: and the REDS shared loader; ten fresh full-lane observations read
+#: 131890..131989 (spread 99, samples [131989, 131890, 131956, 131956, 131989,
+#: 131890, 131989, 131989, 131956, 131923]) where the 67 under 'full-
+#: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot'
+#: read 130378..130477. A run outside this envelope is a real finding, and a
+#: new mode discovered later extends it with its observation count rather than
+#: widening blind [measured 2026-09-11: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds
+#: 10; fixture=full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: POOLED 2026-09-11: a second ten-round population under the same protocol,
+#: taken on the tree that carries engine/metta/limits.pl and the re-pinned
+#: twins, read 131888..131987 (samples [131888, 131954, 131987, 131987,
+#: 131954, 131921, 131921, 131888, 131954, 131954]); pooled with the 10 above
+#: at 131890..131989, 131888..131989 over 20 observations [measured
+#: 2026-09-11: exact extrema over 10 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 #: RE-OBSERVED 2026-09-18 under 'full-lane/293/workers=32', 130378..130477 over
 #: 67 under 'full-lane/277/workers=32' to 134811..134910 over 10: the branch's
 #: tip f06186a96 after the landings the point re-pin names (the compiled call

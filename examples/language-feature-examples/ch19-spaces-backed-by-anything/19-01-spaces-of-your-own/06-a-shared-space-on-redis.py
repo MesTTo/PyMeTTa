@@ -155,6 +155,16 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
+#: RE-PINNED 2026-09-11, 11910 to 12179 (+269), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 #: RE-PINNED 2026-09-18, 11910 to 12763 (+853), the branch's landings since the
 #: 09-10 pins, re-taken on the tip f06186a96: the compiled call law (e59104ace:
 #: an Atom argument enters as written, a Python object crosses as a value, a
@@ -170,7 +180,7 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 12763
+BUDGET = BUDGET = 12763
 #: The count VARIES by a few tens, because every read and write crosses a
 #: socket and the subscription thread's own work lands in the same counter.
 #: Three single-round measurements on this branch gave 113484, 113469 and

@@ -155,6 +155,16 @@ RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
+#: RE-PINNED 2026-09-11, 1152 to 1147 (-5), end-of-wave re-pin on the merged
+#: tree after FROM's reference rows and four engine units, the closed-set
+#: derivations and two host services, BINDING's one native evaluation entry and
+#: boot import, W-OBSERVE's observer guard, PERF's receipts batching and cursor
+#: retirement, and the three REDS repairs (derived runtime resources and the
+#: shared loader, the tool-lane repairs, the corpus example); serial minimum of
+#: three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 #: RE-PINNED 2026-09-18, 1152 to 1125 (-27), the branch's landings since the
 #: 09-10 pins, re-taken on the tip f06186a96: the compiled call law (e59104ace:
 #: an Atom argument enters as written, a Python object crosses as a value, a
@@ -170,4 +180,4 @@ RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 1125
+BUDGET = BUDGET = 1125

@@ -359,6 +359,24 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-11, 2253894 to 2254895 (+1001), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: RE-PINNED 2026-09-11, 2254895 to 2254935 (+40), engine/metta/limits.pl
+#: (docs/host-workarounds.md: swi-autoload-cut-installs-the-undefined-
+#: supervisor, swi-findall-bag-push-window): every first-use resolution of an
+#: undefined predicate pays one inference for the catch around the trap query,
+#: and a twin that bounds pays one inference per findall under the bound plus
+#: the first bound of its process installing the findall scope [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 #: RE-PINNED 2026-09-18, 2253894 to 2260741 (+6847), the branch's landings
 #: since the 09-10 pins, re-taken on the tip f06186a96: the compiled call law
 #: (e59104ace: an Atom argument enters as written, a Python object crosses as a
@@ -385,7 +403,7 @@ def twin(m):
 #: tagged fixpoint twin +610, the documentation twins -22 and -50, types_nondet
 #: +5) [measured 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=bf5f100591493a91324b1d7552b5ad2731601691].
-BUDGET = 2260804
+BUDGET = BUDGET = 2260804
 
 #: OVERRUN 2026-09-07, 52200: it asserts the four premises the answer came from
 #: beside the truth value, which the example only prints. Measured 2246993

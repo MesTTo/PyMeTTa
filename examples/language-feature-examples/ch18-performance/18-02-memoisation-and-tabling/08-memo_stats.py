@@ -307,6 +307,16 @@ def twin(m):
 #: journal records their disposition. No allowance, overrun or oracle changes
 #: [measured 2026-09-10: min-of-10 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-11, 25751 to 24808 (-943), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 #: RE-PINNED 2026-09-18, 25751 to 26247 (+496), the branch's landings since the
 #: 09-10 pins, re-taken on the tip f06186a96: the compiled call law (e59104ace:
 #: an Atom argument enters as written, a Python object crosses as a value, a
@@ -322,7 +332,7 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 26247
+BUDGET = BUDGET = 26247
 
 #: OVERRUN 2026-09-07, 800: it reads the cache statistics through the term door
 #: beside every claim. Measured 38155 against a ceiling of 37417; a minimal
@@ -364,7 +374,28 @@ BUDGET = 26247
 #: command=python extensions/python/benchmarks/probes/twin_floor.py
 #: examples/ch18-performance/18-02-memoisation-and-tabling/08-memo_stats.metta;
 #: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-OVERRUN = 2226
+#: RE-PRICED 2026-09-11, 2226 to 2242 (+16): the band stopped granting the
+#: first-definition premium (DEFINITION_WARMUP 1482 to 303, DEFINITION_COST
+#: 1364 to 1362, re-derived 2026-09-11 from the authoring probe's one-line
+#: fixture, which no longer pays it after the binding's boot import), and this
+#: twin still pays 16 of it: the first use of the lowering paths its 1
+#: definition take, which the fixture's `return x + 1` does not exercise.
+#: Measured 24808 against a ceiling of 24792 (19001 times 1.1 plus 303 once
+#: plus 1 times 1362 plus the declared 2226) [measured 2026-09-11: sh check.sh
+#: twins on the merged tree after the twin re-pin; command=python
+#: extensions/python/tools/twin_coverage.py; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: RE-PRICED 2026-09-11, 2242 to 2243 (+1): engine/metta/limits.pl's wrappers,
+#: installed at boot, cost this example and this twin 2 inferences fewer each
+#: (19001 to 18999, 24808 to 24806; SWI's profiler counts the same 13,835
+#: calls over the same 990 predicates either way, so the two are retry or
+#: unwind steps the VM counts and no predicate owns), and the band scales the
+#: example's move by 1.1 while the twin moves by 1, so a residual pinned 0.1
+#: inside its ceiling reads 0.1 past it. Measured 24806 against a ceiling of
+#: 24805.9 (18999 times 1.1 plus 303 once plus 1 times 1362 plus the declared
+#: 2242); the residual rounds up [measured 2026-09-11: sh check.sh twins on the
+#: battery tree; command=python extensions/python/tools/twin_coverage.py;
+#: commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
+OVERRUN = 2243
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

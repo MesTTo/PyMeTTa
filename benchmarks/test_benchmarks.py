@@ -360,11 +360,22 @@ _ROWS = 2_000
 # print(t._automatic_tabling_observations())" from extensions/python with the
 # benchmarking member on the path; fixture=the merged tree with fresh QLF;
 # commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
+# Re-pinned 2026-09-11 at the end-of-wave battery: plain -14 and automatic
+# +52 at every size. The ladder across the wave's landing tips
+# (ai-tmp/integrator-849a9e/tip-ladder.md) attributes plain -12 and automatic
+# +54 to FROM's landing (reference rows, four engine units) and -2 each to
+# BINDING's one native evaluation entry; W-OBSERVE, PERF and the three REDS
+# repairs move neither mode [measured 2026-09-11: min of three observations
+# per size and mode; command=python -c "import sys; sys.path.insert(0, '.');
+# import benchmarks.test_benchmarks as t;
+# print(t._automatic_tabling_observations())" from extensions/python;
+# fixture=the merged tree with the governed set purged and warmed;
+# commit=8e6968ecb5b8725a67ac85995dbf71750011b04d].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_198, "automatic": 14_614},
-    15: {"plain": 953_686, "automatic": 15_744},
-    18: {"plain": 7_605_590, "automatic": 16_878},
-    20: {"plain": 30_412_118, "automatic": 17_634},
+    12: {"plain": 122_184, "automatic": 14_666},
+    15: {"plain": 953_672, "automatic": 15_796},
+    18: {"plain": 7_605_576, "automatic": 16_930},
+    20: {"plain": 30_412_104, "automatic": 17_686},
 }
 
 

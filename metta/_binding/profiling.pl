@@ -1,5 +1,8 @@
 % Purpose: measure engine execution and report predicate indexes.
 % Assumes: loaded through _binding/shim.pl in its host module.
+%   SWI-Prolog 10.1.13's profiler primitive `'$profile'/4` (src/pl-prof.c),
+%   the one library(prolog_profile) profile/2 runs: it resets the profiler,
+%   arms it, runs the goal and stops it, and nothing else.
 % Guarantees: compiled profile rows retain their source file through the
 %   reader's ownership journal [tested: test_a_profile_exports_as_pstats;
 %   commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
@@ -9,27 +12,48 @@
 %   goal, including exception propagation [source:
 %   https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-prof.c#L942-L970;
 %   commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
+%   A profile whose sampler took no sample still answers the goal's answers,
+%   with zero samples and ticks and rows carrying their call counts
+%   [tested: test_a_profile_with_no_samples_still_answers; commit=d9c15a2e39c743ee44f92dc4eedcd82b5f3f8509].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
-% The statistical profiler around one wrapped call, with its data projected
-% to plain values: the summary counters
-% and one row per predicate, self-ticks-descending. Sampling is
-% statistical, so a short program may carry few samples.
-
+% The statistical profiler around one wrapped call, its data projected to
+% plain values: the summary counters and one row per predicate,
+% self-ticks-descending. Sampling is statistical, so a short program may
+% carry few samples, or none.
+%
+%Workaround: swi-profile-report-divides-by-zero-samples - run the profiler
+%primitive profile/2 runs, without profile/2's report.
+%
+%profile/2 is `call_cleanup('$profile'(Goal, How, Ports, Rate),
+%show_profile(Options))`, and the report divides by the total tick count
+%(library/prolog_profile.pl time_data/7 and the net time above it), so a
+%goal too short for the 5 ms sampling period raises
+%evaluation_error(zero_divisor) from the cleanup, AFTER the goal answered,
+%and the ball unwinds the goal's bindings on its way to any catcher: the
+%answer was gone by the time this door could look at it. Every profile door
+%read that as an EngineError on a quiet box, and the report also consults
+%prolog:show_profile_hook/1 first, the hook SWI autoloads from xpce whenever
+%DISPLAY is set. The primitive does the profiling and nothing else; the rows
+%come from profile_data/1 below, whose own division is guarded. An empty
+%profile is the honest answer when nothing was sampled
+%[measured 2026-09-12: eleven profile tests of the Python suite red on
+%c00465ae4 and on the pristine b1d175f13 with `//2: evaluation error:
+%zero_divisor` at loadavg 4, where a 3,000,000-inference loop profiles to
+%samples=6 ticks=26 and profile(true, [top(0)]) raises;
+%command=sh extensions/python/test.sh; commit=d9c15a2e39c743ee44f92dc4eedcd82b5f3f8509].
 metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
-    metta_py_wrapped_goal(Pred, Ins, Out, Goal0),
-    % profile/2 always reports, including through XPCE when it is installed.
-    % Use its sampler and flag validation; profile_data/1 needs no report and
-    % does not divide by a tick count when a short goal collected no samples.
-    % https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/library/prolog_profile.pl#L107-L118
+    metta_py_wrapped_goal(Pred, Ins, Out, Goal),
     current_prolog_flag(profile_ports, Ports),
     current_prolog_flag(profile_sample_rate, Rate),
-    must_be(oneof([true,false,classic]), Ports),
-    must_be(between(1.0,1000), Rate),
-    expand_goal(Goal0, Goal),
     '$profile'(Goal, cputime, Ports, Rate),
-    metta_py_profile_rows(Samples, Ticks, Seconds, Nodes).
+    (   catch(metta_py_profile_rows(Samples, Ticks, Seconds, Nodes),
+              error(evaluation_error(zero_divisor), _),
+              fail)
+    ->  true
+    ;   Samples = 0, Ticks = 0, Seconds = 0.0, Nodes = []
+    ).
 
 %The rows SWI's own profiler collected, read out of one profile_data/1.
 %

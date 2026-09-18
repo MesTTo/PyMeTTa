@@ -447,6 +447,24 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-11, 49562 to 48985 (-577), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: RE-PINNED 2026-09-11, 48985 to 49161 (+176), engine/metta/limits.pl
+#: (docs/host-workarounds.md: swi-autoload-cut-installs-the-undefined-
+#: supervisor, swi-findall-bag-push-window): every first-use resolution of an
+#: undefined predicate pays one inference for the catch around the trap query,
+#: and a twin that bounds pays one inference per findall under the bound plus
+#: the first bound of its process installing the findall scope [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 #: RE-PINNED 2026-09-18, 49562 to 44871 (-4691), the branch's landings since
 #: the 09-10 pins, re-taken on the tip f06186a96: the compiled call law
 #: (e59104ace: an Atom argument enters as written, a Python object crosses as a
@@ -462,7 +480,7 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 44871
+BUDGET = BUDGET = 44871
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 2 the example does not (2 :): a Python annotation IS a (:

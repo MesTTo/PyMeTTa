@@ -363,6 +363,30 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
 #: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
 #: time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-ENVELOPED 2026-09-11 under 'full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot': the lane grew from 277 to 282 twinned
+#: examples (the REDS corpus example and the wave's own), and the merged tree
+#: carries FROM's reference rows, BINDING's one native evaluation entry,
+#: W-OBSERVE's observer guard, PERF's receipts batching and cursor retirement,
+#: and the REDS shared loader; ten fresh full-lane observations read
+#: 135435..135549 (spread 114, samples [135440, 135435, 135435, 135435, 135435,
+#: 135549, 135435, 135435, 135435, 135435]) where the 67 under 'full-
+#: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot'
+#: read 134848..135030. A run outside this envelope is a real finding, and a
+#: new mode discovered later extends it with its observation count rather than
+#: widening blind [measured 2026-09-11: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds
+#: 10; fixture=full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: POOLED 2026-09-11: a second ten-round population under the same protocol,
+#: taken on the tree that carries engine/metta/limits.pl and the re-pinned
+#: twins, read 135413..135550 (samples [135441, 135436, 135436, 135550,
+#: 135436, 135436, 135413, 135436, 135436, 135436]); pooled with the 10 above
+#: at 135435..135549, 135413..135550 over 20 observations [measured
+#: 2026-09-11: exact extrema over 10 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 #: RE-OBSERVED 2026-09-18 under 'full-lane/293/workers=32', 134848..135030 over
 #: 67 under 'full-lane/277/workers=32' to 151772..151801 over 10: the branch's
 #: tip f06186a96 after the landings the point re-pin names (the compiled call

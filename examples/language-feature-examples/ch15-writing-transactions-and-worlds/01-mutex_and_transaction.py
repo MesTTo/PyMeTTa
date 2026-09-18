@@ -281,6 +281,38 @@ def twin(m):
 #: readings; command=python extensions/python/tools/twin_coverage.py --observe
 #: --rounds 10 and sh check.sh twins; fixture=full-lane/277/workers=32/file-
 #: search-cache-time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-ENVELOPED 2026-09-11 under 'full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot': the lane grew from 277 to 282 twinned
+#: examples (the REDS corpus example and the wave's own), and the merged tree
+#: carries FROM's reference rows, BINDING's one native evaluation entry,
+#: W-OBSERVE's observer guard, PERF's receipts batching and cursor retirement,
+#: and the REDS shared loader; ten fresh full-lane observations read
+#: 16693..16701 (spread 8, samples [16696, 16699, 16700, 16700, 16698, 16701,
+#: 16700, 16693, 16697, 16699]) where the 67 under 'full-
+#: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot'
+#: read 16836..16862. A run outside this envelope is a real finding, and a new
+#: mode discovered later extends it with its observation count rather than
+#: widening blind [measured 2026-09-11: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds
+#: 10; fixture=full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: POOLED 2026-09-11: a second ten-round population under the same protocol,
+#: taken on the tree that carries engine/metta/limits.pl and the re-pinned
+#: twins, read 16709..16714 (samples [16710, 16711, 16714, 16711, 16710,
+#: 16714, 16711, 16709, 16712, 16713]); pooled with the 10 above at
+#: 16693..16701, 16693..16714 over 20 observations [measured 2026-09-11: exact
+#: extrema over 10 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
+#: EXTENDED 2026-09-12: the lane run that verified the twins' +8 repair (sh
+#: check.sh twins on the finished tree, the box carrying three Codex jobs'
+#: benchmarks) read 16717, 3 above the pooled maximum; the envelope takes that
+#: observation with its count, 16693..16717 over 21, rather than widening
+#: blind, and the next battery's ten rounds re-observe it [measured
+#: 2026-09-12: one full-lane reading; command=sh check.sh twins;
+#: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 #: RE-OBSERVED 2026-09-18 under 'full-lane/293/workers=32', 16836..16862 over
 #: 67 under 'full-lane/277/workers=32' to 23347..23354 over 10: the branch's
 #: tip f06186a96 after the landings the point re-pin names (the compiled call

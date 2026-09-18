@@ -1604,14 +1604,27 @@ def test_the_band_pays_for_authoring_but_only_what_was_measured(tmp_path):
     examples/ch07-control-flow/07-01-if-and-booleans/02-if.metta costs 2092 against a ceiling of 2301, and one
     decorated definition costs 2221 in a fresh process.
     """
+    # One example, one twin cost, two verdicts: the twin that AUTHORS is given
+    # the measured room and the one that does not is given none. The cost
+    # sits exactly on the authored ceiling, so it follows the constants
+    # wherever a re-derivation moves them, and both twins pin it as their
+    # budget so the band is the only claim under test.
+    example_cost = 100
+    cost = (
+        int(example_cost * (1 + coverage.BAND_PERCENT / 100))
+        + coverage.DEFINITION_WARMUP
+        + coverage.DEFINITION_COST
+    )
     plain = tmp_path / "plain.py"
-    plain.write_text('"""D."""\nBUDGET = 2000\ndef twin(m):\n    assert m\n', encoding="utf-8")
+    plain.write_text(
+        f'"""D."""\nBUDGET = {cost}\ndef twin(m):\n    assert m\n', encoding="utf-8"
+    )
     assert coverage.definitions(plain) == 0
 
     authored = tmp_path / "authored.py"
     authored.write_text(
         '"""D."""\n'
-        "BUDGET = 2000\n"
+        f"BUDGET = {cost}\n"
         "def twin(m):\n"
         "    @m.define\n"
         "    def f(x):\n"
@@ -1621,10 +1634,7 @@ def test_the_band_pays_for_authoring_but_only_what_was_measured(tmp_path):
     )
     assert coverage.definitions(authored) == 1
 
-    # One example, one twin cost, two verdicts: the twin that AUTHORS is given
-    # the measured room and the one that does not is given none.
-    cost = 2000
-    example = _run([], cost=100)
+    example = _run([], cost=example_cost)
     spent = _run([], cost=cost)
     assert any("band" in f for f in coverage._price("x", plain, example, spent))
     assert coverage._price("x", authored, example, spent) == []

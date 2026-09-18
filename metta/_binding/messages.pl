@@ -1,7 +1,8 @@
 % Purpose: forward engine messages with a reentrancy guard.
 % Assumes: loaded through _binding/shim.pl in its host module.
-% Owns resources: the thread message guard only during delivery; setup_call_cleanup/3 clears it
-% [source: extensions/python/metta/_binding/messages.pl:35; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+% Owns resources: metta_with_trailed/3 restores the thread message guard at delivery exit.
+% [source: extensions/python/metta/_binding/messages.pl:user:thread_message_hook/3;
+% commit=40b71fc99571872ca5fc85cdaf7902b467166539]
 
 %%%%%%%%%% Engine messages %%%%%%%%%%
 %
@@ -31,13 +32,23 @@
 %
 % Messages emitted before this file is consulted -- the engine's own load --
 % have no hook to reach and print only.
+%
+% A process that consulted this file without the engine has nothing to deliver
+% to and no door to deliver through: tests/prolog/suites/host/shim.plt and
+% shared_decode_index.plt load the shim alone, and the first warning of such a
+% load reached this hook, which raised an existence error for the engine's
+% door from inside a message hook, and SWI, unable to print, left the process
+% at the toplevel with its tests unrun. A message hook is not a place to raise
+% from, so the door is asked for before it is used.
 :- multifile user:thread_message_hook/3.
 user:thread_message_hook(_, Kind, Lines) :-
     Kind \== silent,
     \+ nb_current('$metta_py_message_bridge', true),
-    setup_call_cleanup(nb_setval('$metta_py_message_bridge', true),
-                       metta_py_deliver_message(Kind, Lines),
-                       nb_setval('$metta_py_message_bridge', false)),
+    current_predicate(metta_engine:metta_with_trailed/3),
+    context_module(Host),
+    % Workaround: swi-cleanup-window - delivery uses the engine's trailed reentrancy scope.
+    metta_engine:metta_with_trailed('$metta_py_message_bridge', true,
+                                   Host:metta_py_deliver_message(Kind, Lines)),
     fail.
 
 %The flag above is a guard and not an optimisation: a logging handler that

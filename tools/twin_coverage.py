@@ -344,8 +344,16 @@ BAND_PERCENT = 10.0
 #: fresh-process readings per cell; command=python
 #: extensions/python/benchmarks/probes/twin_authoring.py;
 #: fixture=twin_authoring.fixture with 0..4 definitions; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-DEFINITION_WARMUP = 1482
-DEFINITION_COST = 1364
+#: Re-derived 2026-09-11 on the merged tree after the wave and the REDS repairs:
+#: 7, 1672, 3019, 4382, 5757 for 0..4 definitions, the fit 303 once plus 1362
+#: each. The first definition's premium fell from 1482 to 303: the binding's
+#: boot import now loads what the first compiled definition used to autoload
+#: (BINDING, 765c60587), so a twin no longer pays it and the band no longer
+#: grants it [measured 2026-09-11: min of three fresh-process readings per
+#: cell; command=python extensions/python/benchmarks/probes/twin_authoring.py;
+#: fixture=twin_authoring.fixture with 0..4 definitions; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+DEFINITION_WARMUP = 303
+DEFINITION_COST = 1362
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed
@@ -2777,10 +2785,13 @@ def _price(
                 if declared_overrun
                 else ""
             )
+            # The ceiling is compared as a float and printed to the tenth the
+            # comparison used: printed rounded, two twins read "24806 past a
+            # ceiling of 24806" (2026-09-11).
             findings.append(
                 f"{relative}: the twin cost {right.cost} inferences against "
                 f"the example's {left.cost}, past the {BAND_PERCENT:g}% band "
-                f"ceiling of {ceiling:.0f}{allowed}"
+                f"ceiling of {ceiling:.1f}{allowed}"
             )
         elif declared_overrun and right.cost <= (
             left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring
@@ -2789,7 +2800,7 @@ def _price(
                 f"{relative}: the twin declares an overrun of "
                 f"{declared_overrun} and now costs {right.cost} against a "
                 f"ceiling of "
-                f"{left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring:.0f} "
+                f"{left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring:.1f} "
                 f"without it; drop {OVERRUN_NAME} and its paragraph"
             )
     return findings

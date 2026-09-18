@@ -7,7 +7,9 @@
 % [tested: test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Owns resources: one process listener and per-engine live-frame markers; outer completion retires each marker
 % [source: extensions/python/metta/_binding/bounds.pl:metta_py_bound_frame_finished/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-% Guarded by: $metta_bound_listener serializes process listener installation.
+% Guarded by: nothing of its own; the process listener is installed through the
+%   engine's metta_listen/2, whose once-only claim is atomic and which holds no
+%   mutex while registering.
 
 :- module(metta_python_bounds, [metta_py_mirror_bounds/0]).
 :- use_module(library(janus), [py_call/2]).
@@ -29,9 +31,10 @@
 % A foreign mirror is not transactional storage. Suspend its shared fills
 % only while a transaction has actually changed a bound, and invalidate it
 % after its outer native frame commits or rolls back. Nested frames remain
-% inside the suspension. SWI holds its global event-list lock while calling
-% listeners; a listener must not remove itself from that list. One process
-% listener is installed on the first transactional bound write, and each
+% inside the suspension. SWI holds a channel's event-list lock while calling
+% its listeners; a listener must not remove itself from that list, and nothing
+% may hold a mutex while registering on it. One process listener is installed
+% through the engine's door on the first transactional bound write, and each
 % writer owns its non-backtrackable live-frame marker. Watch the nearest
 % transaction and transfer to its remaining owner when it finishes. Walking
 % above it marks the engine's outer query frame for an unsafe notification
@@ -60,12 +63,8 @@ metta_py_bound_watch_transaction(Finished) :-
     nb_setval('$metta_bound_transaction', Frame).
 
 metta_py_bound_listener :-
-    with_mutex('$metta_bound_listener',
-        ( flag('$metta_bound_listener_ready', Ready, Ready),
-          ( Ready == 1 -> true
-          ; prolog_listen(frame_finished, metta_python_bounds:metta_py_bound_frame_finished,
-                          [name(metta_bound_transaction)]),
-            flag('$metta_bound_listener_ready', _, 1) ) )).
+    metta_host_listeners:metta_listen(frame_finished,
+                                      metta_python_bounds:metta_py_bound_frame_finished).
 
 metta_py_bound_nearest_frame(Current, Finished, Nearest) :-
     prolog_frame_attribute(Current, predicate_indicator, Predicate),

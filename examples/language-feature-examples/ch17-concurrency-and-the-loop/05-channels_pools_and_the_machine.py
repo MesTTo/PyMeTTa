@@ -250,6 +250,44 @@ def twin(m):
 #: readings; command=python extensions/python/tools/twin_coverage.py --observe
 #: --rounds 10 and sh check.sh twins; fixture=full-lane/277/workers=32/file-
 #: search-cache-time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-ENVELOPED 2026-09-11 under 'full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot': the lane grew from 277 to 282 twinned
+#: examples (the REDS corpus example and the wave's own), and the merged tree
+#: carries FROM's reference rows, BINDING's one native evaluation entry,
+#: W-OBSERVE's observer guard, PERF's receipts batching and cursor retirement,
+#: and the REDS shared loader; ten fresh full-lane observations read
+#: 98770..98922 (spread 152, samples [98770, 98770, 98770, 98770, 98770, 98922,
+#: 98770, 98770, 98770, 98770]) where the 67 under 'full-
+#: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot'
+#: read 98679..99219. A run outside this envelope is a real finding, and a new
+#: mode discovered later extends it with its observation count rather than
+#: widening blind [measured 2026-09-11: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds
+#: 10; fixture=full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: EXTENDED 2026-09-11 by the lane's own next run: 98766, one observation below
+#: the ten-round envelope's 98770, a new mode discovered after the envelope was
+#: taken, so the minimum moves to it and the count to 11 rather than widening
+#: blind [measured 2026-09-11: sh check.sh twins on the merged tree after the
+#: re-pin; command=python extensions/python/tools/twin_coverage.py;
+#: commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: EXTENDED 2026-09-11 again by the next lane run: 99528, above the envelope's
+#: 98922, the timer-cancellation mode PERF's 64-process line trace attributed
+#: on this twin (its 277-protocol envelope of 67 observations reached 99219);
+#: the maximum moves to it and the count to 13, and the next battery re-
+#: observes this twin with more than ten rounds under the 282 protocol, since
+#: ten did not reach this mode [measured 2026-09-11: sh check.sh twins on the
+#: merged tree, third run; command=python
+#: extensions/python/tools/twin_coverage.py; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: POOLED 2026-09-11: a second ten-round population under the same protocol,
+#: taken on the tree that carries engine/metta/limits.pl and the re-pinned
+#: twins, read 98787..99594 (samples [98835, 98791, 98825, 98791, 98791,
+#: 99594, 99456, 98976, 98787, 98825]); pooled with the 13 above at
+#: 98766..99528, 98766..99594 over 23 observations [measured 2026-09-11: exact
+#: extrema over 10 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 #: RE-OBSERVED 2026-09-18 under 'full-lane/293/workers=32', 98679..99219 over
 #: 67 under 'full-lane/277/workers=32' to 121854..122463 over 10: the branch's
 #: tip f06186a96 after the landings the point re-pin names (the compiled call

@@ -1765,6 +1765,26 @@ def test_profile_does_not_invoke_a_display_callback(m):
         assert prof.samples >= 0
     finally:
         m._rt.must("prolog_wrap:unwrap_predicate(prolog:show_profile_hook(_), class_profile_display)")
+def test_a_profile_with_no_samples_still_answers(m):
+    """A goal too short for the sampler still answers through the profile door.
+
+    SWI's own `profile/2` prints a report as the CLEANUP of the goal, and that
+    report divides by the total tick count, so a goal finishing inside one
+    5 ms sampling period raises `evaluation_error(zero_divisor)` after it has
+    answered, and the ball unwinds the answer on its way out. The door runs
+    the primitive `'$profile'/4` instead and reads the rows itself, so the
+    answer survives and an unsampled profile reads as the empty profile it is
+    (`docs/host-workarounds.md`, `swi-profile-report-divides-by-zero-samples`).
+    A one-step evaluation is the zero-sample case on any box this fast; a
+    sample that does land keeps the same contract with ticks on a row.
+    """
+    groups, prof = m.profile("!(+ 1 1)")
+    assert groups == [[2]]
+    assert prof.samples >= 0 and prof.ticks >= 0 and prof.seconds >= 0
+    assert prof.nodes and all(row.calls >= 0 for row in prof.nodes)
+    if prof.samples == 0:
+        assert prof.ticks == 0
+        assert all(row.ticks_self == 0 for row in prof.nodes)
 
 
 def test_a_profile_exports_as_pstats(m):

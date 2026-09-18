@@ -302,6 +302,27 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-11, 10641 to 9428 (-1213), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: OVERRUN 2026-09-11, 51 (previously 140 under the 1482 premium, retired by
+#: the lane the same day and priced again here): the band stopped granting the
+#: first-definition premium (DEFINITION_WARMUP 1482 to 303, DEFINITION_COST
+#: 1364 to 1362, re-derived 2026-09-11 from the authoring probe's one-line
+#: fixture, which no longer pays it after the binding's boot import), and this
+#: twin still pays 51 of it: the first use of the lowering paths its 1
+#: definition take, which the fixture's `return x + 1` does not exercise.
+#: Measured 9428 against a ceiling of 9377 (7011 times 1.1 plus 303 once plus 1
+#: times 1362) [measured 2026-09-11: sh check.sh twins on the merged tree after
+#: the twin re-pin; command=python extensions/python/tools/twin_coverage.py;
+#: commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 #: RE-PINNED 2026-09-18, 10641 to 9260 (-1381), the branch's landings since the
 #: 09-10 pins, re-taken on the tip f06186a96: the compiled call law (e59104ace:
 #: an Atom argument enters as written, a Python object crosses as a value, a
@@ -317,4 +338,5 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = 9260
+BUDGET = BUDGET = 9260
+OVERRUN = OVERRUN = 51
