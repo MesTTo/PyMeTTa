@@ -1121,7 +1121,7 @@ def _catalog_claims(metta: Space, name: str) -> dict[str, Any]:
         # one, so this is a claim written by hand, and counting down from the
         # best is what ordered meant before the direction joined the row.
         order = SemiringOrder.descending
-    return {"order": order, **operations}
+    return {"order": order} | operations
 
 
 def get(metta: Space, name: str) -> DeclaredAlgebra | None:

@@ -431,6 +431,11 @@ REQUIRED
 # The engine reads a value's length through py_call
 # (metta/_binding/provides/ownership.pl, metta/_binding/provides_engine_user.pl).
 sized_length
+# The engine's grounded call crosses through this door by name:
+# seam:grounded_apply/4 (metta/_binding/provides/ownership.pl) reaches
+# 'metta._binding.host':grounded_apply through py_call, so no Python name
+# loads it.
+grounded_apply
 # The engine's lease callbacks (metta/_binding/callbacks.py names the module
 # functions by string), the provider-admission count the ch19 admission tests
 # read, and the LiveView deltas door the ch16 live-view tests drive.
