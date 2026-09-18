@@ -521,7 +521,7 @@ class SaveFormat(_AtomStrEnum):
     metta = "metta"
     fast = "fast"
 
-#: (vocabulary semiring bool visibility bag counting set ranked tropical prob prov budget amplitude)
+#: (vocabulary semiring bool visibility bag counting set ranked tropical prob prov budget formula amplitude)
 class Semiring(_OpenStrEnum):
     """Typed values of the semiring vocabulary, which the engine
     declares OPEN: a word registered through
@@ -538,6 +538,7 @@ class Semiring(_OpenStrEnum):
     prob = "prob"
     prov = "prov"
     budget = "budget"
+    formula = "formula"
     amplitude = "amplitude"
 
 #: (vocabulary semiring-order ascending descending)

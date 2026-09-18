@@ -503,6 +503,9 @@ def test_aio_covers_the_whole_synchronous_surface():
         "inferences",
         "under",
         "into",
+        # Advanced on 2026-09-18: `derivations=` chooses a tagged program's
+        # evaluation route on both surfaces.
+        "derivations",
         "values",
     ]
     # What this pin exists for, stated rather than spelled as a list: the

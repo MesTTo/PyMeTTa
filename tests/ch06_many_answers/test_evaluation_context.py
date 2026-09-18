@@ -265,6 +265,8 @@ def test_a_failed_match_reports_the_selected_carrier_name(context_space):
         algebra.tagged_fact(1, S.context_loop),
         algebra.tagged_rule(1, S.context_loop, S.context_loop),
     )
+    # ranked joins by max, so the loop would converge on the fixpoint route;
+    # the derived route is asked for by name to reach its refusal.
     with pytest.raises(AlgebraEvaluationError) as failure:
-        space.match(S.context_loop, under=ranked).one()
+        space.match(S.context_loop, under=ranked, derivations=True).one()
     assert str(failure.value) == "algebra_derivation_did_not_reach_fixpoint(ranked, rounds=64)"

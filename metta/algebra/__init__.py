@@ -81,7 +81,7 @@ Guarantees:
     [tested: test_demand_preserves_complete_derivation_bags,
     test_demand_preserves_global_cycle_and_round_failures; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
   - the generated Semiring vocabulary, preset descriptors, and public carrier
-    objects name the same eleven shipped algebras [tested:
+    objects name the same twelve shipped algebras [tested:
     test_every_shipped_semiring_has_one_root_object_in_catalog_order;
     commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - arbitrary law-bearing declarations use the engine's one checker in the
@@ -216,6 +216,8 @@ __all__ = [
     "current_algebra",
     "declare",
     "evaluate",
+    "formula",
+    "formula_variables",
     "prob",
     "prov",
     "ranked",
@@ -431,6 +433,19 @@ class DeclaredAlgebra:
     requires: frozenset[str]
     order: SemiringOrder | None = None
     type: Any = None
+    #: The unary operation a weighted model count weighs a variable's false
+    #: branch with, `(claim semiring <name> negation <op>)`; None when the
+    #: carrier has no complement, in which case a formula answer cannot be
+    #: reinterpreted under it.
+    negation: str | None = None
+    #: The binary test that says a joined fixpoint answer is not worth another
+    #: round, `(claim semiring <name> saturation <op>)`; None means equality,
+    #: the exact fixpoint of the carrier's own arithmetic.
+    saturation: str | None = None
+    #: The binary operation that mints this carrier's value for one source key
+    #: and its written tag, `(claim semiring <name> variable <op>)`, which is
+    #: how a carrier is free over the program's facts; None reads the tag.
+    variable: str | None = None
 
     def _carrier_atom(self) -> Expression:
         finite = _list("carrier", self.carrier)
@@ -580,6 +595,10 @@ class _Trace:
     raw: Atom
     children: tuple[_Trace, ...] = ()
     is_rule: builtins.bool = False
+    #: The ground head a rule instance derived, so a carrier that mints a
+    #: variable per ground clause (ProbLog's reading) tells two instances of
+    #: one rule apart; None for a fact.
+    key: Atom | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -634,21 +653,54 @@ class TaggedAnswer:
         """Law-gated decisions made while this answer's alternatives fused."""
         return self._plan
 
+    @property
+    def _fixpoint(self) -> builtins.bool:
+        """Whether the engine's tabled fixpoint produced this answer, keeping no proofs."""
+        return any(
+            decision.optimization == "tabled-fixpoint" and decision.applied
+            for decision in self._plan
+        )
+
     def why(self) -> AlgebraDerivation:
         """Return the derivation captured by the original ask."""
+        if self._fixpoint:
+            msg = (
+                f"algebra_fixpoint_keeps_no_derivation({self._algebra}): the engine's "
+                "tabled fixpoint computed this answer; ask with derivations=True to "
+                "retain its proofs, or evaluate under formula, whose tag is the "
+                "derivation compiled"
+            )
+            raise AlgebraEvaluationError(msg)
         traces = self._derivations or (_Trace(-1, self.tag),)
         return AlgebraDerivation(self.value, self._algebra, traces)
 
     def under(self, carrier: Any) -> TaggedAnswer:
-        """Interpret this retained derivation under another algebra, no requery."""
+        """Interpret this answer under another algebra, no requery.
+
+        A formula tag under a carrier with a negation is its weighted model
+        count, exact where a sum over proofs would count a shared fact twice;
+        a retained derivation folds through the carrier's operations; an
+        engine-fixpoint answer under any other carrier kept nothing to fold
+        and refuses by name.
+        """
         if self._space is None:
             msg = "this answer carries no owning space for algebra reinterpretation"
             raise AlgebraEvaluationError(msg)
         declaration = resolve(self._space, carrier)
-        traces = self._derivations or (_Trace(-1, self.tag),)
         resources = _EvaluationBudget.from_call(
             None, None, EvaluationContext(declaration.name, order=declaration.order)
         )
+        if _headed_tag(self.tag, "formula") and declaration.negation is not None:
+            annotation = _model_count(self._space, declaration, self.tag, resources)
+            return replace(self, tag=annotation, _algebra=declaration.name)
+        if self._fixpoint and not self._derivations:
+            msg = (
+                f"algebra_fixpoint_keeps_no_derivation({self._algebra}): reinterpret "
+                f"under {declaration.name} from an answer evaluated under formula, "
+                "whose tag is the derivation compiled, or ask with derivations=True"
+            )
+            raise AlgebraEvaluationError(msg)
+        traces = self._derivations or (_Trace(-1, self.tag),)
         annotation = _interpret_alternatives(
             self._space, declaration, traces, resources
         )
@@ -713,6 +765,8 @@ def _preset(
     carrier: Iterable[Any] = (),
     requires: Iterable[str] = (),
     order: SemiringOrder | None = None,
+    negation: str | None = None,
+    variable: str | None = None,
 ) -> DeclaredAlgebra:
     return DeclaredAlgebra(
         name,
@@ -724,27 +778,57 @@ def _preset(
         tuple(_encode(value) for value in carrier),
         frozenset(requires),
         order,
+        negation=negation,
+        variable=variable,
     )
 
 
 # closed-set: decides; policy=the carriers this seat ships ready-declared; reads=semiring, the engine's own vocabulary, which test_catalog_kinds holds this to
 _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
-    "bool": _preset("bool", "max", "*", 0, 1),
+    # max is idempotent, and the fixpoint route reads the declared law.
+    "bool": _preset(
+        "bool", "max", "*", 0, 1,
+        laws=_SEMIRING_LAWS | {"combine-idempotent"}, negation="complement",
+    ),
     "visibility": _preset("visibility", "max", "min", Symbol("INTERNAL"), Symbol("PUBLIC"),
+                          laws=_SEMIRING_LAWS | {"combine-idempotent"},
                           carrier=(Symbol("INTERNAL"), Symbol("PUBLIC"))),
     "bag": _preset("bag", "+", "*", 0, 1),
-    "counting": _preset("counting", "+", "*", 0, 1),
+    # Every source reads as one, so the fixpoint counts derivations, the
+    # answer the engine's counting aggregate gives.
+    "counting": _preset("counting", "+", "*", 0, 1, variable="counting-one"),
     "set": _preset(
         "set", "max", "*", 0, 1, laws=_SEMIRING_LAWS | {"combine-idempotent"}
     ),
-    "ranked": _preset("ranked", "max", "*", 0, 1, order=SemiringOrder.descending),
-    "tropical": _preset(
-        "tropical", "min", "+", Symbol("infinity"), 0, order=SemiringOrder.ascending
+    "ranked": _preset(
+        "ranked", "max", "*", 0, 1,
+        laws=_SEMIRING_LAWS | {"combine-idempotent"}, order=SemiringOrder.descending,
     ),
-    "prob": _preset("prob", "+", "*", 0, 1, order=SemiringOrder.descending),
+    "tropical": _preset(
+        "tropical", "min", "+", Symbol("infinity"), 0,
+        laws=_SEMIRING_LAWS | {"combine-idempotent"}, order=SemiringOrder.ascending,
+    ),
+    "prob": _preset(
+        "prob", "+", "*", 0, 1, order=SemiringOrder.descending, negation="complement"
+    ),
     "prov": _preset("prov", "plus", "times", Symbol("zero"), Symbol("one")),
     "budget": _preset(
-        "budget", "min", "+", Symbol("infinity"), 0, order=SemiringOrder.ascending
+        "budget", "min", "+", Symbol("infinity"), 0,
+        laws=_SEMIRING_LAWS | {"combine-idempotent"}, order=SemiringOrder.ascending,
+    ),
+    # The free positive Boolean algebra over the program's facts: a tag is a
+    # reduced ordered binary decision diagram, `(formula Id)`, so a fact two
+    # proofs share is one variable, a cyclic program converges, and a carrier
+    # with a negation reads the exact probability back through under().
+    "formula": _preset(
+        "formula",
+        "formula-or",
+        "formula-and",
+        Expression((Symbol("formula"), 0)),
+        Expression((Symbol("formula"), 1)),
+        laws=_SEMIRING_LAWS | {"combine-idempotent", "extend-commutative"},
+        negation="formula-not",
+        variable="formula-var",
     ),
     "amplitude": _preset(
         "amplitude",
@@ -989,32 +1073,48 @@ def _catalog_declaration(
         laws=_canonical_laws(metta, law_names),
         carrier=tuple(carrier.children[1:]),
         requires=frozenset(requirement_names),
-        order=_catalog_order(metta, name),
         type=specification,
+        **_catalog_claims(metta, name),
     ), row
 
 
-def _catalog_order(
-    metta: Space, name: str
-) -> SemiringOrder | None:
-    """Read the direction attached to an ordered semiring claim."""
-    expected = (Symbol("claim"), Symbol("semiring"), Symbol(name), Symbol("ordered"))
+def _catalog_claims(metta: Space, name: str) -> dict[str, Any]:
+    """Read the semiring claims attached to one algebra, in one catalog walk.
+
+    `(claim semiring <name> ordered <direction>)` is the direction that counts
+    as best; `negation`, `saturation` and `variable` each name the operation
+    the engine applies under the carrier for that role.
+    """
+    prefix = (Symbol("claim"), Symbol("semiring"), Symbol(name))
+    order: SemiringOrder | None = None
+    operations: dict[str, str] = {}
     for atom in Space("&metta", _runtime=metta.runtime).atoms():
-        if not isinstance(atom, Expression) or atom.children[:4] != expected:
+        if (
+            not isinstance(atom, Expression)
+            or len(atom.children) < 4
+            or atom.children[:3] != prefix
+            or not isinstance(atom.children[3], Symbol)
+        ):
             continue
-        if len(atom.children) < 5 or not isinstance(atom.children[4], Symbol):
-            # A bare `ordered` claim with no direction: the shipped rows all
-            # carry one, so this is a claim written by hand, and counting
-            # down from the best is what ordered meant before the direction
-            # joined the row.
-            return SemiringOrder.descending
-        try:
-            return SemiringOrder(atom.children[4].name)
-        except ValueError:
-            # A direction outside the declared vocabulary is not this claim's
-            # direction; keep looking rather than inventing one.
-            continue
-    return None
+        claim = atom.children[3].name
+        value = atom.children[4] if len(atom.children) > 4 else None
+        if claim == "ordered" and order is None:
+            if not isinstance(value, Symbol):
+                # A bare `ordered` claim with no direction: the shipped rows
+                # all carry one, so this is a claim written by hand, and
+                # counting down from the best is what ordered meant before
+                # the direction joined the row.
+                order = SemiringOrder.descending
+            else:
+                try:
+                    order = SemiringOrder(value.name)
+                except ValueError:
+                    # A direction outside the declared vocabulary is not this
+                    # claim's direction; keep looking rather than inventing one.
+                    continue
+        elif claim in ("negation", "saturation", "variable") and isinstance(value, Symbol):
+            operations.setdefault(claim, value.name)
+    return {"order": order, **operations}
 
 
 def get(metta: Space, name: str) -> DeclaredAlgebra | None:
@@ -1119,8 +1219,17 @@ def declare(
     type: Any = None,  # noqa: A002 -- the public carrier concept is a type
     requires: Iterable[str] = (),
     order: SemiringOrder | None = None,
+    negate: str | None = None,
+    saturated: str | None = None,
+    variable: str | None = None,
 ) -> Atom:
     """Check and add one algebra catalog atom, without replacing an old one.
+
+    `order`, `negate`, `saturated` and `variable` land as the semiring claims
+    the engine reads beside the row: the direction that counts as best, the
+    unary complement a model count weighs a false branch with, the binary
+    test that stops a fixpoint join, and the binary operation that mints the
+    carrier's value for a source key and its tag.
 
     metta may be a context or a space.
     """
@@ -1143,6 +1252,10 @@ def declare(
     if type is not None and not isinstance(type, (Symbol, Expression, builtins.type)) and not callable(type):
         msg = "algebra type= needs a Python type, a MeTTa type atom, or a callable predicate; use carrier= for a finite enumeration"
         raise AlgebraDeclarationError(msg)
+    for role, operation in (("negate", negate), ("saturated", saturated), ("variable", variable)):
+        if operation is not None and (not operation or not isinstance(operation, str)):
+            msg = f"algebra_operation_invalid({name}, {role})"
+            raise AlgebraDeclarationError(msg)
     if isinstance(type, Atom) and type.vars:
         msg = "algebra type= must be ground; bind its type variables before declaring it"
         raise AlgebraDeclarationError(msg)
@@ -1164,6 +1277,9 @@ def declare(
         requires=frozenset(requires),
         order=order,
         type=carrier_type,
+        negation=negate,
+        saturation=saturated,
+        variable=variable,
     )
     context = _context_name(home)
     atom = Expression(
@@ -1196,6 +1312,21 @@ def declare(
         if str(error).startswith(("algebra_value_outside_carrier", "algebra_type_predicate")) or "algebra type predicate" in str(error):
             raise AlgebraDeclarationError(str(error)) from error
         raise
+    # The claims beside the row, through the same door: the engine reads them
+    # by name where it needs a per-carrier fact.
+    claims = (
+        ("ordered", None if order is None else Symbol(getattr(order, "value", order))),
+        ("negation", None if negate is None else Symbol(negate)),
+        ("saturation", None if saturated is None else Symbol(saturated)),
+        ("variable", None if variable is None else Symbol(variable)),
+    )
+    for claim, value in claims:
+        if value is None:
+            continue
+        home.runtime.do_must(
+            "metta_py_declare_algebra", home.name,
+            Expression((Symbol("claim"), Symbol("semiring"), Symbol(name), Symbol(claim), value)).to_wire(),
+        )
     key = _key(home, context, name)
     _record_algebra_undo(key)
     _REGISTRY[key] = (atom, declaration)
@@ -1392,8 +1523,9 @@ def _derive_rule_steps(
             tuple[_Trace, ...],
         ]
     ] = [
-        (initial, rule.tag, frozenset(), (rule.order,), ())
+        (initial, _rule_start(declaration, rule), frozenset(), (rule.order,), ())
     ]
+    labelled = _headed_tag(rule.tag, "function")
     linear = "linear" in declaration.requires
     for premise in rule.premises:
         resources.checkpoint()
@@ -1432,7 +1564,9 @@ def _derive_rule_steps(
                 next_states.append(
                     (
                         merged,
-                        declaration.extend_values(
+                        Expression((*tag.children, candidate.tag))
+                        if labelled
+                        else declaration.extend_values(
                             metta,
                             tag,
                             candidate.tag,
@@ -1447,20 +1581,74 @@ def _derive_rule_steps(
         if not states:
             break
     answers: list[TaggedAnswer] = []
-    for bindings, tag, tokens, proof, child_traces in states:
+    for bindings, folded, tokens, proof, child_traces in states:
         value = substitute(rule.head, bindings)
         if any(isinstance(node, Variable) for node in _walk(value)):
             continue
+        tag = folded
+        if labelled:
+            tag = _label(metta, declaration, rule.tag, folded.children, resources)
+        elif declaration.variable is not None:
+            # ProbLog's variable per ground clause: minted now that the head
+            # is ground, and extended first since extend is associative.
+            tag = declaration.extend_values(
+                metta,
+                _minted(metta, declaration, _source_key(metta, rule.order, value), rule.tag, resources),
+                folded,
+                resources=resources,
+            )
         answers.append(
             TaggedAnswer(
                 value,
                 tag,
                 tokens,
                 proof,
-                (_Trace(rule.order, rule.tag, child_traces, is_rule=True),),
+                (_Trace(rule.order, rule.tag, child_traces, is_rule=True, key=value),),
             )
         )
     return answers
+
+
+def _rule_start(declaration: DeclaredAlgebra, rule: _Rule) -> Atom:
+    """What a rule instance's tag starts from before its premises extend it.
+
+    The rule's own tag for an ordinary carrier; one for a carrier that mints
+    a variable per ground instance, which joins at the end; and an empty
+    expression collecting the premise tags for a rule tagged `(function F)`.
+    """
+    if _headed_tag(rule.tag, "function"):
+        return Expression(())
+    return rule.tag if declaration.variable is None else declaration.one
+
+
+def _label(
+    metta: Space, declaration: DeclaredAlgebra, tag: Atom, premise_tags: Sequence[Atom],
+    resources: _EvaluationBudget,
+) -> Atom:
+    """A rule instance's label: its function applied to the premise tags in order.
+
+    Kifer and Subrahmanian's generalized annotated programs (JLP 1992,
+    10.1016/0743-1066(92)90007-P): each rule carries its own label function
+    in place of the one extend fold. The function evaluates under the
+    carrier in the space, so a MeTTa equation and a registered Python
+    callable both serve, and must answer one carrier value.
+    """
+    if len(tag.children) != 2:
+        msg = f"tagged_rule_function_malformed({tag}, expected=(function <name>))"
+        raise AlgebraDeclarationError(msg)
+    function = tag.children[1]
+    target = Expression((function, *premise_tags))
+    answers = resources.evaluate_operation(metta, target)
+    label = answers[0] if len(answers) == 1 else None
+    if label is None or isinstance(label, Undefined):
+        msg = (
+            f"algebra_label_not_single({declaration.name}, {function}, "
+            f"{[str(value) for value in premise_tags]}, answers={len(answers)})"
+        )
+        raise AlgebraOperationError(msg)
+    declaration._require_success(str(function), label)
+    declaration.check_values(metta, label, resources=resources)
+    return label
 
 
 def _walk(atom: Atom) -> Iterable[Atom]:
@@ -1516,8 +1704,40 @@ def _headed_tag(atom: Atom, name: str) -> builtins.bool:
     )
 
 
-def _carrier_input(declaration: DeclaredAlgebra, trace: _Trace) -> Atom:
-    """Map one universal source node into a carrier's generator value."""
+def _source_key(metta: Space, source: int, head: Atom | None = None) -> Expression:
+    """The key a free carrier mints a source's variable by, as the engine spells it.
+
+    `(src <space> <n>)` for the fact at position n, `(rule <space> <n> <head>)`
+    for the instance of the rule at position n that derived `head`, so a fact
+    is one variable on the derived route and on the engine's fixpoint alike.
+    """
+    space_name = Symbol(metta.name)
+    if head is None:
+        return Expression((Symbol("src"), space_name, _encode(source)))
+    return Expression((Symbol("rule"), space_name, _encode(source), head))
+
+
+def _minted(
+    metta: Space, declaration: DeclaredAlgebra, key: Expression, tag: Atom,
+    resources: _EvaluationBudget,
+) -> Atom:
+    """The carrier's own value for one source, through its claimed variable operation."""
+    return declaration._operate(
+        metta, cast("str", declaration.variable), key, tag, resources=resources,
+    )
+
+
+def _carrier_input(
+    metta: Space, declaration: DeclaredAlgebra, trace: _Trace, resources: _EvaluationBudget,
+) -> Atom:
+    """Map one universal source node into a carrier's generator value.
+
+    A carrier that claims a `variable` operation receives the source's key
+    and its written tag and mints its own value.
+    """
+    if declaration.variable is not None:
+        key = _source_key(metta, trace.source, trace.key if trace.is_rule else None)
+        return _minted(metta, declaration, key, _coefficient(trace.raw), resources)
     # policy-inventory-exempt: mechanism-internal; reason=the carriers whose generator value is the semiring one, named by their declared vocabulary members so a catalog rename breaks here rather than drifting; evidence=extensions/python/metta/vocabularies.py:Semiring
     if declaration.name in {
         Semiring.bool,
@@ -1541,7 +1761,14 @@ def _interpret_trace(
     metta: Space, declaration: DeclaredAlgebra, trace: _Trace,
     resources: _EvaluationBudget,
 ) -> Atom:
-    value = _carrier_input(declaration, trace)
+    if trace.is_rule and _headed_tag(trace.raw, "function"):
+        msg = (
+            f"algebra_label_function_not_reinterpretable({declaration.name}, {trace.raw}): "
+            "a rule labelled by a function of its premise tags computes in the carrier it "
+            "was evaluated under; ask that carrier directly"
+        )
+        raise AlgebraEvaluationError(msg)
+    value = _carrier_input(metta, declaration, trace, resources)
     declaration.check_values(metta, value, resources=resources)
     for child in trace.children:
         value = declaration.extend_values(
@@ -1616,8 +1843,21 @@ def evaluate(
     context: EvaluationContext | None = None,
     timeout: float | None = None,
     inferences: int | None = None,
+    derivations: builtins.bool | None = None,
 ) -> AlgebraEvaluation:
-    """Evaluate finite tagged derivations under one call-wide resource budget.
+    """Evaluate a tagged program under one call-wide resource budget.
+
+    `derivations` chooses the route. None takes the route that terminates
+    and is exact: a program whose rules form a cycle, under a carrier whose
+    combine is idempotent or that declares a saturation, takes the engine's
+    tabled fixpoint, which converges there and keeps no proof tree (a cyclic
+    program has none that is finite); every other program takes the derived
+    route, whose answers retain their derivations for `why()` and `under()`
+    and which refuses a cyclic program after `max_rounds`. True forces the
+    derived route. False forces the fixpoint, the route that scales; under a
+    carrier whose combine is not idempotent it has no fixpoint over cyclic
+    data and runs until `timeout` or `inferences` stops it, and its answers
+    reinterpret exactly only through the formula carrier.
 
     metta may be a context or a space.
     """
@@ -1626,7 +1866,119 @@ def evaluate(
     if context is None:
         context = EvaluationContext(declaration.name, order=declaration.order)
     resources = _EvaluationBudget.from_call(timeout, inferences, context)
-    return _evaluate_with_budget(home, query, declaration, resources, max_rounds=max_rounds)
+    return _evaluate_with_budget(
+        home, query, declaration, resources, max_rounds=max_rounds, derivations=derivations,
+    )
+
+
+def _relation(atom: Atom) -> str | None:
+    """The relation a proposition names, or None when its head is not a symbol."""
+    head = atom.children[0] if isinstance(atom, Expression) and atom.children else atom
+    return head.name if isinstance(head, Symbol) else None
+
+
+def _rule_graph_is_cyclic(rules: Sequence[_Rule]) -> builtins.bool:
+    """Whether some relation depends on itself through the rules' premises.
+
+    A premise whose head is not a symbol can match any relation, its own
+    head's included, so it counts as a cycle. Time: one visit per relation
+    plus one per premise, a depth-first walk over the relation graph.
+    """
+    edges: dict[str, builtins.set[str]] = {}
+    for rule in rules:
+        head = _relation(rule.head)
+        if head is None:
+            return True
+        targets = edges.setdefault(head, builtins.set())
+        for premise in rule.premises:
+            target = _relation(premise)
+            if target is None:
+                return True
+            targets.add(target)
+    finished: builtins.set[str] = builtins.set()
+    active: builtins.set[str] = builtins.set()
+
+    def walk(node: str) -> builtins.bool:
+        if node in finished:
+            return False
+        if node in active:
+            return True
+        active.add(node)
+        cyclic = any(walk(target) for target in edges.get(node, ()))
+        active.discard(node)
+        finished.add(node)
+        return cyclic
+
+    return any(walk(node) for node in edges)
+
+
+def _fixpoint_evaluate(
+    home: Space,
+    goal: Atom,
+    declaration: DeclaredAlgebra,
+    resources: _EvaluationBudget,
+) -> AlgebraEvaluation:
+    """The engine's tabled least fixpoint, every matching proposition with its tag."""
+    def run(seconds: float | None, steps: int | None) -> tuple[Any, int]:
+        rows, spent = _controlled_run(
+            home.runtime,
+            "metta_py_algebra_fixpoint_accounted",
+            [home.name, declaration.name, goal.to_wire()],
+            _limits(seconds, steps),
+            context=resources.context,
+        )
+        return rows, int(spent)
+
+    rows = resources._run_accounted(home, run)
+    # The lattice join is the fusion of equal conclusions; no proof bag is
+    # kept, so demand-directed derivation has nothing to direct.
+    plan = (
+        PlanDecision("fuse-equal-conclusions", applied=True),
+        PlanDecision("demand-directed-derivation", applied=False),
+        PlanDecision("tabled-fixpoint", applied=True),
+    )
+    answers = [
+        TaggedAnswer(
+            _atom_from_wire(proposition),
+            _atom_from_wire(tag),
+            frozenset(),
+            (),
+            (),
+            home,
+            declaration.name,
+            plan,
+        )
+        for proposition, tag in rows
+    ]
+    for answer in answers:
+        declaration.check_values(home, answer.tag, resources=resources)
+    return AlgebraEvaluation(tuple(_order_answers(declaration, answers)), plan)
+
+
+def _model_count(
+    space: Space, declaration: DeclaredAlgebra, formula: Atom, resources: _EvaluationBudget,
+) -> Atom:
+    """The weighted model count of a formula tag under a carrier with a negation."""
+    def run(seconds: float | None, steps: int | None) -> tuple[Atom, int]:
+        wire, spent = _controlled_run(
+            space.runtime,
+            "metta_py_algebra_model_count_accounted",
+            [space.name, declaration.name, formula.to_wire()],
+            _limits(seconds, steps),
+            context=resources.context,
+        )
+        return _atom_from_wire(wire), int(spent)
+
+    return cast("Atom", resources._run_accounted(space, run))
+
+
+def formula_variables(metta: Space, formula: Atom) -> list[tuple[Atom, Atom]]:
+    """The source keys a formula tag mentions, each with its recorded weight.
+
+    metta may be a context or a space.
+    """
+    rows = metta.self.runtime.apply_must("metta_py_algebra_formula_variables", formula.to_wire())
+    return [(_atom_from_wire(key), _atom_from_wire(weight)) for key, weight in rows]
 
 
 def _evaluate_with_budget(
@@ -1636,6 +1988,7 @@ def _evaluate_with_budget(
     resources: _EvaluationBudget,
     *,
     max_rounds: int = _MAX_ROUNDS,
+    derivations: builtins.bool | None = None,
 ) -> AlgebraEvaluation:
     """Run tagged derivation inside the budget owned by its enclosing query."""
     _require_context_capabilities(home, declaration)
@@ -1645,12 +1998,35 @@ def _evaluate_with_budget(
     for answer in available:
         declaration.check_values(home, answer.tag, resources=resources)
     for rule in rules:
-        declaration.check_values(home, rule.tag, resources=resources)
+        if not _headed_tag(rule.tag, "function"):
+            declaration.check_values(home, rule.tag, resources=resources)
+    if declaration.variable is not None:
+        # A free carrier's facts are its variables, minted by position.
+        available = [
+            replace(answer, tag=_minted(home, declaration, _source_key(home, answer.proof[0]), answer.tag, resources))
+            for answer in available
+        ]
     sources = (
         _ProviderSources(home, declaration, resources)
         if home.runtime.once("seam:foreign_space(Space)", Space=home.name)
         else None
     )
+    if derivations is None:
+        # The fixpoint is the default only where it is known to terminate:
+        # an idempotent join, or a declared saturation, over a stored program
+        # whose rules form a cycle. A non-idempotent carrier keeps the
+        # derived route's bounded refusal unless the caller asks otherwise.
+        converges = "combine-idempotent" in declaration.laws or declaration.saturation is not None
+        derivations = not (converges and sources is None and _rule_graph_is_cyclic(rules))
+    if not derivations:
+        if sources is not None:
+            msg = (
+                f"algebra_fixpoint_needs_a_stored_program({declaration.name}): a "
+                "provider-backed space serves its rows through the derived route; "
+                "ask with derivations=True"
+            )
+            raise AlgebraEvaluationError(msg)
+        return _fixpoint_evaluate(home, goal, declaration, resources)
     # max_rounds bounds fixpoint HEIGHT, not how long one round can run. The
     # absolute deadline therefore gets checked between rounds and inside each
     # potentially large Python scan, while every engine operation receives the
@@ -1869,7 +2245,7 @@ def _algebra_name(value: Any) -> str:
 
 
 def _operation_name(
-    metta: Space, algebra_name: str, role: str, operation: Any
+    metta: Space, algebra_name: str, role: str, operation: Any, *, arity: int = 2
 ) -> str:
     if isinstance(operation, Symbol):
         return operation.name
@@ -1886,12 +2262,24 @@ def _operation_name(
     def binary(left: Any, right: Any) -> Any:
         return operation(left, right)
 
-    # An algebra's combine and extend are arithmetic over two carrier values:
-    # they read nothing and write nothing, which is rank 0. The declaration
-    # is required at registration, and a semiring whose operator claimed a
-    # higher rank would make every annotation join that used it look
-    # effectful to the plan join.
-    metta.op(binary, name=name, effect=EffectClass.pureStructural)
+    def unary(value: Any) -> Any:
+        return operation(value)
+
+    def labelled(*values: Any) -> Any:
+        return operation(*values)
+
+    # An algebra's operations are arithmetic over carrier values: they read
+    # nothing and write nothing, which is rank 0. The declaration is required
+    # at registration, and a semiring whose operator claimed a higher rank
+    # would make every annotation join that used it look effectful to the
+    # plan join. A negation is the one unary role; a rule's label function
+    # takes one tag per premise, which is the one call form it serves.
+    if arity == 1:
+        metta.op(unary, name=name, effect=EffectClass.pureStructural)
+    elif arity == 2:
+        metta.op(binary, name=name, effect=EffectClass.pureStructural)
+    else:
+        metta.op(labelled, name=name, effect=EffectClass.pureStructural, arities=[arity])
     return name
 
 
@@ -1909,6 +2297,9 @@ def _construct(
     type: Any = None,  # noqa: A002 -- the public carrier concept is a type
     requires: Iterable[str] = (),
     order: SemiringOrder | None = None,
+    negate: Any = None,
+    saturated: Any = None,
+    variable: Any = None,
 ) -> DeclaredAlgebra:
     """Implement the functional and class-decorator constructor forms."""
     # The module-level `current_space`, the one `current_algebra` reads too,
@@ -1930,6 +2321,9 @@ def _construct(
         carrier_type = getattr(subject, "type", type)
         requires = getattr(subject, "requires", requires)
         order = getattr(subject, "order", order)
+        negate = getattr(subject, "negate", negate)
+        saturated = getattr(subject, "saturated", saturated)
+        variable = getattr(subject, "variable", variable)
     combine = plus if combine is None else combine
     extend = times if extend is None else extend
     if algebra_name in _PRESETS:
@@ -1955,6 +2349,9 @@ def _construct(
             type=carrier_type,
             requires=requires,
             order=order,
+            negate=None if negate is None else _operation_name(target, algebra_name, "negate", negate, arity=1),
+            saturated=None if saturated is None else _operation_name(target, algebra_name, "saturated", saturated),
+            variable=None if variable is None else _operation_name(target, algebra_name, "variable", variable),
         )
         return require(target, algebra_name)
 
@@ -1979,6 +2376,9 @@ class _AlgebraModule(ModuleType):
         type: Any = None,  # noqa: A002 -- the public carrier concept is a type
         requires: Iterable[str] = (),
         order: SemiringOrder | None = None,
+        negate: Any = None,
+        saturated: Any = None,
+        variable: Any = None,
     ) -> Any:
         if subject is None:
             def decorate(cls: type) -> DeclaredAlgebra:
@@ -1995,6 +2395,9 @@ class _AlgebraModule(ModuleType):
                     type=type,
                     requires=requires,
                     order=order,
+                    negate=negate,
+                    saturated=saturated,
+                    variable=variable,
                 )
 
             return decorate
@@ -2011,6 +2414,9 @@ class _AlgebraModule(ModuleType):
             type=type,
             requires=requires,
             order=order,
+            negate=negate,
+            saturated=saturated,
+            variable=variable,
         )
 
 
@@ -2024,6 +2430,7 @@ tropical = replace(_PRESETS["tropical"])
 prob = replace(_PRESETS["prob"])
 prov = replace(_PRESETS["prov"])
 budget = replace(_PRESETS["budget"])
+formula = replace(_PRESETS["formula"])
 amplitude = replace(_PRESETS["amplitude"])
 
 # PEP 562 preserves lazy import identity at the package; changing the real

@@ -320,9 +320,11 @@ def test_demand_preserves_integer_rendering_failure(metta, monkeypatch):
             program.add_tagged_fact(10**400, S.seed(0))
             program.add_tagged_fact(1, S.wanted(0))
             program.add_tagged_rule(10**400, S.unrelated(V.x), S.seed(V.x))
+            # bag multiplies the written tags; counting reads every source as
+            # one, the count its engine aggregate answers.
             for runner in (
-                lambda: _reference(program, S.wanted(0), monkeypatch, algebra="counting"),
-                lambda: evaluate(program, S.wanted(0), algebra="counting"),
+                lambda: _reference(program, S.wanted(0), monkeypatch, algebra="bag"),
+                lambda: evaluate(program, S.wanted(0), algebra="bag"),
             ):
                 with pytest.raises(ValueError, match="Exceeds the limit"):
                     runner()

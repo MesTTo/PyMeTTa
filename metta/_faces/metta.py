@@ -301,6 +301,7 @@ class MeTTa(MeTTaBase):
         inferences: _builtins.int | None=None,
         under: _body_typing.Any=_body_metta__atoms_designation._UNSET,
         into: _builtins.type | None=None,
+        derivations: _builtins.bool | None=None,
         **values: _body_typing.Any,
     ) -> _body_typing.Any:
         """Lazily match patterns against this space as one conjunction.
@@ -336,6 +337,18 @@ class MeTTa(MeTTaBase):
         than querying the space again. ``with metta.under(carrier)`` supplies
         the carrier when this call has no explicit ``under=``.
 
+        ``derivations=`` chooses how a tagged program is evaluated under the
+        carrier. Left alone, a program whose rules form a cycle, under a carrier
+        whose combine is idempotent or that declares a saturation, takes the
+        engine's tabled fixpoint, which converges there and keeps no proof tree;
+        any other program takes the derived route whose answers carry their
+        derivations and which refuses a cycle after its round bound.
+        ``derivations=False`` forces the fixpoint, the route that scales;
+        ``derivations=True`` forces the derived route.
+        A fixpoint answer reinterprets exactly through ``under=formula``, whose
+        tag is the derivation compiled to a decision diagram, and
+        ``.under(prob)`` on it is the weighted model count.
+
         `into=Rows` explicitly chooses the eager Rows face. Other `into=`
         values shape each row into a dataclass, NamedTuple, or
         TypedDict matched by field name, sqlite3's row_factory reading:
@@ -353,7 +366,7 @@ class MeTTa(MeTTaBase):
 
         Runs against this context's self space.
         """
-        return self.self.match(*patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into, **values)
+        return self.self.match(*patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into, derivations=derivations, **values)
 
     def solve(self, pattern: _body_typing.Any, subject: _body_typing.Any) -> _body_typing.Any:
         """Run relational ``let`` and return bindings keyed by its variables.

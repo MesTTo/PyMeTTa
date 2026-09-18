@@ -33,6 +33,7 @@ def _two_argument_judge(atom, _other):
     pytest.param(lambda m: m.self.__ior__(1), id="space:__ior__"),
     pytest.param(lambda m: m.self[:1], id="space:__getitem__"),
     pytest.param(lambda m: m.self.stream(S.fact(V.x), under="counting"), id="space:stream"),
+    pytest.param(lambda m: m.self.match(S.fact(V.x), derivations=False), id="space:match"),
     pytest.param(lambda m: m.self.saga(None), id="space:saga"),
     pytest.param(lambda m: m.self.subscribe(S.fact, where=object()), id="space:subscribe"),
     pytest.param(lambda m: m.self.define(), id="space:define"),

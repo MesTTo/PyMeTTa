@@ -81,6 +81,7 @@ from metta.algebra import bag as bag
 from metta.algebra import bool as bool  # noqa: A004 -- the public carrier names
 from metta.algebra import budget as budget
 from metta.algebra import counting as counting
+from metta.algebra import formula as formula
 from metta.algebra import prob as prob
 from metta.algebra import prov as prov
 from metta.algebra import ranked as ranked
@@ -139,6 +140,7 @@ class _AlgebraModule(_Protocol):
     prob: _DeclaredAlgebra
     prov: _DeclaredAlgebra
     budget: _DeclaredAlgebra
+    formula: _DeclaredAlgebra
     amplitude: _DeclaredAlgebra
 
     @_overload
@@ -272,6 +274,7 @@ def match(
     inferences: _builtins.int | None=...,
     under: _body_typing.Any=...,
     into: _builtins.type | None=...,
+    derivations: _builtins.bool | None=...,
     **values: _body_typing.Any,
 ) -> _body_typing.Any:
     ...

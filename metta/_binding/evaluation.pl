@@ -213,3 +213,46 @@ metta_py_algebra_operation_accounted(Space, Algebra0, OperationWire, [Wire, Used
         metta_apply_algebra_operation(Algebra, Operation, Left, Right, Result)),
     metta_py_encode(Result, Wire),
     metta_py_work(After), Used is After - Before.
+
+%The tagged program's least fixpoint under one carrier, computed by the
+%engine's tabling (engine/metta/algebra_fixpoint.pl): every derived
+%proposition matching the target, with its tag at the fixpoint, as
+%[[PropositionWire, TagWire], ...] and the work it cost. The space's module
+%is the evaluation module, so a carrier's operations that are equations of
+%that space apply.
+metta_py_algebra_fixpoint_accounted(Space, Algebra0, Target, [Rows, Used]) :-
+    metta_py_work(Before),
+    atom_string(Algebra, Algebra0),
+    metta_py_target_term_bindings(Space, Target, Goal, _),
+    metta_py_module(Space, Module),
+    metta_py_in_module(Module,
+        metta_algebra_fixpoint(Space, Algebra, Goal, Answers)),
+    findall([PropositionWire, TagWire],
+            ( member([Proposition, Tag], Answers),
+              metta_py_encode(Proposition, PropositionWire),
+              metta_py_encode(Tag, TagWire) ),
+            Rows),
+    metta_py_work(After), Used is After - Before.
+
+%The weighted model count of a formula-carrier value under a carrier that
+%declares a negation, and the variables the formula mentions with their
+%weights, so a formula answer reinterprets exactly rather than by summing
+%its proofs.
+metta_py_algebra_model_count_accounted(Space, Algebra0, FormulaWire, [Wire, Used]) :-
+    metta_py_work(Before),
+    atom_string(Algebra, Algebra0),
+    metta_py_decode_shared(FormulaWire, Formula, _),
+    metta_py_module(Space, Module),
+    metta_py_in_module(Module,
+        metta_formula_model_count(Formula, Algebra, Count)),
+    metta_py_encode(Count, Wire),
+    metta_py_work(After), Used is After - Before.
+
+metta_py_algebra_formula_variables(FormulaWire, Rows) :-
+    metta_py_decode_shared(FormulaWire, Formula, _),
+    metta_formula_variables(Formula, Variables),
+    findall([KeyWire, WeightWire],
+            ( member([Key, Weight], Variables),
+              metta_py_encode(Key, KeyWire),
+              metta_py_encode(Weight, WeightWire) ),
+            Rows).

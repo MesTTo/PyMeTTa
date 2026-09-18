@@ -33,6 +33,8 @@ metta_py_wrappable(metta_py_query_count).
 metta_py_wrappable(metta_py_query_count_if_repeatable).
 metta_py_wrappable(metta_py_check_algebra_values_accounted).
 metta_py_wrappable(metta_py_algebra_operation_accounted).
+metta_py_wrappable(metta_py_algebra_fixpoint_accounted).
+metta_py_wrappable(metta_py_algebra_model_count_accounted).
 metta_py_wrappable(metta_py_tagged_sources).
 metta_py_wrappable(metta_py_reducible).
 metta_py_wrappable(metta_py_run_status).

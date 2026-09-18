@@ -283,6 +283,7 @@ class Prepared:
     determinism=_doors.Determinism.nondet,
     tiers=(_doors.Tier.sync, _doors.Tier.async_, _doors.Tier.module, _doors.Tier.context),
     evidence=('extensions/python/tests/ch03_atoms_and_expressions/test_identity_wire.py::test_store_and_match_preserve_python_object_identity', 'extensions/python/tests/ch04_spaces_and_matching/test_algebra_lifecycle.py::test_drop_retires_algebra_before_redeclaration', 'extensions/python/tests/ch04_spaces_and_matching/test_answer_protocol.py::test_a_recorded_session_replays_verbatim'),
+    refuses=(_doors.Refusal(_doors.RefusalKind.type, 'extensions/python/tests/repository/test_door_refusals.py::test_door_type_refusals[space:match]'),),
     alias='match',
 )
 def match(
@@ -294,6 +295,7 @@ def match(
     inferences: int | None = None,
     under: Any = _UNSET,
     into: _builtins.type | None = None,
+    derivations: bool | None = None,
     **values: Any,
 ) -> Any:
     """Lazily match patterns against this space as one conjunction.
@@ -328,6 +330,18 @@ def match(
     ``under(other)``; the latter two reuse the retained derivation rather
     than querying the space again. ``with metta.under(carrier)`` supplies
     the carrier when this call has no explicit ``under=``.
+
+    ``derivations=`` chooses how a tagged program is evaluated under the
+    carrier. Left alone, a program whose rules form a cycle, under a carrier
+    whose combine is idempotent or that declares a saturation, takes the
+    engine's tabled fixpoint, which converges there and keeps no proof tree;
+    any other program takes the derived route whose answers carry their
+    derivations and which refuses a cycle after its round bound.
+    ``derivations=False`` forces the fixpoint, the route that scales;
+    ``derivations=True`` forces the derived route.
+    A fixpoint answer reinterprets exactly through ``under=formula``, whose
+    tag is the derivation compiled to a decision diagram, and
+    ``.under(prob)`` on it is the weighted model count.
 
     `into=Rows` explicitly chooses the eager Rows face. Other `into=`
     values shape each row into a dataclass, NamedTuple, or
@@ -369,7 +383,11 @@ def match(
             inferences=inferences,
             under=carrier,
             into=into,
+            derivations=derivations,
         )
+    if derivations is not None:
+        msg = "derivations= chooses a tagged program's route and needs under= to name the carrier"
+        raise TypeError(msg)
     cursor = _spaces_cursor_module.Cursor(space, patterns, where, timeout, inferences, limit=limit)
 
     def source() -> Iterator[_spaces_results_module._AnswerItem]:
@@ -436,6 +454,7 @@ def _match_under(
     inferences: int | None,
     under: Any,
     into: _builtins.type | None,
+    derivations: bool | None = None,
 ) -> Any:
     """Build one lazy carrier view over tagged or ordinary engine rows."""
     algebra_api = lazy('metta.algebra')
@@ -476,7 +495,7 @@ def _match_under(
             raise algebra_api.AlgebraEvaluationError(msg)
         resources = algebra_api._EvaluationBudget.from_call(timeout, inferences, context)
         evaluation = algebra_api._evaluate_with_budget(
-            space.self, patterns[0], declaration, resources,
+            space.self, patterns[0], declaration, resources, derivations=derivations,
         )
         row_cls = _spaces_results_module._row_class(columns)
         # Built ONCE: the guard term does not depend on the answer, only
