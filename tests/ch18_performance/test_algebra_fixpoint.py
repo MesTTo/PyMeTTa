@@ -6,32 +6,32 @@ Guarantees:
     two-cycle graph, counting counts the derivations of an acyclic one, and
     the derived route still refuses the cycle by name when it is forced
     [tested: test_a_cyclic_program_converges_under_every_shipped_carrier,
-    test_the_derived_route_still_refuses_a_cycle_when_forced; commit=WORKTREE].
+    test_the_derived_route_still_refuses_a_cycle_when_forced; commit=55368cb4eeb641d2325194eff9d0925048814b76].
   - the formula carrier counts a shared fact once: two proofs through one
     fact reinterpret under prob to p_f (p_g + p_h - p_g p_h), where the sum
     over proofs answers p_f p_g + p_f p_h, and a cyclic program's formula
     reads back the exact probability [tested:
     test_the_formula_carrier_counts_each_proof_once,
-    test_a_cyclic_program_is_exact_under_formula; commit=WORKTREE].
+    test_a_cyclic_program_is_exact_under_formula; commit=55368cb4eeb641d2325194eff9d0925048814b76].
   - the fixpoint route costs the engine's completion rather than Python rounds:
     a chain of n facts under the fixpoint spends fewer host-visible seconds
     than the derived route at n = 60, and the two routes agree on every
     answer [measured 2026-09-18: test_the_fixpoint_route_agrees_with_the_derived_route_and_costs_less;
-    commit=WORKTREE].
+    commit=55368cb4eeb641d2325194eff9d0925048814b76].
   - a custom algebra declares its negation, saturation and variable
     operations as claims the engine reads: a Python-declared carrier with a
     saturation test stops a sum over a cycle, and one with a negation counts
     a formula [tested: test_a_custom_algebra_declares_saturation_and_negation;
-    commit=WORKTREE].
+    commit=55368cb4eeb641d2325194eff9d0925048814b76].
   - a fixpoint answer keeps no derivation and says so: why() and under() on
     it refuse by name, except through formula [tested:
     test_a_fixpoint_answer_refuses_why_and_reinterprets_only_through_formula;
-    commit=WORKTREE].
+    commit=55368cb4eeb641d2325194eff9d0925048814b76].
   - a rule tagged (function F), or added with a callable tag, labels each
     instance with F over its premise tags on both routes, and such a label
     is not reinterpreted under another carrier [tested:
     test_a_rule_may_label_its_instances_by_a_function_of_its_premise_tags;
-    commit=WORKTREE].
+    commit=55368cb4eeb641d2325194eff9d0925048814b76].
 """
 
 import time
