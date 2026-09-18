@@ -15,13 +15,13 @@ Guarantees:
     separate from keyword control, while a positional call of a bound callee
     is MeTTa's own application `($g $x)`, whatever the callee holds [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
-    test_a_positional_call_of_a_bound_callee_is_the_written_application; commit=WORKTREE]
+    test_a_positional_call_of_a_bound_callee_is_the_written_application; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
   - a lambda lowers to the bare `|->` where it is applied or bound, the form
     higher-order heads such as maplist apply, and to its quoted syntax where
     a function returns it, the form a caller rebuilds through the published
     contract [tested: test_a_compiled_lambda_is_applied_where_it_stands,
     test_a_returned_lambda_is_its_syntax,
-    test_class_methods_keep_full_python_signatures_and_native_bodies; commit=WORKTREE]
+    test_class_methods_keep_full_python_signatures_and_native_bodies; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
   - lambda and comprehension binders preserve Python underscore identity
     [tested: test_python_underscore_bindings_retain_their_values; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - dictionary get selects its optional default only for an absent key;

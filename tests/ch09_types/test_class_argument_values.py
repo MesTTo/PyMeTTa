@@ -6,7 +6,7 @@ Guarantees:
     payload-preserving noeval spelling; factories run once before typed
     initialization, including fields excluded from __init__ [tested:
     test_constructor_arguments_preserve_values_and_run_factories;
-    commit=WORKTREE]
+    commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
   - supplied expressions finish before factory defaults and post-init runs
     [tested: test_constructor_sources_finish_before_factories_and_post_init;
     commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]

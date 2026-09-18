@@ -32,7 +32,7 @@ Guarantees:
     Atom [tested: test_python_call_arguments_follow_the_arrow,
     test_computed_receivers_preserve_their_stored_syntax,
     test_written_symbol_arguments_follow_live_scalar_rules,
-    test_native_value_binding_keeps_lambda_parameter_patterns; commit=WORKTREE]
+    test_native_value_binding_keeps_lambda_parameter_patterns; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
   - nonsymbol literal arguments retain direct cursor application [tested:
     test_function_calls_suspend_endless_producers; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - quoted variables retain their value boundary when callable templates

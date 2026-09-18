@@ -6,15 +6,15 @@ Guarantees:
     Atom takes it as written, and an Expression position receives the
     payload-preserving `S.noeval(...)` spelling as the syntax itself, through
     a defined function, a native symbol and a typed lambda [tested:
-    test_python_call_arguments_follow_the_arrow; commit=WORKTREE]
+    test_python_call_arguments_follow_the_arrow; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
   - a Python object argument is a value: a declared class instance reaches
     the callee as the term it is, syntax fields included, across all three
     grains [tested: test_computed_receivers_preserve_their_stored_syntax;
-    commit=WORKTREE]
+    commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
   - a live scalar rule rewrites a written symbol argument exactly as it
     rewrites the same application written in MeTTa, and an Atom position
     keeps the symbol [tested:
-    test_written_symbol_arguments_follow_live_scalar_rules; commit=WORKTREE]
+    test_written_symbol_arguments_follow_live_scalar_rules; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
 """
 
 from collections.abc import Callable

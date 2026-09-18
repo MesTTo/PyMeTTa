@@ -5,13 +5,13 @@ Guarantees:
     the engine's higher-order heads apply, so `fn.maplist(lambda a: ..., items)`
     compiles to the example's `(maplist (|-> ($a) ...) $items)` and a bound
     lambda applies to its argument [tested:
-    test_a_compiled_lambda_is_applied_where_it_stands; commit=WORKTREE]
+    test_a_compiled_lambda_is_applied_where_it_stands; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
   - a lambda a function returns is its quoted `|->` syntax, which a caller
     rebuilds through the contract the compiler published and applies from
-    Python [tested: test_a_returned_lambda_is_its_syntax; commit=WORKTREE]
+    Python [tested: test_a_returned_lambda_is_its_syntax; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
   - a positional call of a bound callee is the plain application, so a
     parameter holding a defined function's symbol applies as `(f (f x))`
-    [tested: test_a_compiled_lambda_is_applied_where_it_stands; commit=WORKTREE]
+    [tested: test_a_compiled_lambda_is_applied_where_it_stands; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]
 """
 
 from collections.abc import Callable
