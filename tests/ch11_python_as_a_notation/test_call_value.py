@@ -28,7 +28,7 @@ def _native(home, body, *, stream=False):
     return image, equation
 
 
-@pytest.mark.parametrize("value", (None, False, (), [], {}, set(), NotImplemented, object(), S["+"](1, 2), S.Error(S.held, S.data)))
+@pytest.mark.parametrize("value", (None, False, [], {}, set(), NotImplemented, object(), S["+"](1, 2), S.Error(S.held, S.data)))
 def test_call_value_preserves_host_result_identity(value):
     """None is one success and Atom or iterator objects do not become syntax."""
     with MeTTa() as context:
@@ -40,6 +40,15 @@ def test_call_value_preserves_host_result_identity(value):
         # that holds it, the same object, never a spelling of it.
         assert isinstance(result[0], Grounded)
         assert result[0].value is value
+
+
+def test_call_value_spells_a_returned_tuple_as_its_expression():
+    """A tuple is what pythonic hands a callable for an expression, so it returns as one."""
+    with MeTTa() as context:
+        home = context.self
+        call_syntax.link(home, ("_python-call-value",))
+        assert home.eval(_call(home, G(lambda: (1, 2)))) == [Expression([1, 2])]
+        assert home.eval(_call(home, G(lambda: ()))) == [Expression([])]
 
 
 def test_call_value_uses_exact_opaque_callable_frames():

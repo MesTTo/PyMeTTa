@@ -155,9 +155,9 @@ def bind_call(home: Atom, function: Atom, positional: Atom, keywords: Atom, cons
     if isinstance(function, Grounded):
         pairs = Expression([Expression([Grounded(name), value]) for name, value in named.items()])
         mapping = _expr(S["py-dict"], _expr(S.noeval, pairs)) if named else keywords
-        # host.apply already consumes separate frames. Expanding a positional
-        # term into the grounded-call syntax would reinterpret a last Kwargs
-        # value as control; its fields could also be evaluated a second time.
+        # host.apply already consumes separate frames, so the assembled
+        # positional term and the keyword mapping reach the callable as the
+        # frames they are, with no second evaluation of their fields.
         application = call_values.apply_sources(Grounded(host.apply), (
             _expr(S.noeval, function), _expr(S.noeval, positional), mapping,
         ))

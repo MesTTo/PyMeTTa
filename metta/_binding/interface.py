@@ -56,7 +56,8 @@ PYTHON_SERVICES = {
     "metta._binding.host": (
         "algebra_equal", "apply", "build_dict", "build_list", "build_tuple",
         "class_names", "declare_type", "declared_type_texts", "dot", "evaluate",
-        "evaluate_grounded", "is_callable", "is_numeric", "iterate", "iterate_once",
+        "evaluate_grounded", "grounded_apply", "is_callable", "is_numeric", "iterate",
+        "iterate_once",
         "numeric_operation", "render", "resolve", "resolve_grounded",
         "sequence_length", "sized_length", "stream_reraise", "stream_tag", "unboxed",
     ),

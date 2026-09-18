@@ -42,7 +42,7 @@ def test_compiled_operator_results_retain_identity_and_later_use(scratch_space):
     held = S.OperatorResult(S.payload)
     scratch_space.add(S["="](held, S.UnwantedReduction))
     assert scratch_space.eval(held) == [S.UnwantedReduction]
-    for value in (None, False, 0, "", [], (1, 2), {}, set(), object(), held):
+    for value in (None, False, 0, "", [], {}, set(), object(), held):
         seen = []
 
         def observe(item, *, expected=value, seen=seen):
@@ -53,6 +53,12 @@ def test_compiled_operator_results_retain_identity_and_later_use(scratch_space):
         assert result(operand).one() is value, type(value)
         assert consume(operand, observe).one() is True, (type(value), value, seen)
         assert len(seen) == 1 and seen[0] is value
+
+    # A tuple is the expression it spells, so a later use reads an equal
+    # tuple rather than the same object.
+    pair = (1, 2)
+    assert result(_ResultOperand(pair)).one() == Expression([1, 2])
+    assert consume(_ResultOperand(pair), lambda item: item == pair).one() is True
 
     values = []
 

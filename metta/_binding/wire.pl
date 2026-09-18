@@ -1,5 +1,7 @@
 % Purpose: encode, decode and share tagged terms and answer forms.
-% Assumes: loaded through _binding/shim.pl in its host module.
+% Assumes: loaded through _binding/surface.pl with the engine audience, so the
+%   grounded call crosses through it without the host shim; the shim reads it
+%   too, and includes it itself when it is loaded alone.
 
 %%%%%%%%%% Wire encoding %%%%%%%%%%
 %

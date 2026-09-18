@@ -120,17 +120,20 @@ def returned(value: Any) -> Atom:
     image projects next, since a declared class instance is a face of a native
     value whatever else it is (a prototype instance is a space, and a space is
     an atom); an Atom result is then held under a data wrapper so returned
-    syntax is not reduced; a container is borrowed by identity; and anything
-    else is held by its exact class, which is where a generator or a coroutine
-    stays unstarted: neither has an image, so the twin receives the object it
-    returned.
+    syntax is not reduced; a container is borrowed by identity, except that a
+    raw tuple is the expression it spells, since `pythonic` hands an expression
+    to a callable as a tuple and a callable returning its argument must return
+    the expression (a tuple subclass, an opaque reading included, stays held);
+    and anything else is held by its exact class, which is where a generator
+    or a coroutine stays unstarted: neither has an image, so the twin receives
+    the object it returned.
     """
     if getattr(type(value), "__metta_observes__", False):
         return hold(value)
     projected = explicit_projection(value)
     if projected is not None:
         return projected
-    if isinstance(value, Atom) or runtime_annotation(value) is not None:
+    if isinstance(value, Atom) or (type(value) is not tuple and runtime_annotation(value) is not None):
         return Grounded(value)
     return hold(value)
 

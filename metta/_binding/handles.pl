@@ -1,5 +1,7 @@
 % Purpose: retain native values behind numeric host handles.
-% Assumes: loaded through _binding/shim.pl in its host module.
+% Assumes: loaded through _binding/surface.pl, the engine audience, so the
+%   grounded call's wire crossing can keep a blob alive without the host shim;
+%   the shim includes it itself when it is loaded alone.
 % Owns resources: metta_py_handle_store/2 references until metta_py_handle_release/1 retracts them
 % [source: extensions/python/metta/_binding/handles.pl:21; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 

@@ -62,6 +62,14 @@ Guarantees:
     crosses as the MeTTa boolean `if` and `==` read, while an array comparison
     keeps its array [tested: test_a_numpy_scalar_comparison_answers_the_metta_boolean;
     commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
+  - grounded_apply() is the engine's grounded call's one crossing: the
+    callable and its arguments arrive as atoms on the wire and reach the
+    callable through ``pythonic``, keyword pairs the translator read from a
+    written ``(Kwargs ...)`` become keywords, and the result returns through
+    ``returned``, so a generator it answers stays the unstarted object and a
+    tuple is the expression it spells [tested:
+    test_grounded_applications_use_the_seam_codec,
+    test_grounded_applications_read_keywords_only_where_written; commit=WORKTREE]
   - iterator objects crossing through resolve(), evaluate(), dot(), apply(), or
     a grounded transport envelope acquire one lazy shared cache; iterate()
     returns an independent cursor at index zero, while iterate_once() exposes
@@ -127,6 +135,9 @@ from collections.abc import Callable, Iterator, Sequence, Sized
 from functools import lru_cache
 from types import ModuleType
 from typing import Any, Final, NamedTuple, Self
+
+from metta._atoms.factories import Symbol, _atom_from_wire
+from metta._catalog.call_values import pythonic, returned
 
 
 class _GroundedTuple(tuple):
@@ -813,13 +824,45 @@ def dot(obj: Any, attr: str) -> Any:
 
 
 def apply(fn: Any, args: list, kwargs: dict | None = None) -> Any:
-    """Call a resolved Python object. Kwargs arrive as a dict or not at all."""
+    """Call a resolved Python object with separate argument frames.
+
+    The callee a compiled keyword or expanded call applies: the frames were
+    assembled at run time, so their keywords cannot be written at a call site
+    for the translator to read, and this callable takes them as the mapping
+    they are. It is itself applied through grounded_apply(), so its frames
+    arrive as the twin's values.
+    """
     return _transported(
         _unwrap(fn)(
             *(_unwrap(arg) for arg in args),
             **{name: _unwrap(value) for name, value in (kwargs or {}).items()},
         )
     )
+
+
+def grounded_apply(payload: Any, pairs: Any) -> Any:
+    """Apply a grounded Python callable through the seam's codec.
+
+    `payload` is the wire of `(callable argument ...)` and `pairs` the wire of
+    the `((name value) ...)` a `(Kwargs ...)` written at the call site named,
+    `()` when none was. Every argument reaches the callable through
+    `pythonic`, the codec the seam's value calls and the prelude operators
+    share (an expression is a tuple, a symbol stays a Symbol, a grounded
+    value is itself), and the result crosses back through `returned`, held
+    rather than reduced. This is seam:grounded_apply/4's one crossing, so a
+    Python callable applied from MeTTa and one applied from a compiled body
+    see the same values. It lives in the engine audience's module because the
+    engine applies a grounded callable with or without the host runtime loaded.
+    """
+    application = _atom_from_wire(payload)
+    callable_atom, *arguments = application.children
+    named = {}
+    for pair in _atom_from_wire(pairs).children:
+        name, value = pair.children
+        # A written keyword name is a symbol; a string spells the same name.
+        named[name.name if isinstance(name, Symbol) else str(pythonic(name))] = pythonic(value)
+    target = _unwrap(pythonic(callable_atom))
+    return returned(target(*(pythonic(argument) for argument in arguments), **named)).to_wire()
 
 
 def is_callable(obj: Any) -> bool:

@@ -490,14 +490,20 @@
 :- use_module('evaluation_policy.pl', [binding_evaluation_expansion/2]).
 :- use_module('source_macros.pl', [binding_source_expansion/2]).
 :- use_module('services.pl', [binding_forward_expansion/2]).
-:- include('provides_host_user.pl').
+%The atom wire and the handle store belong to the engine audience
+%(surface.pl includes them, so the grounded call crosses without this shim);
+%a shim loaded on its own, which the host suites under tests/prolog/suites do,
+%reads the same two files here, once.
+:- if(\+ current_predicate(metta_py_decode_shared/3)).
 :- include('wire.pl').
+:- include('handles.pl').
+:- endif.
+:- include('provides_host_user.pl').
 :- include('errors.pl').
 :- include('source.pl').
 :- include('control.pl').
 :- include('cursors.pl').
 :- include('profiling.pl').
-:- include('handles.pl').
 :- include('json.pl').
 :- include('reader.pl').
 :- include('worlds.pl').

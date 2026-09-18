@@ -19,7 +19,7 @@
 %   the framed Python helper [tested:
 %   test_host_call_frames_preserve_borrowed_value_identity; commit=fb170a48db042c9a002e06f6cb47389af7fd66fc].
 
-provides_declaration(engine, user, grounded_apply/3).
+provides_declaration(engine, user, grounded_apply/4).
 
 provides_declaration(engine, user, grounded_algebra_equal/3).
 
@@ -167,18 +167,32 @@ seam:grounded_numeric_operation(Operation, Arguments, Result) :-
 %partial application, so an ordinary MeTTa call never reaches it. Failing is how
 %a grounded value that is NOT an operation stays unreduced, which is what a
 %value should do.
+%One codec for the crossing, the seam's. The callable and its positional
+%values cross as atoms on the wire and 'metta._binding.host':grounded_apply
+%reads them
+%through `pythonic`, so an expression is a tuple and a symbol stays a Symbol;
+%the keyword pairs are the `(name value)` pairs a `(Kwargs ...)` written at
+%the call site named, decided by the translator and `[]` otherwise, so a
+%`(Kwargs ...)` value is data. The result comes back through `returned`, held
+%rather than reduced, so a returned None, expression or instance is the value
+%it is. Before this the crossing was janus's: a list for an expression, a
+%string for a symbol, `()` for None, and keywords read out of any value
+%shaped `(Kwargs ...)` [tested: test_grounded_applications_use_the_seam_codec,
+%test_grounded_applications_read_keywords_only_where_written].
 provides(engine, user, (
-seam:grounded_apply(Obj, Args, Result) :-
+seam:grounded_apply(Obj, Positional, Pairs, Result) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     metta_py_bridge,
     py_call('metta._binding.host':is_callable(Obj), @true),
-    metta_py_split_kwargs(Args, Positional0, Kwargs),
-    maplist(py_frame_arg_norm, Positional0, Positional),
-    metta_py_opts(Opts),
-    metta_py_guard([Obj|Args],
-                   py_call('metta._binding.host':apply(Obj, Positional, Kwargs), Raw, Opts)),
-    metta_py_result(Raw, Result)
+    (   Pairs == []
+    ->  Call = [Obj|Positional]
+    ;   append(Positional, [['Kwargs'|Pairs]], Tail),
+        Call = [Obj|Tail]
+    ),
+    metta_py_encode_arguments([[Obj|Positional], Pairs], [Payload, PairsWire], Table),
+    metta_py_guard(Call, py_call('metta._binding.host':grounded_apply(Payload, PairsWire), Wire)),
+    metta_py_decode_shared_(Wire, Result, Table, _)
 )).
 
 provides_declaration(engine, user, grounded_applicable/1).

@@ -20,7 +20,7 @@
 %     is 1,905 us, and the gap grows with the data]
 %     [tested: iteration_is_lazy].
 %   - a resolved callable is applicable in head position, through the engine's
-%     seam:grounded_apply/3 seam rather than through anything Python-specific
+%     seam:grounded_apply/4 seam rather than through anything Python-specific
 %     [tested: a_resolved_callable_is_applicable], and a grounded value that is
 %     not an operation stays unreduced rather than raising
 %     [tested: a_grounded_value_that_is_not_callable_stays_unreduced].
@@ -60,6 +60,13 @@
 %   Future Enhancements: None
 
 :- use_module(library(janus)).
+%The atom wire and the handle store load with the ENGINE audience: the
+%grounded call (provides_engine_user.pl, seam:grounded_apply/4) crosses
+%through them, so an engine that runs without the host shim, the example
+%runner, still applies a Python callable through the seam's codec. The
+%host shim loads after this file and reads the same predicates.
+:- include('wire.pl').
+:- include('handles.pl').
 :- include('provides_engine_user.pl').
 % Host code owns these imports after the engine moves into metta_engine
 % [tested: sh check.sh no-autoload; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
@@ -454,28 +461,11 @@ metta_py_pair(Pair, [Key, Value]) :-
     ).
 
 
-%(Kwargs (start 2) (stop 10)) in the argument list, which is the language's own
-%spelling. Anything before it is positional.
-metta_py_split_kwargs(Args, Positional, Kwargs) :-
-    (   append(Positional, [['Kwargs'|Pairs]], Args)
-    ->  maplist(metta_py_kwarg, Pairs, Converted),
-        dict_pairs(Kwargs, py, Converted)
-    ;   Positional = Args, Kwargs = py{}
-    ).
-
-%The pair arrives unevaluated, so the NAME is a name and the VALUE is whatever
-%was written. Evaluating the value here is what keeps `(Kwargs (n (+ 1 2)))`
-%meaning 3 while `(Kwargs (reverse true))` still means the keyword `reverse`.
-metta_py_kwarg([Name, Value0], Name-Value) :-
-    !,
-    (   is_list(Value0), Value0 \== []
-    ->  reduce(Value0, Evaluated, _)
-    ;   Evaluated = Value0
-    ),
-    py_frame_arg_norm(Evaluated, Value).
-metta_py_kwarg(Other, _) :-
-    throw(error(type_error(keyword_argument, Other),
-                context('Kwargs'/1, 'takes (name value) pairs'))).
+%`(Kwargs (start 2) (stop 10))` written last in a grounded application's
+%argument list is the language's keyword spelling. The translator reads it
+%from the source (engine/translator/lowering.pl) and hands the pairs to
+%seam:grounded_apply/4 beside the positional values, so nothing here splits
+%an argument list by shape any more.
 
 %%%% Iteration %%%%
 

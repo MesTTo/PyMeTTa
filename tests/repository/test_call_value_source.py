@@ -172,9 +172,16 @@ class CallValueSourceTests(unittest.TestCase):
     def test_successful_results_keep_their_existing_image_policy(self):
         """Explicit images win and ordinary results remain exact held objects."""
         returned = self.namespace["returned"]
-        for value in (None, False, [], (), {}, object(), Symbol("Error"), Expression([])):
+        for value in (None, False, [], {}, object(), Symbol("Error"), Expression([])):
             with self.subTest(kind=type(value).__name__):
                 self.assertIs(returned(value).value, value)
+        # A raw tuple is not held by identity: it reaches hold, whose real
+        # implementation spells it as the expression pythonic reads it from.
+        self.namespace["hold"] = lambda value: ("held", value)
+        try:
+            self.assertEqual(returned((1, 2)), ("held", (1, 2)))
+        finally:
+            self.namespace["hold"] = Grounded
         value = object()
         image = Expression([Symbol("Declared"), Grounded(3)])
         self.images[id(value)] = image
