@@ -431,7 +431,7 @@ def add_tagged_rule(
     effect=_doors.EffectClass.writesState,
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
-    evidence=('extensions/python/ext/metta-pydantic/tests/test_pydantic.py::test_the_row_is_registered_against_the_image_point', 'extensions/python/tests/ch11_python_as_a_notation/test_integrate.py::test_a_failed_integration_restores_registry_preimages', 'extensions/python/tests/ch20_extending_the_engine/test_catalog_kinds.py::test_the_image_declaration_is_catalog_validated'),
+    evidence=('ext/metta-pydantic/tests/test_pydantic.py::test_the_row_is_registered_against_the_image_point', 'extensions/python/tests/ch11_python_as_a_notation/test_integrate.py::test_a_failed_integration_restores_registry_preimages', 'extensions/python/tests/ch20_extending_the_engine/test_catalog_kinds.py::test_the_image_declaration_is_catalog_validated'),
 )
 def image(
     space: _root.Space,
@@ -590,7 +590,7 @@ def merge(
     effect=_doors.EffectClass.writesState,
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
-    evidence=('extensions/python/tests/ch04_spaces_and_matching/test_answer_protocol.py::test_declare_context_validates', 'extensions/python/ext/metta-otel/tests/test_otel.py::test_spans_nest_by_the_events_own_depth', 'extensions/python/tests/ch04_spaces_and_matching/test_answer_protocol.py::test_explain_answers_the_route_and_the_route_is_honest'),
+    evidence=('extensions/python/tests/ch04_spaces_and_matching/test_answer_protocol.py::test_declare_context_validates', 'ext/metta-otel/tests/test_otel.py::test_spans_nest_by_the_events_own_depth', 'extensions/python/tests/ch04_spaces_and_matching/test_answer_protocol.py::test_explain_answers_the_route_and_the_route_is_honest'),
 )
 def context(
     space: _root.Space,

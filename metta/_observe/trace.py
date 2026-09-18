@@ -377,7 +377,7 @@ def _recorded(stopped, records) -> Trace:
     effect=_doors.EffectClass.oracleIO,
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.async_, _doors.Tier.module, _doors.Tier.context),
-    evidence=('extensions/python/ext/metta-otel/tests/test_otel.py::test_a_reduction_a_bound_cut_ends_with_the_trace', 'extensions/python/ext/metta-otel/tests/test_otel.py::test_a_trace_becomes_one_span_per_reduction', 'extensions/python/ext/metta-otel/tests/test_otel.py::test_a_trace_inside_an_observed_block_refuses'),
+    evidence=('ext/metta-otel/tests/test_otel.py::test_a_reduction_a_bound_cut_ends_with_the_trace', 'ext/metta-otel/tests/test_otel.py::test_a_trace_becomes_one_span_per_reduction', 'ext/metta-otel/tests/test_otel.py::test_a_trace_inside_an_observed_block_refuses'),
     alias='trace',
 )
 def trace(

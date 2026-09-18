@@ -305,7 +305,7 @@ class Debugger:
     effect=_doors.EffectClass.oracleIO,
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.async_, _doors.Tier.module, _doors.Tier.context),
-    evidence=('extensions/python/ext/metta-otel/tests/test_otel.py::test_observing_inside_a_debug_session_refuses', 'extensions/python/tests/ch14_seeing_your_program/test_debug.py::test_a_breakpoint_inside_a_host_operation_refuses_with_its_remedy', 'extensions/python/tests/ch14_seeing_your_program/test_debug.py::test_a_breakpoint_suspends_the_program_and_resuming_carries_it_on'),
+    evidence=('ext/metta-otel/tests/test_otel.py::test_observing_inside_a_debug_session_refuses', 'extensions/python/tests/ch14_seeing_your_program/test_debug.py::test_a_breakpoint_inside_a_host_operation_refuses_with_its_remedy', 'extensions/python/tests/ch14_seeing_your_program/test_debug.py::test_a_breakpoint_suspends_the_program_and_resuming_carries_it_on'),
     refuses=(_doors.Refusal(_doors.RefusalKind.value, 'extensions/python/tests/ch14_seeing_your_program/test_debug.py::test_a_negative_count_breakpoint_refuses'),),
     alias='debug',
 )

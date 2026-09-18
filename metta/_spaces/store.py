@@ -97,7 +97,7 @@ def _fact_stream(value: Any) -> Iterator[Any] | None:
     effect=_doors.EffectClass.oracleIO,
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.async_, _doors.Tier.module, _doors.Tier.context),
-    evidence=('extensions/python/ext/metta-arrays/tests/test_arrays.py::test_embedding_store_validates_added_vectors', 'extensions/python/tests/ch04_spaces_and_matching/test_r2_space_handle.py::test_add_atom_accepts_a_computed_space_handle', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_add_query_atoms'),
+    evidence=('ext/metta-arrays/tests/test_arrays.py::test_embedding_store_validates_added_vectors', 'extensions/python/tests/ch04_spaces_and_matching/test_r2_space_handle.py::test_add_atom_accepts_a_computed_space_handle', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_add_query_atoms'),
     alias='add',
     binding=_doors.Binding('metta_py_add_many', _doors.Wire.goal),
     refuses=(_doors.Refusal(_doors.RefusalKind.type, 'extensions/python/tests/repository/test_door_refusals.py::test_door_type_refusals[space:add]'),),

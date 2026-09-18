@@ -373,7 +373,7 @@ class Face:
         object is a write, a call made for what it does is a write, and a name
         whose result nothing declares is `oracleIO`, the top, exactly what the
         bridge declares for `py-call` itself
-        [source: extensions/python/ext/metta-arrays/metta_arrays.py:install;
+        [source: ext/metta-arrays/metta_arrays.py:install;
         extensions/python/metta/_binding/surface.pl:743, seam:extension_builtin('py-call', oracleIO); commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
         """
         derived = _derived_effect(forms)

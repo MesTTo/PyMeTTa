@@ -78,7 +78,7 @@ __all__ = ["ROW_HEAD", "declare", "rules", "template", "withdraw"]
 #: declare their own rules and answer their own rows, and the row dies with the
 #: space because the head is marked `(owned-by-space typing)` in the same
 #: catalog. The array layer's roster carries its space for the same reason
-#: [source: extensions/python/ext/metta-arrays/metta_arrays.py, _ROSTER_HEAD].
+#: [source: ext/metta-arrays/metta_arrays.py, _ROSTER_HEAD].
 ROW_HEAD: Final[str] = "typing"
 
 #: The template hole that carries the head a rule is declared for.

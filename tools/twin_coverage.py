@@ -383,7 +383,7 @@ DEFINITION_COST = 1642
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed
-#: [source: extensions/python/ext/metta-benchmarking/metta_benchmarking.py _COUNTER_TOLERANCE;
+#: [source: ext/metta-benchmarking/metta_benchmarking.py _COUNTER_TOLERANCE;
 #: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 TOLERANCE = 4
 
@@ -2244,7 +2244,7 @@ def _launch(source: str, root: Path) -> Run:
 #: the lane: `test_twin_coverage.py` calls run_twin, so every later test in the
 #: same process lost `~/.elan/bin` from PATH and the two conformance tests that
 #: shelled out to a toolchain there failed to find it
-#: [source: extensions/python/ext/metta-benchmarking/metta_benchmarking.py
+#: [source: ext/metta-benchmarking/metta_benchmarking.py
 #: builds its child environment the same way and says why; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
 
@@ -2807,7 +2807,7 @@ def _budget_findings(
     benchmark baseline adopted the same two-sided band on 2026-08-25, after
     a stale-high pin (file-load at 8704891 against a 722264 tree) sat
     green for days and masked that margin of regression headroom
-    [source: extensions/python/ext/metta-benchmarking/metta_benchmarking.py, _compare_counter].
+    [source: ext/metta-benchmarking/metta_benchmarking.py, _compare_counter].
     """
     try:
         budget = budget_of(twin)

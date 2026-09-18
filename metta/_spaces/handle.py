@@ -634,7 +634,7 @@ class SpaceHandle(Handle):
         effect=_doors.EffectClass.oracleIO,
         determinism=_doors.Determinism.det,
         tiers=(_doors.Tier.sync, _doors.Tier.async_),
-        evidence=('extensions/python/ext/metta-arrays/tests/test_arrays.py::test_dropping_the_space_retires_its_installation_row', 'extensions/python/tests/ch04_spaces_and_matching/test_algebra_lifecycle.py::test_drop_retires_algebra_before_redeclaration', 'extensions/python/tests/ch04_spaces_and_matching/test_drop_recovery.py::test_backing_close_failure_keeps_the_name_and_cleanup_retryable'),
+        evidence=('ext/metta-arrays/tests/test_arrays.py::test_dropping_the_space_retires_its_installation_row', 'extensions/python/tests/ch04_spaces_and_matching/test_algebra_lifecycle.py::test_drop_retires_algebra_before_redeclaration', 'extensions/python/tests/ch04_spaces_and_matching/test_drop_recovery.py::test_backing_close_failure_keeps_the_name_and_cleanup_retryable'),
         state=_doors.State.any,
         binding=_doors.Binding('metta_py_drop_space', _doors.Wire.goal),
     )

@@ -144,7 +144,7 @@ ARTIFACTS = (
         depends=("vocab-sync", "protocol-sync"), requires=("engine",),
     ),
     Artifact(
-        "aio-mirror", (SEAT + "**/*.py", "extensions/python/ext/metta-*/*.py"), tool("aiogen", "--write"),
+        "aio-mirror", (SEAT + "**/*.py", "ext/metta-*/*.py"), tool("aiogen", "--write"),
         (Output(SEAT + "_faces/space.py"), Output(SEAT + "_faces/metta.py"), Output(SEAT + "aio/_mirror.py")),
         tool("aiogen"), (suite("tests/repository/test_async_mirror.py"),),
         depends=("layer-sync", "vocab-sync", "protocol-sync"),
@@ -176,7 +176,7 @@ ARTIFACTS = (
         requires=("SWI-Prolog and Janus for operator-aware source reading",),
     ),
     Artifact(
-        "door-sync", (SEAT + "**/*.py", "extensions/python/ext/metta-*/*.py",
+        "door-sync", (SEAT + "**/*.py", "ext/metta-*/*.py",
                       "extensions/python/tools/prologmacros.py"), tool("doorgen", "--write"),
         (Output(SEAT + "doors/_namespaces.py"),
          Output(SEAT + "_binding/options.py"), Output(SEAT + "_binding/options.pl"),
@@ -208,9 +208,9 @@ ARTIFACTS = (
         (suite("tests/repository/test_refusal_rows.py"),), depends=("refusal-sync",), requires=("engine",),
     ),
     Artifact(
-        "face-sync", ("lib/*/*.metta", "extensions/python/ext/**/*.metta", SEAT + "library/_face.py"), tool("facegen", "--write"),
+        "face-sync", ("lib/*/*.metta", "ext/**/*.metta", SEAT + "library/_face.py"), tool("facegen", "--write"),
         (Output("lib/*/*.metta", contains="Import:"),
-         Output("extensions/python/ext/**/*.metta", contains="Import:")), tool("facegen"),
+         Output("ext/**/*.metta", contains="Import:")), tool("facegen"),
         (suite("tests/ch11_python_as_a_notation/test_face.py", "ext/metta-arrays/tests/test_library_face.py"),),
         requires=("the installed Python modules named by each face header; missing modules are reported",),
     ),

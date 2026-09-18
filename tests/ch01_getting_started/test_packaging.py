@@ -197,7 +197,7 @@ def test_every_extra_installs_packages_and_never_a_library():
     """The ruling, read off the manifest: an extra names our own packages.
 
     Every library the Python seat can be extended by is its own distribution
-    under `extensions/python/ext/`, and an extra is the convenience name for a
+    under `ext/`, and an extra is the convenience name for a
     set of them, the shape `apache-airflow[amazon]` has. So the command a user
     types does not change and this file names no third-party library; that
     every name here IS a workspace member is what

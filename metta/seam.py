@@ -36,7 +36,7 @@ refusal, so it may not import a satellite; the six points whose readers are
 `seam.at` loads that module only when a name is not already declared.
 
 No row here is a library's. Every library the Python seat can be extended by
-lives in its own distribution under `extensions/python/ext/`, advertising one
+lives in its own distribution under `ext/`, advertising one
 entry point in the `metta.extensions` group, found the way a stranger's package
 is found; this package ships the four structural images and nothing else. That
 is the ruling of 2026-09-07, and `tests/checks/check_hardcoded_integrations.py`

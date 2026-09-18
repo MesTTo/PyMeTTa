@@ -70,7 +70,7 @@ def module_path(name: str, root: Path = ROOT) -> Path:
 
 def package_rows(root: Path = ROOT) -> tuple[Door, ...]:
     """Read extension marks with the same source reader used by core discovery."""
-    return tuple(row for path in sorted((root / "extensions/python/ext").glob("metta-*/*.py"))
+    return tuple(row for path in sorted((root / "ext").glob("metta-*/*.py"))
                  for row in scan(path, path.stem))
 
 

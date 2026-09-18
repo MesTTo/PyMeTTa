@@ -48,7 +48,7 @@ from metta._errors.errors import MettaError  # noqa: E402
 from metta.library._face import Face, read, render  # noqa: E402
 
 #: Source roots include independent distributions; neither root names a framework.
-FACES = (_REPO / "lib", _REPO / "extensions/python/ext")
+FACES = (_REPO / "lib", _REPO / "ext")
 
 #: How many diff lines one drifted face prints before the rest are counted.
 DIFF_LINES = 24

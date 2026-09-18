@@ -60,7 +60,7 @@ def test_the_tree_partitions_by_seam():
     )
     # Both roles, in one folder: the seat the engine CONSULTS and the seat that
     # DRIVES it are found by the same glob and told apart by their entry/2 rows.
-    assert "extensions/python/extension.pl" in controls
+    assert "extension.pl" in controls
     assert "extensions/mork/extension.pl" in controls
 
     assert not (REPO / "python" / "__init__.py").exists(), (
