@@ -66,7 +66,7 @@ def twin(m):
 #: discarded tally outside the window they bracket (metta_py_stats/2,
 #: metta_py_work/2) [measured 2026-09-19: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 BUDGET = 23676
 
 #: OVERRUN 2026-09-18, 538: the twin costs 23621 against the example's 18397
@@ -103,7 +103,7 @@ BUDGET = 23676
 #: residue [measured 2026-09-19: one fresh process per side through the lane's
 #: run_example and run_twin, the floor from a minimal twin built by the probe;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 OVERRUN = 3515
 
 #: DIVERGED 2026-09-18, the example holds 0 atoms the twin does not (none) and

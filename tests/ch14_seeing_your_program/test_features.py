@@ -1136,7 +1136,7 @@ def test_a_cancelled_future_is_not_charged(m):
     # The first two blocks pay first-use costs, the library's first worker
     # and the cancellation path's first use (122,001 and 4,993 in a fresh
     # process against the 4,484 every later block reads [measured
-    # 2026-09-19: six consecutive blocks; commit=WORKTREE]); the claim is
+    # 2026-09-19: six consecutive blocks; commit=32335687084e4d8ad43cf8800f2dedce707fa137]); the claim is
     # about the blocks after them.
     measured(), measured()
     first, second = measured(), measured()

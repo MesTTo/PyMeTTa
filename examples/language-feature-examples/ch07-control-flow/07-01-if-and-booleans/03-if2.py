@@ -410,5 +410,5 @@ DIVERGENCE = "26c23ce9e6fb37f3687387e2ae0cc6fe594de13826e0d1bfaf351fc743cd0d4d"
 #: [measured 2026-09-19: one fresh process per side through the lane's
 #: run_example and run_twin, the floor from a minimal twin built by the probe;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 OVERRUN = 107

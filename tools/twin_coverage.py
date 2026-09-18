@@ -369,7 +369,7 @@ BAND_PERCENT = 10.0
 #: exceeds what the writes save [measured 2026-09-19: min of three
 #: fresh-process readings per cell; command=python
 #: extensions/python/benchmarks/probes/twin_authoring.py;
-#: fixture=twin_authoring.fixture with 0..4 definitions; commit=WORKTREE].
+#: fixture=twin_authoring.fixture with 0..4 definitions; commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 DEFINITION_WARMUP = 305
 DEFINITION_COST = 1642
 

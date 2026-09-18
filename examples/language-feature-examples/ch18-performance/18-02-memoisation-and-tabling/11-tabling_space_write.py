@@ -467,7 +467,7 @@ def twin(m):
 #: discarded tally outside the window they bracket (metta_py_stats/2,
 #: metta_py_work/2) [measured 2026-09-19: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 BUDGET = 37952
 
 #: DIVERGED 2026-09-07, the example holds 3 atoms the twin does not (3 =) and

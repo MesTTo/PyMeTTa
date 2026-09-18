@@ -442,7 +442,7 @@ def twin(m):
 #: the window they bracket; the spread that remains is this twin's own
 #: schedule-bound work under the same 294-wide protocol [measured 2026-09-19:
 #: python extensions/python/tools/twin_coverage.py --observe --rounds 10, ai-
-#: observe-remedy.log; commit=WORKTREE].
+#: observe-remedy.log; commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 BUDGET = {
     "minimum": 133629,
     "maximum": 133728,

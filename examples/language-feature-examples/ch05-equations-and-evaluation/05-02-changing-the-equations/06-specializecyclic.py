@@ -325,5 +325,5 @@ BUDGET = 26614
 #: residue [measured 2026-09-19: one fresh process per side through the lane's
 #: run_example and run_twin, the floor from a minimal twin built by the probe;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 OVERRUN = 3935

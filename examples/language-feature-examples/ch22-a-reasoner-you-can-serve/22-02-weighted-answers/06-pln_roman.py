@@ -425,7 +425,7 @@ def twin(m):
 #: the discarded tally outside the window they bracket (metta_py_stats/2,
 #: metta_py_work/2) [measured 2026-09-19: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 BUDGET = 2255874
 
 #: OVERRUN 2026-09-07, 52200: it asserts the four premises the answer came from

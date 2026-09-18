@@ -346,7 +346,7 @@ metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
 %read at both edges it sat inside every window and charged it the read's
 %five inferences, so the corpus lane read 293 of 294 twins at exactly +5
 %over pins taken with the six the empty block costs [measured 2026-09-19:
-%the twins lane on c7e27cf2a; commit=WORKTREE]. The arithmetic stays inline
+%the twins lane on c7e27cf2a; commit=32335687084e4d8ad43cf8800f2dedce707fa137]. The arithmetic stays inline
 %in both clauses rather than behind a shared helper, because a call after the
 %opening read is inside the window too and would move every pin by one.
 metta_py_work(open, Work) :-

@@ -474,5 +474,5 @@ def twin(m):
 #: tally outside the window they bracket (metta_py_stats/2, metta_py_work/2),
 #: so the counter this envelope stated a spread for reads one integer [measured
 #: 2026-09-19: python extensions/python/tools/twin_coverage.py --observe
-#: --rounds 10, ai-observe-remedy.log; commit=WORKTREE].
+#: --rounds 10, ai-observe-remedy.log; commit=32335687084e4d8ad43cf8800f2dedce707fa137].
 BUDGET = 30449
