@@ -205,14 +205,14 @@ metta_py_classify(Module, Term, Status) :-
 %references package in the retired algebra unit; it lives here beside the
 %other module-scoped accounted evaluations.
 metta_py_algebra_operation_accounted(Space, Algebra0, OperationWire, [Wire, Used]) :-
-    metta_py_work(Before),
+    metta_py_work(open, Before),
     atom_string(Algebra, Algebra0),
     metta_py_decode_shared(OperationWire, [Operation, Left, Right], _),
     metta_py_module(Space, Module),
     metta_py_in_module(Module,
         metta_apply_algebra_operation(Algebra, Operation, Left, Right, Result)),
     metta_py_encode(Result, Wire),
-    metta_py_work(After), Used is After - Before.
+    metta_py_work(close, After), Used is After - Before.
 
 %The tagged program's least fixpoint under one carrier, computed by the
 %engine's tabling (engine/metta/algebra_fixpoint.pl): every derived
@@ -222,7 +222,7 @@ metta_py_algebra_operation_accounted(Space, Algebra0, OperationWire, [Wire, Used
 %that space apply.
 %The carrier is a name, or a wire term such as (product prob polynomial).
 metta_py_algebra_fixpoint_accounted(Space, Algebra0, Target, [Rows, Used]) :-
-    metta_py_work(Before),
+    metta_py_work(open, Before),
     (   is_list(Algebra0)
     ->  metta_py_decode_shared(Algebra0, Algebra, _)
     ;   atom_string(Algebra, Algebra0)
@@ -236,21 +236,21 @@ metta_py_algebra_fixpoint_accounted(Space, Algebra0, Target, [Rows, Used]) :-
               metta_py_encode(Proposition, PropositionWire),
               metta_py_encode(Tag, TagWire) ),
             Rows),
-    metta_py_work(After), Used is After - Before.
+    metta_py_work(close, After), Used is After - Before.
 
 %The weighted model count of a formula-carrier value under a carrier that
 %declares a negation, and the variables the formula mentions with their
 %weights, so a formula answer reinterprets exactly rather than by summing
 %its proofs.
 metta_py_algebra_model_count_accounted(Space, Algebra0, FormulaWire, [Wire, Used]) :-
-    metta_py_work(Before),
+    metta_py_work(open, Before),
     atom_string(Algebra, Algebra0),
     metta_py_decode_shared(FormulaWire, Formula, _),
     metta_py_module(Space, Module),
     metta_py_in_module(Module,
         metta_formula_model_count(Formula, Algebra, Count)),
     metta_py_encode(Count, Wire),
-    metta_py_work(After), Used is After - Before.
+    metta_py_work(close, After), Used is After - Before.
 
 metta_py_algebra_formula_witnesses(FormulaWire, Rows) :-
     metta_py_decode_shared(FormulaWire, Formula, _),

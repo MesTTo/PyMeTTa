@@ -447,4 +447,17 @@ DIVERGENCE = "ebd72579bd6332d99e221eec2c82a37abd9cf3029fac67379d0e312c42d7780a"
 #: through the lane's run_example and run_twin, the floor from a minimal twin
 #: built by the probe; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=bf5f100591493a91324b1d7552b5ad2731601691].
-OVERRUN = 1409
+#: OVERRUN 2026-09-19, 1409 to 2341 (+932): the twin costs 15956 against the
+#: example's 10608 and a ceiling of 15024 with the earlier declaration; a
+#: minimal twin of this example costs 19315, above the 11669 the band alone
+#: allows, so the distance is the library's own floor for this shape, debt the
+#: tracker carries rather than this twin's program. the trunk's cost per
+#: recorded write (the trailed publication context read, the owner pin and the
+#: listener door on every assertion, f97c4b0a3) on the writes this twin makes
+#: beyond the one compiled definition the allowance prices, its declarations,
+#: documentation and reflection rows, so the twin sits past its example by that
+#: residue [measured 2026-09-19: one fresh process per side through the lane's
+#: run_example and run_twin, the floor from a minimal twin built by the probe;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 2341

@@ -461,9 +461,18 @@ def twin(m):
 #: observation under the same 294-wide protocol [measured 2026-09-19: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10, ai-
 #: observe-4c0533704.log; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
-BUDGET = {
-    "minimum": 30449,
-    "maximum": 30449,
-    "observations": 10,
-    "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
-}
+#: POINTED 2026-09-19: the envelope 30449..30449 over 10 under 'full-
+#: lane/294/workers=32' retires and the point is 30449, which 10 full-lane
+#: observations read every time: cost follows the answer: a block is charged
+#: for its own thread's work and for the workers whose answers it used, a
+#: race's losers, the branches par-any and par-forall stopped and a cancelled
+#: future or timer being joined through the engine's discarding door
+#: (metta_join_measured/3) and their partial spend taken out beside the
+#: interrupt poll's charge, and lib_thread's join no longer polls, the host
+#: being patched so thread_join/2 is safe inside a worker's engine switch (swi-
+#: thread-join-detach-window), and the seat's counter doors read the discarded
+#: tally outside the window they bracket (metta_py_stats/2, metta_py_work/2),
+#: so the counter this envelope stated a spread for reads one integer [measured
+#: 2026-09-19: python extensions/python/tools/twin_coverage.py --observe
+#: --rounds 10, ai-observe-remedy.log; commit=WORKTREE].
+BUDGET = 30449

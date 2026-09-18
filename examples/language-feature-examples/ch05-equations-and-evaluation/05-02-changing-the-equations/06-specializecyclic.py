@@ -313,4 +313,17 @@ BUDGET = 26614
 #: run_example and run_twin, the floor from a minimal twin built by the probe;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-OVERRUN = OVERRUN = 3373
+#: OVERRUN 2026-09-19, 3373 to 3935 (+562): the twin costs 26614 against the
+#: example's 18848 and a ceiling of 26052 with the earlier declaration; a
+#: minimal twin of this example costs 26160, above the 20733 the band alone
+#: allows, so the distance is the library's own floor for this shape, debt the
+#: tracker carries rather than this twin's program. the trunk's cost per
+#: recorded write (the trailed publication context read, the owner pin and the
+#: listener door on every assertion, f97c4b0a3) on the writes this twin makes
+#: beyond the one compiled definition the allowance prices, its declarations,
+#: documentation and reflection rows, so the twin sits past its example by that
+#: residue [measured 2026-09-19: one fresh process per side through the lane's
+#: run_example and run_twin, the floor from a minimal twin built by the probe;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 3935

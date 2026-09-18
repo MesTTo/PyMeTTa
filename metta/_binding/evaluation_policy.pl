@@ -53,7 +53,7 @@ evaluation_clause(metta_py_evaluation_accounted(Options, Space, Target, Result),
               ; Under = [Algebra, Limit, Direction],
                 metta_with_evaluation_context(evaluation_context(Algebra, Limit, Direction), Work)),
     Goal = (Accounting == true
-            -> metta_py_work(Before), Scoped, metta_py_work(After),
+            -> metta_py_work(open, Before), Scoped, metta_py_work(close, After),
                Used is After - Before, Result = [Values, Used]
             ; Scoped, Result = Values).
 

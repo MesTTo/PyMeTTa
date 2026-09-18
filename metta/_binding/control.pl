@@ -336,18 +336,39 @@ metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
 %[tested: test_nominal_subtyping_does_not_scan_unrelated_declarations, which
 %compares two hundred-evaluation measurements of the same work and allows
 %four].
-metta_py_work(Work) :-
+%The joined-worker credits this thread discarded come out the same way
+%(engine/metta/control.pl, metta_join_measured/3): a block is charged for the
+%workers whose answers it used and not for a stopped branch's spend
+%[tested: test_a_cancelled_future_is_not_charged; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
+%Each door reads for one EDGE of the window two readings bracket, and the
+%discarded tally is read outside that window: before the inference read at
+%the opening edge, after it at the closing edge. Read after the inference
+%read at both edges it sat inside every window and charged it the read's
+%five inferences, so the corpus lane read 293 of 294 twins at exactly +5
+%over pins taken with the six the empty block costs [measured 2026-09-19:
+%the twins lane on c7e27cf2a; commit=WORKTREE]. The arithmetic stays inline
+%in both clauses rather than behind a shared helper, because a call after the
+%opening read is inside the window too and would move every pin by one.
+metta_py_work(open, Work) :-
+    metta_discarded_inferences(Discarded),
     statistics(inferences, Raw),
     metta_py_heartbeat_term(_, Spent, At, Before),
     Late is max(0, sign(At - Raw)),
-    Work is Raw - Spent + Late * (Spent - Before).
+    Work is Raw - Spent + Late * (Spent - Before) - Discarded.
+metta_py_work(close, Work) :-
+    statistics(inferences, Raw),
+    metta_py_heartbeat_term(_, Spent, At, Before),
+    metta_discarded_inferences(Discarded),
+    Late is max(0, sign(At - Raw)),
+    Work is Raw - Spent + Late * (Spent - Before) - Discarded.
 
 %One crossing for the engine's own counters: statistics/2 inferences and
 %cputime, the garbage_collection triple (collections, bytes freed,
 %milliseconds spent), the thread's answer-table bytes, which the tabling
-%review found reachable only through the lower-level runtime, and the
-%interrupt poll's four-field term. The Python side reads deltas around a
-%with-block and takes the poll's charge out there.
+%review found reachable only through the lower-level runtime, the
+%interrupt poll's four-field term, and the joined-worker credits this thread
+%discarded. The Python side reads deltas around a with-block and takes the
+%poll's charge and the discarded credits out there.
 %The tick's recorded inference position resolves a tick that arrives between
 %the inference read and the tick record; both sides of that boundary retain
 %the polling-disabled cost under concurrent workers
@@ -362,13 +383,24 @@ metta_py_work(Work) :-
 %term crossing and 10 with the subtraction spelled here, against 5 before the
 %poll was accounted at all; command=python extensions/python/benchmarks/
 %probes/interrupt_poll_accounting.py; commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
-metta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes,
-                Ticks, Spent, At, Before]) :-
+%The edge, as for metta_py_work/2: the discarded tally is read outside the
+%window, so the block's own cost stays the six inferences its pins carry.
+metta_py_stats(open, [Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes,
+                      Ticks, Spent, At, Before, Discarded]) :-
+    metta_discarded_inferences(Discarded),
     statistics(inferences, Inferences),
     metta_py_heartbeat_term(Ticks, Spent, At, Before),
     statistics(cputime, CpuTime),
     statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]),
     statistics(table_space_used, TableBytes).
+metta_py_stats(close, [Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes,
+                       Ticks, Spent, At, Before, Discarded]) :-
+    statistics(inferences, Inferences),
+    metta_py_heartbeat_term(Ticks, Spent, At, Before),
+    statistics(cputime, CpuTime),
+    statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]),
+    statistics(table_space_used, TableBytes),
+    metta_discarded_inferences(Discarded).
 
 %The poll's own term, and zeros for a thread that reached this door without
 %this file's thread_initialization/1 rather than an exception from a counter

@@ -352,8 +352,26 @@ BAND_PERCENT = 10.0
 #: grants it [measured 2026-09-11: min of three fresh-process readings per
 #: cell; command=python extensions/python/benchmarks/probes/twin_authoring.py;
 #: fixture=twin_authoring.fixture with 0..4 definitions; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
-DEFINITION_WARMUP = 303
-DEFINITION_COST = 1362
+#: RE-MEASURED 2026-09-19 on the merged tree (the trunk merge f97c4b0a3 with
+#: the definition batch's load pushed as the running load, 2da1155e3): 7,
+#: 1954, 3581, 5224, 6879 for 0..4 definitions, the fit 305 once plus 1642
+#: each, +280 per definition. The source door reads 453 to store and 1047 at
+#: its first call (+43 end to end), the define door 1954 and 188, so the two
+#: doors are 642 apart where they were 87: what grew is the trunk's cost per
+#: recorded write (the trailed publication context read, the owner pin and
+#: the listener door on every assertion), and the define door writes a
+#: definition's reflection facts, declarations, equations and documentation
+#: as about eight of them where the source door writes one. Running the
+#: install under one definition batch (metta_py_batch, the transaction's
+#: batch without the rollback) was measured and taken out again: 396 once
+#: plus 1606 each, +60 per single-definition install, because the batch's own
+#: cost (two gensyms, the context push, the drain, five cleanup retractalls)
+#: exceeds what the writes save [measured 2026-09-19: min of three
+#: fresh-process readings per cell; command=python
+#: extensions/python/benchmarks/probes/twin_authoring.py;
+#: fixture=twin_authoring.fixture with 0..4 definitions; commit=WORKTREE].
+DEFINITION_WARMUP = 305
+DEFINITION_COST = 1642
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed

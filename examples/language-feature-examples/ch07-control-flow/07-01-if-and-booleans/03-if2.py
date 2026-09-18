@@ -398,3 +398,17 @@ BUDGET = 4024
 #: stored-atom surpluses, one fresh process per side; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
 DIVERGENCE = "26c23ce9e6fb37f3687387e2ae0cc6fe594de13826e0d1bfaf351fc743cd0d4d"
+
+#: OVERRUN 2026-09-19, 0 to 107 (+107): the twin costs 4024 against the
+#: example's 1791 and a ceiling of 3917 with the earlier declaration; a minimal
+#: twin of this example costs 1244, inside the 1970 the band alone allows, so
+#: the distance is this twin's own program. the trunk's cost per recorded write
+#: (the trailed publication context read, the owner pin and the listener door
+#: on every assertion, f97c4b0a3) on the writes this twin makes beyond the one
+#: compiled definition the allowance prices, its declarations, documentation
+#: and reflection rows, so the twin sits past its example by that residue
+#: [measured 2026-09-19: one fresh process per side through the lane's
+#: run_example and run_twin, the floor from a minimal twin built by the probe;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 107

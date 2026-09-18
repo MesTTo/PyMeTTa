@@ -56,7 +56,18 @@ def twin(m):
 #: per set; serial minimum of three fresh processes through the lane's run_twin
 #: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
-BUDGET = 23658
+#: RE-PINNED 2026-09-19, 23658 to 23676 (+18), cost follows the answer: a block
+#: is charged for its own thread's work and for the workers whose answers it
+#: used, so a race's losers, the branches par-any and par-forall stopped, and a
+#: cancelled future or timer are joined through the engine's discarding door
+#: (metta_join_measured/3) and their partial spend, which only the schedule
+#: sized, is taken out; lib_thread's join no longer polls on the host patched
+#: for swi-thread-join-detach-window, and the seat's counter doors read the
+#: discarded tally outside the window they bracket (metta_py_stats/2,
+#: metta_py_work/2) [measured 2026-09-19: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 23676
 
 #: OVERRUN 2026-09-18, 538: the twin costs 23621 against the example's 18397
 #: and a ceiling of 23083 (the band plus 2846 to author one compiled
@@ -81,7 +92,19 @@ BUDGET = 23658
 #: run_example and run_twin, the floor from a minimal twin built by the probe;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=bf5f100591493a91324b1d7552b5ad2731601691].
-OVERRUN = 3385
+#: OVERRUN 2026-09-19, 3385 to 3515 (+130): the twin costs 23676 against the
+#: example's 18329 and a ceiling of 23546 with the earlier declaration; a
+#: minimal twin of this example costs 18312, inside the 20162 the band alone
+#: allows, so the distance is this twin's own program. the trunk's cost per
+#: recorded write (the trailed publication context read, the owner pin and the
+#: listener door on every assertion, f97c4b0a3) on the writes this twin makes
+#: beyond the one compiled definition the allowance prices, its declarations,
+#: documentation and reflection rows, so the twin sits past its example by that
+#: residue [measured 2026-09-19: one fresh process per side through the lane's
+#: run_example and run_twin, the floor from a minimal twin built by the probe;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 3515
 
 #: DIVERGED 2026-09-18, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 4 atoms the example does not (1 :, 2 annotation, 1 rule): the

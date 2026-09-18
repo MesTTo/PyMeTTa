@@ -71,7 +71,9 @@ from metta import (
     V,
     convert,
     ground,
+    lib,
     parse,
+    spawn,
     tables,
 )
 from metta._atoms.factories import Grounded, Symbol, Variable
@@ -1108,6 +1110,38 @@ def test_stats_block_counts_the_work(m):  # noqa: D103  -- pytest discovers or i
     assert s.gc_count >= 0 and s.gc_freed >= 0 and s.gc_time >= 0.0
     assert s.table_bytes == 0  # nothing tabled inside this block
     assert "inferences" in repr(s)
+
+
+def test_a_cancelled_future_is_not_charged(m):
+    """A block is charged for the workers whose answers it used.
+
+    A future cancelled while it spins brings none of its spin into the
+    block's count, where the credited partial spin once varied by tens of
+    thousands of inferences with the schedule, so two such blocks read one
+    integer.
+    """
+    m += lib.thread
+
+    @m.define
+    def spin(n: int):
+        # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done))
+        return spin(n - 1) if n > 0 else S.done
+
+    def measured() -> int:
+        with m.stats() as s, m:
+            future = spawn(S.spin(300000))
+            future.cancel()
+        return s.inferences
+
+    # The first two blocks pay first-use costs, the library's first worker
+    # and the cancellation path's first use (122,001 and 4,993 in a fresh
+    # process against the 4,484 every later block reads [measured
+    # 2026-09-19: six consecutive blocks; commit=WORKTREE]); the claim is
+    # about the blocks after them.
+    measured(), measured()
+    first, second = measured(), measured()
+    assert first == second
+    assert first < 300000
 
 
 @contextlib.contextmanager

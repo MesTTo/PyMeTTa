@@ -6,10 +6,11 @@
     "c_writer": true,
     "mork_backend": "foreign",
     "python_version": "3.14.4",
-    "swipl_version": "10.1.13"
+    "swipl_version": "10.1.14"
   },
+  "failures": [],
+  "loadavg": "47.35 34.80 33.19 40/11534 2796612",
   "repetitions": 1,
-  "repin_rule": "A changed pin must name the first causal code change, carry the old and new counts, and say why the head still holds its declared class. The class itself lives in the engine's source as a (cost ...) row; this file is only what the lane measured and when. A control row pinned from another row is never re-recorded: the planted work failure IS the distance between them.",
   "rows": {
     "+": {
       "answers": [
@@ -23,43 +24,45 @@
         "chain": [
           "python -m benchmarks.costs --record measured +",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is constant in $n by int"
+          "the declared class is constant in $n by int",
+          "RE-PINNED 2026-09-18: [415, 410, 409, 409, 411] to [424, 417, 416, 416, 416]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [424, 417, 416, 416, 416] to [431, 423, 422, 422, 422]. [+7, +6, +6, +6, +6] from [424, 417, 416, 416, 416] to [431, 423, 422, 422, 422], the sum of 2 placed step(s): [+6, +6, +6, +6, +6] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); [+1, +0, +0, +0, +0] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "constant",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "constant",
-        "coefficient": 415.29875336583916,
-        "doubling_r_squared": 0.06706850920316842,
-        "doubling_slope": -4.627305732305749e-05,
-        "exponent": -0.0031468951668905567,
+        "coefficient": 433.5406011719974,
+        "doubling_r_squared": 0.2824565672364566,
+        "doubling_slope": -0.000145039412398823,
+        "exponent": -0.006430440517658788,
         "normalised_rms": {
-          "constant": 0.005421,
-          "cubic": 0.861952,
-          "linear": 0.661658,
-          "log_n": 0.275183,
-          "n_log_n": 0.724531,
-          "quadratic": 0.81718
+          "constant": 0.008305,
+          "cubic": 0.863341,
+          "linear": 0.663926,
+          "log_n": 0.278315,
+          "n_log_n": 0.72658,
+          "quadratic": 0.818815
         },
         "pair_slopes": [
-          -0.0175,
-          -0.0035,
+          -0.027,
+          -0.0034,
           0.0,
-          0.007
+          0.0
         ],
-        "r_squared": 0.32571961206670963
+        "r_squared": 0.5830128928069047
       },
       "inferences": [
-        415,
-        410,
-        409,
-        409,
-        411
+        431,
+        423,
+        422,
+        422,
+        422
       ],
       "measure": "int",
-      "measured": "2026-09-07",
       "sizes": [
         8,
         16,
@@ -67,10 +70,6 @@
         64,
         128
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(+ $_1 1)"
     },
     "alpha-unique": {
@@ -84,51 +83,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured alpha-unique",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linearithmic in $n by length"
+          "the declared class is linearithmic in $n by length",
+          "RE-PINNED 2026-09-18: [183183, 379438, 793333, 1648880] to [183258, 379486, 793365, 1648882]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [183258, 379486, 793365, 1648882] to [183275, 379501, 793380, 1648897]. [+17, +15, +15, +15] from [183258, 379486, 793365, 1648882] to [183275, 379501, 793380, 1648897], the sum of 2 placed step(s): [+18, +18, +18, +18] in the unsplit bracket d761b9c43..89bd5dc41 (25 first-parent commits, not split by the ladder); [-1, -3, -3, -3] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linearithmic",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "n_log_n",
-        "coefficient": 57.6281538222352,
-        "doubling_r_squared": 0.9203852880113151,
-        "doubling_slope": 0.00020657601086005196,
-        "exponent": 1.0574449033118618,
+        "coefficient": 57.7528876445368,
+        "doubling_r_squared": 0.9204302653805353,
+        "doubling_slope": 0.00020653649613093576,
+        "exponent": 1.0572166457059284,
         "normalised_rms": {
-          "constant": 0.74963,
-          "cubic": 0.468814,
-          "linear": 0.030023,
-          "log_n": 0.662377,
-          "n_log_n": 0.026384,
-          "quadratic": 0.321981
+          "constant": 0.749541,
+          "cubic": 0.468841,
+          "linear": 0.029957,
+          "log_n": 0.662288,
+          "n_log_n": 0.026448,
+          "quadratic": 0.322021
         },
         "pair_slopes": [
-          1.0506,
-          1.0641,
-          1.0555
+          1.0501,
+          1.0639,
+          1.0554
         ],
-        "r_squared": 0.999994570903829
+        "r_squared": 0.9999942807400554
       },
       "inferences": [
-        183183,
-        379438,
-        793333,
-        1648880
+        183275,
+        379501,
+        793380,
+        1648897
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(alpha-unique (superpose $_7))"
     },
     "car-atom": {
@@ -142,51 +139,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured car-atom",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linear in $n by length"
+          "the declared class is linear in $n by length",
+          "RE-PINNED 2026-09-18: [24083, 46606, 91661, 181773] to [24143, 46646, 91701, 181813]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [24143, 46646, 91701, 181813] to [26205, 50754, 99905, 198209]. [+2062, +4108, +8204, +16396] from [24143, 46646, 91701, 181813] to [26205, 50754, 99905, 198209], the sum of 2 placed step(s): [+2062, +4110, +8206, +16398] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); [+0, -2, -2, -2] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linear",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "linear",
-        "coefficient": 14.420080530241524,
-        "doubling_r_squared": 0.9242007417817117,
-        "doubling_slope": 0.0001903602841510282,
-        "exponent": 0.9723945022247107,
+        "coefficient": 15.567649623173335,
+        "doubling_r_squared": 0.9241253722858955,
+        "doubling_slope": 0.00019055622718081378,
+        "exponent": 0.9734360728868885,
         "normalised_rms": {
-          "constant": 0.702014,
-          "cubic": 0.49127,
-          "linear": 0.010499,
-          "log_n": 0.614546,
-          "n_log_n": 0.06506,
-          "quadratic": 0.350811
+          "constant": 0.70258,
+          "cubic": 0.491034,
+          "linear": 0.010039,
+          "log_n": 0.615113,
+          "n_log_n": 0.064614,
+          "quadratic": 0.350495
         },
         "pair_slopes": [
-          0.9525,
-          0.9758,
-          0.9878
+          0.9537,
+          0.977,
+          0.9884
         ],
-        "r_squared": 0.9999329144605934
+        "r_squared": 0.9999348977787175
       },
       "inferences": [
-        24083,
-        46606,
-        91661,
-        181773
+        26205,
+        50754,
+        99905,
+        198209
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(car-atom $_2)"
     },
     "cdr-atom": {
@@ -200,51 +195,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured cdr-atom",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linear in $n by length"
+          "the declared class is linear in $n by length",
+          "RE-PINNED 2026-09-18: [28185, 54804, 108051, 214547] to [28245, 54844, 108091, 214587]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [28245, 54844, 108091, 214587] to [30307, 58952, 116295, 230983]. [+2062, +4108, +8204, +16396] from [28245, 54844, 108091, 214587] to [30307, 58952, 116295, 230983], the sum of 2 placed step(s): [+2062, +4110, +8206, +16398] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); [+0, -2, -2, -2] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linear",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "linear",
-        "coefficient": 16.380727693485774,
-        "doubling_r_squared": 0.9235931489641587,
-        "doubling_slope": 0.00019108457837423726,
-        "exponent": 0.9764242090087153,
+        "coefficient": 17.531880685273286,
+        "doubling_r_squared": 0.9235708057316112,
+        "doubling_slope": 0.00019120211186598933,
+        "exponent": 0.9770367564383708,
         "normalised_rms": {
-          "constant": 0.703927,
-          "cubic": 0.490581,
-          "linear": 0.008943,
-          "log_n": 0.61645,
-          "n_log_n": 0.063622,
-          "quadratic": 0.349847
+          "constant": 0.704278,
+          "cubic": 0.490427,
+          "linear": 0.008658,
+          "log_n": 0.616803,
+          "n_log_n": 0.063341,
+          "quadratic": 0.349644
         },
         "pair_slopes": [
-          0.9594,
-          0.9794,
-          0.9896
+          0.9599,
+          0.9802,
+          0.99
         ],
-        "r_squared": 0.9999510799863572
+        "r_squared": 0.9999513751907468
       },
       "inferences": [
-        28185,
-        54804,
-        108051,
-        214547
+        30307,
+        58952,
+        116295,
+        230983
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(cdr-atom $_3)"
     },
     "cost-control-exponential": {
@@ -258,51 +251,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured cost-control-exponential",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is exponential in $n by int"
+          "the declared class is exponential in $n by int",
+          "RE-PINNED 2026-09-18: [36846, 91065, 233134, 605081] to [36999, 91188, 233253, 605184]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [36999, 91188, 233253, 605184] to [36939, 91130, 233195, 605126]. [-60, -58, -58, -58] from [36999, 91188, 233253, 605184] to [36939, 91130, 233195, 605126], the sum of 2 placed step(s): [+34, +34, +34, +34] in the unsplit bracket d761b9c43..89bd5dc41 (25 first-parent commits, not split by the ladder); [-94, -92, -92, -92] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "exponential",
-      "counter": "inferences",
+      "control": "pass",
+      "failures": [],
       "fit": {
         "best_model": "cubic",
-        "coefficient": 9.379088790526934e-07,
-        "doubling_r_squared": 0.9998574130619257,
-        "doubling_slope": 0.673441797536616,
-        "exponent": 8.776773925161752,
+        "coefficient": 9.596361676955605e-07,
+        "doubling_r_squared": 0.9998473653943543,
+        "doubling_slope": 0.672879772761387,
+        "exponent": 8.769281387341888,
         "normalised_rms": {
-          "constant": 0.918293,
-          "cubic": 0.570374,
-          "linear": 0.80528,
-          "log_n": 0.880952,
-          "n_log_n": 0.76564,
-          "quadratic": 0.687292
+          "constant": 0.917982,
+          "cubic": 0.570089,
+          "linear": 0.804973,
+          "log_n": 0.880642,
+          "n_log_n": 0.765336,
+          "quadratic": 0.686993
         },
         "pair_slopes": [
-          7.6821,
-          8.9221,
-          10.0068
+          7.6668,
+          8.9178,
+          10.0048
         ],
-        "r_squared": 0.9964959289425941
+        "r_squared": 0.9964477738584344
       },
       "inferences": [
-        36846,
-        91065,
-        233134,
-        605081
+        36939,
+        91130,
+        233195,
+        605126
       ],
       "measure": "int",
-      "measured": "2026-09-07",
       "sizes": [
         16,
         18,
         20,
         22
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(cost-control-exponential $n)"
     },
     "cost-control-overstated": {
@@ -316,51 +307,54 @@
         "chain": [
           "python -m benchmarks.costs --record measured cost-control-overstated",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is quadratic in $n by length"
+          "the declared class is quadratic in $n by length",
+          "RE-PINNED 2026-09-18: [3608, 4239, 6033, 9615] to [4660, 4359, 6151, 9735]. The first size carries the process's first evaluation, +866 of it arriving in 7079813e6..3c9aec392 (the translator's runnable-template invalidation and the receiver-method rows; not split further) and +243 in 7942599d2..e7ba2730f; the other sizes move by the branch's per-evaluation constant (see car-atom). The class is unchanged and the control still plants its failure. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [4660, 4359, 6151, 9735] to [3596, 4487, 6407, 10247]. [-1064, +128, +256, +512] from [4660, 4359, 6151, 9735] to [3596, 4487, 6407, 10247], the sum of 3 placed step(s): [+77, +141, +269, +525] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); [-1123, +0, +0, +0] at a9e2c06d3, Translator: the runnable cache's dependency index is written by the producer, not by walking the generated code; [-18, -13, -13, -13] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "quadratic",
-      "counter": "inferences",
+      "control": "class",
+      "failures": [
+        {
+          "kind": "class",
+          "message": "cost-control-overstated grows as size^0.505, below the quadratic band's floor of 1.6; the row claims a cost the head does not have"
+        }
+      ],
       "fit": {
-        "best_model": "log_n",
-        "coefficient": 461.5986169787199,
-        "doubling_r_squared": 0.989460036899268,
-        "doubling_slope": 0.0031458548466976985,
-        "exponent": 0.47514141728870485,
+        "best_model": "linear",
+        "coefficient": 413.9848448595425,
+        "doubling_r_squared": 0.9818577278711614,
+        "doubling_slope": 0.003298950028984671,
+        "exponent": 0.5046107815748619,
         "normalised_rms": {
-          "constant": 0.397709,
-          "cubic": 0.616739,
-          "linear": 0.258776,
-          "log_n": 0.258484,
-          "n_log_n": 0.327846,
-          "quadratic": 0.51806
+          "constant": 0.413329,
+          "cubic": 0.611922,
+          "linear": 0.245387,
+          "log_n": 0.271749,
+          "n_log_n": 0.315968,
+          "quadratic": 0.510767
         },
         "pair_slopes": [
-          0.2325,
-          0.5092,
-          0.6724
+          0.3194,
+          0.5139,
+          0.6775
         ],
-        "r_squared": 0.9583825186541527
+        "r_squared": 0.9753990914913357
       },
       "inferences": [
-        3608,
-        4239,
-        6033,
-        9615
+        3596,
+        4487,
+        6407,
+        10247
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         64,
         128,
         256,
         512
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(cost-control-overstated $n)"
     },
     "cost-control-quadratic": {
@@ -374,51 +368,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured cost-control-quadratic",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is quadratic in $n by length"
+          "the declared class is quadratic in $n by length",
+          "RE-PINNED 2026-09-18: [28693, 103182, 400150, 1583926] to [29777, 103331, 400291, 1584035]. The first size carries the process's first evaluation, +866 of it arriving in 7079813e6..3c9aec392 (the translator's runnable-template invalidation and the receiver-method rows; not split further) and +243 in 7942599d2..e7ba2730f; the other sizes move by the branch's per-evaluation constant (see car-atom). The class is unchanged and the control still plants its failure. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [29777, 103331, 400291, 1584035] to [28719, 103465, 400553, 1584553]. [-1058, +134, +262, +518] from [29777, 103331, 400291, 1584035] to [28719, 103465, 400553, 1584553], the sum of 2 placed step(s): [-1041, +146, +274, +530] in the unsplit bracket d761b9c43..89bd5dc41 (25 first-parent commits, not split by the ladder); [-17, -12, -12, -12] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "quadratic",
-      "counter": "inferences",
+      "control": "pass",
+      "failures": [],
       "fit": {
         "best_model": "quadratic",
-        "coefficient": 9.066979865505287,
-        "doubling_r_squared": 0.9280384367580109,
-        "doubling_slope": 0.01212637028048704,
-        "exponent": 1.9315336516797172,
+        "coefficient": 9.100666753381972,
+        "doubling_r_squared": 0.9278629864757718,
+        "doubling_slope": 0.01212217526950491,
+        "exponent": 1.9310630101948096,
         "normalised_rms": {
-          "constant": 1.180972,
-          "cubic": 0.204875,
-          "linear": 0.427406,
-          "log_n": 1.042402,
-          "n_log_n": 0.324449,
-          "quadratic": 0.006597
+          "constant": 1.180585,
+          "cubic": 0.205123,
+          "linear": 0.427035,
+          "log_n": 1.042005,
+          "n_log_n": 0.324091,
+          "quadratic": 0.006867
         },
         "pair_slopes": [
-          1.8464,
-          1.9553,
-          1.9849
+          1.8491,
+          1.9529,
+          1.984
         ],
-        "r_squared": 0.9997262103361065
+        "r_squared": 0.9997417519217179
       },
       "inferences": [
-        28693,
-        103182,
-        400150,
-        1583926
+        28719,
+        103465,
+        400553,
+        1584553
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         64,
         128,
         256,
         512
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(cost-control-quadratic $n)"
     },
     "cost-control-understated": {
@@ -432,109 +424,97 @@
         "chain": [
           "python -m benchmarks.costs --record measured cost-control-understated",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linear in $n by length"
+          "the declared class is linear in $n by length",
+          "RE-PINNED 2026-09-18: [28693, 103182, 400150, 1583926] to [29777, 103331, 400291, 1584035]. The first size carries the process's first evaluation, +866 of it arriving in 7079813e6..3c9aec392 (the translator's runnable-template invalidation and the receiver-method rows; not split further) and +243 in 7942599d2..e7ba2730f; the other sizes move by the branch's per-evaluation constant (see car-atom). The class is unchanged and the control still plants its failure. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [29777, 103331, 400291, 1584035] to [28719, 103465, 400553, 1584553]. [-1058, +134, +262, +518] from [29777, 103331, 400291, 1584035] to [28719, 103465, 400553, 1584553], the sum of 2 placed step(s): [-1041, +146, +274, +530] in the unsplit bracket d761b9c43..89bd5dc41 (25 first-parent commits, not split by the ladder); [-17, -12, -12, -12] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linear",
-      "counter": "inferences",
+      "control": "class",
+      "failures": [
+        {
+          "kind": "class",
+          "message": "cost-control-understated grows as size^1.931, above the linear band's ceiling of 1.05"
+        }
+      ],
       "fit": {
         "best_model": "quadratic",
-        "coefficient": 9.066979865505287,
-        "doubling_r_squared": 0.9280384367580109,
-        "doubling_slope": 0.01212637028048704,
-        "exponent": 1.9315336516797172,
+        "coefficient": 9.100666753381972,
+        "doubling_r_squared": 0.9278629864757718,
+        "doubling_slope": 0.01212217526950491,
+        "exponent": 1.9310630101948096,
         "normalised_rms": {
-          "constant": 1.180972,
-          "cubic": 0.204875,
-          "linear": 0.427406,
-          "log_n": 1.042402,
-          "n_log_n": 0.324449,
-          "quadratic": 0.006597
+          "constant": 1.180585,
+          "cubic": 0.205123,
+          "linear": 0.427035,
+          "log_n": 1.042005,
+          "n_log_n": 0.324091,
+          "quadratic": 0.006867
         },
         "pair_slopes": [
-          1.8464,
-          1.9553,
-          1.9849
+          1.8491,
+          1.9529,
+          1.984
         ],
-        "r_squared": 0.9997262103361065
+        "r_squared": 0.9997417519217179
       },
       "inferences": [
-        28693,
-        103182,
-        400150,
-        1583926
+        28719,
+        103465,
+        400553,
+        1584553
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         64,
         128,
         256,
         512
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(cost-control-understated $n)"
     },
     "cost-control-work": {
       "answers": [
-        1,
-        1,
-        1,
-        1
+        2048,
+        4096,
+        8192,
+        16384
       ],
       "cause": {
         "chain": [
           "THE PLANT. Only `answers` is copied, from size-atom, whose call answers one atom where this control answers one per child.",
           "The distance between the two is the planted work failure, so this field is never re-recorded from the control's own run.",
-          "Its class is untouched and true, so the control passes the class gate and fails only the work gate."
+          "Its class is untouched and true, so the control passes the class gate and fails only the work gate.",
+          "RE-PINNED 2026-09-18: [47231, 92246, 182362, 362592] to [47354, 92343, 182455, 362679]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [47354, 92343, 182455, 362679] to [49402, 96439, 190647, 379063]. [+2048, +4096, +8192, +16384] from [47354, 92343, 182455, 362679] to [49402, 96439, 190647, 379063], the sum of 2 placed step(s): [+2061, +4109, +8205, +16397] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); [-13, -13, -13, -13] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linear",
-      "counter": "inferences",
+      "control": "work",
+      "failures": [
+        {
+          "kind": "work",
+          "message": "cost-control-work answered [2048, 4096, 8192, 16384] where its pinned row records [1, 1, 1, 1]; the call is not doing the work the class was measured on"
+        }
+      ],
       "fit": {
-        "best_model": "linear",
-        "coefficient": 26.633716272043916,
-        "doubling_r_squared": 0.9230511282326966,
-        "doubling_slope": 0.0001918220621727191,
-        "exponent": 0.9804870202542514,
-        "normalised_rms": {
-          "constant": 0.705909,
-          "cubic": 0.489843,
-          "linear": 0.007331,
-          "log_n": 0.618426,
-          "n_log_n": 0.062119,
-          "quadratic": 0.348824
-        },
-        "pair_slopes": [
-          0.9658,
-          0.9832,
-          0.9915
-        ],
-        "r_squared": 0.9999645287081732
+        "refused": true
       },
       "inferences": [
-        47231,
-        92246,
-        182362,
-        362592
+        49402,
+        96439,
+        190647,
+        379063
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(cost-control-work $n)"
     },
     "intersection": {
@@ -548,51 +528,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured intersection",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linearithmic in $n by length"
+          "the declared class is linearithmic in $n by length",
+          "RE-PINNED 2026-09-18: [298859, 630893, 1323816, 2787183] to [298935, 630935, 1323836, 2787151]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [298935, 630935, 1323836, 2787151] to [298951, 630949, 1323850, 2787165]. [+16, +14, +14, +14] from [298935, 630935, 1323836, 2787151] to [298951, 630949, 1323850, 2787165], the sum of 2 placed step(s): [+19, +19, +19, +19] in the unsplit bracket d761b9c43..89bd5dc41 (25 first-parent commits, not split by the ladder); [-3, -5, -5, -5] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linearithmic",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "n_log_n",
-        "coefficient": 83.53954348462949,
-        "doubling_r_squared": 0.9196714046374145,
-        "doubling_slope": 0.00020959263516319486,
-        "exponent": 1.07330478689571,
+        "coefficient": 83.65333658405056,
+        "doubling_r_squared": 0.9197002779901204,
+        "doubling_slope": 0.00020956757476454428,
+        "exponent": 1.0731596776124241,
         "normalised_rms": {
-          "constant": 0.758636,
-          "cubic": 0.463629,
-          "linear": 0.037998,
-          "log_n": 0.671464,
-          "n_log_n": 0.01867,
-          "quadratic": 0.315751
+          "constant": 0.758581,
+          "cubic": 0.463646,
+          "linear": 0.037957,
+          "log_n": 0.671409,
+          "n_log_n": 0.018711,
+          "quadratic": 0.315776
         },
         "pair_slopes": [
-          1.0779,
-          1.0692,
+          1.0776,
+          1.0691,
           1.0741
         ],
-        "r_squared": 0.9999977676420787
+        "r_squared": 0.9999978956421425
       },
       "inferences": [
-        298859,
-        630893,
-        1323816,
-        2787183
+        298951,
+        630949,
+        1323850,
+        2787165
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(intersection (superpose $_9) (superpose $_9))"
     },
     "intersection-atom": {
@@ -606,51 +584,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured intersection-atom",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linearithmic in $n by length"
+          "the declared class is linearithmic in $n by length",
+          "RE-PINNED 2026-09-18: [239159, 511803, 1085940, 2311731] to [239212, 511826, 1085943, 2311690]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [239212, 511826, 1085943, 2311690] to [243326, 520034, 1102343, 2344474]. [+4114, +8208, +16400, +32784] from [239212, 511826, 1085943, 2311690] to [243326, 520034, 1102343, 2344474], the sum of 2 placed step(s): [+4114, +8210, +16402, +32786] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); [+0, -2, -2, -2] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linearithmic",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "n_log_n",
-        "coefficient": 58.723885971566474,
-        "doubling_r_squared": 0.9192857489711027,
-        "doubling_slope": 0.00021288811559728985,
-        "exponent": 1.0904078512428237,
+        "coefficient": 60.440208569631736,
+        "doubling_r_squared": 0.9193440167273571,
+        "doubling_slope": 0.00021259652973628656,
+        "exponent": 1.088880101243572,
         "normalised_rms": {
-          "constant": 0.768277,
-          "cubic": 0.458646,
-          "linear": 0.046328,
-          "log_n": 0.681176,
-          "n_log_n": 0.010654,
-          "quadratic": 0.309526
+          "constant": 0.767444,
+          "cubic": 0.459067,
+          "linear": 0.045614,
+          "log_n": 0.680338,
+          "n_log_n": 0.011339,
+          "quadratic": 0.310055
         },
         "pair_slopes": [
-          1.0976,
-          1.0853,
-          1.09
+          1.0957,
+          1.0839,
+          1.0887
         ],
-        "r_squared": 0.9999951243176157
+        "r_squared": 0.9999955906873153
       },
       "inferences": [
-        239159,
-        511803,
-        1085940,
-        2311731
+        243326,
+        520034,
+        1102343,
+        2344474
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(intersection-atom $_6 $_6)"
     },
     "size-atom": {
@@ -664,51 +640,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured size-atom",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linear in $n by length"
+          "the declared class is linear in $n by length",
+          "RE-PINNED 2026-09-18: [22026, 42501, 83460, 165382] to [22086, 42541, 83500, 165420]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [22086, 42541, 83500, 165420] to [24148, 46649, 91704, 181816]. [+2062, +4108, +8204, +16396] from [22086, 42541, 83500, 165420] to [24148, 46649, 91704, 181816], the sum of 2 placed step(s): [+2062, +4110, +8206, +16398] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); [+0, -2, -2, -2] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linear",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "linear",
-        "coefficient": 13.432413216002548,
-        "doubling_r_squared": 0.924576623368487,
-        "doubling_slope": 0.00018991482707518605,
-        "exponent": 0.969915652283799,
+        "coefficient": 14.577651062976914,
+        "doubling_r_squared": 0.9244594262025441,
+        "doubling_slope": 0.00019016662792445348,
+        "exponent": 0.9712649166011731,
         "normalised_rms": {
-          "constant": 0.700835,
-          "cubic": 0.491693,
-          "linear": 0.011458,
-          "log_n": 0.613372,
-          "n_log_n": 0.065946,
-          "quadratic": 0.351404
+          "constant": 0.701553,
+          "cubic": 0.491401,
+          "linear": 0.010875,
+          "log_n": 0.61409,
+          "n_log_n": 0.065386,
+          "quadratic": 0.35101
         },
         "pair_slopes": [
-          0.9483,
-          0.9736,
-          0.9866
+          0.9499,
+          0.9751,
+          0.9874
         ],
-        "r_squared": 0.9999202197161199
+        "r_squared": 0.9999237829462259
       },
       "inferences": [
-        22026,
-        42501,
-        83460,
-        165382
+        24148,
+        46649,
+        91704,
+        181816
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(size-atom $_4)"
     },
     "subtraction": {
@@ -722,51 +696,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured subtraction",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linearithmic in $n by length"
+          "the declared class is linearithmic in $n by length",
+          "RE-PINNED 2026-09-18: [284602, 602298, 1266549, 2672566] to [264148, 561333, 1184602, 2508653]. -7.2 percent at every size in c66cf0c10..7942599d2, whose functional commits are the binding collapse (765c60587), the tokens merge (b29acf394) and the constructor-check compilation (2398951d3), not split further, on top of the branch's per-evaluation constant (see car-atom). The class is unchanged (linearithmic). [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [264148, 561333, 1184602, 2508653] to [264164, 561347, 1184616, 2508667]. [+16, +14, +14, +14] from [264148, 561333, 1184602, 2508653] to [264164, 561347, 1184616, 2508667], the sum of 2 placed step(s): [+19, +19, +19, +19] in the unsplit bracket d761b9c43..89bd5dc41 (25 first-parent commits, not split by the ladder); [-3, -5, -5, -5] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linearithmic",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "n_log_n",
-        "coefficient": 77.5885059717522,
-        "doubling_r_squared": 0.919633728387226,
-        "doubling_slope": 0.00021023139146047996,
-        "exponent": 1.0765977132198623,
+        "coefficient": 69.13747013365489,
+        "doubling_r_squared": 0.9195587654114881,
+        "doubling_slope": 0.0002112719058714195,
+        "exponent": 1.0819700327742032,
         "normalised_rms": {
-          "constant": 0.760539,
-          "cubic": 0.462628,
-          "linear": 0.039652,
-          "log_n": 0.673383,
-          "n_log_n": 0.017076,
-          "quadratic": 0.314507
+          "constant": 0.763622,
+          "cubic": 0.461013,
+          "linear": 0.042328,
+          "log_n": 0.676489,
+          "n_log_n": 0.0145,
+          "quadratic": 0.312497
         },
         "pair_slopes": [
-          1.0815,
-          1.0724,
-          1.0773
+          1.0875,
+          1.0775,
+          1.0825
         ],
-        "r_squared": 0.999997508991451
+        "r_squared": 0.9999970152154164
       },
       "inferences": [
-        284602,
-        602298,
-        1266549,
-        2672566
+        264164,
+        561347,
+        1184616,
+        2508667
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(subtraction (superpose $_10) (superpose $_10))"
     },
     "union": {
@@ -780,51 +752,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured union",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linear in $n by length"
+          "the declared class is linear in $n by length",
+          "RE-PINNED 2026-09-18: [134999, 268112, 534359, 1066851] to [135081, 268170, 534409, 1066889]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [135081, 268170, 534409, 1066889] to [135097, 268184, 534423, 1066903]. [+16, +14, +14, +14] from [135081, 268170, 534409, 1066889] to [135097, 268184, 534423, 1066903], the sum of 2 placed step(s): [+19, +19, +19, +19] in the unsplit bracket d761b9c43..89bd5dc41 (25 first-parent commits, not split by the ladder); [-3, -5, -5, -5] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linear",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "linear",
-        "coefficient": 68.80187371850296,
-        "doubling_r_squared": 0.9208928546388763,
-        "doubling_slope": 0.00019427393994441217,
-        "exponent": 0.9941987744297316,
+        "coefficient": 69.00962995451715,
+        "doubling_r_squared": 0.9209573248001122,
+        "doubling_slope": 0.00019421933929503706,
+        "exponent": 0.993884334919231,
         "normalised_rms": {
-          "constant": 0.712249,
-          "cubic": 0.487607,
-          "linear": 0.002173,
-          "log_n": 0.624735,
-          "n_log_n": 0.057409,
-          "quadratic": 0.345674
+          "constant": 0.712118,
+          "cubic": 0.487647,
+          "linear": 0.00228,
+          "log_n": 0.624605,
+          "n_log_n": 0.057502,
+          "quadratic": 0.345733
         },
         "pair_slopes": [
-          0.9899,
-          0.995,
-          0.9975
+          0.9892,
+          0.9948,
+          0.9974
         ],
-        "r_squared": 0.9999970181067502
+        "r_squared": 0.9999965539259182
       },
       "inferences": [
-        134999,
-        268112,
-        534359,
-        1066851
+        135097,
+        268184,
+        534423,
+        1066903
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(union (superpose $_8) (superpose $_8))"
     },
     "union-atom": {
@@ -838,51 +808,49 @@
         "chain": [
           "python -m benchmarks.costs --record measured union-atom",
           "minimum of 1 fresh process(es), one fresh space per size",
-          "the declared class is linear in $n by length"
+          "the declared class is linear in $n by length",
+          "RE-PINNED 2026-09-18: [44577, 87580, 173595, 345627] to [44638, 87621, 173636, 345668]. The classes branch's per-evaluation constant, placed on the first-parent chain: +12 per evaluation at e67e2db94 (the prelude in Prolog), +6 at 9c6e52599 (segment matching), +14 in 039974720..317fcdd6a (the engine-and-libraries-as-modules and cursor-inside-a-transaction merges), +3 in 317fcdd6a..6444e7673 (tokens as storage), -3 at ed3cef513 (the variadic arrow), +5 in 7942599d2..e7ba2730f, +37 in 0312c074f..f77b3d48f (05fae56ad, the participant capture's native ask), -6 in 0bd522b50..7ead07e09 (the assertion ownership journal goes on the patched host), +3 in 45fb2d088..b9ebafac7, -32 at d60277df1 (the claim registry); the first size also carries the process's first evaluation. The class is unchanged. [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=e59104aced3902c3ca0ba5fa87fc93bc5dceb38a]",
+          "RE-PINNED 2026-09-19: [44638, 87621, 173636, 345668] to [48752, 95829, 190036, 378452]. [+4114, +8208, +16400, +32784] from [44638, 87621, 173636, 345668] to [48752, 95829, 190036, 378452], the sum of 2 placed step(s): [+4114, +8210, +16402, +32786] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); [+0, -2, -2, -2] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of one fresh process, one fresh space per size; command=python -m benchmarks.costs --record --json ai-tmp/ai-final-costs.json; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
         ],
         "commit": "WORKTREE"
       },
       "class": "linear",
-      "counter": "inferences",
+      "control": null,
+      "failures": [],
       "fit": {
         "best_model": "linear",
-        "coefficient": 24.287719172980392,
-        "doubling_r_squared": 0.9222696153549097,
-        "doubling_slope": 0.00019265283990139995,
-        "exponent": 0.9851585513031299,
+        "coefficient": 26.44487295009295,
+        "doubling_r_squared": 0.9222233148256794,
+        "doubling_slope": 0.00019276300284968326,
+        "exponent": 0.9857469589441309,
         "normalised_rms": {
-          "constant": 0.70804,
-          "cubic": 0.489107,
-          "linear": 0.005597,
-          "log_n": 0.620545,
-          "n_log_n": 0.060542,
-          "quadratic": 0.34778
+          "constant": 0.708353,
+          "cubic": 0.488978,
+          "linear": 0.005343,
+          "log_n": 0.620858,
+          "n_log_n": 0.060298,
+          "quadratic": 0.347607
         },
         "pair_slopes": [
-          0.9743,
-          0.9871,
-          0.9935
+          0.975,
+          0.9877,
+          0.9938
         ],
-        "r_squared": 0.999980620907961
+        "r_squared": 0.9999812890403181
       },
       "inferences": [
-        44577,
-        87580,
-        173595,
-        345627
+        48752,
+        95829,
+        190036,
+        378452
       ],
       "measure": "length",
-      "measured": "2026-09-07",
       "sizes": [
         2048,
         4096,
         8192,
         16384
       ],
-      "spread": {
-        "absolute_max": 0,
-        "relative_max": 0.0
-      },
       "witness": "(union-atom $_5 $_5)"
     }
   },

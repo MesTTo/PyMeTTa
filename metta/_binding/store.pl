@@ -50,9 +50,9 @@ metta_py_check_algebra_values(Space, Name0, CarrierWire, ValuesWire) :-
         maplist(metta_require_algebra_value(Name, Carrier), Values)).
 
 metta_py_check_algebra_values_accounted(Space, Name, CarrierWire, ValuesWire, Used) :-
-    metta_py_work(Before),
+    metta_py_work(open, Before),
     metta_py_check_algebra_values(Space, Name, CarrierWire, ValuesWire),
-    metta_py_work(After),
+    metta_py_work(close, After),
     Used is After - Before.
 
 % A nested Janus call can see the raw signal before its enclosing guard does.

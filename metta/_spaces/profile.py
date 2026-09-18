@@ -29,7 +29,7 @@ from metta._binding.runtime import Runtime
 from metta._errors.errors import EngineError
 from metta._lazy import lazy
 
-_SNAPSHOT_WIDTH = 10
+_SNAPSHOT_WIDTH = 11
 
 def _without_the_interrupt_poll(
     raw: float,
@@ -64,6 +64,7 @@ def _without_the_interrupt_poll(
 
 def _stats_snapshot(
     rt: Runtime,
+    edge: str,
 ) -> tuple[
     int | float,
     int | float,
@@ -73,8 +74,13 @@ def _stats_snapshot(
     int | float,
     int | float,
 ]:
-    """Read and validate the counters supplied by the engine shim."""
-    raw = rt.apply_must("metta_py_stats")
+    """Read and validate the counters supplied by the engine shim.
+
+    ``edge`` is ``"open"`` or ``"close"``: the door reads the discarded
+    tally outside the window the two readings bracket, so a block's own
+    cost is the six inferences its pins were taken with.
+    """
+    raw = rt.apply_must("metta_py_stats", edge)
     if not isinstance(raw, (list, tuple)) or len(raw) != _SNAPSHOT_WIDTH:
         msg = f"engine statistics returned an invalid snapshot: {raw!r}"
         raise EngineError(msg)
@@ -87,8 +93,11 @@ def _stats_snapshot(
     inferences, ticks = _without_the_interrupt_poll(
         values[0], values[6], values[7], values[8], values[9]
     )
+    # The credits of joined workers this thread discarded, a race's losers
+    # and cancelled futures, come out here too; both counters are cumulative,
+    # so the block's delta is the delta of their difference.
     return (
-        inferences,
+        inferences - values[10],
         values[1],
         values[2],
         values[3],
@@ -124,7 +133,14 @@ class _StatsBlock:
     [measured 2026-09-08: a joined 2,000,000-inference thread moves the
     joiner's counter by 2,000,013 and a detached one by 7; command=python
     extensions/python/benchmarks/probes/interrupt_poll_accounting.py;
-    commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
+    commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6]. A joined worker whose
+    answer the block did not use is NOT: a race's losers, a cancelled future
+    or timer, the branches a `par-any` or `par-forall` stopped, are joined
+    through the engine's discarding door and their credit comes out here,
+    so the count is the work that produced the block's answers, one integer
+    rather than however far the schedule let a stopped branch run
+    (engine/metta/control.pl, metta_join_measured/3)
+    [tested: test_a_cancelled_future_is_not_charged; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
 
     A counter is a delta, so there is nothing to read before the block that
     measures it has closed, and reading one there raises rather than
@@ -187,7 +203,7 @@ class _StatsBlock:
         raise AttributeError(msg, name=name, obj=self)
 
     def __enter__(self) -> Self:
-        self._before = _stats_snapshot(self._rt)
+        self._before = _stats_snapshot(self._rt, "open")
         self._wall = time.perf_counter()
         self._token = _ACTIVE_STATS.set((*_ACTIVE_STATS.get(), self))
         return self
@@ -199,7 +215,7 @@ class _StatsBlock:
             msg = "a stats block cannot exit before it enters"
             raise RuntimeError(msg)
         wall = time.perf_counter() - started_at
-        after = _stats_snapshot(self._rt)
+        after = _stats_snapshot(self._rt, "close")
         inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes, heartbeats = (
             a - b for a, b in zip(after, before, strict=True)
         )

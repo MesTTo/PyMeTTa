@@ -136,9 +136,21 @@ def twin(m):
 #: observation under the same 294-wide protocol [measured 2026-09-19: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10, ai-
 #: observe-4c0533704.log; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
+#: RE-OBSERVED 2026-09-19 under 'full-lane/294/workers=32', 369521..372889 over
+#: 10 under 'full-lane/294/workers=32' to 372287..376159 over 10: cost follows
+#: the answer: a block is charged for its own thread's work and for the workers
+#: whose answers it used, a race's losers, the branches par-any and par-forall
+#: stopped and a cancelled future or timer being joined through the engine's
+#: discarding door (metta_join_measured/3) and their partial spend taken out,
+#: lib_thread's join no longer polls on the host patched for swi-thread-join-
+#: detach-window, and the seat's counter doors read the discarded tally outside
+#: the window they bracket; the spread that remains is this twin's own
+#: schedule-bound work under the same 294-wide protocol [measured 2026-09-19:
+#: python extensions/python/tools/twin_coverage.py --observe --rounds 10, ai-
+#: observe-remedy.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 369521,
-    "maximum": 372889,
+    "minimum": 372287,
+    "maximum": 376159,
     "observations": 10,
     "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }

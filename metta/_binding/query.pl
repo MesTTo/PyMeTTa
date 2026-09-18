@@ -198,7 +198,7 @@ metta_py_tagged_count(Space, Target, MaxDepth, Limit, Count) :-
 % [tested: test_provider_conclusions_check_the_explicit_typed_carrier;
 % commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
 metta_py_tagged_sources(Space, Target, Algebra, [Rows, Used]) :-
-    metta_py_work(Before),
+    metta_py_work(open, Before),
     metta_py_target_term_bindings(Space, Target, Pattern, _),
     metta_with_under(Algebra,
         findall([ValueWire, KWire],
@@ -206,7 +206,7 @@ metta_py_tagged_sources(Space, Target, Algebra, [Rows, Used]) :-
                   Space, match(Space, Pattern, Pattern, Value), K),
               metta_py_encode(Value, ValueWire),
               metta_py_encode(K, KWire) ), Rows)),
-    metta_py_work(After),
+    metta_py_work(close, After),
     Used is After - Before.
 
 metta_py_tagged_prove(Space, _, Query, _) :-

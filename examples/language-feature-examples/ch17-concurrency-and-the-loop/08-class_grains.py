@@ -194,7 +194,18 @@ def twin(m):
 #: lane's run_twin [measured 2026-09-18: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
-BUDGET = 7364227
+#: RE-PINNED 2026-09-19, 7364227 to 7364363 (+136), cost follows the answer: a
+#: block is charged for its own thread's work and for the workers whose answers
+#: it used, so a race's losers, the branches par-any and par-forall stopped,
+#: and a cancelled future or timer are joined through the engine's discarding
+#: door (metta_join_measured/3) and their partial spend, which only the
+#: schedule sized, is taken out; lib_thread's join no longer polls on the host
+#: patched for swi-thread-join-detach-window, and the seat's counter doors read
+#: the discarded tally outside the window they bracket (metta_py_stats/2,
+#: metta_py_work/2) [measured 2026-09-19: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 7364363
 #: The minimum measurements give a declaration and crossing gap of 11729673.
 #: [measured: 14262547 twin and 2532874 native inferences;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
