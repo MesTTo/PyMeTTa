@@ -44,7 +44,7 @@ def twin(m):
 #: The twin's own program, priced when it was written; the lane compares it
 #: with the example's cost and this pin [measured 2026-09-18: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --measure; commit=WORKTREE].
+#: --measure; commit=49478d67a10793a114d27d01a51f09a685d5136a].
 BUDGET = 23621
 
 #: OVERRUN 2026-09-18, 538: the twin costs 23621 against the example's 18397
@@ -54,5 +54,5 @@ BUDGET = 23621
 #: the program again under (product prob polynomial), which the example has
 #: no spelling for [measured 2026-09-18: one fresh process per side through the
 #: lane's run_example and run_twin; command=python
-#: extensions/python/tools/twin_coverage.py --measure; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --measure; commit=49478d67a10793a114d27d01a51f09a685d5136a].
 OVERRUN = 538

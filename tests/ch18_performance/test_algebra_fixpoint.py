@@ -30,7 +30,7 @@ Guarantees:
     is the carrier's own fixpoint for the proposition [tested:
     test_a_fixpoint_answer_asks_the_engine_for_its_witnesses,
     test_a_fixpoint_answer_reinterprets_by_asking_the_fixpoint_again;
-    commit=WORKTREE].
+    commit=49478d67a10793a114d27d01a51f09a685d5136a].
   - a rule tagged (function F), or added with a callable tag, labels each
     instance with F over its premise tags on both routes, and such a label
     is not reinterpreted under another carrier [tested:

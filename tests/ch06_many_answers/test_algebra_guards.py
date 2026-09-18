@@ -5,20 +5,20 @@ Guarantees:
     the premise tags answers True, on the derived route and on the engine's
     fixpoint alike, and a callable guard registers under its own name
     [tested: test_a_guard_keeps_only_the_instances_it_admits,
-    test_a_callable_guard_registers_under_its_name; commit=WORKTREE].
+    test_a_callable_guard_registers_under_its_name; commit=49478d67a10793a114d27d01a51f09a685d5136a].
   - the retained derivation shows the guard that held, and a guarded
     instance is not reinterpreted under another carrier, since it exists
     because its guard held over the tags of the carrier it ran under
     [tested: test_a_derivation_shows_its_guard_and_is_not_reinterpreted;
-    commit=WORKTREE].
+    commit=49478d67a10793a114d27d01a51f09a685d5136a].
   - a guard that answers no truth value is refused by name on both routes
-    [tested: test_a_guard_that_answers_no_truth_value_is_refused; commit=WORKTREE].
+    [tested: test_a_guard_that_answers_no_truth_value_is_refused; commit=49478d67a10793a114d27d01a51f09a685d5136a].
   - a guard reads the labels of the carrier the program is asked in: under
     counting every fact is one, so a probability threshold admits every
     instance, derived rather than counted by the proof-tree shortcut, and
     the witnesses of a tabled answer follow the answer's own carrier
     [tested: test_counting_on_a_guarded_program_reads_countings_own_labels;
-    commit=WORKTREE].
+    commit=49478d67a10793a114d27d01a51f09a685d5136a].
 """
 
 import pytest
