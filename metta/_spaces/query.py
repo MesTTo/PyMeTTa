@@ -621,6 +621,21 @@ def _match_counting_under(
                     "put the restriction in the tagged rule"
                 )
                 raise algebra_api.AlgebraEvaluationError(msg)
+            if algebra_api.has_guarded_rule(space):
+                # A guarded rule's instances depend on the premise tags,
+                # which the proof-tree counter never computes: the general
+                # tagged evaluation under counting derives them, and the
+                # aggregate is the sum over the matching propositions.
+                context = _spaces_scope_module.EvaluationContext(
+                    declaration.name, limit, declaration.order
+                )
+                resources = algebra_api._EvaluationBudget.from_call(timeout, inferences, context)
+                evaluation = algebra_api._evaluate_with_budget(
+                    space.self, patterns[0], declaration, resources,
+                )
+                total = sum(int(_decode(answer.tag)) for answer in evaluation.answers)
+                yield algebra_api.counting_answer(space, total, declaration.name)
+                return
             yield algebra_api.count_tagged(
                 space,
                 patterns[0],

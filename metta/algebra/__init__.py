@@ -81,7 +81,7 @@ Guarantees:
     [tested: test_demand_preserves_complete_derivation_bags,
     test_demand_preserves_global_cycle_and_round_failures; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
   - the generated Semiring vocabulary, preset descriptors, and public carrier
-    objects name the same twelve shipped algebras [tested:
+    objects name the same thirteen shipped algebras [tested:
     test_every_shipped_semiring_has_one_root_object_in_catalog_order;
     commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - arbitrary law-bearing declarations use the engine's one checker in the
@@ -220,6 +220,8 @@ __all__ = [
     "evaluate",
     "formula",
     "formula_variables",
+    "formula_witnesses",
+    "polynomial",
     "prob",
     "prov",
     "ranked",
@@ -601,6 +603,9 @@ class _Trace:
     #: variable per ground clause (ProbLog's reading) tells two instances of
     #: one rule apart; None for a fact.
     key: Atom | None = None
+    #: The rule's guard applied to this instance's premise tags, `(G t1 ... tn)`,
+    #: which held; None for an unguarded rule or a fact.
+    guard: Atom | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -616,10 +621,18 @@ class AlgebraDerivation:
         lines = [f"{self.answer} under {self.algebra}"]
 
         def visit(trace: _Trace, indent: int) -> None:
-            kind = "rule" if trace.is_rule else "source"
-            lines.append(
-                f"{'  ' * indent}{kind} {trace.source}: {trace.raw}"
-            )
+            if _head(trace.raw, "witness", 2):
+                # An engine witness: the sources one derivation uses, and
+                # how many derivations use exactly them.
+                count = _decode(trace.raw.children[1])
+                lines.append(f"{'  ' * indent}witness x{count}")
+            else:
+                kind = "rule" if trace.is_rule else "source"
+                lines.append(
+                    f"{'  ' * indent}{kind} {trace.source}: {trace.raw}"
+                )
+                if trace.guard is not None:
+                    lines.append(f"{'  ' * (indent + 1)}where {trace.guard} held")
             for child in trace.children:
                 visit(child, indent + 1)
 
@@ -663,45 +676,85 @@ class TaggedAnswer:
             for decision in self._plan
         )
 
-    def why(self) -> AlgebraDerivation:
-        """Return the derivation captured by the original ask."""
-        if self._fixpoint:
-            msg = (
-                f"algebra_fixpoint_keeps_no_derivation({self._algebra}): the engine's "
-                "tabled fixpoint computed this answer; ask with derivations=True to "
-                "retain its proofs, or evaluate under formula, whose tag is the "
-                "derivation compiled"
+    def why(
+        self, *, timeout: float | None = None, inferences: int | None = None,
+    ) -> AlgebraDerivation:
+        """Return the derivation captured by the original ask.
+
+        An answer the engine's tabled fixpoint produced kept no proof tree,
+        so its derivation is asked again from the engine as witnesses: the
+        sources each derivation uses. An acyclic program answers them under
+        the polynomial carrier, the free semiring, each witness with how
+        many derivations use exactly it; a cyclic program has infinitely
+        many derivations and answers its minimal ones, the formula's prime
+        implicants. `timeout` and `inferences` bound that second ask.
+        """
+        if self._fixpoint and not self._derivations:
+            return AlgebraDerivation(
+                self.value, self._algebra, self._witnesses(timeout, inferences)
             )
-            raise AlgebraEvaluationError(msg)
         traces = self._derivations or (_Trace(-1, self.tag),)
         return AlgebraDerivation(self.value, self._algebra, traces)
 
-    def under(self, carrier: Any) -> TaggedAnswer:
-        """Interpret this answer under another algebra, no requery.
+    def _witnesses(
+        self, timeout: float | None, inferences: int | None,
+    ) -> tuple[_Trace, ...]:
+        """The engine's witnesses for this proposition, one trace per witness."""
+        if self._space is None:
+            msg = "this answer carries no owning space for its derivation"
+            raise AlgebraEvaluationError(msg)
+        home = self._space
+        _, rules = _program(home.atoms())
+        carrier = "formula" if _rule_graph_is_cyclic(rules) else "polynomial"
+        declaration = resolve(home, carrier)
+        resources = _EvaluationBudget.from_call(
+            timeout, inferences, EvaluationContext(declaration.name, order=declaration.order)
+        )
+        # The record carrier is this answer's own, so the guards and label
+        # functions read the tags they were written for; the witness
+        # carrier follows the derivations the record carrier admits.
+        tags = _witness_evaluate(home, self.value, self._algebra, declaration, resources)
+        if not tags:
+            return ()
+        if carrier == "polynomial":
+            return tuple(_polynomial_witnesses(tags[0]))
+        return tuple(
+            _witness_trace(1, rows)
+            for rows in formula_witnesses(home, tags[0])
+        )
+
+    def under(
+        self, carrier: Any, *, timeout: float | None = None, inferences: int | None = None,
+    ) -> TaggedAnswer:
+        """Interpret this answer under another algebra.
 
         A formula tag under a carrier with a negation is its weighted model
         count, exact where a sum over proofs would count a shared fact twice;
-        a retained derivation folds through the carrier's operations; an
-        engine-fixpoint answer under any other carrier kept nothing to fold
-        and refuses by name.
+        a retained derivation folds through the carrier's operations with no
+        requery; an engine-fixpoint answer kept nothing to fold and asks the
+        fixpoint again under the carrier, which `timeout` and `inferences`
+        bound, since a carrier with no fixpoint over cyclic data runs until
+        they stop it.
         """
         if self._space is None:
             msg = "this answer carries no owning space for algebra reinterpretation"
             raise AlgebraEvaluationError(msg)
         declaration = resolve(self._space, carrier)
         resources = _EvaluationBudget.from_call(
-            None, None, EvaluationContext(declaration.name, order=declaration.order)
+            timeout, inferences, EvaluationContext(declaration.name, order=declaration.order)
         )
         if _headed_tag(self.tag, "formula") and declaration.negation is not None:
             annotation = _model_count(self._space, declaration, self.tag, resources)
             return replace(self, tag=annotation, _algebra=declaration.name)
         if self._fixpoint and not self._derivations:
-            msg = (
-                f"algebra_fixpoint_keeps_no_derivation({self._algebra}): reinterpret "
-                f"under {declaration.name} from an answer evaluated under formula, "
-                "whose tag is the derivation compiled, or ask with derivations=True"
-            )
-            raise AlgebraEvaluationError(msg)
+            # The tabled route kept nothing to fold, and needs nothing: the
+            # carrier's own fixpoint for this proposition is its value, the
+            # polynomial evaluated by the one homomorphism into the carrier.
+            evaluation = _fixpoint_evaluate(self._space, self.value, declaration, resources)
+            for answer in evaluation.answers:
+                if _same(answer.value, self.value):
+                    return replace(self, tag=answer.tag, _algebra=declaration.name)
+            return replace(self, tag=declaration.zero, _algebra=declaration.name)
         traces = self._derivations or (_Trace(-1, self.tag),)
         annotation = _interpret_alternatives(
             self._space, declaration, traces, resources
@@ -723,6 +776,9 @@ class _Rule:
     tag: Atom
     head: Atom
     premises: tuple[Atom, ...]
+    #: The rule's side condition, a function of its premise tags in order,
+    #: from `(where G)`; None for an unguarded rule.
+    guard: Atom | None = None
 
 
 # closed-set: decides; policy=which algebra laws are equational, so a declaration that names one gets the equational check; reads=algebra-law, the engine's own vocabulary, which test_under_algebra holds this to
@@ -831,6 +887,20 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
         laws=_SEMIRING_LAWS | {"combine-idempotent", "extend-commutative"},
         negation="formula-not",
         variable="formula-var",
+    ),
+    # The free commutative semiring over the program's facts and rule
+    # instances: a tag is the canonical polynomial `(poly (c (var key w)
+    # ...) ...)` of every derivation, each monomial one witness with its
+    # multiplicity, and every other carrier's value is that polynomial
+    # evaluated (Green, Karvounarakis and Tannen, PODS 2007).
+    "polynomial": _preset(
+        "polynomial",
+        "polynomial-plus",
+        "polynomial-times",
+        Expression((Symbol("poly"),)),
+        Expression((Symbol("poly"), Expression((1,)))),
+        laws=_SEMIRING_LAWS | {"extend-commutative"},
+        variable="polynomial-var",
     ),
     "amplitude": _preset(
         "amplitude",
@@ -1346,18 +1416,24 @@ def tagged_fact(tag: Any, proposition: Any) -> Expression:
     return Expression((Symbol("fact"), tag_atom, _encode(proposition)))
 
 
-def tagged_rule(tag: Any, head: Any, *premises: Any) -> Expression:
-    """Build the once-ever algebra-agnostic threading form for one rule."""
+def tagged_rule(tag: Any, head: Any, *premises: Any, where: Any = None) -> Expression:
+    """Build the once-ever algebra-agnostic threading form for one rule.
+
+    `where` names the rule's side condition, a function applied to the
+    premise tags in order that must answer True for an instance to exist;
+    it is stored as a fifth element, `(where <function>)`.
+    """
     tag_atom = _encode(tag)
     _validate_rate_tag(tag_atom)
-    return Expression(
-        (
-            Symbol("rule"),
-            tag_atom,
-            _encode(head),
-            _list("premises", premises),
-        )
-    )
+    parts: list[Atom] = [
+        Symbol("rule"),
+        tag_atom,
+        _encode(head),
+        _list("premises", premises),
+    ]
+    if where is not None:
+        parts.append(Expression((Symbol("where"), _encode(where))))
+    return Expression(tuple(parts))
 
 
 def _coefficient(tag: Atom) -> Atom:
@@ -1398,17 +1474,25 @@ def _program(atoms: Sequence[Atom]) -> tuple[list[TaggedAnswer], list[_Rule]]:
                     _derivations=(_Trace(order, atom.children[1]),),
                 )
             )
-        elif _head(atom, "rule", 4):
+        elif _head(atom, "rule", 4) or _head(atom, "rule", 5):
             body = atom.children[3]
             if not isinstance(body, Expression) or not _head(body, "premises"):
                 msg = f"tagged_rule_body_malformed({atom}, expected=(premises ...))"
                 raise AlgebraDeclarationError(msg)
+            guard = None
+            if len(atom.children) == 5:
+                clause = atom.children[4]
+                if not _head(clause, "where", 2):
+                    msg = f"tagged_rule_guard_malformed({atom}, expected=(where <function>))"
+                    raise AlgebraDeclarationError(msg)
+                guard = clause.children[1]
             rules.append(
                 _Rule(
                     order,
                     _coefficient(atom.children[1]),
                     atom.children[2],
                     body.children[1:],
+                    guard,
                 )
             )
     return facts, rules
@@ -1527,9 +1611,10 @@ def _derive_rule_steps(
             frozenset[int],
             tuple[int, ...],
             tuple[_Trace, ...],
+            tuple[Atom, ...],
         ]
     ] = [
-        (initial, _rule_start(declaration, rule), frozenset(), (rule.order,), ())
+        (initial, _rule_start(declaration, rule), frozenset(), (rule.order,), (), ())
     ]
     labelled = _headed_tag(rule.tag, "function")
     linear = "linear" in declaration.requires
@@ -1542,9 +1627,10 @@ def _derive_rule_steps(
                 frozenset[int],
                 tuple[int, ...],
                 tuple[_Trace, ...],
+                tuple[Atom, ...],
             ]
         ] = []
-        for bindings, tag, tokens, proof, child_traces in states:
+        for bindings, tag, tokens, proof, child_traces, premise_tags in states:
             resources.checkpoint()
             pattern = substitute(premise, bindings)
             # The suspension point, written as its own statement: a `yield`
@@ -1570,7 +1656,7 @@ def _derive_rule_steps(
                 next_states.append(
                     (
                         merged,
-                        Expression((*tag.children, candidate.tag))
+                        tag
                         if labelled
                         else declaration.extend_values(
                             metta,
@@ -1581,19 +1667,27 @@ def _derive_rule_steps(
                         tokens | candidate.tokens,
                         proof + candidate.proof,
                         child_traces + candidate._derivations,
+                        (*premise_tags, candidate.tag),
                     )
                 )
         states = next_states
         if not states:
             break
     answers: list[TaggedAnswer] = []
-    for bindings, folded, tokens, proof, child_traces in states:
+    for bindings, folded, tokens, proof, child_traces, premise_tags in states:
         value = substitute(rule.head, bindings)
         if any(isinstance(node, Variable) for node in _walk(value)):
             continue
+        applied = None
+        if rule.guard is not None:
+            # The side condition over this derivation's own premise tags:
+            # the instance exists only where it holds.
+            applied = Expression((rule.guard, *premise_tags))
+            if not _guard_holds(metta, declaration, applied, resources):
+                continue
         tag = folded
         if labelled:
-            tag = _label(metta, declaration, rule.tag, folded.children, resources)
+            tag = _label(metta, declaration, rule.tag, premise_tags, resources)
         elif declaration.variable is not None:
             # ProbLog's variable per ground clause: minted now that the head
             # is ground, and extended first since extend is associative.
@@ -1609,10 +1703,41 @@ def _derive_rule_steps(
                 tag,
                 tokens,
                 proof,
-                (_Trace(rule.order, rule.tag, child_traces, is_rule=True, key=value),),
+                (_Trace(rule.order, rule.tag, child_traces, is_rule=True, key=value, guard=applied),),
             )
         )
     return answers
+
+
+def _guard_holds(
+    metta: Space, declaration: DeclaredAlgebra, applied: Expression,
+    resources: _EvaluationBudget,
+) -> builtins.bool:
+    """Whether a rule's guard, applied to one instance's premise tags, holds.
+
+    The guard evaluates under the carrier in the space, as a label function
+    does, and must answer one truth value; anything else is refused by name,
+    since a guard that is not a truth value is a mistake and not a weight.
+    """
+    answers = resources.evaluate_operation(metta, applied)
+    verdict = _truth(answers[0]) if len(answers) == 1 else None
+    if verdict is None:
+        msg = (
+            f"algebra_guard_not_boolean({declaration.name}, {applied}, "
+            f"answers={[str(answer) for answer in answers]})"
+        )
+        raise AlgebraOperationError(msg)
+    return verdict
+
+
+def _truth(atom: Any) -> builtins.bool | None:
+    """The truth value an atom spells, or None when it spells none."""
+    value = _decode(atom) if isinstance(atom, Grounded) else atom
+    if isinstance(value, builtins.bool):
+        return value
+    if isinstance(value, Symbol) and value.name in ("True", "False"):
+        return value.name == "True"
+    return None
 
 
 def _rule_start(declaration: DeclaredAlgebra, rule: _Rule) -> Atom:
@@ -1767,6 +1892,13 @@ def _interpret_trace(
     metta: Space, declaration: DeclaredAlgebra, trace: _Trace,
     resources: _EvaluationBudget,
 ) -> Atom:
+    if trace.guard is not None:
+        msg = (
+            f"algebra_guard_not_reinterpretable({declaration.name}, {trace.guard}): "
+            "a guarded rule's instance exists because its guard held over the tags "
+            "of the carrier it was evaluated under; ask that carrier directly"
+        )
+        raise AlgebraEvaluationError(msg)
     if trace.is_rule and _headed_tag(trace.raw, "function"):
         msg = (
             f"algebra_label_function_not_reinterpretable({declaration.name}, {trace.raw}): "
@@ -1961,6 +2093,39 @@ def _fixpoint_evaluate(
     return AlgebraEvaluation(tuple(_order_answers(declaration, answers)), plan)
 
 
+def _witness_evaluate(
+    home: Space,
+    goal: Atom,
+    record: str,
+    witness: DeclaredAlgebra,
+    resources: _EvaluationBudget,
+) -> list[Atom]:
+    """The witness carrier's tags for goal under the product carrier `(product record witness)`.
+
+    The one fixpoint door runs the product: its tags are pairs, the record
+    half reading the guards and label functions, the witness half following
+    the derivations the record admits.
+    """
+    carrier = Expression((Symbol("product"), Symbol(record), Symbol(witness.name)))
+
+    def run(seconds: float | None, steps: int | None) -> tuple[Any, int]:
+        rows, spent = _controlled_run(
+            home.runtime,
+            "metta_py_algebra_fixpoint_accounted",
+            [home.name, carrier.to_wire(), goal.to_wire()],
+            _limits(seconds, steps),
+            context=resources.context,
+        )
+        return rows, int(spent)
+
+    rows = resources._run_accounted(home, run)
+    return [
+        _atom_from_wire(tag).children[2]
+        for proposition, tag in rows
+        if _same(_atom_from_wire(proposition), goal)
+    ]
+
+
 def _model_count(
     space: Space, declaration: DeclaredAlgebra, formula: Atom, resources: _EvaluationBudget,
 ) -> Atom:
@@ -1985,6 +2150,45 @@ def formula_variables(metta: Space, formula: Atom) -> list[tuple[Atom, Atom]]:
     """
     rows = metta.self.runtime.apply_must("metta_py_algebra_formula_variables", formula.to_wire())
     return [(_atom_from_wire(key), _atom_from_wire(weight)) for key, weight in rows]
+
+
+def formula_witnesses(metta: Space, formula: Atom) -> list[list[tuple[Atom, Atom]]]:
+    """The minimal derivations a formula tag holds by, each a list of (key, weight).
+
+    They are the formula's prime implicants: the smallest sets of sources
+    whose truth alone makes the proposition true. metta may be a context or
+    a space.
+    """
+    rows = metta.self.runtime.apply_must("metta_py_algebra_formula_witnesses", formula.to_wire())
+    return [
+        [(_atom_from_wire(key), _atom_from_wire(weight)) for key, weight in witness]
+        for witness in rows
+    ]
+
+
+def _witness_trace(count: Any, rows: Sequence[tuple[Atom, Atom]]) -> _Trace:
+    """One witness as a trace: its sources as children, its multiplicity in the root."""
+    children = []
+    for key, weight in rows:
+        kind = key.children[0] if isinstance(key, Expression) and key.children else key
+        is_rule = kind == Symbol("rule")
+        source = _decode(key.children[2]) if isinstance(key, Expression) and len(key.children) > 2 else -1
+        head = key.children[3] if is_rule and len(key.children) > 3 else None
+        children.append(_Trace(int(source), weight, is_rule=is_rule, key=head))
+    return _Trace(-1, Expression((Symbol("witness"), _encode(count))), tuple(children))
+
+
+def _polynomial_witnesses(polynomial: Atom) -> list[_Trace]:
+    """The polynomial carrier's value as one witness trace per monomial."""
+    if not _head(polynomial, "poly"):
+        msg = f"algebra_polynomial_tag_malformed({polynomial}, expected=(poly ...))"
+        raise AlgebraEvaluationError(msg)
+    witnesses = []
+    for monomial in polynomial.children[1:]:
+        coefficient, *variables = monomial.children
+        rows = [(variable.children[1], variable.children[2]) for variable in variables]
+        witnesses.append(_witness_trace(_decode(coefficient), rows))
+    return witnesses
 
 
 def _evaluate_with_budget(
@@ -2163,6 +2367,11 @@ def has_tagged_program(metta: Space, query: str | Atom) -> builtins.bool:
     return metta.runtime.apply_must(
         "metta_py_has_tagged_program", metta.name, encoded
     ) == "true"
+
+
+def has_guarded_rule(metta: Space) -> builtins.bool:
+    """Whether the space stores a tagged rule with a `(where G)` side condition."""
+    return metta.runtime.apply_must("metta_py_has_guarded_rule", metta.name) == "true"
 
 
 def count_tagged(
@@ -2437,6 +2646,7 @@ prob = replace(_PRESETS["prob"])
 prov = replace(_PRESETS["prov"])
 budget = replace(_PRESETS["budget"])
 formula = replace(_PRESETS["formula"])
+polynomial = replace(_PRESETS["polynomial"])
 amplitude = replace(_PRESETS["amplitude"])
 
 # PEP 562 preserves lazy import identity at the package; changing the real

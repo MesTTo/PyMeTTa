@@ -82,6 +82,7 @@ from metta.algebra import bool as bool  # noqa: A004 -- the public carrier names
 from metta.algebra import budget as budget
 from metta.algebra import counting as counting
 from metta.algebra import formula as formula
+from metta.algebra import polynomial as polynomial
 from metta.algebra import prob as prob
 from metta.algebra import prov as prov
 from metta.algebra import ranked as ranked
@@ -141,6 +142,7 @@ class _AlgebraModule(_Protocol):
     prov: _DeclaredAlgebra
     budget: _DeclaredAlgebra
     formula: _DeclaredAlgebra
+    polynomial: _DeclaredAlgebra
     amplitude: _DeclaredAlgebra
 
     @_overload

@@ -1,0 +1,58 @@
+"""Purpose: examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/08-guarded_rules.metta in Python: a rule's side condition and a tabled answer's witnesses.
+
+The same scored facts, the threshold as a MeTTa equation and then as a Python
+callable passed as `where=`, asked on both routes. `why()` on a tabled answer
+asks the engine for its witnesses, the sources each derivation uses, so the
+fixpoint route explains itself too.
+"""
+
+import metta
+from metta import S, V
+
+
+def twin(m):
+    """The guard admits a and drops b, and the answer shows its witness."""
+    m.add_tagged_fact(0.6, S.score(S.a))
+    m.add_tagged_fact(0.3, S.score(S.b))
+    m.add(S["="](S["above-half"](V.s), S[">"](V.s, 0.5)))
+    stored = m.add_tagged_rule(1, S.trusted(V.x), S.score(V.x), where=S["above-half"])
+    assert stored.children[4] == S.where(S["above-half"])
+
+    # Only a clears the bar, on the derived route and on the fixpoint.
+    for derivations in (True, False):
+        rows = list(m.match(S.trusted(V.x), under=metta.prob, derivations=derivations))
+        assert [row.value for row in rows] == [S.trusted(S.a)]
+        assert abs(rows[0].annotation - 0.6) < 1e-9
+
+    # A Python guard registers under its own name, like a callable tag.
+    def strong(score):
+        return score > 0.5
+
+    guarded = m.add_tagged_rule(1, S.vouched(V.x), S.score(V.x), where=strong)
+    assert guarded.children[4] == S.where(S["rule-strong"])
+    assert [row.value for row in m.match(S.vouched(V.x), under=metta.prob)] == [S.vouched(S.a)]
+
+    # The derived route shows the guard that held; the tabled route asks the
+    # engine for the witness: one derivation through the fact and the rule.
+    assert "where (above-half 0.6) held" in str(m.match(S.trusted(S.a), under=metta.prob).one().why())
+    tabled = m.match(S.trusted(S.a), under=metta.prob, derivations=False).one()
+    witnesses = tabled.why().alternatives
+    assert len(witnesses) == 1
+    assert sorted(child.is_rule for child in witnesses[0].children) == [False, True]
+
+
+#: The twin's own program, priced when it was written; the lane compares it
+#: with the example's cost and this pin [measured 2026-09-18: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --measure; commit=WORKTREE].
+BUDGET = 23621
+
+#: OVERRUN 2026-09-18, 538: the twin costs 23621 against the example's 18397
+#: and a ceiling of 23083 (the band plus 2846 to author one compiled
+#: definition); the distance is this twin's own program, the callable guard
+#: registered as a second rule and the two why() asks, the tabled one running
+#: the program again under (product prob polynomial), which the example has
+#: no spelling for [measured 2026-09-18: one fresh process per side through the
+#: lane's run_example and run_twin; command=python
+#: extensions/python/tools/twin_coverage.py --measure; commit=WORKTREE].
+OVERRUN = 538

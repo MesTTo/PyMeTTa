@@ -220,9 +220,13 @@ metta_py_algebra_operation_accounted(Space, Algebra0, OperationWire, [Wire, Used
 %[[PropositionWire, TagWire], ...] and the work it cost. The space's module
 %is the evaluation module, so a carrier's operations that are equations of
 %that space apply.
+%The carrier is a name, or a wire term such as (product prob polynomial).
 metta_py_algebra_fixpoint_accounted(Space, Algebra0, Target, [Rows, Used]) :-
     metta_py_work(Before),
-    atom_string(Algebra, Algebra0),
+    (   is_list(Algebra0)
+    ->  metta_py_decode_shared(Algebra0, Algebra, _)
+    ;   atom_string(Algebra, Algebra0)
+    ),
     metta_py_target_term_bindings(Space, Target, Goal, _),
     metta_py_module(Space, Module),
     metta_py_in_module(Module,
@@ -247,6 +251,18 @@ metta_py_algebra_model_count_accounted(Space, Algebra0, FormulaWire, [Wire, Used
         metta_formula_model_count(Formula, Algebra, Count)),
     metta_py_encode(Count, Wire),
     metta_py_work(After), Used is After - Before.
+
+metta_py_algebra_formula_witnesses(FormulaWire, Rows) :-
+    metta_py_decode_shared(FormulaWire, Formula, _),
+    metta_formula_witnesses(Formula, Witnesses),
+    findall(RowWires,
+            ( member(Witness, Witnesses),
+              findall([KeyWire, WeightWire],
+                      ( member([Key, Weight], Witness),
+                        metta_py_encode(Key, KeyWire),
+                        metta_py_encode(Weight, WeightWire) ),
+                      RowWires) ),
+            Rows).
 
 metta_py_algebra_formula_variables(FormulaWire, Rows) :-
     metta_py_decode_shared(FormulaWire, Formula, _),

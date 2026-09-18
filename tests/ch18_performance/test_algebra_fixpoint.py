@@ -23,10 +23,14 @@ Guarantees:
     saturation test stops a sum over a cycle, and one with a negation counts
     a formula [tested: test_a_custom_algebra_declares_saturation_and_negation;
     commit=55368cb4eeb641d2325194eff9d0925048814b76].
-  - a fixpoint answer keeps no derivation and says so: why() and under() on
-    it refuse by name, except through formula [tested:
-    test_a_fixpoint_answer_refuses_why_and_reinterprets_only_through_formula;
-    commit=55368cb4eeb641d2325194eff9d0925048814b76].
+  - a fixpoint answer kept no proof tree and asks the engine again: why()
+    answers its witnesses, the minimal derivations of a cyclic program from
+    the formula's prime implicants and every derivation with its
+    multiplicity of an acyclic one from the polynomial carrier, and under()
+    is the carrier's own fixpoint for the proposition [tested:
+    test_a_fixpoint_answer_asks_the_engine_for_its_witnesses,
+    test_a_fixpoint_answer_reinterprets_by_asking_the_fixpoint_again;
+    commit=WORKTREE].
   - a rule tagged (function F), or added with a callable tag, labels each
     instance with F over its premise tags on both routes, and such a label
     is not reinterpreted under another carrier [tested:
@@ -172,19 +176,53 @@ def test_a_custom_algebra_declares_saturation_and_negation(metta):
         assert answer.under(near).annotation == pytest.approx(1 - (1 - 0.2) * (1 - 0.6 * 0.3))
 
 
-def test_a_fixpoint_answer_refuses_why_and_reinterprets_only_through_formula(metta):
-    """No proof tree is kept, and the refusal names the two remedies."""
+def test_a_fixpoint_answer_asks_the_engine_for_its_witnesses(metta):
+    """why() on a tabled answer lists the sources each derivation uses.
+
+    A cyclic program answers its minimal derivations, the formula's prime
+    implicants; an acyclic one answers every derivation with its
+    multiplicity through the polynomial carrier, the free semiring.
+    """
     with metta._new_space() as space:
         _graph(space, CYCLE)
         answer = space.match(S.path(S.a, S.c), under=algebra_module.bool).one()
-        with pytest.raises(AlgebraEvaluationError, match="keeps_no_derivation"):
-            answer.why()
-        with pytest.raises(AlgebraEvaluationError, match="keeps_no_derivation"):
-            answer.under(algebra_module.prob)
-        # A carrier without a negation cannot count a formula.
+        witnesses = answer.why()
+        sources = sorted(
+            sorted(child.raw for child in witness.children if not child.is_rule)
+            for witness in witnesses.alternatives
+        )
+        assert sources == [[0.2], [0.3, 0.6]]
+        assert str(witnesses).count("witness x1") == 2
+    with metta._new_space() as dag:
+        _graph(dag, (("a", "b", 0.6), ("b", "c", 0.5), ("a", "c", 0.2)))
+        counted = dag.match(S.path(S.a, S.c), under=algebra_module.prob, derivations=False).one()
+        witnesses = counted.why()
+        shapes = sorted(
+            (int(witness.raw.children[1]), len(witness.children))
+            for witness in witnesses.alternatives
+        )
+        assert shapes == [(1, 2), (1, 4)]
+        assert all(
+            sum(1 for child in witness.children if child.is_rule) >= 1
+            for witness in witnesses.alternatives
+        )
+
+
+def test_a_fixpoint_answer_reinterprets_by_asking_the_fixpoint_again(metta):
+    """under() on a tabled answer is the carrier's own fixpoint for that proposition."""
+    with metta._new_space() as space:
+        _graph(space, CYCLE)
+        answer = space.match(S.path(S.a, S.c), under=algebra_module.bool).one()
+        assert abs(answer.under(algebra_module.tropical).annotation - 1.2) < 1e-9
+        # A formula reinterprets by model count where the carrier has a
+        # negation, and by asking again where it has none.
         compiled = space.match(S.path(S.a, S.c), under=algebra_module.formula).one()
-        with pytest.raises(AlgebraEvaluationError, match="keeps_no_derivation"):
-            compiled.under(algebra_module.tropical)
+        assert abs(compiled.under(algebra_module.prob).annotation - (1 - 0.8 * (1 - 0.18))) < 1e-9
+        assert abs(compiled.under(algebra_module.tropical).annotation - 1.2) < 1e-9
+    with metta._new_space() as dag:
+        _graph(dag, (("a", "b", 0.6), ("b", "c", 0.5), ("a", "c", 0.2)))
+        exact = dag.match(S.path(S.a, S.c), under=algebra_module.prob, derivations=False).one()
+        assert exact.under(algebra_module.counting).annotation == 2
 
 
 def test_derivations_needs_a_carrier(metta):

@@ -319,6 +319,7 @@ __lazy_exports__ = {
     'or_': ('metta._atoms.factories', 'or_'),
     'par_map': ('metta.parallel', 'par_map'),
     'parse': ('metta._atoms.factories', 'parse'),
+    'polynomial': ('metta.algebra', 'polynomial'),
     'prob': ('metta.algebra', 'prob'),
     'prov': ('metta.algebra', 'prov'),
     'py': ('metta._compile.islands', 'py'),

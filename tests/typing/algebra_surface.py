@@ -53,6 +53,8 @@ assert_type(metta.algebra.budget, DeclaredAlgebra)
 assert_type(metta.budget, DeclaredAlgebra)
 assert_type(metta.algebra.formula, DeclaredAlgebra)
 assert_type(metta.formula, DeclaredAlgebra)
+assert_type(metta.algebra.polynomial, DeclaredAlgebra)
+assert_type(metta.polynomial, DeclaredAlgebra)
 assert_type(metta.algebra.amplitude, DeclaredAlgebra)
 assert_type(metta.amplitude, DeclaredAlgebra)
 

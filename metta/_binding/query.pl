@@ -170,6 +170,16 @@ metta_py_has_tagged_program(Space, Target, Has) :-
 
 metta_py_tagged_conclusion([fact, _Tag, Proposition], Proposition).
 metta_py_tagged_conclusion([rule, _Tag, Head, [premises|_]], Head).
+metta_py_tagged_conclusion([rule, _Tag, Head, [premises|_], [where, _]], Head).
+
+% A guarded rule's instances depend on the premise tags, which the
+% proof-tree counter below never computes, so a program with one takes
+% the general tagged evaluation under counting instead.
+metta_py_has_guarded_rule(Space, Has) :-
+    (   'get-atoms'(Space, [rule, _, _, [premises|_], [where, _]])
+    ->  Has = true
+    ;   Has = false
+    ).
 
 metta_py_tagged_count(Space, Target, MaxDepth, Limit, Count) :-
     metta_py_target_term_bindings(Space, Target, Query, _),
@@ -206,6 +216,11 @@ metta_py_tagged_prove(_, Atoms, Query, _) :-
     member(Stored, Atoms),
     copy_term(Stored, [fact, _Tag, Proposition]),
     unify_with_occurs_check(Query, Proposition).
+metta_py_tagged_prove(_, Atoms, _, _) :-
+    member(Stored, Atoms),
+    Stored = [rule, _, Head, [premises|_], [where, _]],
+    !,
+    throw(error(metta_py_tagged_count_guarded(Head), none)).
 metta_py_tagged_prove(Space, Atoms, Query, Depth) :-
     Depth > 0,
     member(Stored, Atoms),
