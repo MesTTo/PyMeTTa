@@ -402,7 +402,18 @@ def twin(m):
 #: within that ceiling, so the rest is this twin's own program [measured
 #: 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = BUDGET = 16702
+#: RE-PINNED 2026-09-18, 16702 to 16210 (-492), the trunk merged (f97c4b0a3,
+#: petta's 61 commits since c75181adc) with the definition batch's load pushed
+#: as the running load (2da1155e3): every example moved with the engine, 279 of
+#: 294 cheaper (median -0.78%), through the compiled runnable envelope
+#: executing each runnable form's fixed answer, name and fuel envelope from
+#: compiled clauses, the trunk's trailed scopes and compiled context readers (a
+#: b_getval/2 read per recorded assertion in place of the branch's thread-local
+#: rows), the host listener door and the receipts loop probing the owner once
+#: per set; serial minimum of three fresh processes through the lane's run_twin
+#: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 16210
 OVERRUN = OVERRUN = 283
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

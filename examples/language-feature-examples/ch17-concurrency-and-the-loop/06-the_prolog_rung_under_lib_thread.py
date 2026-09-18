@@ -340,10 +340,21 @@ def twin(m):
 #: observe-c6448858b.log, ai-twins-K5.log, ai-twins-K6-interim.log, ai-
 #: twins-K6-final.log, ai-twins-K6-final-2.log, ai-twins-tip-e28c4f2f5.log;
 #: commit=0e767924501d8b25d1994f128d96c503d867e408].
+#: RE-OBSERVED 2026-09-19 under 'full-lane/294/workers=32', 152493..154546 over
+#: 25 under 'full-lane/294/workers=32' to 151672..152620 over 10: the trunk
+#: merged (f97c4b0a3, petta's 61 commits since c75181adc) with the definition
+#: batch's load pushed as the running load (2da1155e3): the engine moved under
+#: every twin, 263 of the 276 re-pinned twins cheaper and 13 dearer (median
+#: -1.25%), through the compiled runnable envelope, the trunk's trailed scopes
+#: and compiled context readers, the host listener door and the receipts loop
+#: probing the owner once per set, so the envelope is this tree's own
+#: observation under the same 294-wide protocol [measured 2026-09-19: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10, ai-
+#: observe-4c0533704.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 152493,
-    "maximum": 154546,
-    "observations": 25,
+    "minimum": 151672,
+    "maximum": 152620,
+    "observations": 10,
     "protocol": "full-lane/294/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }
 #: The count VARIES, because this twin starts threads, pools and timers and

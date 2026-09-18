@@ -45,7 +45,18 @@ def twin(m):
 #: with the example's cost and this pin [measured 2026-09-18: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --measure; commit=49478d67a10793a114d27d01a51f09a685d5136a].
-BUDGET = 23621
+#: RE-PINNED 2026-09-18, 23621 to 23658 (+37), the trunk merged (f97c4b0a3,
+#: petta's 61 commits since c75181adc) with the definition batch's load pushed
+#: as the running load (2da1155e3): every example moved with the engine, 279 of
+#: 294 cheaper (median -0.78%), through the compiled runnable envelope
+#: executing each runnable form's fixed answer, name and fuel envelope from
+#: compiled clauses, the trunk's trailed scopes and compiled context readers (a
+#: b_getval/2 read per recorded assertion in place of the branch's thread-local
+#: rows), the host listener door and the receipts loop probing the owner once
+#: per set; serial minimum of three fresh processes through the lane's run_twin
+#: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 23658
 
 #: OVERRUN 2026-09-18, 538: the twin costs 23621 against the example's 18397
 #: and a ceiling of 23083 (the band plus 2846 to author one compiled

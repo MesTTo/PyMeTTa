@@ -449,7 +449,18 @@ def twin(m):
 #: fixpoint twin +610, the documentation twins -22 and -50, types_nondet +5)
 #: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=bf5f100591493a91324b1d7552b5ad2731601691].
-BUDGET = BUDGET = 8610
+#: RE-PINNED 2026-09-18, 8610 to 8460 (-150), the trunk merged (f97c4b0a3,
+#: petta's 61 commits since c75181adc) with the definition batch's load pushed
+#: as the running load (2da1155e3): every example moved with the engine, 279 of
+#: 294 cheaper (median -0.78%), through the compiled runnable envelope
+#: executing each runnable form's fixed answer, name and fuel envelope from
+#: compiled clauses, the trunk's trailed scopes and compiled context readers (a
+#: b_getval/2 read per recorded assertion in place of the branch's thread-local
+#: rows), the host listener door and the receipts loop probing the owner once
+#: per set; serial minimum of three fresh processes through the lane's run_twin
+#: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8460
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 @doc)
 #: and the twin holds 3 the example does not (1 :, 2 @doc): a Python annotation

@@ -365,7 +365,18 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-18: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6944d06ce96fdbcd1faefb640f15dbfa0cf286dd].
-BUDGET = BUDGET = 46365
+#: RE-PINNED 2026-09-18, 46365 to 45129 (-1236), the trunk merged (f97c4b0a3,
+#: petta's 61 commits since c75181adc) with the definition batch's load pushed
+#: as the running load (2da1155e3): every example moved with the engine, 279 of
+#: 294 cheaper (median -0.78%), through the compiled runnable envelope
+#: executing each runnable form's fixed answer, name and fuel envelope from
+#: compiled clauses, the trunk's trailed scopes and compiled context readers (a
+#: b_getval/2 read per recorded assertion in place of the branch's thread-local
+#: rows), the host listener door and the receipts loop probing the owner once
+#: per set; serial minimum of three fresh processes through the lane's run_twin
+#: [measured 2026-09-18: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 45129
 
 #: OVERRUN 2026-09-07, 6400: it declares the cache policy and memoises by name
 #: through the library door, then reads the result twice. Measured 57334
