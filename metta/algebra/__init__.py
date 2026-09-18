@@ -168,6 +168,7 @@ from metta._atoms.factories import (
     _from_wire,
     _match,
     parse,
+    seg,
     substitute,
 )
 from metta._binding.runtime import active_runtime
@@ -186,6 +187,7 @@ from metta._spaces.execution import _controlled_run, evaluate_accounted
 from metta._spaces.execution import evaluate as evaluate_operation
 from metta._spaces.handle import current_space
 from metta._spaces.scope import EvaluationContext, _limits
+from metta._spaces.scope import plain as _plain_scope
 from metta._spaces.scope import selected as _selected_under
 from metta.vocabularies import AlgebraLaw, EffectClass, Semiring, SemiringOrder
 
@@ -950,23 +952,38 @@ def resolve(metta: SpaceLike, carrier: Any) -> DeclaredAlgebra:
     return require(home, _carrier_name(carrier))
 
 
+def _catalog_rows(metta: Space, pattern: Expression) -> list[Any]:
+    """The catalog's rows matching a pattern, asked rather than read whole.
+
+    A match costs tens of inferences where reading every row into Python
+    costs a hundred thousand [measured 2026-09-18: 1558 rows, 146377
+    inferences to read them all, 57 for one match; command=a probe over
+    metta.stats() in a battery worktree]. The catalog is read under no
+    carrier: a `with metta.under(...)` around the caller must not turn its
+    rows into tagged answers.
+    """
+    catalog = Space("&metta", _runtime=metta.runtime)
+    with _plain_scope():
+        return list(catalog.match(pattern))
+
+
 def _catalog_law_aliases(metta: Space) -> dict[str, tuple[str, ...]]:
     """Read algebra-law alias expansions from the live catalog."""
     aliases: dict[str, tuple[str, ...]] = {}
-    prefix = (Symbol("claim"), Symbol("algebra-law"))
-    for atom in Space("&metta", _runtime=metta.runtime).atoms():
+    pattern = Expression((
+        Symbol("claim"), Symbol("algebra-law"), Variable("alias"),
+        Symbol("expands-to"), seg(Variable("expansion")),
+    ))
+    for row in _catalog_rows(metta, pattern):
+        alias, expansion = row.alias, row.expansion
         if (
-            not isinstance(atom, Expression)
-            or len(atom.children) < 5
-            or atom.children[:2] != prefix
-            or atom.children[3] != Symbol("expands-to")
-            or not all(isinstance(value, Symbol) for value in atom.children[2:])
+            not isinstance(alias, Symbol)
+            or not isinstance(expansion, Expression)
+            or not expansion.children
+            or not all(isinstance(value, Symbol) for value in expansion.children)
         ):
             continue
-        alias = cast(Symbol, atom.children[2])
-        aliases[alias.name] = tuple(
-            cast(Symbol, value).name for value in atom.children[4:]
-        )
+        aliases[alias.name] = tuple(cast("Symbol", value).name for value in expansion.children)
     return aliases
 
 
@@ -1009,13 +1026,11 @@ def _catalog_declaration(
     # context and name.
     owned: Expression | None = None
     shared: Expression | None = None
-    for atom in Space("&metta", _runtime=metta.runtime).atoms():
-        if not isinstance(atom, Expression) or len(atom.children) != 10:
-            continue
-        head, declared_name = atom.children[:2]
-        if head != Symbol("algebra") or declared_name != Symbol(name):
-            continue
-        owner = atom.children[9]
+    fields = ("combine", "extend", "zero", "one", "laws", "carrier", "requires", "owner")
+    pattern = Expression((Symbol("algebra"), Symbol(name), *(Variable(field) for field in fields)))
+    for match in _catalog_rows(metta, pattern):
+        atom = Expression((Symbol("algebra"), Symbol(name), *(getattr(match, field) for field in fields)))
+        owner = match.owner
         if owner == Symbol(context):
             owned = atom
         elif owner == Symbol("global"):
@@ -1088,32 +1103,24 @@ def _catalog_claims(metta: Space, name: str) -> dict[str, Any]:
     prefix = (Symbol("claim"), Symbol("semiring"), Symbol(name))
     order: SemiringOrder | None = None
     operations: dict[str, str] = {}
-    for atom in Space("&metta", _runtime=metta.runtime).atoms():
-        if (
-            not isinstance(atom, Expression)
-            or len(atom.children) < 4
-            or atom.children[:3] != prefix
-            or not isinstance(atom.children[3], Symbol)
-        ):
+    for row in _catalog_rows(metta, Expression((*prefix, Variable("claim"), Variable("value")))):
+        claim, value = row.claim, row.value
+        if not isinstance(claim, Symbol) or not isinstance(value, Symbol):
             continue
-        claim = atom.children[3].name
-        value = atom.children[4] if len(atom.children) > 4 else None
-        if claim == "ordered" and order is None:
-            if not isinstance(value, Symbol):
-                # A bare `ordered` claim with no direction: the shipped rows
-                # all carry one, so this is a claim written by hand, and
-                # counting down from the best is what ordered meant before
-                # the direction joined the row.
-                order = SemiringOrder.descending
-            else:
-                try:
-                    order = SemiringOrder(value.name)
-                except ValueError:
-                    # A direction outside the declared vocabulary is not this
-                    # claim's direction; keep looking rather than inventing one.
-                    continue
-        elif claim in ("negation", "saturation", "variable") and isinstance(value, Symbol):
-            operations.setdefault(claim, value.name)
+        if claim.name == "ordered" and order is None:
+            try:
+                order = SemiringOrder(value.name)
+            except ValueError:
+                # A direction outside the declared vocabulary is not this
+                # claim's direction; keep looking rather than inventing one.
+                continue
+        elif claim.name in ("negation", "saturation", "variable"):
+            operations.setdefault(claim.name, value.name)
+    if order is None and _catalog_rows(metta, Expression((*prefix, Symbol("ordered")))):
+        # A bare `ordered` claim with no direction: the shipped rows all carry
+        # one, so this is a claim written by hand, and counting down from the
+        # best is what ordered meant before the direction joined the row.
+        order = SemiringOrder.descending
     return {"order": order, **operations}
 
 
@@ -1148,16 +1155,15 @@ def require(metta: Space, name: str) -> DeclaredAlgebra:
 
 
 def _context_capabilities(metta: Space, algebra: str) -> frozenset[str]:
-    context = Symbol(str(metta.name))
-    for atom in Space("&metta", _runtime=metta.runtime).atoms():
-        # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=extensions/python/metta/_declare/declarations.py:annotations
-        if not isinstance(atom, Expression) or len(atom.children) not in {3, 4}:
-            continue
-        if atom.children[:3] != (Symbol("annotations"), context, Symbol(algebra)):
-            continue
-        if len(atom.children) == 3:
-            return frozenset()
-        declared = atom.children[3]
+    """The capabilities the context's annotations row declares for an algebra.
+
+    The row is `(annotations Ctx Algebra)` or `(annotations Ctx Algebra
+    (capabilities ...))` [source: engine/metta/effects.pl:metta_annotations/2];
+    only the second carries any, so one match for it is the whole read.
+    """
+    pattern = Expression((Symbol("annotations"), Symbol(str(metta.name)), Symbol(algebra), Variable("declared")))
+    for row in _catalog_rows(metta, pattern):
+        declared = row.declared
         if not isinstance(declared, Expression) or not declared.children:
             return frozenset()
         return frozenset(

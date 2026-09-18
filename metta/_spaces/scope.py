@@ -20,7 +20,8 @@ Guarantees:
 from __future__ import annotations
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self, cast, overload
@@ -68,6 +69,20 @@ class ScopedUnder:
 
     def __exit__(self, _exc_type, _exc, _traceback) -> None:
         _SCOPED_UNDER.reset(self._token)
+
+@contextmanager
+def plain() -> Iterator[None]:
+    """A block whose matches carry no scoped carrier.
+
+    The catalog's own reads run in it: a row of `&metta` is never a tagged
+    answer, whatever `with metta.under(...)` surrounds the caller.
+    """
+    token = _SCOPED_UNDER.set(None)
+    try:
+        yield
+    finally:
+        _SCOPED_UNDER.reset(token)
+
 
 def selected(explicit: Any = _UNSET) -> Any | None:
     """Resolve one call's explicit carrier before its surrounding scope."""

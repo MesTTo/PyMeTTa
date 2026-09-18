@@ -670,22 +670,23 @@ def test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals(metta):
 
 
 def test_equational_law_names_read_no_catalog(metta, monkeypatch):
-    """Equations answer without the catalog walk an alias needs, and agree."""
+    """Equations answer without the catalog read an alias needs, and agree."""
     module = importlib.import_module("metta.algebra")
     space_module = importlib.import_module("metta._faces.space")
-    original = space_module.Space.atoms
-    walked: list[str] = []
+    original = space_module.Space.match
+    asked: list[str] = []
 
-    def counting_atoms(self, *args, **kwargs):
-        walked.append(str(self.name))
+    def counting_match(self, *args, **kwargs):
+        asked.append(str(self.name))
         return original(self, *args, **kwargs)
 
-    monkeypatch.setattr(space_module.Space, "atoms", counting_atoms)
+    monkeypatch.setattr(space_module.Space, "match", counting_match)
     equations = ("combine-associative", "extend-associative")
     assert module._canonical_laws(metta, equations) == frozenset(equations)
-    assert walked == []
+    assert asked == []
+    # One pattern match for the alias rows, never a walk of every catalog atom.
     assert module._canonical_laws(metta, ("associative",)) == frozenset(equations)
-    assert walked == ["&metta"]
+    assert asked == ["&metta"]
 
 
 def test_semiring_vocabulary_members_are_carrier_spellings(metta):
