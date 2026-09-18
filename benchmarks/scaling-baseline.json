@@ -8,7 +8,6 @@
     "python_version": "3.14.4",
     "swipl_version": "10.1.14"
   },
-  "failures": [],
   "families": {
     "chain-join": {
       "cause": {
@@ -434,7 +433,7 @@
       ]
     }
   },
-  "loadavg": "37.42 34.00 33.04 44/11550 2829729",
   "repetitions": 3,
+  "repin_rule": "A changed pin must name the first causal code or dependency change, carry the old and new counts, and explain why the family still holds its declared class. A control row is never re-pinned: the planted constant-factor loss IS the distance between its measurement and the row below it.",
   "schema": 1
 }

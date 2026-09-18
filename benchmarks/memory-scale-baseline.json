@@ -1,1597 +1,1596 @@
 {
-  "cases": {
-    "atom-reclamation": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns atom-reclamation in a fresh process",
-          "post_gc_atom_count is selected by minimum of repetitions",
-          "the intended complexity family is constant",
-          "RE-PINNED 2026-09-19: post_gc_atom_count [8, 8, 8, 8] to [17, 17, 17, 17]. [+9, +9, +9, +9] from [8, 8, 8, 8] to [17, 17, 17, 17]: at the two smallest sizes [-1, -1] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+1, +1] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+1, +1] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+8, +8] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder). The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": 1.0,
-        "models": {
-          "capped_linear": {
-            "intercept": 17.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 17.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 17.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 17.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 17.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 17.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": 0.0,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "post_gc_atom_count",
-      "representative": [
-        17,
-        17,
-        17,
-        17
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
+ "cases": {
+  "atom-reclamation": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns atom-reclamation in a fresh process",
+     "post_gc_atom_count is selected by minimum of repetitions",
+     "the intended complexity family is constant",
+     "RE-PINNED 2026-09-19: post_gc_atom_count [8, 8, 8, 8] to [17, 17, 17, 17]. [+9, +9, +9, +9] from [8, 8, 8, 8] to [17, 17, 17, 17]: at the two smallest sizes [-1, -1] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+1, +1] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+1, +1] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+8, +8] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder). The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": 1.0,
+    "models": {
+     "capped_linear": {
+      "intercept": 17.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 17.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 17.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 17.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 17.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 17.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
     },
-    "compiled-equations": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns compiled-equations in a fresh process",
-          "compiled_predicate_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 10.405189620758483,
-        "models": {
-          "capped_linear": {
-            "intercept": -6812.973113054642,
-            "nrms": 0.0015758994794285743,
-            "slope": 501.0034106617659
-          },
-          "constant": {
-            "intercept": 1384724.0,
-            "nrms": 0.41961816254669626,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": -6812.973113054642,
-            "nrms": 0.0015758994794285743,
-            "slope": 501.0034106617659
-          },
-          "log_n": {
-            "intercept": -2473328.0,
-            "nrms": 0.23876393134302248,
-            "slope": 670212.2777983218
-          },
-          "n_log_n": {
-            "intercept": 43726.66430501174,
-            "nrms": 0.007906507567232551,
-            "slope": 53.9123113297196
-          },
-          "quadratic": {
-            "intercept": 160919.83156632935,
-            "nrms": 0.03329890046286345,
-            "slope": 0.048462645554599816
-          }
-        },
-        "power_exponent": 1.0168362605783665,
-        "r_squared": 0.9998749391438732
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "compiled_predicate_bytes",
-      "representative": [
-        4368,
-        49088,
-        480960,
-        5004480
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "hyperpose-branches": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns hyperpose-branches in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-19: inferences [8981, 13357, 50329, 399549] to [15142, 18249, 43531, 273934]. [+6161, +4892, -6798, -125615] from [8981, 13357, 50329, 399549] to [15142, 18249, 43531, 273934]: at the two smallest sizes [+6111, +5066] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+0, +39] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+330, +327] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+297, +1535] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+1, +1] inside the row's band over 27102996f..dbb95d0bf; at the two smallest sizes [-280, -284] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [+0, +2] inside the row's band over d761b9c43..e59104ace; at the two smallest sizes [+5, +54] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); at the two smallest sizes [+0, -7] inside the row's band over fd0af38f7..7cc8fb863; at the two smallest sizes [-315, -1869] at a9e2c06d3, Translator: the runnable cache's dependency index is written by the producer, not by walking the generated code; at the two smallest sizes [+0, +2] inside the record's noise over a9e2c06d3..89bd5dc41; [+12, +31, +135, +1041] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 6.292848774436608,
-        "models": {
-          "capped_linear": {
-            "intercept": 16037.821833495298,
-            "nrms": 0.004025596423962404,
-            "slope": 258.06004740415733
-          },
-          "constant": {
-            "intercept": 87714.0,
-            "nrms": 0.4176191149361646,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 16037.821833495298,
-            "nrms": 0.004025596423962404,
-            "slope": 258.06004740415733
-          },
-          "log_n": {
-            "intercept": -32534.699999999997,
-            "nrms": 0.2333655952852612,
-            "slope": 34815.564577359706
-          },
-          "n_log_n": {
-            "intercept": 19540.932411056478,
-            "nrms": 0.016523979358698985,
-            "slope": 36.893691050835635
-          },
-          "quadratic": {
-            "intercept": 24747.02688696656,
-            "nrms": 0.038651524462208674,
-            "slope": 0.24934921602110457
-          }
-        },
-        "power_exponent": 0.4149947664635018,
-        "r_squared": 0.8691972631305851
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 30,
-        "relative_max": 0.0006891640440146102,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        15142,
-        18249,
-        43531,
-        273934
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "join-projection": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns join-projection in a fresh process",
-          "instructions is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-19: instructions [26614547, 32395884, 120631032, 946557090] to [27067074, 34287227, 113440874, 902044759]. [+452527, +1891343, -7190158, -44512331] from [26614547, 32395884, 120631032, 946557090] to [27067074, 34287227, 113440874, 902044759]: at the two smallest sizes [+366549, +2899708] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+20502, +21768] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [-10914, +8474] inside the row's band over 7942599d2..592dd1ea2; at the two smallest sizes [+68608, -1113674] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-30885, -99630] in the unsplit bracket 27102996f..a340d0128 (20 first-parent commits, not split by the ladder); at the two smallest sizes [-3441, +24648] in the unsplit bracket a340d0128..3eb5acc22 (10 first-parent commits, not split by the ladder); at the two smallest sizes [+15565, +455891] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); [-21910, +127848, +736798, +928932] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 7.951673212602364,
-        "models": {
-          "capped_linear": {
-            "intercept": 25847803.935860068,
-            "nrms": 0.00026949701555226916,
-            "slope": 876191.4655774615
-          },
-          "constant": {
-            "intercept": 269209983.5,
-            "nrms": 0.419365207234461,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 25847803.935860068,
-            "nrms": 0.00026949701555226916,
-            "slope": 876191.4655774615
-          },
-          "log_n": {
-            "intercept": -136403021.8,
-            "nrms": 0.23765544358657614,
-            "slope": 117436993.3266563
-          },
-          "n_log_n": {
-            "intercept": 37674377.1184856,
-            "nrms": 0.012513511516392805,
-            "slope": 125301.72737148294
-          },
-          "quadratic": {
-            "intercept": 55247199.08729103,
-            "nrms": 0.034803864698890144,
-            "slope": 847.2926347472538
-          }
-        },
-        "power_exponent": 0.508799753293511,
-        "r_squared": 0.8904939959936358
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 28690,
-        "relative_max": 0.0009008361967754624,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "instructions",
-      "representative": [
-        27067074,
-        34287227,
-        113440874,
-        902044759
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "join-shared": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns join-shared in a fresh process",
-          "instructions is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-09: instructions [26611473, 30279884, 65194917, 455812665] to [26886179, 31158374, 68143149, 480099748]. Wide native clause heads carry a token field and decode through metta_storage_term/4. At width1000, token parent cbf7a958de1e87d648bb723c97fa3960f94e258d reads 471163151 instructions, token merge 50e34286f66c938d89d5d367c6370ad44164c97f reads 487053722, pre-layout 3734fc3641eab6574e43ef535da7376f365a51d3 reads 479456514, and repair reads 480099748. The parent was already 3.37 percent above the old pin; the token boundary adds 3.37 percent and the current row remains linear. The instruction counter sees this C-side work while inference counts do not price it. Raw samples by size {'1': [26894144, 26886179, 26891989], '10': [31277856, 31158374, 31158793], '100': [68143149, 68143213, 68259913], '1000': [480099748, 480150356, 480171000]}; measured noise {'absolute_max': 119482, 'relative_max': 0.0038346673674306627, 'resolution_bytes': 1}; the published noise {'absolute_max': 79592, 'relative_max': 0.00017461559564168757, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-          "RE-PINNED 2026-09-19: instructions [26886179, 31158374, 68143149, 480099748] to [27077264, 31642386, 70758188, 505575989]. [+191085, +484012, +2615039, +25476241] from [26886179, 31158374, 68143149, 480099748] to [27077264, 31642386, 70758188, 505575989]: at the two smallest sizes [+106457, +99531] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+5892, +38397] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [-10184, -14940] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+66502, +278049] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-36343, -1408] in the unsplit bracket 27102996f..a340d0128 (20 first-parent commits, not split by the ladder); at the two smallest sizes [+19285, -822] in the unsplit bracket a340d0128..3eb5acc22 (10 first-parent commits, not split by the ladder); at the two smallest sizes [-5097, +442212] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); [-8343, +40187, +38335, +77774] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 7.1451234590687935,
-        "models": {
-          "capped_linear": {
-            "intercept": 25491304.95853579,
-            "nrms": 0.003385280638236885,
-            "slope": 479827.72922219336
-          },
-          "constant": {
-            "intercept": 158763456.75,
-            "nrms": 0.4199609725152751,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 25491304.95853579,
-            "nrms": 0.003385280638236885,
-            "slope": 479827.72922219336
-          },
-          "log_n": {
-            "intercept": -62428339.80000001,
-            "nrms": 0.24010969710347355,
-            "slope": 64041584.4559545
-          },
-          "n_log_n": {
-            "intercept": 31938477.28043455,
-            "nrms": 0.00931072247968114,
-            "slope": 68634.75233785107
-          },
-          "quadratic": {
-            "intercept": 41514291.33360277,
-            "nrms": 0.031557645313510116,
-            "slope": 464.306699692
-          }
-        },
-        "power_exponent": 0.4163052461078123,
-        "r_squared": 0.8465597331666713
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 82710,
-        "relative_max": 0.0006362533526282419,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "instructions",
-      "representative": [
-        27077264,
-        31642386,
-        70758188,
-        505575989
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "live-spaces": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns live-spaces in a fresh process",
-          "live_module_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-19: live_module_bytes [7304, 73040, 730400, 7304000] to [7464, 74640, 746400, 7464000]. [+160, +1600, +16000, +160000] from [7304, 73040, 730400, 7304000] to [7464, 74640, 746400, 7464000]: at the two smallest sizes [+112, +1120] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+128, +1280] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-128, -1280] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [+48, +480] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7). The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 10.0,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 7464.0
-          },
-          "constant": {
-            "intercept": 2073126.0,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 7464.0
-          },
-          "log_n": {
-            "intercept": -1383079.2000000002,
-            "nrms": 0.23743054807048092,
-            "slope": 1000673.8977902166
-          },
-          "n_log_n": {
-            "intercept": 100755.35426182393,
-            "nrms": 0.012566074341080865,
-            "slope": 1067.4014800150076
-          },
-          "quadratic": {
-            "intercept": 250459.2221461397,
-            "nrms": 0.03483067252846591,
-            "slope": 7.2177605124788915
-          }
-        },
-        "power_exponent": 1.0,
-        "r_squared": 1.0
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "live_module_bytes",
-      "representative": [
-        7464,
-        74640,
-        746400,
-        7464000
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "load-fast": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns load-fast in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-09: inferences [1798, 4960, 36456, 351480] to [2213, 7523, 60623, 591623]. Token images retain portable occurrence identities and validate their collision mapping. At10000 atoms the cut reads891612 inferences and the repair591623; the old351480 row predates this work. Reusing normalized tokens removes a duplicate validation/receive pass, and one clock advance and rollback marker per image replace per-atom synchronization. The remaining required validation and storage are linear over this size ladder. Raw samples by size {'10': [2213, 2213, 2213], '100': [7523, 7523, 7523], '1000': [60623, 60623, 60623], '10000': [591623, 591623, 591623]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-          "RE-PINNED 2026-09-19: inferences [2213, 7523, 60623, 591623] to [2288, 7688, 61688, 601688]. [+75, +165, +1065, +10065] from [2213, 7523, 60623, 591623] to [2288, 7688, 61688, 601688]: at the two smallest sizes [+282, +2982] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [-289, -2989] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+165, +705] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [-1, -1] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+55, +505] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-142, -1042] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); [+5, +5, +5, +5] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.753728439891065,
-        "models": {
-          "capped_linear": {
-            "intercept": 1688.0,
-            "nrms": 0.0,
-            "slope": 60.0
-          },
-          "constant": {
-            "intercept": 168338.0,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 1688.0,
-            "nrms": 0.0,
-            "slope": 60.0
-          },
-          "log_n": {
-            "intercept": -294712.0,
-            "nrms": 0.2374305480704809,
-            "slope": 80440.0239381203
-          },
-          "n_log_n": {
-            "intercept": 7754.0708864541375,
-            "nrms": 0.009452997846905562,
-            "slope": 6.455979106350929
-          },
-          "quadratic": {
-            "intercept": 21821.377986024105,
-            "nrms": 0.03483067252846592,
-            "slope": 0.005802058289774028
-          }
-        },
-        "power_exponent": 0.8164133305261789,
-        "r_squared": 0.9829380098110608
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        2288,
-        7688,
-        61688,
-        601688
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "load-metta": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns load-metta in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-09: inferences [934, 2824, 21724, 210732] to [1039, 3469, 27769, 270769]. Native text loading reconstructs fresh occurrence tokens and records their source references through add_sexp_in/5. The token parent and cut controls isolate the per-occurrence mutation cost; the cut already reads270769 at10000 atoms, and the repaired tree retains that exact count. This data loader already used the direct token body, so the public-wrapper removal does not reduce this curve. The curve remains linear. Raw samples by size {'10': [1039, 1039, 1039], '100': [3469, 3469, 3469], '1000': [27769, 27769, 27769], '10000': [270769, 270769, 270769]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-          "RE-PINNED 2026-09-19: inferences [1039, 3469, 27769, 270769] to [1064, 3764, 30764, 300764]. [+25, +295, +2995, +29995] from [1039, 3469, 27769, 270769] to [1064, 3764, 30764, 300764]: at the two smallest sizes [-6, -6] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+112, +652] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [-2, -2] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+55, +505] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-127, -847] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); [-7, -7, -7, -7] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.77649200364062,
-        "models": {
-          "capped_linear": {
-            "intercept": 764.0,
-            "nrms": 0.0,
-            "slope": 30.0
-          },
-          "constant": {
-            "intercept": 84089.0,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 764.0,
-            "nrms": 0.0,
-            "slope": 30.0
-          },
-          "log_n": {
-            "intercept": -147436.0,
-            "nrms": 0.2374305480704809,
-            "slope": 40220.01196906015
-          },
-          "n_log_n": {
-            "intercept": 3797.0354432270688,
-            "nrms": 0.009452997846905562,
-            "slope": 3.2279895531754645
-          },
-          "quadratic": {
-            "intercept": 10830.688993012052,
-            "nrms": 0.03483067252846592,
-            "slope": 0.002901029144887014
-          }
-        },
-        "power_exponent": 0.8266245860278147,
-        "r_squared": 0.9847776036144976
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        1064,
-        3764,
-        30764,
-        300764
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "mork-join-width": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns mork-join-width in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-09: inferences [34, 34, 34, 34] to [67, 67, 67, 67]. The fixed fresh-cursor variable-key decoding boundary already reads68 at the token parent and67 after the merge. Backend query work remains constant across1,10,100,1000 joined heads. The old34 pin predates the shared decoding boundary, not a backend width regression. Raw samples by size {'1': [67, 67, 67], '10': [67, 67, 67], '100': [67, 67, 67], '1000': [67, 67, 67]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": 1.0,
-        "models": {
-          "capped_linear": {
-            "intercept": 67.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 67.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 67.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 67.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 67.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 67.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": 0.0,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        67,
-        67,
-        67,
-        67
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "mork-space-reclamation": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns mork-space-reclamation in a fresh process",
-          "retained_atom_count is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": null,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": null,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "retained_atom_count",
-      "representative": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "object-reclamation": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns object-reclamation in a fresh process",
-          "post_drop_live_objects is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": null,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": null,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "post_drop_live_objects",
-      "representative": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "query-eager": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns query-eager in a fresh process",
-          "python_peak_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-19: python_peak_bytes [4534324, 4534206, 4534293, 4534238] to [4534014, 4534014, 4534014, 4534046]. [-310, -192, -279, -192] from [4534324, 4534206, 4534293, 4534238] to [4534014, 4534014, 4534014, 4534046]: at the two smallest sizes [-310, -192] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+205, +146] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+0, +14] inside the row's band over 7942599d2..592dd1ea2; at the two smallest sizes [-278, -160] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-45, +45] inside the row's band over 27102996f..3eb5acc22; at the two smallest sizes [+163, -45] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); [+0, -45, -45, +177] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "quadratic",
-        "last_ratio": 1.000007057763827,
-        "models": {
-          "capped_linear": {
-            "intercept": 4534012.849368319,
-            "nrms": 2.8249131474489865e-07,
-            "slope": 0.0032945568609339068
-          },
-          "constant": {
-            "intercept": 4534022.0,
-            "nrms": 3.0560959917157477e-06,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 4534012.849368319,
-            "nrms": 2.8249131474489865e-07,
-            "slope": 0.0032945568609339068
-          },
-          "log_n": {
-            "intercept": 4533998.0,
-            "nrms": 1.9328448163678167e-06,
-            "slope": 4.169227026271217
-          },
-          "n_log_n": {
-            "intercept": 4534013.164046895,
-            "nrms": 2.1408539318245087e-07,
-            "slope": 0.00035523311046252264
-          },
-          "quadratic": {
-            "intercept": 4534013.892610279,
-            "nrms": 2.8764286743731586e-08,
-            "slope": 3.2105263617437863e-07
-          }
-        },
-        "power_exponent": 9.1954112046902e-07,
-        "r_squared": 0.6
-      },
-      "gated": false,
-      "noise": {
-        "absolute_max": 45,
-        "relative_max": 9.924980381622112e-06,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "python_peak_bytes",
-      "representative": [
-        4534014,
-        4534014,
-        4534014,
-        4534046
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "query-stream": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns query-stream in a fresh process",
-          "python_peak_bytes is selected by minimum of repetitions",
-          "the intended complexity family is constant",
-          "RE-PINNED 2026-09-19: python_peak_bytes [272766, 272662, 272766, 272798] to [272614, 272614, 272614, 272646]. [-152, -48, -152, -152] from [272766, 272662, 272766, 272798] to [272614, 272614, 272614, 272646]: at the two smallest sizes [-302, -80] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+278, +160] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [-160, -128] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+0, -32] in the unsplit bracket 27102996f..a340d0128 (20 first-parent commits, not split by the ladder); at the two smallest sizes [-45, +0] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); [+32, +77, +32, +32] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "quadratic",
-        "last_ratio": 1.0001173820860263,
-        "models": {
-          "capped_linear": {
-            "intercept": 272612.84936831874,
-            "nrms": 4.698160221351952e-06,
-            "slope": 0.0032945568609339068
-          },
-          "constant": {
-            "intercept": 272622.0,
-            "nrms": 5.082644269556755e-05,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 272612.84936831874,
-            "nrms": 4.698160221351952e-06,
-            "slope": 0.0032945568609339068
-          },
-          "log_n": {
-            "intercept": 272598.0,
-            "nrms": 3.214546485638483e-05,
-            "slope": 4.169227026271217
-          },
-          "n_log_n": {
-            "intercept": 272613.1640468952,
-            "nrms": 3.560489917958e-06,
-            "slope": 0.00035523311046252264
-          },
-          "quadratic": {
-            "intercept": 272613.8926102787,
-            "nrms": 4.783836555748062e-07,
-            "slope": 3.2105263617437863e-07
-          }
-        },
-        "power_exponent": 1.529262014832275e-05,
-        "r_squared": 0.6000000000040357
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 32,
-        "relative_max": 0.00011736830908944198,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "python_peak_bytes",
-      "representative": [
-        272614,
-        272614,
-        272614,
-        272646
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "save-fast": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns save-fast in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-19: inferences [3032, 11852, 100056, 982090] to [1908, 11358, 105858, 1050858]. [-1124, -494, +5802, +68768] from [3032, 11852, 100056, 982090] to [1908, 11358, 105858, 1050858]: at the two smallest sizes [-1209, -939] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+2, +2] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+21, +21] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+61, +421] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+2, +2] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); [-1, -1, -1, -1] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.927053222241115,
-        "models": {
-          "capped_linear": {
-            "intercept": 858.0,
-            "nrms": 0.0,
-            "slope": 105.0
-          },
-          "constant": {
-            "intercept": 292495.5,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 858.0,
-            "nrms": 0.0,
-            "slope": 105.0
-          },
-          "log_n": {
-            "intercept": -517842.0000000001,
-            "nrms": 0.23743054807048083,
-            "slope": 140770.04189171054
-          },
-          "n_log_n": {
-            "intercept": 11473.624051294755,
-            "nrms": 0.009452997846905559,
-            "slope": 11.297963436114125
-          },
-          "quadratic": {
-            "intercept": 36091.411475542205,
-            "nrms": 0.03483067252846592,
-            "slope": 0.010153602007104549
-          }
-        },
-        "power_exponent": 0.9192318813419392,
-        "r_squared": 0.9967604879196335
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        1908,
-        11358,
-        105858,
-        1050858
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "save-metta": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns save-metta in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-19: inferences [1614, 3594, 23394, 221402] to [377, 2537, 24137, 240137]. [-1237, -1057, +743, +18735] from [1614, 3594, 23394, 221402] to [377, 2537, 24137, 240137]: at the two smallest sizes [-1277, -1277] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+2, +2] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+3, +3] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+35, +215] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder). The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.948916601068898,
-        "models": {
-          "capped_linear": {
-            "intercept": 137.0,
-            "nrms": 0.0,
-            "slope": 24.0
-          },
-          "constant": {
-            "intercept": 66797.0,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 137.0,
-            "nrms": 0.0,
-            "slope": 24.0
-          },
-          "log_n": {
-            "intercept": -118423.0,
-            "nrms": 0.2374305480704809,
-            "slope": 32176.00957524812
-          },
-          "n_log_n": {
-            "intercept": 2563.428354581658,
-            "nrms": 0.009452997846905564,
-            "slope": 2.5823916425403715
-          },
-          "quadratic": {
-            "intercept": 8190.351194409639,
-            "nrms": 0.03483067252846592,
-            "slope": 0.0023208233159096115
-          }
-        },
-        "power_exponent": 0.9390716014837619,
-        "r_squared": 0.9981741524864988
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        377,
-        2537,
-        24137,
-        240137
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "space-reuse": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns space-reuse in a fresh process",
-          "second_cycle_module_delta is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": null,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": null,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "second_cycle_module_delta",
-      "representative": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "stored-atoms-mork": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns stored-atoms-mork in a fresh process",
-          "private_steady_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-19: private_steady_bytes [475136, 675840, 1843200, 15736832] to [352256, 356352, 389120, 3104768]. [-122880, -319488, -1454080, -12632064] from [475136, 675840, 1843200, 15736832] to [352256, 356352, 389120, 3104768]: at the two smallest sizes [-102400, -1347584] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [-16384, +28672] inside the row's band over c66cf0c10..27102996f; at the two smallest sizes [-1048576, +1052672] in the unsplit bracket 27102996f..a340d0128 (20 first-parent commits, not split by the ladder); at the two smallest sizes [+12288, -53248] inside the row's band over a340d0128..dbb95d0bf; at the two smallest sizes [+1126400, +94208] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [-94208, -1142784] inside the record's noise over d761b9c43..89bd5dc41; [-20480, -20480, -20480, -1716224] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "quadratic",
-        "last_ratio": 7.978947368421053,
-        "models": {
-          "capped_linear": {
-            "intercept": 266551.8108195659,
-            "nrms": 0.034659877859313175,
-            "slope": 282.29421752670896
-          },
-          "constant": {
-            "intercept": 1050624.0,
-            "nrms": 0.4308960855512235,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 266551.8108195659,
-            "nrms": 0.034659877859313175,
-            "slope": 282.29421752670896
-          },
-          "log_n": {
-            "intercept": -1021951.9999999998,
-            "nrms": 0.2688434634849061,
-            "slope": 360043.3280500456
-          },
-          "n_log_n": {
-            "intercept": 293721.5160793705,
-            "nrms": 0.025011335825044455,
-            "slope": 30.429860875315356
-          },
-          "quadratic": {
-            "intercept": 356639.57489575224,
-            "nrms": 0.0012123845465447864,
-            "slope": 0.027481783508946048
-          }
-        },
-        "power_exponent": 0.28737166158356864,
-        "r_squared": 0.6366973518563259
-      },
-      "gated": false,
-      "noise": {
-        "absolute_max": 90112,
-        "relative_max": 0.029023746701846966,
-        "resolution_bytes": 4096
-      },
-      "primary_metric": "private_steady_bytes",
-      "representative": [
-        352256,
-        356352,
-        389120,
-        3104768
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "stored-atoms-native": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns stored-atoms-native in a fresh process",
-          "storage_module_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-09: storage_module_bytes [2536, 14056, 129256, 1281256] to [2696, 15656, 145256, 1441256]. Token storage adds one field to each native fact clause. SWI module storage rises exactly16 bytes per occurrence at all four sizes, from128 to144 marginal bytes. This is the physical identity representation introduced by the token merge; bag multiplicity and indexed bound access are preserved. Raw samples by size {'10': [2696, 2696, 2696], '100': [15656, 15656, 15656], '1000': [145256, 145256, 145256], '10000': [1441256, 1441256, 1441256]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-          "RE-PINNED 2026-09-19: storage_module_bytes [2696, 15656, 145256, 1441256] to [1592, 14552, 144152, 1440152]. [-1104, -1104, -1104, -1104] from [2696, 15656, 145256, 1441256] to [1592, 14552, 144152, 1440152]: at the two smallest sizes [+128, +2744] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-1232, -3848] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder). The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.990510017204063,
-        "models": {
-          "capped_linear": {
-            "intercept": 152.0,
-            "nrms": 0.0,
-            "slope": 144.0
-          },
-          "constant": {
-            "intercept": 400112.0,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 152.0,
-            "nrms": 0.0,
-            "slope": 144.0
-          },
-          "log_n": {
-            "intercept": -711208.0,
-            "nrms": 0.23743054807048083,
-            "slope": 193056.0574514887
-          },
-          "n_log_n": {
-            "intercept": 14710.570127489977,
-            "nrms": 0.00945299784690556,
-            "slope": 15.494349855242229
-          },
-          "quadratic": {
-            "intercept": 48472.10716645786,
-            "nrms": 0.03483067252846591,
-            "slope": 0.013924939895457667
-          }
-        },
-        "power_exponent": 0.9865293791627042,
-        "r_squared": 0.9999134087994552
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "storage_module_bytes",
-      "representative": [
-        1592,
-        14552,
-        144152,
-        1440152
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "support-drop-one": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns support-drop-one in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-09: inferences [3776, 6260, 31102, 279512] to [9233, 13310, 54080, 461780]. Dropping source-owned equations retires compiled artifacts and their token/receipt ownership. At1000, parent reads254560, cut522803 and repair461780. Nearest unnested receipt scopes and reserved-only cleanup remove repeated stack discovery; required ordered source withdrawal and its callbacks remain linear. The separate source-owned publication package owns the remaining retirement work. Raw samples by size {'1': [9233, 9233, 9233], '10': [13310, 13310, 13310], '100': [54080, 54080, 54080], '1000': [461780, 461780, 461780]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-          "RE-PINNED 2026-09-10: inferences [9233, 13310, 54080, 461780] to [9215, 13166, 52676, 447776]. The final receipt watch-transfer repair removes the separate nesting enumeration, saving exactly 14N+4 inferences. All three samples at N=1,10,100,1000 agree in each before and after population. The independent N=2000 source-only receipt toggle reads 914781 to 886777 in all three processes, the same 28004 reduction. Ownership transfers to the live outer transaction on completion; nested rollback and engine destruction remain covered by the receipt frame suites. The linear class, zero published noise and five-percent margin are unchanged. [measured: minimum of three fresh processes at each size; command=sh check.sh memory-scale; fixture=ai-tmp/ai-verified-895878bbe-memory.json, ai-tmp/ai-final-support-drop-audit.json and ai-tmp/ai-receipts-frame-cost-{before,after}.json; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-          "RE-PINNED 2026-09-19: inferences [9215, 13166, 52676, 447776] to [16661, 20981, 64181, 496177]. [+7446, +7815, +11505, +48401] from [9215, 13166, 52676, 447776] to [16661, 20981, 64181, 496177]: at the two smallest sizes [+850, +1525] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [-102, -777] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+326, +812] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+6836, +6836] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-1, -1] in the unsplit bracket a340d0128..3eb5acc22 (10 first-parent commits, not split by the ladder); at the two smallest sizes [+0, +18] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-287, -422] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [+48, +48] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); at the two smallest sizes [-240, -240] in the unsplit bracket fd0af38f7..55368cb4e (2f1e85496, 55368cb4e); [+16, +16, +16, +12] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 7.730901668718157,
-        "models": {
-          "capped_linear": {
-            "intercept": 16181.143828960165,
-            "nrms": 3.3388401947686355e-07,
-            "slope": 479.99588180392385
-          },
-          "constant": {
-            "intercept": 149500.0,
-            "nrms": 0.41920328136155693,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 16181.143828960165,
-            "nrms": 3.3388401947686355e-07,
-            "slope": 479.99588180392385
-          },
-          "log_n": {
-            "intercept": -72762.20000000001,
-            "nrms": 0.23743024973168733,
-            "slope": 64351.497997117964
-          },
-          "n_log_n": {
-            "intercept": 22660.535262199133,
-            "nrms": 0.012566404035733551,
-            "slope": 68.64259143076512
-          },
-          "quadratic": {
-            "intercept": 32287.715812534458,
-            "nrms": 0.034830996960133996,
-            "slope": 0.46416065002397006
-          }
-        },
-        "power_exponent": 0.4907386989398182,
-        "r_squared": 0.8857654048289514
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        16661,
-        20981,
-        64181,
-        496177
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "support-drop-spaces": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear",
-          "RE-PINNED 2026-09-07, inferences at the four sizes [3776, 36761, 366625, 3665257] to [7550, 74134, 739982, 7398446]. Three steps, each measured on its own ladder over the first-parent chain with every component rebuilt at each point (ai-tmp/hy-ladder2.sh in the branch's ladder worktree): 699c8b4a, the algebra-lifecycle merge, which retires every space-owned catalog declaration with its space and so charges every drop, [3987, 38540, 384062, 3839298] to [7037, 69363, 688777, 6886423]; then 80af155d to 7,158,434 and 5621c456 to 7,398,448 at the largest size. The fit is still linear at nrms 0.0000 and the case is still the drop cost it measures.",
-          "RE-PINNED 2026-09-09: inferences [7550, 74134, 739982, 7398446] to [9233, 90836, 906866, 9067166]. Source-owned space retirement preserves compiled references and receipt ownership. At1000 spaces, parent reads8652154, cut9146171 and repair9067166. Most of the increase over7398446 predates tokens. Nearest unnested receipt scopes remove avoidable discovery; each independent owner still needs withdrawal, so the retained curve is linear. Raw samples by size {'1': [9233, 9233, 9233], '10': [90836, 90836, 90836], '100': [906866, 906866, 906866], '1000': [9067166, 9067166, 9067166]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-          "RE-PINNED 2026-09-10: inferences [9233, 90836, 906866, 9067166] to [9215, 90692, 905462, 9053162]. The final receipt watch-transfer repair removes the separate nesting enumeration, saving exactly 14N+4 inferences. All three samples at N=1,10,100,1000 agree in each before and after population. The independent N=2000 source-only receipt toggle reads 914781 to 886777 in all three processes, the same 28004 reduction. Ownership transfers to the live outer transaction on completion; nested rollback and engine destruction remain covered by the receipt frame suites. The linear class, zero published noise and five-percent margin are unchanged. [measured: minimum of three fresh processes at each size; command=sh check.sh memory-scale; fixture=ai-tmp/ai-verified-895878bbe-memory.json, ai-tmp/ai-final-support-drop-audit.json and ai-tmp/ai-receipts-frame-cost-{before,after}.json; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-          "RE-PINNED 2026-09-19: inferences [9215, 90692, 905462, 9053162] to [16657, 109339, 1036159, 10304359]. [+7442, +18647, +130697, +1251197] from [9215, 90692, 905462, 9053162] to [16657, 109339, 1036159, 10304359]: at the two smallest sizes [+850, +8419] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [-102, -939] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+326, +3125] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+6836, +12929] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-1, -1] in the unsplit bracket a340d0128..3eb5acc22 (10 first-parent commits, not split by the ladder); at the two smallest sizes [-287, -2978] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [+48, +480] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); at the two smallest sizes [-240, -2400] in the unsplit bracket fd0af38f7..55368cb4e (2f1e85496, 55368cb4e); [+12, +12, +12, +12] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=32335687084e4d8ad43cf8800f2dedce707fa137]"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.944766199009997,
-        "models": {
-          "capped_linear": {
-            "intercept": 6359.0,
-            "nrms": 0.0,
-            "slope": 10298.0
-          },
-          "constant": {
-            "intercept": 2866628.5,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 6359.0,
-            "nrms": 0.0,
-            "slope": 10298.0
-          },
-          "log_n": {
-            "intercept": -1901860.3999999994,
-            "nrms": 0.23743054807048095,
-            "slope": 1380618.9441912714
-          },
-          "n_log_n": {
-            "intercept": 145370.0715686311,
-            "nrms": 0.012566074341080858,
-            "slope": 1472.6822670410702
-          },
-          "quadratic": {
-            "intercept": 351914.87750012707,
-            "nrms": 0.03483067252846591,
-            "slope": 9.958266044682157
-          }
-        },
-        "power_exponent": 0.9350923891612076,
-        "r_squared": 0.9979235669873242
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        16657,
-        109339,
-        1036159,
-        10304359
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "table-reclamation": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns table-reclamation in a fresh process",
-          "table_bytes_after_clear is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": 1.0,
-        "models": {
-          "capped_linear": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": 0.0,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "table_bytes_after_clear",
-      "representative": [
-        168,
-        168,
-        168,
-        168
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "wire-intern-symbols": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns wire-intern-symbols in a fresh process",
-          "wire_symbol_cache_entries is selected by minimum of repetitions",
-          "the intended complexity family is capped_linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "capped_linear",
-      "fit": {
-        "best_model": "capped_linear",
-        "last_ratio": 6.552944705529447,
-        "models": {
-          "capped_linear": {
-            "intercept": 1.0534923191808048,
-            "nrms": 9.468583340880584e-07,
-            "slope": 0.9999841592818425
-          },
-          "constant": {
-            "intercept": 19159.75,
-            "nrms": 0.4134442063434937,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 1240.266277939747,
-            "nrms": 0.0210817627097623,
-            "slope": 0.6451659305872278
-          },
-          "log_n": {
-            "intercept": -52697.0,
-            "nrms": 0.2188242721533421,
-            "slope": 8916.282860714711
-          },
-          "n_log_n": {
-            "intercept": 1777.6175949638127,
-            "nrms": 0.028523107608957984,
-            "slope": 0.05558883790293752
-          },
-          "quadratic": {
-            "intercept": 3472.225083449701,
-            "nrms": 0.055315883857434696,
-            "slope": 6.212259929076518e-06
-          }
-        },
-        "power_exponent": 0.9436085020320713,
-        "r_squared": 0.9978006268304449
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "wire_symbol_cache_entries",
-      "representative": [
-        101,
-        1001,
-        10001,
-        65536
-      ],
-      "sizes": [
-        100,
-        1000,
-        10000,
-        100000
-      ]
-    },
-    "wire-intern-variables": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns wire-intern-variables in a fresh process",
-          "wire_variable_cache_entries is selected by minimum of repetitions",
-          "the intended complexity family is capped_linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "capped_linear",
-      "fit": {
-        "best_model": "capped_linear",
-        "last_ratio": 6.5536,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 1.0
-          },
-          "constant": {
-            "intercept": 19159.0,
-            "nrms": 0.4134444373003218,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 1239.2303206997094,
-            "nrms": 0.021080828859204797,
-            "slope": 0.6451762260774182
-          },
-          "log_n": {
-            "intercept": -52698.8,
-            "nrms": 0.21882508523995256,
-            "slope": 8916.413149059283
-          },
-          "n_log_n": {
-            "intercept": 1776.589492904055,
-            "nrms": 0.028522179143089476,
-            "slope": 0.05558972728577962
-          },
-          "quadratic": {
-            "intercept": 3471.2217275209096,
-            "nrms": 0.055314976424288786,
-            "slope": 6.2123602580253225e-06
-          }
-        },
-        "power_exponent": 0.9449439791871097,
-        "r_squared": 0.9977419970322802
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "wire_variable_cache_entries",
-      "representative": [
-        100,
-        1000,
-        10000,
-        65536
-      ],
-      "sizes": [
-        100,
-        1000,
-        10000,
-        100000
-      ]
-    }
+    "power_exponent": 0.0,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "post_gc_atom_count",
+   "representative": [
+    17,
+    17,
+    17,
+    17
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
   },
-  "errors": [],
-  "loadavg": "8.04 26.25 33.12 5/11211 3329727",
-  "repetitions": 3,
-  "schema": 1
+  "compiled-equations": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns compiled-equations in a fresh process",
+     "compiled_predicate_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 10.405189620758483,
+    "models": {
+     "capped_linear": {
+      "intercept": -6812.973113054642,
+      "nrms": 0.0015758994794285743,
+      "slope": 501.0034106617659
+     },
+     "constant": {
+      "intercept": 1384724.0,
+      "nrms": 0.41961816254669626,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": -6812.973113054642,
+      "nrms": 0.0015758994794285743,
+      "slope": 501.0034106617659
+     },
+     "log_n": {
+      "intercept": -2473328.0,
+      "nrms": 0.23876393134302248,
+      "slope": 670212.2777983218
+     },
+     "n_log_n": {
+      "intercept": 43726.66430501174,
+      "nrms": 0.007906507567232551,
+      "slope": 53.9123113297196
+     },
+     "quadratic": {
+      "intercept": 160919.83156632935,
+      "nrms": 0.03329890046286345,
+      "slope": 0.048462645554599816
+     }
+    },
+    "power_exponent": 1.0168362605783665,
+    "r_squared": 0.9998749391438732
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "compiled_predicate_bytes",
+   "representative": [
+    4368,
+    49088,
+    480960,
+    5004480
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "hyperpose-branches": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns hyperpose-branches in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-19: inferences [8981, 13357, 50329, 399549] to [15142, 18249, 43531, 273934]. [+6161, +4892, -6798, -125615] from [8981, 13357, 50329, 399549] to [15142, 18249, 43531, 273934]: at the two smallest sizes [+6111, +5066] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+0, +39] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+330, +327] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+297, +1535] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+1, +1] inside the row's band over 27102996f..dbb95d0bf; at the two smallest sizes [-280, -284] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [+0, +2] inside the row's band over d761b9c43..e59104ace; at the two smallest sizes [+5, +54] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); at the two smallest sizes [+0, -7] inside the row's band over fd0af38f7..7cc8fb863; at the two smallest sizes [-315, -1869] at a9e2c06d3, Translator: the runnable cache's dependency index is written by the producer, not by walking the generated code; at the two smallest sizes [+0, +2] inside the record's noise over a9e2c06d3..89bd5dc41; [+12, +31, +135, +1041] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 6.292848774436608,
+    "models": {
+     "capped_linear": {
+      "intercept": 16037.821833495298,
+      "nrms": 0.004025596423962404,
+      "slope": 258.06004740415733
+     },
+     "constant": {
+      "intercept": 87714.0,
+      "nrms": 0.4176191149361646,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 16037.821833495298,
+      "nrms": 0.004025596423962404,
+      "slope": 258.06004740415733
+     },
+     "log_n": {
+      "intercept": -32534.699999999997,
+      "nrms": 0.2333655952852612,
+      "slope": 34815.564577359706
+     },
+     "n_log_n": {
+      "intercept": 19540.932411056478,
+      "nrms": 0.016523979358698985,
+      "slope": 36.893691050835635
+     },
+     "quadratic": {
+      "intercept": 24747.02688696656,
+      "nrms": 0.038651524462208674,
+      "slope": 0.24934921602110457
+     }
+    },
+    "power_exponent": 0.4149947664635018,
+    "r_squared": 0.8691972631305851
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 30,
+    "relative_max": 0.0006891640440146102,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    15142,
+    18249,
+    43531,
+    273934
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "join-projection": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns join-projection in a fresh process",
+     "instructions is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-19: instructions [26614547, 32395884, 120631032, 946557090] to [27067074, 34287227, 113440874, 902044759]. [+452527, +1891343, -7190158, -44512331] from [26614547, 32395884, 120631032, 946557090] to [27067074, 34287227, 113440874, 902044759]: at the two smallest sizes [+366549, +2899708] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+20502, +21768] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [-10914, +8474] inside the row's band over 7942599d2..592dd1ea2; at the two smallest sizes [+68608, -1113674] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-30885, -99630] in the unsplit bracket 27102996f..a340d0128 (20 first-parent commits, not split by the ladder); at the two smallest sizes [-3441, +24648] in the unsplit bracket a340d0128..3eb5acc22 (10 first-parent commits, not split by the ladder); at the two smallest sizes [+15565, +455891] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); [-21910, +127848, +736798, +928932] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 7.951673212602364,
+    "models": {
+     "capped_linear": {
+      "intercept": 25847803.935860068,
+      "nrms": 0.00026949701555226916,
+      "slope": 876191.4655774615
+     },
+     "constant": {
+      "intercept": 269209983.5,
+      "nrms": 0.419365207234461,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 25847803.935860068,
+      "nrms": 0.00026949701555226916,
+      "slope": 876191.4655774615
+     },
+     "log_n": {
+      "intercept": -136403021.8,
+      "nrms": 0.23765544358657614,
+      "slope": 117436993.3266563
+     },
+     "n_log_n": {
+      "intercept": 37674377.1184856,
+      "nrms": 0.012513511516392805,
+      "slope": 125301.72737148294
+     },
+     "quadratic": {
+      "intercept": 55247199.08729103,
+      "nrms": 0.034803864698890144,
+      "slope": 847.2926347472538
+     }
+    },
+    "power_exponent": 0.508799753293511,
+    "r_squared": 0.8904939959936358
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 28690,
+    "relative_max": 0.0009008361967754624,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "instructions",
+   "representative": [
+    27067074,
+    34287227,
+    113440874,
+    902044759
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "join-shared": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns join-shared in a fresh process",
+     "instructions is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: instructions [26611473, 30279884, 65194917, 455812665] to [26886179, 31158374, 68143149, 480099748]. Wide native clause heads carry a token field and decode through metta_storage_term/4. At width1000, token parent cbf7a958de1e87d648bb723c97fa3960f94e258d reads 471163151 instructions, token merge 50e34286f66c938d89d5d367c6370ad44164c97f reads 487053722, pre-layout 3734fc3641eab6574e43ef535da7376f365a51d3 reads 479456514, and repair reads 480099748. The parent was already 3.37 percent above the old pin; the token boundary adds 3.37 percent and the current row remains linear. The instruction counter sees this C-side work while inference counts do not price it. Raw samples by size {'1': [26894144, 26886179, 26891989], '10': [31277856, 31158374, 31158793], '100': [68143149, 68143213, 68259913], '1000': [480099748, 480150356, 480171000]}; measured noise {'absolute_max': 119482, 'relative_max': 0.0038346673674306627, 'resolution_bytes': 1}; the published noise {'absolute_max': 79592, 'relative_max': 0.00017461559564168757, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
+     "RE-PINNED 2026-09-19: instructions [26886179, 31158374, 68143149, 480099748] to [27077264, 31642386, 70758188, 505575989]. [+191085, +484012, +2615039, +25476241] from [26886179, 31158374, 68143149, 480099748] to [27077264, 31642386, 70758188, 505575989]: at the two smallest sizes [+106457, +99531] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+5892, +38397] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [-10184, -14940] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+66502, +278049] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-36343, -1408] in the unsplit bracket 27102996f..a340d0128 (20 first-parent commits, not split by the ladder); at the two smallest sizes [+19285, -822] in the unsplit bracket a340d0128..3eb5acc22 (10 first-parent commits, not split by the ladder); at the two smallest sizes [-5097, +442212] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); [-8343, +40187, +38335, +77774] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 7.1451234590687935,
+    "models": {
+     "capped_linear": {
+      "intercept": 25491304.95853579,
+      "nrms": 0.003385280638236885,
+      "slope": 479827.72922219336
+     },
+     "constant": {
+      "intercept": 158763456.75,
+      "nrms": 0.4199609725152751,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 25491304.95853579,
+      "nrms": 0.003385280638236885,
+      "slope": 479827.72922219336
+     },
+     "log_n": {
+      "intercept": -62428339.80000001,
+      "nrms": 0.24010969710347355,
+      "slope": 64041584.4559545
+     },
+     "n_log_n": {
+      "intercept": 31938477.28043455,
+      "nrms": 0.00931072247968114,
+      "slope": 68634.75233785107
+     },
+     "quadratic": {
+      "intercept": 41514291.33360277,
+      "nrms": 0.031557645313510116,
+      "slope": 464.306699692
+     }
+    },
+    "power_exponent": 0.4163052461078123,
+    "r_squared": 0.8465597331666713
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 82710,
+    "relative_max": 0.0006362533526282419,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "instructions",
+   "representative": [
+    27077264,
+    31642386,
+    70758188,
+    505575989
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "live-spaces": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns live-spaces in a fresh process",
+     "live_module_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-19: live_module_bytes [7304, 73040, 730400, 7304000] to [7464, 74640, 746400, 7464000]. [+160, +1600, +16000, +160000] from [7304, 73040, 730400, 7304000] to [7464, 74640, 746400, 7464000]: at the two smallest sizes [+112, +1120] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+128, +1280] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-128, -1280] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [+48, +480] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7). The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 10.0,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 7464.0
+     },
+     "constant": {
+      "intercept": 2073126.0,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 7464.0
+     },
+     "log_n": {
+      "intercept": -1383079.2000000002,
+      "nrms": 0.23743054807048092,
+      "slope": 1000673.8977902166
+     },
+     "n_log_n": {
+      "intercept": 100755.35426182393,
+      "nrms": 0.012566074341080865,
+      "slope": 1067.4014800150076
+     },
+     "quadratic": {
+      "intercept": 250459.2221461397,
+      "nrms": 0.03483067252846591,
+      "slope": 7.2177605124788915
+     }
+    },
+    "power_exponent": 1.0,
+    "r_squared": 1.0
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "live_module_bytes",
+   "representative": [
+    7464,
+    74640,
+    746400,
+    7464000
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "load-fast": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns load-fast in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: inferences [1798, 4960, 36456, 351480] to [2213, 7523, 60623, 591623]. Token images retain portable occurrence identities and validate their collision mapping. At10000 atoms the cut reads891612 inferences and the repair591623; the old351480 row predates this work. Reusing normalized tokens removes a duplicate validation/receive pass, and one clock advance and rollback marker per image replace per-atom synchronization. The remaining required validation and storage are linear over this size ladder. Raw samples by size {'10': [2213, 2213, 2213], '100': [7523, 7523, 7523], '1000': [60623, 60623, 60623], '10000': [591623, 591623, 591623]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
+     "RE-PINNED 2026-09-19: inferences [2213, 7523, 60623, 591623] to [2288, 7688, 61688, 601688]. [+75, +165, +1065, +10065] from [2213, 7523, 60623, 591623] to [2288, 7688, 61688, 601688]: at the two smallest sizes [+282, +2982] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [-289, -2989] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+165, +705] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [-1, -1] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+55, +505] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-142, -1042] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); [+5, +5, +5, +5] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.753728439891065,
+    "models": {
+     "capped_linear": {
+      "intercept": 1688.0,
+      "nrms": 0.0,
+      "slope": 60.0
+     },
+     "constant": {
+      "intercept": 168338.0,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 1688.0,
+      "nrms": 0.0,
+      "slope": 60.0
+     },
+     "log_n": {
+      "intercept": -294712.0,
+      "nrms": 0.2374305480704809,
+      "slope": 80440.0239381203
+     },
+     "n_log_n": {
+      "intercept": 7754.0708864541375,
+      "nrms": 0.009452997846905562,
+      "slope": 6.455979106350929
+     },
+     "quadratic": {
+      "intercept": 21821.377986024105,
+      "nrms": 0.03483067252846592,
+      "slope": 0.005802058289774028
+     }
+    },
+    "power_exponent": 0.8164133305261789,
+    "r_squared": 0.9829380098110608
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    2288,
+    7688,
+    61688,
+    601688
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "load-metta": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns load-metta in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: inferences [934, 2824, 21724, 210732] to [1039, 3469, 27769, 270769]. Native text loading reconstructs fresh occurrence tokens and records their source references through add_sexp_in/5. The token parent and cut controls isolate the per-occurrence mutation cost; the cut already reads270769 at10000 atoms, and the repaired tree retains that exact count. This data loader already used the direct token body, so the public-wrapper removal does not reduce this curve. The curve remains linear. Raw samples by size {'10': [1039, 1039, 1039], '100': [3469, 3469, 3469], '1000': [27769, 27769, 27769], '10000': [270769, 270769, 270769]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
+     "RE-PINNED 2026-09-19: inferences [1039, 3469, 27769, 270769] to [1064, 3764, 30764, 300764]. [+25, +295, +2995, +29995] from [1039, 3469, 27769, 270769] to [1064, 3764, 30764, 300764]: at the two smallest sizes [-6, -6] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+112, +652] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [-2, -2] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+55, +505] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-127, -847] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); [-7, -7, -7, -7] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.77649200364062,
+    "models": {
+     "capped_linear": {
+      "intercept": 764.0,
+      "nrms": 0.0,
+      "slope": 30.0
+     },
+     "constant": {
+      "intercept": 84089.0,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 764.0,
+      "nrms": 0.0,
+      "slope": 30.0
+     },
+     "log_n": {
+      "intercept": -147436.0,
+      "nrms": 0.2374305480704809,
+      "slope": 40220.01196906015
+     },
+     "n_log_n": {
+      "intercept": 3797.0354432270688,
+      "nrms": 0.009452997846905562,
+      "slope": 3.2279895531754645
+     },
+     "quadratic": {
+      "intercept": 10830.688993012052,
+      "nrms": 0.03483067252846592,
+      "slope": 0.002901029144887014
+     }
+    },
+    "power_exponent": 0.8266245860278147,
+    "r_squared": 0.9847776036144976
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    1064,
+    3764,
+    30764,
+    300764
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "mork-join-width": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns mork-join-width in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: inferences [34, 34, 34, 34] to [67, 67, 67, 67]. The fixed fresh-cursor variable-key decoding boundary already reads68 at the token parent and67 after the merge. Backend query work remains constant across1,10,100,1000 joined heads. The old34 pin predates the shared decoding boundary, not a backend width regression. Raw samples by size {'1': [67, 67, 67], '10': [67, 67, 67], '100': [67, 67, 67], '1000': [67, 67, 67]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": 1.0,
+    "models": {
+     "capped_linear": {
+      "intercept": 67.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 67.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 67.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 67.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 67.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 67.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": 0.0,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    67,
+    67,
+    67,
+    67
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "mork-space-reclamation": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns mork-space-reclamation in a fresh process",
+     "retained_atom_count is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": null,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": null,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "retained_atom_count",
+   "representative": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "object-reclamation": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns object-reclamation in a fresh process",
+     "post_drop_live_objects is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": null,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": null,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "post_drop_live_objects",
+   "representative": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "query-eager": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns query-eager in a fresh process",
+     "python_peak_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-19: python_peak_bytes [4534324, 4534206, 4534293, 4534238] to [4534014, 4534014, 4534014, 4534046]. [-310, -192, -279, -192] from [4534324, 4534206, 4534293, 4534238] to [4534014, 4534014, 4534014, 4534046]: at the two smallest sizes [-310, -192] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+205, +146] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+0, +14] inside the row's band over 7942599d2..592dd1ea2; at the two smallest sizes [-278, -160] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-45, +45] inside the row's band over 27102996f..3eb5acc22; at the two smallest sizes [+163, -45] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); [+0, -45, -45, +177] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "quadratic",
+    "last_ratio": 1.000007057763827,
+    "models": {
+     "capped_linear": {
+      "intercept": 4534012.849368319,
+      "nrms": 2.8249131474489865e-07,
+      "slope": 0.0032945568609339068
+     },
+     "constant": {
+      "intercept": 4534022.0,
+      "nrms": 3.0560959917157477e-06,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 4534012.849368319,
+      "nrms": 2.8249131474489865e-07,
+      "slope": 0.0032945568609339068
+     },
+     "log_n": {
+      "intercept": 4533998.0,
+      "nrms": 1.9328448163678167e-06,
+      "slope": 4.169227026271217
+     },
+     "n_log_n": {
+      "intercept": 4534013.164046895,
+      "nrms": 2.1408539318245087e-07,
+      "slope": 0.00035523311046252264
+     },
+     "quadratic": {
+      "intercept": 4534013.892610279,
+      "nrms": 2.8764286743731586e-08,
+      "slope": 3.2105263617437863e-07
+     }
+    },
+    "power_exponent": 9.1954112046902e-07,
+    "r_squared": 0.6
+   },
+   "gated": false,
+   "noise": {
+    "absolute_max": 45,
+    "relative_max": 9.924980381622112e-06,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "python_peak_bytes",
+   "representative": [
+    4534014,
+    4534014,
+    4534014,
+    4534046
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "query-stream": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns query-stream in a fresh process",
+     "python_peak_bytes is selected by minimum of repetitions",
+     "the intended complexity family is constant",
+     "RE-PINNED 2026-09-19: python_peak_bytes [272766, 272662, 272766, 272798] to [272614, 272614, 272614, 272646]. [-152, -48, -152, -152] from [272766, 272662, 272766, 272798] to [272614, 272614, 272614, 272646]: at the two smallest sizes [-302, -80] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+278, +160] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [-160, -128] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+0, -32] in the unsplit bracket 27102996f..a340d0128 (20 first-parent commits, not split by the ladder); at the two smallest sizes [-45, +0] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); [+32, +77, +32, +32] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "quadratic",
+    "last_ratio": 1.0001173820860263,
+    "models": {
+     "capped_linear": {
+      "intercept": 272612.84936831874,
+      "nrms": 4.698160221351952e-06,
+      "slope": 0.0032945568609339068
+     },
+     "constant": {
+      "intercept": 272622.0,
+      "nrms": 5.082644269556755e-05,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 272612.84936831874,
+      "nrms": 4.698160221351952e-06,
+      "slope": 0.0032945568609339068
+     },
+     "log_n": {
+      "intercept": 272598.0,
+      "nrms": 3.214546485638483e-05,
+      "slope": 4.169227026271217
+     },
+     "n_log_n": {
+      "intercept": 272613.1640468952,
+      "nrms": 3.560489917958e-06,
+      "slope": 0.00035523311046252264
+     },
+     "quadratic": {
+      "intercept": 272613.8926102787,
+      "nrms": 4.783836555748062e-07,
+      "slope": 3.2105263617437863e-07
+     }
+    },
+    "power_exponent": 1.529262014832275e-05,
+    "r_squared": 0.6000000000040357
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 32,
+    "relative_max": 0.00011736830908944198,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "python_peak_bytes",
+   "representative": [
+    272614,
+    272614,
+    272614,
+    272646
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "save-fast": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns save-fast in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-19: inferences [3032, 11852, 100056, 982090] to [1908, 11358, 105858, 1050858]. [-1124, -494, +5802, +68768] from [3032, 11852, 100056, 982090] to [1908, 11358, 105858, 1050858]: at the two smallest sizes [-1209, -939] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+2, +2] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+21, +21] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+61, +421] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [+2, +2] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); [-1, -1, -1, -1] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.927053222241115,
+    "models": {
+     "capped_linear": {
+      "intercept": 858.0,
+      "nrms": 0.0,
+      "slope": 105.0
+     },
+     "constant": {
+      "intercept": 292495.5,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 858.0,
+      "nrms": 0.0,
+      "slope": 105.0
+     },
+     "log_n": {
+      "intercept": -517842.0000000001,
+      "nrms": 0.23743054807048083,
+      "slope": 140770.04189171054
+     },
+     "n_log_n": {
+      "intercept": 11473.624051294755,
+      "nrms": 0.009452997846905559,
+      "slope": 11.297963436114125
+     },
+     "quadratic": {
+      "intercept": 36091.411475542205,
+      "nrms": 0.03483067252846592,
+      "slope": 0.010153602007104549
+     }
+    },
+    "power_exponent": 0.9192318813419392,
+    "r_squared": 0.9967604879196335
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    1908,
+    11358,
+    105858,
+    1050858
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "save-metta": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns save-metta in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-19: inferences [1614, 3594, 23394, 221402] to [377, 2537, 24137, 240137]. [-1237, -1057, +743, +18735] from [1614, 3594, 23394, 221402] to [377, 2537, 24137, 240137]: at the two smallest sizes [-1277, -1277] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [+2, +2] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+3, +3] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+35, +215] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder). The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.948916601068898,
+    "models": {
+     "capped_linear": {
+      "intercept": 137.0,
+      "nrms": 0.0,
+      "slope": 24.0
+     },
+     "constant": {
+      "intercept": 66797.0,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 137.0,
+      "nrms": 0.0,
+      "slope": 24.0
+     },
+     "log_n": {
+      "intercept": -118423.0,
+      "nrms": 0.2374305480704809,
+      "slope": 32176.00957524812
+     },
+     "n_log_n": {
+      "intercept": 2563.428354581658,
+      "nrms": 0.009452997846905564,
+      "slope": 2.5823916425403715
+     },
+     "quadratic": {
+      "intercept": 8190.351194409639,
+      "nrms": 0.03483067252846592,
+      "slope": 0.0023208233159096115
+     }
+    },
+    "power_exponent": 0.9390716014837619,
+    "r_squared": 0.9981741524864988
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    377,
+    2537,
+    24137,
+    240137
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "space-reuse": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns space-reuse in a fresh process",
+     "second_cycle_module_delta is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": null,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": null,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "second_cycle_module_delta",
+   "representative": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "stored-atoms-mork": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns stored-atoms-mork in a fresh process",
+     "private_steady_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-19: private_steady_bytes [475136, 675840, 1843200, 15736832] to [352256, 356352, 389120, 3104768]. [-122880, -319488, -1454080, -12632064] from [475136, 675840, 1843200, 15736832] to [352256, 356352, 389120, 3104768]: at the two smallest sizes [-102400, -1347584] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [-16384, +28672] inside the row's band over c66cf0c10..27102996f; at the two smallest sizes [-1048576, +1052672] in the unsplit bracket 27102996f..a340d0128 (20 first-parent commits, not split by the ladder); at the two smallest sizes [+12288, -53248] inside the row's band over a340d0128..dbb95d0bf; at the two smallest sizes [+1126400, +94208] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [-94208, -1142784] inside the record's noise over d761b9c43..89bd5dc41; [-20480, -20480, -20480, -1716224] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "quadratic",
+    "last_ratio": 7.978947368421053,
+    "models": {
+     "capped_linear": {
+      "intercept": 266551.8108195659,
+      "nrms": 0.034659877859313175,
+      "slope": 282.29421752670896
+     },
+     "constant": {
+      "intercept": 1050624.0,
+      "nrms": 0.4308960855512235,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 266551.8108195659,
+      "nrms": 0.034659877859313175,
+      "slope": 282.29421752670896
+     },
+     "log_n": {
+      "intercept": -1021951.9999999998,
+      "nrms": 0.2688434634849061,
+      "slope": 360043.3280500456
+     },
+     "n_log_n": {
+      "intercept": 293721.5160793705,
+      "nrms": 0.025011335825044455,
+      "slope": 30.429860875315356
+     },
+     "quadratic": {
+      "intercept": 356639.57489575224,
+      "nrms": 0.0012123845465447864,
+      "slope": 0.027481783508946048
+     }
+    },
+    "power_exponent": 0.28737166158356864,
+    "r_squared": 0.6366973518563259
+   },
+   "gated": false,
+   "noise": {
+    "absolute_max": 90112,
+    "relative_max": 0.029023746701846966,
+    "resolution_bytes": 4096
+   },
+   "primary_metric": "private_steady_bytes",
+   "representative": [
+    352256,
+    356352,
+    389120,
+    3104768
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "stored-atoms-native": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns stored-atoms-native in a fresh process",
+     "storage_module_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: storage_module_bytes [2536, 14056, 129256, 1281256] to [2696, 15656, 145256, 1441256]. Token storage adds one field to each native fact clause. SWI module storage rises exactly16 bytes per occurrence at all four sizes, from128 to144 marginal bytes. This is the physical identity representation introduced by the token merge; bag multiplicity and indexed bound access are preserved. Raw samples by size {'10': [2696, 2696, 2696], '100': [15656, 15656, 15656], '1000': [145256, 145256, 145256], '10000': [1441256, 1441256, 1441256]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
+     "RE-PINNED 2026-09-19: storage_module_bytes [2696, 15656, 145256, 1441256] to [1592, 14552, 144152, 1440152]. [-1104, -1104, -1104, -1104] from [2696, 15656, 145256, 1441256] to [1592, 14552, 144152, 1440152]: at the two smallest sizes [+128, +2744] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-1232, -3848] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder). The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.990510017204063,
+    "models": {
+     "capped_linear": {
+      "intercept": 152.0,
+      "nrms": 0.0,
+      "slope": 144.0
+     },
+     "constant": {
+      "intercept": 400112.0,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 152.0,
+      "nrms": 0.0,
+      "slope": 144.0
+     },
+     "log_n": {
+      "intercept": -711208.0,
+      "nrms": 0.23743054807048083,
+      "slope": 193056.0574514887
+     },
+     "n_log_n": {
+      "intercept": 14710.570127489977,
+      "nrms": 0.00945299784690556,
+      "slope": 15.494349855242229
+     },
+     "quadratic": {
+      "intercept": 48472.10716645786,
+      "nrms": 0.03483067252846591,
+      "slope": 0.013924939895457667
+     }
+    },
+    "power_exponent": 0.9865293791627042,
+    "r_squared": 0.9999134087994552
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "storage_module_bytes",
+   "representative": [
+    1592,
+    14552,
+    144152,
+    1440152
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "support-drop-one": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns support-drop-one in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: inferences [3776, 6260, 31102, 279512] to [9233, 13310, 54080, 461780]. Dropping source-owned equations retires compiled artifacts and their token/receipt ownership. At1000, parent reads254560, cut522803 and repair461780. Nearest unnested receipt scopes and reserved-only cleanup remove repeated stack discovery; required ordered source withdrawal and its callbacks remain linear. The separate source-owned publication package owns the remaining retirement work. Raw samples by size {'1': [9233, 9233, 9233], '10': [13310, 13310, 13310], '100': [54080, 54080, 54080], '1000': [461780, 461780, 461780]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
+     "RE-PINNED 2026-09-10: inferences [9233, 13310, 54080, 461780] to [9215, 13166, 52676, 447776]. The final receipt watch-transfer repair removes the separate nesting enumeration, saving exactly 14N+4 inferences. All three samples at N=1,10,100,1000 agree in each before and after population. The independent N=2000 source-only receipt toggle reads 914781 to 886777 in all three processes, the same 28004 reduction. Ownership transfers to the live outer transaction on completion; nested rollback and engine destruction remain covered by the receipt frame suites. The linear class, zero published noise and five-percent margin are unchanged. [measured: minimum of three fresh processes at each size; command=sh check.sh memory-scale; fixture=ai-tmp/ai-verified-895878bbe-memory.json, ai-tmp/ai-final-support-drop-audit.json and ai-tmp/ai-receipts-frame-cost-{before,after}.json; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
+     "RE-PINNED 2026-09-19: inferences [9215, 13166, 52676, 447776] to [16661, 20981, 64181, 496177]. [+7446, +7815, +11505, +48401] from [9215, 13166, 52676, 447776] to [16661, 20981, 64181, 496177]: at the two smallest sizes [+850, +1525] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [-102, -777] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+326, +812] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+6836, +6836] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-1, -1] in the unsplit bracket a340d0128..3eb5acc22 (10 first-parent commits, not split by the ladder); at the two smallest sizes [+0, +18] in the unsplit bracket 3eb5acc22..dbb95d0bf (c5bdd73e0, 665d8a27a, dbb95d0bf); at the two smallest sizes [-287, -422] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [+48, +48] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); at the two smallest sizes [-240, -240] in the unsplit bracket fd0af38f7..55368cb4e (2f1e85496, 55368cb4e); [+16, +16, +16, +12] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 7.730901668718157,
+    "models": {
+     "capped_linear": {
+      "intercept": 16181.143828960165,
+      "nrms": 3.3388401947686355e-07,
+      "slope": 479.99588180392385
+     },
+     "constant": {
+      "intercept": 149500.0,
+      "nrms": 0.41920328136155693,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 16181.143828960165,
+      "nrms": 3.3388401947686355e-07,
+      "slope": 479.99588180392385
+     },
+     "log_n": {
+      "intercept": -72762.20000000001,
+      "nrms": 0.23743024973168733,
+      "slope": 64351.497997117964
+     },
+     "n_log_n": {
+      "intercept": 22660.535262199133,
+      "nrms": 0.012566404035733551,
+      "slope": 68.64259143076512
+     },
+     "quadratic": {
+      "intercept": 32287.715812534458,
+      "nrms": 0.034830996960133996,
+      "slope": 0.46416065002397006
+     }
+    },
+    "power_exponent": 0.4907386989398182,
+    "r_squared": 0.8857654048289514
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    16661,
+    20981,
+    64181,
+    496177
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "support-drop-spaces": {
+   "cause": {
+    "commit": "WORKTREE",
+    "chain": [
+     "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-07, inferences at the four sizes [3776, 36761, 366625, 3665257] to [7550, 74134, 739982, 7398446]. Three steps, each measured on its own ladder over the first-parent chain with every component rebuilt at each point (ai-tmp/hy-ladder2.sh in the branch's ladder worktree): 699c8b4a, the algebra-lifecycle merge, which retires every space-owned catalog declaration with its space and so charges every drop, [3987, 38540, 384062, 3839298] to [7037, 69363, 688777, 6886423]; then 80af155d to 7,158,434 and 5621c456 to 7,398,448 at the largest size. The fit is still linear at nrms 0.0000 and the case is still the drop cost it measures.",
+     "RE-PINNED 2026-09-09: inferences [7550, 74134, 739982, 7398446] to [9233, 90836, 906866, 9067166]. Source-owned space retirement preserves compiled references and receipt ownership. At1000 spaces, parent reads8652154, cut9146171 and repair9067166. Most of the increase over7398446 predates tokens. Nearest unnested receipt scopes remove avoidable discovery; each independent owner still needs withdrawal, so the retained curve is linear. Raw samples by size {'1': [9233, 9233, 9233], '10': [90836, 90836, 90836], '100': [906866, 906866, 906866], '1000': [9067166, 9067166, 9067166]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
+     "RE-PINNED 2026-09-10: inferences [9233, 90836, 906866, 9067166] to [9215, 90692, 905462, 9053162]. The final receipt watch-transfer repair removes the separate nesting enumeration, saving exactly 14N+4 inferences. All three samples at N=1,10,100,1000 agree in each before and after population. The independent N=2000 source-only receipt toggle reads 914781 to 886777 in all three processes, the same 28004 reduction. Ownership transfers to the live outer transaction on completion; nested rollback and engine destruction remain covered by the receipt frame suites. The linear class, zero published noise and five-percent margin are unchanged. [measured: minimum of three fresh processes at each size; command=sh check.sh memory-scale; fixture=ai-tmp/ai-verified-895878bbe-memory.json, ai-tmp/ai-final-support-drop-audit.json and ai-tmp/ai-receipts-frame-cost-{before,after}.json; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
+     "RE-PINNED 2026-09-19: inferences [9215, 90692, 905462, 9053162] to [16657, 109339, 1036159, 10304359]. [+7442, +18647, +130697, +1251197] from [9215, 90692, 905462, 9053162] to [16657, 109339, 1036159, 10304359]: at the two smallest sizes [+850, +8419] between the ledger's pin and c66cf0c10, the commits between this ledger's pin and the ladder's first point, not split; at the two smallest sizes [-102, -939] in the unsplit bracket c66cf0c10..7942599d2 (13 first-parent commits, not split by the ladder); at the two smallest sizes [+326, +3125] in the unsplit bracket 7942599d2..592dd1ea2 (613c9c7e2, 560aaa42b, 592dd1ea2); at the two smallest sizes [+6836, +12929] in the unsplit bracket 592dd1ea2..27102996f (137 first-parent commits, not split by the ladder); at the two smallest sizes [-1, -1] in the unsplit bracket a340d0128..3eb5acc22 (10 first-parent commits, not split by the ladder); at the two smallest sizes [-287, -2978] in the unsplit bracket dbb95d0bf..d761b9c43 (126 first-parent commits, not split by the ladder); at the two smallest sizes [+48, +480] in the unsplit bracket e59104ace..fd0af38f7 (9f32fe6a6, fd0af38f7); at the two smallest sizes [-240, -2400] in the unsplit bracket fd0af38f7..55368cb4e (2f1e85496, 55368cb4e); [+12, +12, +12, +12] at the trunk merge f97c4b0a3 (petta's 61 commits since c75181adc) with the definition batch's load pushed as the running load (2da1155e3): the trunk derives the source-load context from its trailed publication context, so every recorded assertion pays a b_getval/2 read where the branch read a thread-local row (the profiler over the class_values twin counts b_getval/2 at 23,498 calls against 479, record_source_assertion/1 reading it 8,922 times and active_source_load/1 6,530 times), one more inference per stored atom and about a third more per loaded one; the compiled runnable envelope executes each runnable form's fixed answer, name and fuel envelope from compiled clauses, which is where the examples got cheaper; the receipts loop probes the owner once per set; the host listener door replaces two named prolog_listen/3 registrations. The window ladder measured the two smallest sizes (bench.py --memory-quick) and the K ladder all four, so the steps are stated at the two smallest sizes; the totals are the full four-size records on 89bd5dc41 and 4c0533704. Placed on the first-parent line c66cf0c10..89bd5dc41 by the ledger ladders (the classes window's points, the engine-touching commits d761b9c43..89bd5dc41 and the parse bisect over c66cf0c10..7942599d2), each point in a provisioned battery worktree with the .qlf set rebuilt on the patched SWI-Prolog 10.1.14, a step inside the row's band left unplaced, and the merge measured on 4c0533704 [measured: minimum of three fresh processes per size; command=python bench.py --memory-scale --memory-repetitions 3 --keep-going --update-baseline; fixture=provisioned battery worktree (C reader, writer, json and extension, MORK foreign), warm QLF, patched SWI-Prolog 10.1.14; commit=WORKTREE]"
+    ]
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.944766199009997,
+    "models": {
+     "capped_linear": {
+      "intercept": 6359.0,
+      "nrms": 0.0,
+      "slope": 10298.0
+     },
+     "constant": {
+      "intercept": 2866628.5,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 6359.0,
+      "nrms": 0.0,
+      "slope": 10298.0
+     },
+     "log_n": {
+      "intercept": -1901860.3999999994,
+      "nrms": 0.23743054807048095,
+      "slope": 1380618.9441912714
+     },
+     "n_log_n": {
+      "intercept": 145370.0715686311,
+      "nrms": 0.012566074341080858,
+      "slope": 1472.6822670410702
+     },
+     "quadratic": {
+      "intercept": 351914.87750012707,
+      "nrms": 0.03483067252846591,
+      "slope": 9.958266044682157
+     }
+    },
+    "power_exponent": 0.9350923891612076,
+    "r_squared": 0.9979235669873242
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    16657,
+    109339,
+    1036159,
+    10304359
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "table-reclamation": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns table-reclamation in a fresh process",
+     "table_bytes_after_clear is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": 1.0,
+    "models": {
+     "capped_linear": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": 0.0,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "table_bytes_after_clear",
+   "representative": [
+    168,
+    168,
+    168,
+    168
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "wire-intern-symbols": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns wire-intern-symbols in a fresh process",
+     "wire_symbol_cache_entries is selected by minimum of repetitions",
+     "the intended complexity family is capped_linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "capped_linear",
+   "fit": {
+    "best_model": "capped_linear",
+    "last_ratio": 6.552944705529447,
+    "models": {
+     "capped_linear": {
+      "intercept": 1.0534923191808048,
+      "nrms": 9.468583340880584e-07,
+      "slope": 0.9999841592818425
+     },
+     "constant": {
+      "intercept": 19159.75,
+      "nrms": 0.4134442063434937,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 1240.266277939747,
+      "nrms": 0.0210817627097623,
+      "slope": 0.6451659305872278
+     },
+     "log_n": {
+      "intercept": -52697.0,
+      "nrms": 0.2188242721533421,
+      "slope": 8916.282860714711
+     },
+     "n_log_n": {
+      "intercept": 1777.6175949638127,
+      "nrms": 0.028523107608957984,
+      "slope": 0.05558883790293752
+     },
+     "quadratic": {
+      "intercept": 3472.225083449701,
+      "nrms": 0.055315883857434696,
+      "slope": 6.212259929076518e-06
+     }
+    },
+    "power_exponent": 0.9436085020320713,
+    "r_squared": 0.9978006268304449
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "wire_symbol_cache_entries",
+   "representative": [
+    101,
+    1001,
+    10001,
+    65536
+   ],
+   "sizes": [
+    100,
+    1000,
+    10000,
+    100000
+   ]
+  },
+  "wire-intern-variables": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns wire-intern-variables in a fresh process",
+     "wire_variable_cache_entries is selected by minimum of repetitions",
+     "the intended complexity family is capped_linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "capped_linear",
+   "fit": {
+    "best_model": "capped_linear",
+    "last_ratio": 6.5536,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 1.0
+     },
+     "constant": {
+      "intercept": 19159.0,
+      "nrms": 0.4134444373003218,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 1239.2303206997094,
+      "nrms": 0.021080828859204797,
+      "slope": 0.6451762260774182
+     },
+     "log_n": {
+      "intercept": -52698.8,
+      "nrms": 0.21882508523995256,
+      "slope": 8916.413149059283
+     },
+     "n_log_n": {
+      "intercept": 1776.589492904055,
+      "nrms": 0.028522179143089476,
+      "slope": 0.05558972728577962
+     },
+     "quadratic": {
+      "intercept": 3471.2217275209096,
+      "nrms": 0.055314976424288786,
+      "slope": 6.2123602580253225e-06
+     }
+    },
+    "power_exponent": 0.9449439791871097,
+    "r_squared": 0.9977419970322802
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "wire_variable_cache_entries",
+   "representative": [
+    100,
+    1000,
+    10000,
+    65536
+   ],
+   "sizes": [
+    100,
+    1000,
+    10000,
+    100000
+   ]
+  }
+ },
+ "repetitions": 3,
+ "repin_rule": "A changed pin must name the first causal code or dependency change, carry the old and new raw samples and noise bands, and explain why the new curve still matches its declared complexity. Never re-pin to hide an unexplained move.",
+ "schema": 1
 }

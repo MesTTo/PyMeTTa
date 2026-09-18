@@ -635,31 +635,33 @@ def test_loop_million(benchmark, inference_baseline):
 
 
 def test_let_heavy(benchmark, inference_baseline):
-    benchmark_case(
-        benchmark,
-        inference_baseline,
-        name="let-heavy",
-        unit="iterations",
-        operations=LET_ITERATIONS,
-        operation=let_heavy,
-        setup=let_space,
-        teardown=_drop,
-        engine=lambda space: space,
-        rounds=3,
-        warmup_rounds=1,
-    )
-    benchmark_counter_slope(
-        inference_baseline,
-        name="let-heavy",
-        unit="iterations",
-        small_operations=LET_SLOPE_SMALL,
-        small_operation=lambda space: let_heavy(space, LET_SLOPE_SMALL),
-        large_operations=LET_ITERATIONS,
-        large_operation=let_heavy,
-        setup=let_space,
-        teardown=_drop,
-        engine=lambda space: space,
-    )
+    # Both pins of this row reach the log: a failed count no longer hides the slope.
+    with inference_baseline.collecting():
+        benchmark_case(
+            benchmark,
+            inference_baseline,
+            name="let-heavy",
+            unit="iterations",
+            operations=LET_ITERATIONS,
+            operation=let_heavy,
+            setup=let_space,
+            teardown=_drop,
+            engine=lambda space: space,
+            rounds=3,
+            warmup_rounds=1,
+        )
+        benchmark_counter_slope(
+            inference_baseline,
+            name="let-heavy",
+            unit="iterations",
+            small_operations=LET_SLOPE_SMALL,
+            small_operation=lambda space: let_heavy(space, LET_SLOPE_SMALL),
+            large_operations=LET_ITERATIONS,
+            large_operation=let_heavy,
+            setup=let_space,
+            teardown=_drop,
+            engine=lambda space: space,
+        )
 
 
 def test_typed_call(benchmark, inference_baseline):
@@ -671,31 +673,33 @@ def test_typed_call(benchmark, inference_baseline):
     instruction ceiling in benchmarks/baseline.json is what actually gates the
     check, and it is the reason this case exists.
     """
-    benchmark_case(
-        benchmark,
-        inference_baseline,
-        name="typed-call",
-        unit="calls",
-        operations=TYPED_CALLS,
-        operation=typed_call,
-        setup=typed_space,
-        teardown=_drop,
-        engine=lambda space: space,
-        rounds=3,
-        warmup_rounds=1,
-    )
-    benchmark_counter_slope(
-        inference_baseline,
-        name="typed-call",
-        unit="calls",
-        small_operations=TYPED_SLOPE_SMALL,
-        small_operation=lambda space: typed_call(space, TYPED_SLOPE_SMALL),
-        large_operations=TYPED_CALLS,
-        large_operation=typed_call,
-        setup=typed_space,
-        teardown=_drop,
-        engine=lambda space: space,
-    )
+    # Both pins of this row reach the log: a failed count no longer hides the slope.
+    with inference_baseline.collecting():
+        benchmark_case(
+            benchmark,
+            inference_baseline,
+            name="typed-call",
+            unit="calls",
+            operations=TYPED_CALLS,
+            operation=typed_call,
+            setup=typed_space,
+            teardown=_drop,
+            engine=lambda space: space,
+            rounds=3,
+            warmup_rounds=1,
+        )
+        benchmark_counter_slope(
+            inference_baseline,
+            name="typed-call",
+            unit="calls",
+            small_operations=TYPED_SLOPE_SMALL,
+            small_operation=lambda space: typed_call(space, TYPED_SLOPE_SMALL),
+            large_operations=TYPED_CALLS,
+            large_operation=typed_call,
+            setup=typed_space,
+            teardown=_drop,
+            engine=lambda space: space,
+        )
 
 
 def test_wire_codec(benchmark, inference_baseline):
@@ -827,29 +831,31 @@ def test_prepared_join(benchmark, inference_baseline):
     repeats = 5
     rows = _ROWS - 1
 
-    benchmark_case(
-        benchmark,
-        inference_baseline,
-        name="prepared-join",
-        unit="rows",
-        operations=repeats * rows,
-        operation=lambda state: _prepared_join(state, repeats),
-        setup=_prepared_join_space,
-        teardown=_drop_pair,
-        engine=lambda state: state[0],
-    )
-    benchmark_counter_slope(
-        inference_baseline,
-        name="prepared-join",
-        unit="rows",
-        small_operations=rows,
-        small_operation=lambda state: _prepared_join(state, 1),
-        large_operations=25 * rows,
-        large_operation=lambda state: _prepared_join(state, 25),
-        setup=_prepared_join_space,
-        teardown=_drop_pair,
-        engine=lambda state: state[0],
-    )
+    # Both pins of this row reach the log: a failed count no longer hides the slope.
+    with inference_baseline.collecting():
+        benchmark_case(
+            benchmark,
+            inference_baseline,
+            name="prepared-join",
+            unit="rows",
+            operations=repeats * rows,
+            operation=lambda state: _prepared_join(state, repeats),
+            setup=_prepared_join_space,
+            teardown=_drop_pair,
+            engine=lambda state: state[0],
+        )
+        benchmark_counter_slope(
+            inference_baseline,
+            name="prepared-join",
+            unit="rows",
+            small_operations=rows,
+            small_operation=lambda state: _prepared_join(state, 1),
+            large_operations=25 * rows,
+            large_operation=lambda state: _prepared_join(state, 25),
+            setup=_prepared_join_space,
+            teardown=_drop_pair,
+            engine=lambda state: state[0],
+        )
 
 
 def _direct_join(space, repeats):
@@ -860,29 +866,31 @@ def test_direct_join(benchmark, inference_baseline):
     repeats = 5
     rows = _ROWS - 1
 
-    benchmark_case(
-        benchmark,
-        inference_baseline,
-        name="direct-join",
-        unit="rows",
-        operations=repeats * rows,
-        operation=lambda space: _direct_join(space, repeats),
-        setup=_space_with_edges,
-        teardown=_drop,
-        engine=lambda space: space,
-    )
-    benchmark_counter_slope(
-        inference_baseline,
-        name="direct-join",
-        unit="rows",
-        small_operations=rows,
-        small_operation=lambda space: _direct_join(space, 1),
-        large_operations=25 * rows,
-        large_operation=lambda space: _direct_join(space, 25),
-        setup=_space_with_edges,
-        teardown=_drop,
-        engine=lambda space: space,
-    )
+    # Both pins of this row reach the log: a failed count no longer hides the slope.
+    with inference_baseline.collecting():
+        benchmark_case(
+            benchmark,
+            inference_baseline,
+            name="direct-join",
+            unit="rows",
+            operations=repeats * rows,
+            operation=lambda space: _direct_join(space, repeats),
+            setup=_space_with_edges,
+            teardown=_drop,
+            engine=lambda space: space,
+        )
+        benchmark_counter_slope(
+            inference_baseline,
+            name="direct-join",
+            unit="rows",
+            small_operations=rows,
+            small_operation=lambda space: _direct_join(space, 1),
+            large_operations=25 * rows,
+            large_operation=lambda space: _direct_join(space, 25),
+            setup=_space_with_edges,
+            teardown=_drop,
+            engine=lambda space: space,
+        )
 
 
 def _limited_query(space, *, guarded):

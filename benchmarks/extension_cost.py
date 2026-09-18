@@ -422,15 +422,17 @@ def compare(measured: list[Row], *, update: bool, path: Path = BASELINE) -> None
     """
     baseline = BenchmarkBaseline(path, update=update)
     baseline.observe_configuration(counter_configuration())
-    for row in measured:
-        if not row.samples:
-            continue
-        baseline.observe_counter(
-            _case_name(row.tier),
-            unit="calls",
-            operations=row.operations,
-            samples=list(row.samples),
-        )
+    # Every tier's verdict reaches the log: a failed tier no longer hides the tiers after it.
+    with baseline.collecting():
+        for row in measured:
+            if not row.samples:
+                continue
+            baseline.observe_counter(
+                _case_name(row.tier),
+                unit="calls",
+                operations=row.operations,
+                samples=list(row.samples),
+            )
     # A pinned row nothing measured is a dead receipt: it can never fail, so
     # the guarantee "every tier is held to a committed count" silently
     # shrinks. The C row sat exactly that way while has_c read a wrong path.
