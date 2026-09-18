@@ -19,8 +19,11 @@ from metta._errors.errors import Timeout
 from metta._lazy import lazy
 from metta.vocabularies import SubscriptionEdge
 
+if TYPE_CHECKING:
+    from metta.subscribe import Subscription
 
-def _cancel_abandoned_subscription(subscription: Any) -> None:
+
+def _cancel_abandoned_subscription(subscription: Subscription) -> None:
     """The finalize backstop: best-effort, late-shutdown-safe."""
     with contextlib.suppress(Exception):
         subscription.cancel()
@@ -35,8 +38,8 @@ class _WatchIterator:
 
     __slots__ = ("__weakref__", "_deadline", "_events", "_finalizer", "_subscription")
 
-    def __init__(self, subscription: Any, deadline: float | None = None) -> None:
-        self._subscription = subscription
+    def __init__(self, subscription: Subscription, deadline: float | None = None) -> None:
+        self._subscription: Subscription | None = subscription
         self._deadline = deadline
         self._events: Iterator[Any] = subscription.events(deadline)
         self._finalizer = weakref.finalize(

@@ -81,7 +81,7 @@ import threading
 from collections.abc import Callable, Iterable, Mapping
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 import metta._atoms.model as _atom_registry
 import metta._atoms.registry as _type_registry
@@ -104,6 +104,9 @@ from metta._atoms.fields import field_names as _field_names
 from metta._declare.operations import _record_registry_undo
 from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider
+
+if TYPE_CHECKING:
+    import metta as _root
 from metta.library._face import Manifest as _Manifest
 from metta.library._face import positional_arities as _positional_arities
 from metta.library._face import render as _render
@@ -185,7 +188,7 @@ def space_of(m: Any) -> Any:
     return _space_of(m)
 
 
-def integrate(m, target: Any) -> str:
+def integrate(m: _root.Space, target: Any) -> str:
     """Install an integration on a space, idempotently per (space, name).
 
     target may be: a module (or dotted module name) defining install_metta(m),

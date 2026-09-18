@@ -2,10 +2,25 @@
 
 Guarantees: aliases, helper calls, native crossings, open callbacks and SCCs
 have independent witnesses [tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Declared supplied contracts, undeclared operations and dependent verdicts
+have independent planted controls [tested: this file; commit=07976cf8b415390449863d803277b73102673b51].
+Literal object fields, descriptor binding and declaration propagation have
+positive and planted-negative controls [tested: this file; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
+Transparent attribute forwarders have paired-field, alias, native-statement,
+descriptor, dynamic-name and self-recursion controls [tested: this file; commit=d2a1b574173fbe576d1912e4d96ce58b99c0d59c].
+Generic, overloaded and Any-armed declarations, typeshed-declared callbacks,
+variadic binding, slots, inherited storage, contract results and narrowing
+have positive and planted-negative controls [tested: this file; commit=2ef13993eeb63385a1aece70f37e72bef1cfd5ac].
+Authoritative declarations, Any narrowing, getattr defaults, type(), source
+and inherited iteration, field narrowing and unreachable branches have
+controls [tested: this file; commit=a6874e867225cd6efb26177d803b942d0dc02dcf].
 """
 
 from __future__ import annotations
 
+import ast
+import sys
+import types
 from dataclasses import replace
 from pathlib import Path
 from textwrap import dedent
@@ -14,9 +29,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from metta.doors import AnswersAs, Sugar
-from metta.doors._analysis import Calls
-from metta.doors._order import analyse, components, derive
+from metta.doors import AnswersAs, Sugar, _order
+from metta.doors._analysis import CallGraph, Calls
+from metta.doors._order import Order, Verdict, analyse, components, derive, orders
 from metta.doors._scan import scan
 
 MARK = "@door(Kind.query, answers=AnswersAs.value, effect=EffectClass.pureStructural, determinism=Determinism.det, tiers=(Tier.sync,), evidence=('fixture',))"
@@ -127,6 +142,164 @@ def test_door_order_retains_unresolved_callbacks(tmp_path):
     assert result["space:compose"].blocked_by == {"space:apply"}
 
 
+@pytest.mark.parametrize("qualifier", ["Final", "ClassVar", "Annotated"])
+def test_declared_mapping_keeps_its_values_through_type_qualifiers(tmp_path, qualifier):
+    """A type qualifier cannot replace the mapping declared by its initializer."""
+    annotation = f"{qualifier}[Mapping[str, str]" + (", 'description']" if qualifier == "Annotated" else "]")
+    _, result = _program(tmp_path, f'''
+        from collections.abc import Mapping
+        from typing import Annotated, ClassVar, Final
+        DISPATCH: {annotation} = {{"read": "table()", "call": "call()"}}
+        class Space:
+            @marked
+            def describe(self, kind: str) -> str:
+                """Read a source-declared string table."""
+                return DISPATCH[kind].upper()
+    ''')
+    assert result["space:describe"].number == 0
+    assert not result["space:describe"].open
+
+
+@pytest.mark.parametrize("lookup", ["operations[key]", "operations.get(key, first)"])
+def test_declared_callable_mapping_retains_every_door_target(tmp_path, lookup):
+    """Runtime keys join the declared callees instead of inventing a host result."""
+    _, result = _program(tmp_path, f'''
+        from collections.abc import Callable, Mapping
+        from typing import Final
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Runtime().must("first")
+            @marked
+            def second(self) -> int:
+                """Cross once on another path."""
+                return Runtime().must("second")
+            @marked
+            def dispatch(self, key: str) -> int:
+                """Select either declared door."""
+                first = self.first
+                operations: Final[Mapping[str, Callable]] = {{"a": first, "b": self.second}}
+                return {lookup}()
+    ''')
+    assert result["space:dispatch"].calls == {"space:first", "space:second"}
+    assert result["space:dispatch"].number == 2
+    assert not result["space:dispatch"].native
+
+
+@pytest.mark.parametrize("mutation", [
+    "operations[key] = callback",
+    "alias = operations; alias[key] = callback",
+    "operations.update({key: callback})",
+    "operations.setdefault(key, callback)",
+])
+def test_mapping_mutation_cannot_hide_a_supplied_callback(tmp_path, mutation):
+    """Aliases and mutating calls retain an externally supplied implementation."""
+    _, result = _program(tmp_path, f'''
+        from typing import Callable, Final
+        class Space:
+            @marked
+            def apply(self, key: str, callback: Callable) -> int:
+                """Dispatch a callback inserted into a declared mapping."""
+                operations: Final[dict] = {{}}
+                {mutation}
+                return operations[key]()
+    ''')
+    assert result["space:apply"].number is None
+    assert any("callback" in site for site in result["space:apply"].open)
+
+
+@pytest.mark.parametrize("operation", ["native", "recursive"])
+def test_mapping_dispatch_exposes_planted_native_and_recursive_bodies(tmp_path, operation):
+    """A table edge keeps a hidden crossing or recursion visible to the gate."""
+    body = 'return Runtime().must("value")' if operation == "native" else 'return operations[key](key)'
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        def target(key: str) -> int:
+            {body}
+        operations = {{"call": target}}
+        class Space:
+            @marked
+            def apply(self, key: str) -> int:
+                """Dispatch the selected helper."""
+                return operations[key](key)
+    ''')
+    value = result["space:apply"]
+    if operation == "native":
+        assert value.number == 1
+        assert value.native
+    else:
+        assert value.number is None
+        assert value.cycles
+
+
+def test_tuple_unpacking_retains_each_declared_receiver(tmp_path):
+    """Tuple fields retain their own receiver even when the other field differs."""
+    _, result = _program(tmp_path, '''
+        class First:
+            def read(self) -> int:
+                return 1
+        class Second:
+            def write(self) -> int:
+                return 2
+        class Space:
+            @marked
+            def pair(self) -> int:
+                """Use each member's declared method."""
+                first, second = (First(), Second())
+                return first.read() + second.write()
+    ''')
+    assert result["space:pair"].number == 0
+
+
+def test_sequence_mutation_keeps_callable_targets(tmp_path):
+    """A list append cannot erase the door reached through its item."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Read one native value."""
+                return Runtime().must("value")
+            @marked
+            def collect(self) -> list:
+                """Invoke a declared callback list."""
+                operations = []
+                operations.append(self.first)
+                return [operation() for operation in operations]
+    ''')
+    assert result["space:collect"].calls == {"space:first"}
+    assert result["space:collect"].number == 2
+
+
+@pytest.mark.parametrize("container, key", [
+    ("[42, first]", "1"),
+    ("[42, first]", "-1"),
+    ("{'data': 42, 'call': first}", "'call'"),
+    ("{False: first, 'data': 42}", "0"),
+    ("{1.0: first, 'data': 42}", "1"),
+])
+def test_literal_container_keys_select_the_declared_callable(tmp_path, container, key):
+    """A literal key does not acquire an unrelated value or lose equal keys."""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Runtime().must("value")
+            @marked
+            def selected(self) -> int:
+                """Read one declared member."""
+                first = self.first
+                operations = {container}
+                return operations[{key}]()
+    ''')
+    assert result["space:selected"].calls == {"space:first"}
+    assert result["space:selected"].number == 2
+
+
 def test_door_order_resolves_inherited_properties_and_distinguishes_foreign_names(tmp_path):
     """A marked property is a dependency; a foreign same-named method is not."""
     _, result = _program(tmp_path, '''
@@ -171,6 +344,33 @@ def test_door_order_keeps_supplied_iterator_open(tmp_path):
     ''')
     assert result["space:consume"].number is None
     assert any("__iter__" in site for site in result["space:consume"].open)
+
+
+@pytest.mark.parametrize("construction,selection", [
+    ("list([self.first])", "operations[0]()"),
+    ("tuple([self.first])", "operations[0]()"),
+    ("set([self.first])", "[operation() for operation in operations]"),
+    ("frozenset([self.first])", "[operation() for operation in operations]"),
+    ("dict(first=self.first)", "operations['first']()"),
+    ("dict({'first': self.first})", "operations['first']()"),
+])
+def test_container_constructors_preserve_callable_contents(tmp_path, construction, selection):
+    """Copying a declared container cannot erase its callable dependencies."""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Runtime().must("value")
+            @marked
+            def selected(self):
+                """Read the copied declaration."""
+                operations = {construction}
+                return {selection}
+    ''')
+    assert result["space:selected"].calls == {"space:first"}
+    assert result["space:selected"].number == 2
 
 
 def test_wrapper_unwrapping_has_a_finite_abstract_domain(tmp_path):
@@ -342,15 +542,1196 @@ def test_binding_metadata_and_open_helper_cycles_are_independent(tmp_path):
     assert result.native == {"Runtime.must"}
 
 
-@pytest.mark.parametrize("defect", ["mixed", "open_dependencies", "recursive"])
-def test_door_order_gate_refuses_each_boundary_defect(monkeypatch, capsys, defect):
-    """Each unresolved boundary independently changes the command's exit."""
+def _gate_report(monkeypatch, tmp_path, result):
+    """Run the actual report and verdict over one planted source graph."""
+    doororder = _tool(monkeypatch)
+    monkeypatch.setattr(doororder.doorgen, "all_rows", lambda _root: ())
+    monkeypatch.setattr(doororder, "core_paths", lambda _root: ())
+    monkeypatch.setattr(doororder, "analyse", lambda *_: result)
+    table = tmp_path / "_orders.py"
+    table.write_text(doororder.render({name: value.verdict for name, value in result.items()}))
+    monkeypatch.setattr(doororder, "TABLE", table)
+    return doororder.report(), doororder.main(["--json"])
+
+
+def _tool(monkeypatch):
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "tools"))
     import doororder
 
-    clean = {"mixed": [], "open_dependencies": [], "recursive": [], "rows": {}}
-    monkeypatch.setattr(doororder, "report", lambda: {**clean, defect: ["space:planted"]})
+    return doororder
+
+
+def test_registry_callable_is_a_defect_open_boundary(tmp_path, monkeypatch):
+    """A registry result has no supplied-parameter contract to close its call."""
+    _, result = _program(tmp_path, '''
+        from plugins import registry
+        class Space:
+            @marked
+            def selected(self):
+                """Invoke the current plugin."""
+                operations = {"current": registry.get("current")}
+                return operations["current"]()
+    ''')
+    assert result["space:selected"].number is None
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 1
+    assert report["open_dependencies"] == ["space:selected"]
+    assert report["defect_open_dependencies"] == ["space:selected"]
+    assert report["unordered_by_contract"] == []
+
+
+def test_supplied_callable_with_native_crossing_is_mixed(tmp_path, monkeypatch):
+    """An open callback cannot hide a native crossing in the same body."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def apply(self, callback: Callable):
+                """Cross and invoke the supplied operation."""
+                Runtime().must("value")
+                return callback()
+    ''')
+    assert result["space:apply"].number is None
+    assert result["space:apply"].mixed
+    _, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 1
+
+
+def test_declared_supplied_callable_is_unordered_by_contract(tmp_path, monkeypatch):
+    """A declared callback remains open while the gate accepts its contract."""
+    _, result = _program(tmp_path, '''
+        from collections.abc import Callable
+        class Space:
+            @marked
+            def apply(self, callback: Callable[[], int]) -> int:
+                """Invoke the caller's operation."""
+                return callback()
+    ''')
+    assert result["space:apply"].number is None
+    assert result["space:apply"].open
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 0
+    assert report["unordered_by_contract"] == ["space:apply"]
+
+
+def test_composition_of_contract_open_door_is_unordered_by_dependency(tmp_path, monkeypatch):
+    """A composition keeps its dependency instead of receiving an integer."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        class Space:
+            @marked
+            def apply(self, callback: Callable):
+                """Invoke the caller's operation."""
+                return callback()
+            @marked
+            def compose(self, callback: Callable):
+                """Forward the declared callback."""
+                return self.apply(callback)
+    ''')
+    assert result["space:compose"].number is None
+    assert result["space:compose"].blocked_by == {"space:apply"}
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 0
+    assert report["unordered_by_dependency"] == ["space:compose"]
+
+
+@pytest.mark.parametrize(("annotation", "body"), [
+    ("Iterable[int]", "return [item for item in source]"),
+    ("Iterator[int]", "return next(source)"),
+    ("Optional[Callable[[], int]]", "return source() if source is not None else 0"),
+    ("Annotated[Callable[[], int], 'public callback']", "return source()"),
+    ("Reader", "return source.read()"),
+])
+def test_parameter_contracts_follow_declared_protocols(tmp_path, monkeypatch, annotation, body):
+    """Forward and qualified annotations preserve the public operation."""
+    _, result = _program(tmp_path, f'''
+        from typing import Annotated, Callable, Iterable, Iterator, Optional, Protocol
+        class Reader(Protocol):
+            def read(self) -> int: ...
+        class Space:
+            @marked
+            def use(self, source: {annotation!r}):
+                """Use the declared caller operation."""
+                {body}
+    ''')
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 0
+    assert report["unordered_by_contract"] == ["space:use"]
+    assert all(call["annotation"] for call in report["rows"]["space:use"]["contracts"])
+
+
+@pytest.mark.parametrize("annotation", ["Iterable[int]", "Reader", "Any"])
+def test_undeclared_parameter_members_remain_defects(tmp_path, monkeypatch, annotation):
+    """One declared protocol does not grant arbitrary dynamic attributes."""
+    _, result = _program(tmp_path, f'''
+        from typing import Any, Iterable, Protocol
+        class Reader(Protocol):
+            def read(self) -> int: ...
+        class Space:
+            @marked
+            def use(self, source: {annotation}):
+                """Invoke an undeclared operation."""
+                return source.hidden()
+    ''')
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 1
+    assert report["defect_open_dependencies"] == ["space:use"]
+
+
+def test_contract_does_not_hide_a_separate_defect_or_its_dependents(tmp_path, monkeypatch):
+    """A supplied callback cannot exempt a second unresolved call."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        from plugins import registry
+        class Space:
+            @marked
+            def apply(self, callback: Callable):
+                """Invoke both known-contract and unknown operations."""
+                callback()
+                return registry.current()
+            @marked
+            def compose(self, callback: Callable):
+                """Depend on the unresolved operation."""
+                return self.apply(callback)
+    ''')
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 1
+    assert report["defect_open_dependencies"] == ["space:apply"]
+    assert report["unordered_by_contract"] == []
+    assert report["unordered_by_dependency"] == []
+
+
+@pytest.mark.parametrize("defect", ["mixed", "defect_open_dependencies", "recursive"])
+def test_door_order_gate_refuses_each_boundary_defect(monkeypatch, tmp_path, capsys, defect):
+    """Each unresolved boundary independently changes the command's exit."""
+    doororder = _tool(monkeypatch)
+    none: frozenset[str] = frozenset()
+    planted = {
+        "mixed": Order(None, frozenset({"space:other"}), frozenset({"Runtime.must"}), none, ()),
+        "defect_open_dependencies": Order(None, none, none, frozenset({"space:planted:1: registry"}), ()),
+        "recursive": Order(None, none, none, none, (("space:planted",),)),
+    }[defect]
+    table = tmp_path / "_orders.py"
+    monkeypatch.setattr(doororder, "TABLE", table)
+    for orders_, status in (({"space:planted": planted}, 1), ({"space:planted": Order(0, none, none, none, ())}, 0)):
+        monkeypatch.setattr(doororder, "derived", lambda orders_=orders_: orders_)
+        table.write_text(doororder.render({name: value.verdict for name, value in orders_.items()}))
+        assert doororder.main([]) == status
+        assert "space:planted" in capsys.readouterr().out
+
+
+def test_door_order_gate_refuses_a_stale_verdict_table(monkeypatch, tmp_path, capsys):
+    """A missing or disagreeing table fails the gate until it is regenerated."""
+    doororder = _tool(monkeypatch)
+    none: frozenset[str] = frozenset()
+    monkeypatch.setattr(doororder, "derived", lambda: {"space:first": Order(1, none, frozenset({"Runtime.must"}), none, ())})
+    table = tmp_path / "_orders.py"
+    monkeypatch.setattr(doororder, "TABLE", table)
     assert doororder.main([]) == 1
-    assert "space:planted" in capsys.readouterr().out
-    monkeypatch.setattr(doororder, "report", lambda: clean)
-    assert doororder.main([]) == 0
+    assert "missing verdict table" in capsys.readouterr().out
+    assert doororder.main(["--write"]) == 0
+    assert table.read_text() == doororder.render({"space:first": Verdict(1)})
+    table.write_text(table.read_text().replace("Verdict(1)", "Verdict(2)"))
+    assert doororder.main([]) == 1
+    assert "stale verdict table" in capsys.readouterr().out
+
+
+@given(st.dictionaries(st.from_regex(r"[a-z]+:[a-z_]+", fullmatch=True), st.builds(
+    Verdict, st.one_of(st.none(), st.integers(min_value=0, max_value=9)),
+    mixed=st.booleans(), open=st.booleans(), recursive=st.booleans(), dependency=st.booleans(),
+), max_size=8))
+def test_verdict_table_round_trips_every_verdict(verdicts):
+    """The rendered module evaluates back to exactly the verdicts it was rendered from."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    import doororder
+
+    namespace: dict[str, object] = {"__name__": "rendered"}
+    exec(compile(doororder.render(verdicts), "<rendered>", "exec"), namespace)
+    assert dict(namespace["VERDICTS"]) == verdicts
+
+
+def test_shipped_rows_publish_from_the_table_without_analysis(monkeypatch):
+    """Every declared door reads its verdict from the table; no source is analysed."""
+    doororder = _tool(monkeypatch)
+    rows = doororder.doorgen.all_rows(doororder.doorgen.ROOT)
+
+    def refuse(_rows):
+        message = "the shipped rows must not be analysed at boot"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(_order, "live", refuse)
+    verdicts = orders(rows)
+    assert set(verdicts) == {row.key for row in rows}
+    assert all(isinstance(verdict, Verdict) for verdict in verdicts.values())
+
+
+def test_rows_outside_the_table_are_analysed_at_runtime(tmp_path, monkeypatch):
+    """A door registered from a package the table does not know is analysed live."""
+    rows, expected = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self._rt = Runtime()
+            @marked
+            def planted_probe(self) -> int:
+                """Read one engine value from a door the shipped table cannot know."""
+                return self._rt.must("value")
+    ''')
+    runtime = tmp_path / "runtime.py"
+    runtime.write_text(RUNTIME)
+    monkeypatch.setattr(_order, "core_paths", lambda: ((runtime, "metta._binding.runtime"),))
+    module = types.ModuleType("example")
+    module.__file__ = str(tmp_path / "example.py")
+    monkeypatch.setitem(sys.modules, "example", module)
+    verdicts = orders(rows)
+    assert verdicts["space:planted-probe"] == expected["space:planted-probe"].verdict == Verdict(1)
+
+
+def test_empty_generator_facts_do_not_invent_a_receiver(tmp_path):
+    """A producer's later yield resolves its consumer without a phantom object."""
+    _, result = _program(tmp_path, '''
+        class Reader:
+            def read(self) -> int:
+                return 1
+        def source():
+            yield Reader()
+        class Space:
+            @marked
+            def read(self):
+                """Read every declared receiver."""
+                return [reader.read() for reader in source()]
+    ''')
+    assert result["space:read"].number == 0
+    assert not result["space:read"].open
+
+
+def test_declared_receiver_resolution_is_independent_of_worklist_order():
+    """A late constructor annotation is a declaration, not a missing field."""
+    source = dedent('''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self, runtime: Runtime):
+                self._rt = runtime
+            def read(self):
+                return self._rt.must("value")
+    ''')
+
+    class ReversedGraph(CallGraph):
+        def _schedule(self, name):
+            if name not in self.queued:
+                self.queue.appendleft(name)
+                self.queued.add(name)
+
+    inputs = {"example": source, "metta._binding.runtime": RUNTIME}
+    entry = "example.Space.read"
+    forward = CallGraph(inputs, (entry,)).solve()
+    reverse = ReversedGraph(inputs, (entry,)).solve()
+    assert forward == reverse
+    assert forward[entry].native
+    assert not forward[entry].open
+
+
+def test_literal_object_attributes_preserve_declared_callable_fields(tmp_path):
+    """Immutable objects may declare fields through object.__setattr__."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                assign = object.__setattr__
+                assign(self, "operations", {"first": self.first})
+            def __setattr__(self, name, value):
+                raise AttributeError("immutable")
+            @marked
+            def first(self):
+                """Read one native value."""
+                return Runtime().must("value")
+            @marked
+            def selected(self):
+                """Read the immutable declaration through an alias."""
+                read = object.__getattribute__
+                operations = read(self, "operations")
+                return operations["first"]()
+    ''')
+    assert result["space:selected"].calls == {"space:first"}
+    assert result["space:selected"].number == 2
+
+
+@pytest.mark.parametrize("operation", [
+    "return object.__getattribute__(self, 'value')",
+    "object.__setattr__(self, 'value', 1)",
+])
+def test_object_attribute_access_keeps_descriptor_crossings(tmp_path, operation):
+    """Bypassing an override still invokes a declared data descriptor."""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Field:
+            def __get__(self, instance, owner):
+                return Runtime().must("get")
+            def __set__(self, instance, value):
+                Runtime().must("set")
+        class Space:
+            value = Field()
+            @marked
+            def access(self):
+                """Use the descriptor through the base object protocol."""
+                {operation}
+    ''')
+    assert result["space:access"].number == 1
+    assert result["space:access"].native
+
+
+@pytest.mark.parametrize("operation", [
+    "object.__getattribute__(self, name)()",
+    "getattr(self, name)()",
+])
+def test_dynamic_attribute_names_stay_open(tmp_path, operation):
+    """A literal-member rule cannot accept runtime member selection."""
+    _, result = _program(tmp_path, f'''
+        class Space:
+            @marked
+            def selected(self, name: str):
+                """Select a member whose declaration is not known."""
+                return {operation}
+    ''')
+    assert result["space:selected"].number is None
+    assert result["space:selected"].defect_open
+
+
+def test_literal_field_names_flow_through_a_declared_setter(tmp_path):
+    """A delegating setter keeps its caller's literal attribute declaration."""
+    _, result = _program(tmp_path, '''
+        from typing import Final
+        from metta._binding.runtime import Runtime
+        NAME: Final[str] = "runtime"
+        class Space:
+            def __init__(self):
+                self.runtime = Runtime()
+            def __setattr__(self, name: str, value):
+                object.__setattr__(self, name, value)
+            @marked
+            def read(self):
+                """Use the declared field name through its constant alias."""
+                return object.__getattribute__(self, NAME).must("value")
+    ''')
+    assert result["space:read"].number == 1
+
+
+def test_instance_callback_fields_are_not_bound_like_class_methods(tmp_path):
+    """A function stored on an instance keeps its own first argument."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        def read(runtime):
+            return runtime.must("value")
+        class Space:
+            def __init__(self):
+                self.callback = read
+            @marked
+            def selected(self):
+                """Supply the callback's actual receiver."""
+                return self.callback(Runtime())
+    ''')
+    assert result["space:selected"].number == 1
+    assert not result["space:selected"].open
+
+
+@pytest.mark.parametrize("placement", ["instance", "class"])
+def test_only_class_descriptor_fields_invoke_get(tmp_path, placement):
+    """A descriptor stored as an instance value is ordinary data."""
+    initializer = "self.value = Field()" if placement == "instance" else "pass"
+    declaration = "value = Field()" if placement == "class" else ""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Field:
+            def __get__(self, instance, owner):
+                return Runtime().must("get")
+        class Space:
+            {declaration}
+            def __init__(self):
+                {initializer}
+            @marked
+            def selected(self):
+                """Read the field at its declared ownership location."""
+                return self.value
+    ''')
+    assert result["space:selected"].number == (1 if placement == "class" else 0)
+
+
+def test_late_values_do_not_seed_helper_annotation_alternatives():
+    """Caller values settle before missing helper declarations are completed."""
+    source = dedent('''
+        from metta._binding.runtime import Runtime
+        def invoke(runtime: Runtime | None):
+            return runtime.must("value")
+        def relay(runtime):
+            return invoke(runtime)
+        def entry(runtime: Runtime):
+            return relay(runtime)
+    ''')
+
+    class ReversedGraph(CallGraph):
+        def _schedule(self, name):
+            if not self._reporting and name not in self.queued:
+                self.queue.appendleft(name)
+                self.queued.add(name)
+
+    inputs = {"example": source, "metta._binding.runtime": RUNTIME}
+    forward = CallGraph(inputs, ("example.entry",)).solve()
+    reverse = ReversedGraph(inputs, ("example.entry",)).solve()
+    assert forward == reverse
+    assert forward["example.invoke"].native
+    assert not forward["example.invoke"].open
+
+
+def test_annotations_do_not_replace_returned_or_assigned_callbacks(tmp_path):
+    """A declared initializer and return retain their actual callable values."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        def factory() -> object:
+            return lambda: Runtime().must("value")
+        class Space:
+            @marked
+            def selected(self):
+                """Call a value without hiding it behind its broad type."""
+                callback: object = factory()
+                return callback()
+    ''')
+    assert result["space:selected"].number == 1
+    assert result["space:selected"].native
+
+
+@pytest.mark.parametrize("scheduler", ["forward", "reverse"])
+def test_transparent_setter_keeps_each_field_paired_with_its_value(scheduler):
+    """A setter that only forwards to object.__setattr__ pairs name with value."""
+    source = dedent('''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self.runtime = Runtime()
+                self.label = None
+            def __setattr__(self, name: str, value):
+                object.__setattr__(self, name, value)
+            def read(self):
+                return self.runtime.must("value")
+    ''')
+
+    class ReversedGraph(CallGraph):
+        def _schedule(self, name):
+            if not self._reporting and name not in self.queued:
+                self.queue.appendleft(name)
+                self.queued.add(name)
+
+    inputs = {"example": source, "metta._binding.runtime": RUNTIME}
+    graph = (CallGraph if scheduler == "forward" else ReversedGraph)(inputs, ("example.Space.read",))
+    facts = graph.solve()
+    assert facts["example.Space.read"].native
+    assert not facts["example.Space.read"].open
+    fields = {member: {value.name for value in graph.values[("example.Space", f"<field:{member}>")]}
+              for member in ("runtime", "label")}
+    assert fields == {"runtime": {"metta._binding.runtime.Runtime"}, "label": {"builtins.NoneType"}}
+
+
+def test_transparent_setter_is_recognised_through_its_resolved_declaration(tmp_path):
+    """A module alias of object.__setattr__ and keyword actuals still pair."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        assign = object.__setattr__
+        class Space:
+            def __init__(self):
+                self.__setattr__(value=Runtime(), name="runtime")
+                self.label = None
+            def __setattr__(self, name: str, value):
+                assign(self, name, value)
+            @marked
+            def read(self):
+                """Read the engine field, not the label."""
+                return self.runtime.must("value")
+    ''')
+    assert result["space:read"].number == 1
+    assert not result["space:read"].open
+
+
+def test_setter_with_a_native_statement_keeps_its_crossing(tmp_path):
+    """A wrapper that also crosses natively is a body, not a forwarder."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self.runtime = Runtime()
+            def __setattr__(self, name: str, value):
+                Runtime().must("audit")
+                object.__setattr__(self, name, value)
+            @marked
+            def write(self):
+                """Assign through the auditing setter."""
+                self.label = None
+    ''')
+    assert result["space:write"].number == 1
+    assert result["space:write"].native
+
+
+def test_transparent_setter_still_invokes_a_class_data_descriptor(tmp_path):
+    """Forwarding to object.__setattr__ keeps the descriptor's own crossing."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Field:
+            def __get__(self, instance, owner):
+                return 1
+            def __set__(self, instance, value):
+                Runtime().must("set")
+        class Space:
+            value = Field()
+            def __setattr__(self, name: str, value):
+                object.__setattr__(self, name, value)
+            @marked
+            def write(self):
+                """Assign a descriptor-managed field through the setter."""
+                self.value = 1
+    ''')
+    assert result["space:write"].number == 1
+    assert result["space:write"].native
+
+
+def test_transparent_setter_keeps_a_dynamic_member_name_open(tmp_path):
+    """A caller-selected name reaches the intrinsic as a dynamic attribute."""
+    _, result = _program(tmp_path, '''
+        class Space:
+            def __setattr__(self, name: str, value):
+                object.__setattr__(self, name, value)
+            @marked
+            def write(self, name: str):
+                """Assign a member whose name the caller chooses."""
+                self.__setattr__(name, 1)
+    ''')
+    assert result["space:write"].number is None
+    assert any("dynamic attribute" in site for site in result["space:write"].defect_open)
+
+
+def test_setter_forwarding_to_setattr_terminates_as_an_ordinary_body(tmp_path):
+    """A setter re-entering itself through setattr never writes, and the analysis ends."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self.runtime = Runtime()
+            def __setattr__(self, name: str, value):
+                setattr(self, name, value)
+            @marked
+            def read(self):
+                """Read a field the recursive setter never stores."""
+                return self.runtime.must("value")
+    ''')
+    assert result["space:read"].number is None
+    assert not result["space:read"].native
+    assert result["space:read"].defect_open
+
+
+@pytest.mark.parametrize(("annotation", "access", "number"), [
+    ("list[Runtime]", "runtimes[0]", 1),
+    ("dict[str, Runtime]", "runtimes['x']", 1),
+    ("tuple[Runtime, str]", "runtimes[0]", 1),
+    ("tuple[str, Runtime]", "runtimes[0]", None),
+    ("tuple[Runtime, ...]", "runtimes[3]", 1),
+    ("Optional[Runtime]", "(runtimes or Runtime())", 1),
+    ("type[Runtime]", "runtimes()", 1),
+    ("Sequence[Runtime]", "next(iter(runtimes))", 1),
+])
+def test_generic_annotations_declare_their_element_structure(tmp_path, annotation, access, number):
+    """A generic parameter keeps the element, key, position or class it declares."""
+    _, result = _program(tmp_path, f'''
+        from collections.abc import Sequence
+        from typing import Optional
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def read(self, runtimes: {annotation}) -> int:
+                """Cross through the declared structure."""
+                return {access}.must("value")
+    ''')
+    assert result["space:read"].number == number
+    assert bool(result["space:read"].defect_open) == (number is None)
+
+
+def test_literal_and_self_annotations_resolve_their_declared_values(tmp_path):
+    """A Literal member name selects the door; an abstract Self returns the receiver."""
+    _, result = _program(tmp_path, '''
+        from typing import Literal, Self
+        from metta._binding.runtime import Runtime
+        class Builder:
+            def __init__(self):
+                self._rt = Runtime()
+            def prepared(self) -> Self:
+                return object()
+            def go(self) -> int:
+                return self._rt.must("value")
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Builder().prepared().go()
+            @marked
+            def selected(self, name: Literal["first"]) -> int:
+                """Select a member whose declaration names exactly one door."""
+                return getattr(self, name)()
+    ''')
+    assert result["space:first"].number == 1
+    assert result["space:selected"].number == 2
+    assert result["space:selected"].calls == {"space:first"}
+
+
+def test_external_values_are_judged_by_their_root(tmp_path):
+    """A stdlib operation is host work; an unknown value or third-party attribute stays open."""
+    _, result = _program(tmp_path, '''
+        import os
+        import inspect
+        from plugins import registry
+        class Space:
+            @marked
+            def host(self) -> str:
+                """Read the environment through a stdlib value's own operation."""
+                empty = inspect.Parameter.empty
+                return os.environ.get("HOME", empty)
+            @marked
+            def foreign(self) -> int:
+                """Invoke an attribute of a third-party value."""
+                return registry.current.handler()
+    ''')
+    assert result["space:host"].number == 0
+    assert not result["space:host"].open
+    assert result["space:foreign"].number is None
+    assert any("external" in site for site in result["space:foreign"].defect_open)
+
+
+def test_declared_parameter_types_refine_actuals_of_unknown_structure(tmp_path):
+    """A helper's declared receiver settles an opaque or external actual; a source value stays."""
+    _, result = _program(tmp_path, '''
+        import os
+        from metta._binding.runtime import Runtime
+        def cross_declared(runtime: Runtime) -> int:
+            return runtime.must("value")
+        def cross_source(runtime: Runtime) -> int:
+            return runtime.must("value")
+        class Space:
+            @marked
+            def declared(self) -> int:
+                """Pass a value the source cannot type but the declaration does."""
+                return cross_declared(os.environ.get("RUNTIME"))
+            @marked
+            def source(self) -> int:
+                """Pass a source value whose identity the declaration must not replace."""
+                return cross_source(None)
+    ''')
+    assert result["space:declared"].number == 1
+    assert not result["space:declared"].open
+    assert result["space:source"].number is None
+    assert any("NoneType.must" in site for site in result["space:source"].defect_open)
+
+
+@pytest.mark.parametrize("declaration", ['("runtime",)', '{"runtime": "the engine this node holds"}'])
+@pytest.mark.parametrize(("key", "number"), [("'runtime'", 1), ("'missing'", None), ("name", None)])
+def test_slot_descriptors_write_and_read_the_declared_field(tmp_path, declaration, key, number):
+    """A __slots__ member descriptor taken from the class namespace reaches its field."""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        class Node:
+            __slots__ = {declaration}
+            def __init__(self, runtime: Runtime, name: str):
+                _set_runtime = Node.__dict__[{key}].__set__
+                _set_runtime(self, runtime)
+        class Space:
+            @marked
+            def read(self) -> int:
+                """Read the field a slot descriptor wrote."""
+                return Node(Runtime(), "runtime").runtime.must("value")
+    ''')
+    assert result["space:read"].number == number
+
+
+@pytest.mark.parametrize(("annotation", "operation", "defect"), [
+    ("Iterable[int]", "[item for item in source]", False),
+    ("Iterable[int]", "source[0]", True),
+    ("Sequence[int]", "source[0]", False),
+    ("Iterator[int]", "next(source)", False),
+    ("Mapping[str, int]", "source['x']", False),
+    ("Mapping[str, int]", "source.setdefault('x', 1)", True),
+])
+def test_declared_container_types_admit_only_their_own_operations(tmp_path, annotation, operation, defect):
+    """A declared Iterable is not a list: the type's own members decide."""
+    _, result = _program(tmp_path, f'''
+        import os
+        from collections.abc import Iterable, Iterator, Mapping, Sequence
+        class Space:
+            def read(self, source: {annotation}) -> int:
+                return {operation}
+            @marked
+            def use(self) -> int:
+                """Read a value only the declaration types."""
+                return self.read(os.environ.get("SOURCE"))
+    ''')
+    assert bool(result["space:use"].defect_open) == defect
+
+
+def test_a_declared_contract_keeps_its_concrete_alternatives(tmp_path, monkeypatch):
+    """A union of a callback and a concrete class keeps both, and the class resolves."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        from metta._binding.runtime import Runtime
+        class Plan:
+            def run(self) -> int:
+                return 2
+        class Space:
+            @marked
+            def apply(self, source: Callable[[], int] | Plan) -> int:
+                """Invoke a supplied callback, or run a declared plan."""
+                if isinstance(source, Plan):
+                    return source.run()
+                return source()
+    ''')
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 0
+    assert report["unordered_by_contract"] == ["space:apply"]
+    assert not result["space:apply"].defect_open
+
+
+def test_an_isinstance_test_drops_a_contract_that_cannot_implement_it(tmp_path):
+    """A supplied callable narrowed to str can no longer be the source of a call."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        class Space:
+            @marked
+            def apply(self, source: Callable[[], int] | str) -> int:
+                """Return the text, or invoke the callback."""
+                if isinstance(source, str):
+                    return len(source)
+                return source()
+    ''')
+    sites = result["space:apply"].open
+    assert any(site.endswith("apply.source (source())") for site in sites)
+    assert not any("len(source)" in site for site in sites)
+
+
+def test_variadic_parameters_hold_a_tuple_and_a_mapping(tmp_path):
+    """*args is the tuple of extra actuals and **kwargs the mapping of the rest."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def relay(self, first, *rest, **options):
+                first()
+                rest[0]()
+                for item in rest:
+                    item()
+                options["handler"]()
+            @marked
+            def use(self) -> int:
+                """Pass each callback through a variadic relay."""
+                return self.relay(self.a, self.b, handler=self.c)
+            @marked
+            def a(self) -> int:
+                """Cross once."""
+                return Runtime().must("a")
+            @marked
+            def b(self) -> int:
+                """Cross once."""
+                return Runtime().must("b")
+            @marked
+            def c(self) -> int:
+                """Cross once."""
+                return Runtime().must("c")
+    ''')
+    assert result["space:use"].calls == {"space:a", "space:b", "space:c"}
+    assert result["space:use"].number == 2
+    assert not result["space:use"].defect_open
+
+
+def test_a_standard_library_value_is_host_work_and_an_unknown_member_is_not(tmp_path):
+    """A lock the standard library made is host work; a member it never declared is open."""
+    _, result = _program(tmp_path, '''
+        import threading
+        from functools import reduce
+        class Space:
+            @marked
+            def guarded(self) -> int:
+                """Use a value the standard library made."""
+                lock = threading.RLock()
+                with lock:
+                    return lock._is_owned()
+            @marked
+            def unwrapped(self) -> int:
+                """Call a member no standard-library type declares."""
+                return reduce.__wrapped__()
+    ''')
+    assert result["space:guarded"].number == 0
+    assert not result["space:guarded"].open
+    assert result["space:unwrapped"].number is None
+    assert any("external value" in site for site in result["space:unwrapped"].defect_open)
+
+
+def test_a_callable_passed_to_the_standard_library_is_still_invoked(tmp_path):
+    """Any standard-library call may invoke a callable argument, not only the listed ones."""
+    _, result = _program(tmp_path, '''
+        import atexit
+        import heapq
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Runtime().must("value")
+            @marked
+            def registered(self) -> int:
+                """Hand the door to a standard-library call that will run it."""
+                atexit.register(self.first)
+                return heapq.nlargest(1, [1], key=self.first)[0]
+    ''')
+    assert result["space:registered"].calls == {"space:first"}
+    assert result["space:registered"].number == 2
+
+
+def test_a_context_variable_answers_what_was_stored_in_it(tmp_path):
+    """ContextVar.set and .get are the write and read of one held value."""
+    _, result = _program(tmp_path, '''
+        from contextvars import ContextVar
+        from metta._binding.runtime import Runtime
+        active: ContextVar = ContextVar("active")
+        def scoped(runtime):
+            token = active.set(runtime)
+            try:
+                return active.get()
+            finally:
+                active.reset(token)
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Read the engine value held by the context variable."""
+                return scoped(Runtime()).must("value")
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+@pytest.mark.parametrize("construction", ["Runtimes([Runtime()])", "Held([Runtime()])"])
+def test_a_generic_base_class_names_its_class_and_holds_its_elements(tmp_path, construction):
+    """A subscripted base is the class it names, and its documented storage holds the elements."""
+    _, result = _program(tmp_path, f'''
+        from collections import UserList
+        from metta._binding.runtime import Runtime
+        class Runtimes(UserList[Runtime]):
+            def first(self):
+                return self.data[0]
+        class Held(Runtimes):
+            def __init__(self, runtimes):
+                super().__init__(list(runtimes))
+        class Space:
+            @marked
+            def read(self) -> int:
+                """Read through a member the generic base declares."""
+                return {construction}.first().must("value")
+    ''')
+    assert result["space:read"].number == 1
+    assert not result["space:read"].open
+
+
+def test_a_value_a_supplied_callback_returned_carries_its_contract(tmp_path, monkeypatch):
+    """What the caller's callable answers is the caller's too, not a new defect."""
+    _, result = _program(tmp_path, '''
+        from typing import Callable
+        class Space:
+            @marked
+            def apply(self, build: Callable[..., object]) -> int:
+                """Use whatever the supplied callable built."""
+                return build().result().value
+    ''')
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 0
+    assert report["unordered_by_contract"] == ["space:apply"]
+    assert not result["space:apply"].defect_open
+
+
+def test_callable_and_early_exit_narrowing_separate_a_union(tmp_path, monkeypatch):
+    """A door declared by overloads reads each arm where its own test selects it."""
+    _, result = _program(tmp_path, '''
+        from typing import Any, Callable, overload
+        from metta._binding.runtime import Runtime
+        class Term:
+            def __init__(self):
+                self._rt = Runtime()
+            def run(self) -> int:
+                return self._rt.must("value")
+        class Space:
+            @overload
+            def transaction(self, target: Callable[[], int]) -> int: ...
+            @overload
+            def transaction(self, target: Term) -> int: ...
+            @marked
+            def transaction(self, target: Callable[[], int] | Any) -> int:
+                """Run a callable, or evaluate a term."""
+                if not callable(target):
+                    return target.run()
+                return target()
+    ''')
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    # The term arm crosses natively and the callable arm is supplied, which
+    # the 2026-09-15 ruling keeps mixed; what the narrowing removes is every
+    # undeclared-member defect on the supplied parameter.
+    assert status == 1
+    assert report["mixed"] == ["space:transaction"]
+    assert result["space:transaction"].native
+    assert not result["space:transaction"].defect_open
+    assert [call.annotation for call in result["space:transaction"].contracts] == ["Callable[[], int] | Term"]
+
+
+def test_a_callable_passed_to_the_standard_library_is_invoked_where_typeshed_declares_it(tmp_path):
+    """A declared Callable parameter runs the door; an inspection of one does not."""
+    _, result = _program(tmp_path, '''
+        import atexit
+        import heapq
+        from metta._binding.runtime import Runtime
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross once."""
+                return Runtime().must("value")
+            @marked
+            def registered(self) -> int:
+                """Hand the door to standard-library calls that declare a callback."""
+                atexit.register(self.first)
+                return heapq.nlargest(1, [1], key=self.first)[0]
+            @marked
+            def inspected(self) -> bool:
+                """Only ask whether the door is callable."""
+                return callable(self.first) and isinstance(self.first, object)
+    ''')
+    assert result["space:registered"].calls == {"space:first"}
+    assert result["space:registered"].number == 2
+    assert result["space:inspected"].calls == set()
+    assert result["space:inspected"].number == 0
+
+
+def test_invocation_table_reads_versioned_stub_blocks(tmp_path, monkeypatch):
+    """A parameter declared inside this interpreter's version block is still read."""
+    doororder = _tool(monkeypatch)
+
+    stub = tmp_path / "planted.pyi"
+    stub.write_text(dedent('''
+        import sys
+        from collections.abc import Callable
+        if sys.version_info >= (3, 0):
+            def modern(hook: Callable[[], int], /) -> None: ...
+        else:
+            def ancient(hook: Callable[[], int], /) -> None: ...
+        class Holder:
+            if sys.version_info >= (3, 0):
+                def __init__(self, target: Callable[[], int] | None = None) -> None: ...
+    '''))
+    table: dict[str, tuple[frozenset[int], frozenset[str]]] = {}
+    doororder._declared_invocations(ast.parse(stub.read_text()).body, "planted.", method=False, table=table)
+    assert table == {
+        "planted.modern": (frozenset({0}), frozenset()),
+        "planted.Holder.__init__": (frozenset({0}), frozenset({"target"})),
+        "planted.Holder": (frozenset({0}), frozenset({"target"})),
+    }
+    assert doororder.invocations()["builtins.sorted"] == (frozenset(), frozenset({"key"}))
+
+
+def test_a_verified_return_declaration_excludes_the_values_it_refuses(tmp_path):
+    """A `-> Runtime` function returning `Runtime | None` state answers a Runtime; str stays a Sequence."""
+    _, result = _program(tmp_path, '''
+        from collections.abc import Sequence
+        from metta._binding.runtime import Runtime
+        class _State:
+            def __init__(self):
+                self.runtime = None
+        _STATE = _State()
+        def runtime() -> Runtime:
+            if _STATE.runtime is None:
+                _STATE.runtime = Runtime()
+            return _STATE.runtime
+        def text() -> Sequence[str]:
+            return "abc"
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross through the declared, never-None runtime."""
+                return runtime().must("value")
+            @marked
+            def second(self) -> int:
+                """Read a str where a Sequence is declared."""
+                return len(text().upper())
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+    assert result["space:second"].number == 0
+    assert not result["space:second"].open
+
+
+def test_getattr_with_a_default_answers_the_default(tmp_path):
+    """`getattr(x, "close", None)` followed by `if callable(close)` is not an unresolved call."""
+    _, result = _program(tmp_path, '''
+        from collections.abc import Iterator
+        class Space:
+            def __init__(self, source: Iterator[int]):
+                self._source = source
+            @marked
+            def close(self) -> None:
+                """Close the source when it can be closed."""
+                close = getattr(self._source, "close", None)
+                if callable(close):
+                    close()
+    ''')
+    assert result["space:close"].number == 0
+    assert not result["space:close"].open
+
+
+def test_an_inherited_container_iterates_what_it_stores(tmp_path):
+    """`for row in self` on a UserList subclass yields the stored elements."""
+    _, result = _program(tmp_path, '''
+        from collections import UserList
+        from metta._binding.runtime import Runtime
+        class Runtimes(UserList[Runtime]):
+            def cross(self) -> int:
+                total = self[0].must("first")
+                for runtime in self:
+                    total += runtime.must("each")
+                return total
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Build the container and cross through everything it stores."""
+                return Runtimes([Runtime()]).cross()
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_a_field_test_against_none_narrows_the_field(tmp_path):
+    """`if self._rt is not None: self._rt.must()` reads only the engine."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self._rt = None
+            @marked
+            def start(self) -> None:
+                """Hold the engine."""
+                self._rt = Runtime()
+            @marked
+            def first(self) -> int:
+                """Cross only when the engine exists."""
+                if self._rt is None:
+                    return 0
+                return self._rt.must("value")
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_an_any_value_narrowed_by_isinstance_is_that_type(tmp_path):
+    """After `isinstance(atom, Expression)` an Any parameter is an Expression; an iterable arm stays open."""
+    _, result = _program(tmp_path, '''
+        from collections.abc import Iterable
+        from typing import Any
+        from metta._binding.runtime import Runtime
+        class Expression:
+            def __init__(self):
+                self._rt = Runtime()
+            def cross(self) -> int:
+                return self._rt.must("value")
+        class Space:
+            @marked
+            def typed(self, atom: Any) -> int:
+                """Cross only through the arm the test selects."""
+                if isinstance(atom, Expression):
+                    return atom.cross()
+                return 0
+            @marked
+            def iterated(self, atoms: Any) -> int:
+                """Iterate an Any once the test says it can be iterated."""
+                if isinstance(atoms, Iterable):
+                    return sum(atom.cross() for atom in atoms)
+                return 0
+    ''')
+    assert result["space:typed"].number == 1
+    assert not result["space:typed"].open
+    assert result["space:iterated"].number is None
+    assert result["space:iterated"].defect_open
+
+
+def test_a_supplied_value_reaches_a_concrete_parameter_as_its_declared_class(tmp_path):
+    """A caller's protocol value is the declared class inside the callee; the caller keeps the contract."""
+    _, result = _program(tmp_path, '''
+        from typing import Protocol
+        from metta._binding.runtime import Runtime
+        class Space:
+            def __init__(self):
+                self._rt = Runtime()
+            @marked
+            def first(self) -> int:
+                """Read this space's own engine."""
+                return self._rt.must("value")
+        class SpaceLike(Protocol):
+            def first(self) -> int: ...
+        def serve(m: SpaceLike) -> int:
+            return relay(m)
+        def relay(space: Space) -> int:
+            return space._rt.must("relayed")
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_a_source_iter_yields_its_elements_to_a_loop(tmp_path):
+    """`for row in rows` binds the rows an __iter__ returning iter(self.data) yields."""
+    _, result = _program(tmp_path, '''
+        from collections import UserList
+        from collections.abc import Iterator
+        from metta._binding.runtime import Runtime
+        class Runtimes(UserList[Runtime]):
+            def __iter__(self) -> Iterator[Runtime]:
+                return iter(self.data)
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross through each element a source __iter__ yields."""
+                return sum(runtime.must("value") for runtime in Runtimes([Runtime()]))
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_type_of_a_value_is_its_class_and_a_made_class_resolves_through_its_bases(tmp_path):
+    """`type(self)._columns` reads the class attribute; `type("Row", (Row,), {...})` is a Row."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        class Row:
+            _columns: tuple[str, ...] = ()
+            def __init__(self):
+                self._rt = Runtime()
+            def cross(self) -> int:
+                return self._rt.must("value")
+            def names(self) -> tuple[str, ...]:
+                return type(self)._columns
+        def row_class(columns):
+            return type("Row", (Row,), {"_columns": columns})
+        class Space:
+            @marked
+            def first(self) -> int:
+                """Cross through a dynamically made row class."""
+                row = row_class(("a",))()
+                return row.cross() + len(row.names())
+    ''')
+    assert result["space:first"].number == 1
+    assert not result["space:first"].open
+
+
+def test_invocation_table_keeps_only_modules_this_interpreter_ships(tmp_path, monkeypatch):
+    """The VERSIONS ranges of typeshed decide which stub modules the table reads."""
+    doororder = _tool(monkeypatch)
+    versions = tmp_path / "VERSIONS"
+    versions.write_text("# comment\nold: 3.0-3.11\nnew: 3.14-\nfuture: 3.99-\nsub.child: 3.0-\n")
+    assert not doororder._shipped("old", versions)
+    assert not doororder._shipped("old.member", versions)
+    assert doororder._shipped("new", versions)
+    assert not doororder._shipped("future", versions)
+    assert doororder._shipped("sub.child.deep", versions)
+    assert doororder._shipped("unlisted", versions)
+    assert not any(key.startswith("distutils.") for key in doororder.invocations())

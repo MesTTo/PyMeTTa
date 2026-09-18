@@ -445,3 +445,6 @@ _.changes
 # BenchmarkBaseline.collecting() is entered with `with` by benchmarks/test_benchmarks.py
 # and benchmarks/extension_cost.py, outside vulture's paths.
 collecting
+# The door-order gate's own verdict: read by tools/doororder.py, which is
+# outside Vulture's paths, and by its controls in tests/repository.
+_.defect_open

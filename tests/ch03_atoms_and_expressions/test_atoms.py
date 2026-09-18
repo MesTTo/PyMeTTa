@@ -1,5 +1,7 @@
 """Purpose: unit tests for the atom model and wire encoding, engine-free.
 Guarantees:
+  - nested undefined wire wrappers fail before payload descent [tested:
+    test_nested_undefined_wire_is_refused_before_descent; commit=cfe153315da5cd78e53d64f28fec3c6004fe4777]
   - the atom ordering expectation is elementwise for unequal expression
     lengths [tested: test_atoms_sort_in_prologs_standard_order;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
@@ -873,6 +875,16 @@ def test_malformed_wire_is_refused():  # noqa: D103  -- pytest discovers or inje
 def test_atom_from_wire_rejects_undefined_truth():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="valid only as a complete evaluation answer"):
         convert.atom_from_wire(["u", ["s", "answer"], "delayed_goal"])
+
+
+@pytest.mark.parametrize("decoder", [convert.atom_from_wire, convert.from_wire])
+def test_nested_undefined_wire_is_refused_before_descent(decoder):
+    """Undefined truth wraps one complete answer and cannot wrap another."""
+    wire = ["s", "answer"]
+    for _ in range(5000):
+        wire = ["u", wire, "delayed_goal"]
+    with pytest.raises(ValueError, match="valid only as a complete evaluation answer"):
+        decoder(wire)
 
 
 def test_anonymous_variable_is_fresh_per_occurrence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
