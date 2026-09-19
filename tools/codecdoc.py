@@ -30,10 +30,14 @@ from __future__ import annotations
 import json
 import re
 import sys
+from pathlib import Path
 
-from metta._roots import workspace
-
-ROOT = workspace()
+# Derived inline rather than through `metta._roots`, because this tool runs as a
+# SCRIPT: `python tools/codecdoc.py` puts tools/ on sys.path and not the seat, so the
+# package holding the resolver is not importable yet. Same rule as the seat's own
+# bootstrap files, and the marker is the workspace's, the tree holding engine/ and lib/.
+ROOT = next(parent for parent in Path(__file__).resolve().parents
+       if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 CORPUS = ROOT / "tests" / "codec" / "corpus.json"
 DOCUMENT = ROOT / "CODEC.md"
 FENCE = re.compile(

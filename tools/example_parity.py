@@ -106,9 +106,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from metta._roots import workspace
-
-REPO = workspace()
+# Derived inline rather than through `metta._roots`, because this tool runs as a
+# SCRIPT: `python tools/example_parity.py` puts tools/ on sys.path and not the seat, so the
+# package holding the resolver is not importable yet. Same rule as the seat's own
+# bootstrap files, and the marker is the workspace's, the tree holding engine/ and lib/.
+REPO = next(parent for parent in Path(__file__).resolve().parents
+       if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 SKIPS = REPO / "tests" / "data" / "example_skips.txt"
 #: A verdict line, by its SHAPE rather than by a word inside it. Both
 #: configurations print `is X, should Y. <mark>` per `!(test ...)`, and reading

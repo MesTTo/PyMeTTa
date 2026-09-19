@@ -76,9 +76,12 @@ import re
 import sys
 from dataclasses import dataclass
 
-from metta._roots import workspace
-
-ROOT = workspace()
+# Derived inline rather than through `metta._roots`, because this tool runs as a
+# SCRIPT: `python tools/pygmentsgen.py` puts tools/ on sys.path and not the seat, so the
+# package holding the resolver is not importable yet. Same rule as the seat's own
+# bootstrap files, and the marker is the workspace's, the tree holding engine/ and lib/.
+ROOT = next(parent for parent in pathlib.Path(__file__).resolve().parents
+       if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 GRAMMAR = ROOT / "website" / ".vitepress" / "metta.tmLanguage.json"
 MODULE = ROOT / "extensions" / "python" / "metta" / "_pygments.py"
 

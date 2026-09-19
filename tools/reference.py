@@ -23,9 +23,12 @@ import sys
 
 import griffe
 
-from metta._roots import workspace
-
-ROOT = workspace()
+# Derived inline rather than through `metta._roots`, because this tool runs as a
+# SCRIPT: `python tools/reference.py` puts tools/ on sys.path and not the seat, so the
+# package holding the resolver is not importable yet. Same rule as the seat's own
+# bootstrap files, and the marker is the workspace's, the tree holding engine/ and lib/.
+ROOT = next(parent for parent in pathlib.Path(__file__).resolve().parents
+       if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 PAGES = ROOT / "website" / "reference"
 SOURCE = re.compile(r"^Source: `([^`]+)`\.$", re.MULTILINE)
 PREAMBLE = "The entries below reproduce the source signatures and docstrings."

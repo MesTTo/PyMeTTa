@@ -42,14 +42,17 @@ from pathlib import Path
 
 from example_parity import corpus
 
-from metta._roots import workspace
-
 #: Below this, a resemblance is coincidence rather than derivation. Chosen
 #: because the examples between 0.75 and 0.85 are recognisably the same
 #: program with an edited body, and nothing between 0.5 and 0.75 was.
 THRESHOLD = 0.75
 
-REPO = workspace()
+# Derived inline rather than through `metta._roots`, because this tool runs as a
+# SCRIPT: `python tools/example_origins.py` puts tools/ on sys.path and not the seat, so the
+# package holding the resolver is not importable yet. Same rule as the seat's own
+# bootstrap files, and the marker is the workspace's, the tree holding engine/ and lib/.
+REPO = next(parent for parent in Path(__file__).resolve().parents
+       if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 MANIFEST = REPO / "examples" / "ORIGINS.tsv"
 
 UPSTREAM_SOURCE = "https://github.com/patham9/PeTTa"
