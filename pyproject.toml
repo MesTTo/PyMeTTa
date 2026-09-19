@@ -432,7 +432,12 @@ filterwarnings = [
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-extend-exclude = ["examples/**/_common.py", "**/tools/protocol_sources/cpython/**"]
+#: The last entry is the .metta corpus, a component of its own that the twins
+#: mount so they can be run against the programs they are twins OF. Its Python
+#: fixtures are that component's, linted by whatever it chooses, the same way
+#: the corpus at the repository root is in no ruff scope here.
+extend-exclude = ["examples/**/_common.py", "**/tools/protocol_sources/cpython/**",
+                  "examples/language-feature-examples/examples/**"]
 
 # The library floor is py312, so Ruff must keep rejecting 3.14-only syntax
 # everywhere it could ship. The one file below is a TEST helper holding the
