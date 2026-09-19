@@ -67,6 +67,10 @@ RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
 # extension packages: the lane checks them, and a scope this test cannot see
 # is a burn-down with a door under it, which is the reason the line above says
 # tools/ and tests/checks/ joined for.
+# The twin examples joined on 2026-09-19: check.sh's seat ruff lane has
+# always linted them and this tuple did not, so their suppressions were
+# priced by nothing, which is the door under the burn-down this comment
+# names twice already.
 # `ext` moved to the repository scope on 2026-09-19 when the distributions
 # became a component beside the seat rather than a directory inside it. It is
 # the same ruff project root either way, because `ext/` carries no config of
@@ -74,7 +78,8 @@ RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
 RUFF_SCOPES = (
     (
         PYTHON_ROOT,
-        ("metta", "tests", "bench.py", "tools", "conftest.py", "_workspace.py"),
+        ("metta", "tests", "bench.py", "tools", "examples/language-feature-examples",
+         "conftest.py", "_workspace.py"),
     ),
     (REPO, ("ext", "tests/checks")),
 )
@@ -92,12 +97,15 @@ RUFF_FAMILY_BURN_DOWN = {
     # and the import-reuse, saga and identity-wire controls ask the engine
     # about the atoms True and False as literals; every site states its
     # reason inline, and RUF100 refuses one that stops being needed.
-    # 68 -> 69 for the string library's overlap flag, which the merged
-    # standard-library work added: `string-count`'s third argument asks for
-    # overlapping counts and MeTTa takes it positionally, because MeTTa calls
-    # have no keywords. It is the same boolean-LITERAL-as-atom case as the
-    # sites above rather than a behaviour switch.
-    "FBT": 69,
+    # 68 -> 77 when the twin examples entered this accounting on 2026-09-19.
+    # Eight were always linted by check.sh's seat lane and priced by nothing;
+    # the ninth is the string library's overlap flag. Every one is a boolean
+    # LITERAL crossing as an atom, the pattern this entry already describes:
+    # the match TEMPLATE in constructive_negation, the folded accumulator in
+    # he_types, the membership answer in functionhead3, and `string-count`'s
+    # overlapping argument, which MeTTa takes positionally because MeTTa calls
+    # have no keywords.
+    "FBT": 77,
     # 35 -> 37 with the compiled dict story: _x_Set and _x_DictComp join the
     # _x_<Node> translator-dispatch family, whose suffix mirrors ast class
     # names by contract.
@@ -375,7 +383,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # parameters exist for the MeTTa signature they publish, and the codec
     # conformance and combinator doubles implement protocol methods whose
     # arguments the double has no use for; each carries its reason inline.
-    "ARG": 157,
+    # 157 -> 167 when the twin examples entered this accounting on 2026-09-19,
+    # priced by nothing until then. Each is a parameter the MeTTa signature
+    # DECLARES whose body answers a constant, or a handler the reflection
+    # space reaches rather than the caller; the example would be wrong without
+    # the parameter and Python cannot see who supplies it.
+    "ARG": 167,
     # The evaluation batch retains each acquired cursor before acquiring the
     # next one, so a failed acquisition can release the complete prefix.
     "PERF": 1,
