@@ -1256,9 +1256,18 @@ class CallGraph:
         if reference.member == "*":
             # A member no standard-library type declares was written
             # by something else, so what it holds is unknown.
-            reason = self._where(node, f"external value {name}")
-            self.open.add(reason)
-            return frozenset({Reference("unknown", reason)})
+            self.open.add(self._where(node, f"external value {name}"))
+            # The VALUE the caller receives carries the site and not the name.
+            # Which external name made it unknown is recorded in `open` on the
+            # line above, where it is read; carrying it in the reference too
+            # makes one distinct unknown per external name PER SITE, and those
+            # unknowns then flow into every set the value reaches. Measured
+            # 2026-09-19 on the merged tree: a single slot held 3,627 unknowns,
+            # 3,619 of them this one site's, differing only in the external
+            # name embedded in the middle. That is a site crossed with every
+            # external name that reached it, and every set operation is linear
+            # in it.
+            return frozenset({Reference("unknown", self._where(node, "external value"))})
         if root == "janus_swi":
             self.native.add(self._where(node, name))
         elif root not in sys.stdlib_module_names and root != "builtins":
