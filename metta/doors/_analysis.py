@@ -316,7 +316,9 @@ def _duplicated(value: object) -> object:
     turned one into a plain dict would raise the first time a missing slot was read.
     """
     if isinstance(value, defaultdict):
-        clone = defaultdict(value.default_factory)
+        #: Annotated because the factory alone does not say what the mapping holds,
+        #: and this walk is typed over `object` at both ends.
+        clone: defaultdict[object, object] = defaultdict(value.default_factory)
         clone.update({key: _duplicated(item) for key, item in value.items()})
         return clone
     if isinstance(value, dict):
