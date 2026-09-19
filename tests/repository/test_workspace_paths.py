@@ -19,7 +19,10 @@ import pytest
 _WORKSPACE_ROOT = "/" + "home/"
 # A Windows checkout roots at a drive letter, so a citation copied from one
 # reads C:\\Users\\... or D:\\a\\... and the POSIX needle above never sees it.
-_WINDOWS_ROOT = re.compile(r"[A-Za-z]:[\\\\/](?:Users|home|a)[\\\\/]")
+# A drive is exactly ONE letter, which the lookbehind requires: without it the
+# tail of a URI scheme reads as a drive and `"foo:/a//b"` in the uri library's
+# own fixtures was reported as a Windows path [measured 2026-09-19].
+_WINDOWS_ROOT = re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\\\/](?:Users|home|a)[\\\\/]")
 
 
 def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
