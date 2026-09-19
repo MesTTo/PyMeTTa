@@ -853,10 +853,16 @@ class CallGraph:
                     # The defect is the read itself, recorded where it happens,
                     # so a callee that declares its parameter is not charged
                     # with what its caller read off a contract.
-                    reason = f"undeclared member {reference.name}.{member}"
                     if node is not None and self._reporting:
-                        self.open.add(self._where(node, reason))
-                    result.add(Reference("unknown", reason))
+                        self.open.add(self._where(node, f"undeclared member {reference.name}.{member}"))
+                    # ONE value, not one per parameter times member, which is the rule the
+                    # branch below states for itself: "the domain stays finite". The parameter
+                    # and the member are in `open` above, where they are read; in the value they
+                    # are a site crossed with every supplied parameter that reaches it. Measured
+                    # 2026-09-19: three doors that had numbers each carried 12,527 open entries,
+                    # nearly all of them `_map_atoms:504` once per supplied parameter, and all
+                    # three collapsed to the same maximally degraded verdict.
+                    result.add(Reference("unknown", "undeclared member"))
                 else:
                     # A value the contract produced declares nothing, so every
                     # member of it is the caller's too. One derived value per
