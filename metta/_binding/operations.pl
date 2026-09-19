@@ -217,14 +217,27 @@ metta_py_dirty_many_event(throw(Error), _, _) :-
 %outer transaction has committed and discards it on rollback. The launch atom
 %therefore rides the transaction's ordinary buffered event segment, while the
 %landing atom below is a later write from the event-loop thread.
+% The future predicates are lib_thread's, reached through its module the way
+% the engine reaches lib_conformance:metta_check_space_provider/2. They are
+% module EXPORTS rather than declared backing heads, and a backing registers
+% only the heads it names, so nothing puts them in this file's module: before
+% this they resolved only by whatever the old importer happened to leave
+% visible, and the async lane failed with
+% `metta_py_launch/3: Unknown procedure: metta_async_future_new/2`
+% [measured 2026-09-20; the predicates are defined in module lib_thread].
+%
+% Naming them as heads instead would be wrong: a head list is what a library
+% publishes to MeTTa, and these are Prolog helpers one seat calls, so
+% declaring them would mint six MeTTa names to fix a module-visibility
+% question.
 metta_py_launch(Name, Args, Space) :-
     metta_py_encode_arguments(Args, Tagged, _),
-    metta_async_future_new(Space, Done),
+    lib_thread:metta_async_future_new(Space, Done),
     (   catch(metta_py_async_prepare(Name, Tagged, Space, Done, Token),
               Error,
-              ( metta_async_future_abandon(Space, Done), throw(Error) ))
+              ( lib_thread:metta_async_future_abandon(Space, Done), throw(Error) ))
     ->  true
-    ;   metta_async_future_abandon(Space, Done),
+    ;   lib_thread:metta_async_future_abandon(Space, Done),
         fail
     ),
     metta_py_async_publish_launch(Name, Space, Token, Done).
@@ -266,7 +279,7 @@ metta_py_async_prepare(Name, Tagged, Space, Done, Token) :-
     metta_py_host_call(
         Name, false,
         py_call(metta_ops:async_prepare(Name, Tagged, Parent), Token)),
-    metta_async_future_bind(Token, Name, Space, Done).
+    lib_thread:metta_async_future_bind(Token, Name, Space, Done).
 
 metta_py_async_start(Token) :-
     py_call(metta_ops:async_start(Token), Started),
@@ -278,15 +291,15 @@ metta_py_async_start(Token) :-
 
 metta_py_async_discard(Token) :-
     catch(py_call(metta_ops:async_discard(Token), _), _, true),
-    metta_async_future_discard(Token).
+    lib_thread:metta_async_future_discard(Token).
 
 metta_py_async_discard(Token, Space, Done) :-
     catch(py_call(metta_ops:async_discard(Token), _), _, true),
-    metta_async_future_discard(Token, Space, Done).
+    lib_thread:metta_async_future_discard(Token, Space, Done).
 
 metta_py_async_land(Token, Status0, Payload) :-
     metta_py_tag(Status0, Status),
-    metta_async_future(Token, Name, Space, _),
+    lib_thread:metta_async_future(Token, Name, Space, _),
     catch(metta_py_async_outcome(Status, Payload, Space, Outcome),
           Error,
           Outcome = error(Error)),
@@ -304,7 +317,7 @@ metta_py_async_land(Token, Status0, Payload) :-
     %deadlocks test_a_landing_observer_can_await_the_future_it_observes
     %outright, whose observer awaits the very future the callback would still
     %owe a settle.
-    metta_async_future_settle(Token, Outcome, Name, Space),
+    lib_thread:metta_async_future_settle(Token, Outcome, Name, Space),
     metta_py_async_publish_landing(Name, Space).
 
 %A failed primary call still has the captured runtime and token. This path
@@ -313,7 +326,7 @@ metta_py_async_land(Token, Status0, Payload) :-
 %outcome committed before a watcher raised.
 metta_py_async_fail_landing(Token, Class0, Exception) :-
     metta_py_async_outcome(error, [Class0, Exception], _, Outcome),
-    metta_async_future_fail(Token, Outcome).
+    lib_thread:metta_async_future_fail(Token, Outcome).
 
 %A watcher failure is raised to the background publisher and logged there; it
 %cannot rewrite an operation outcome that was already committed to its future.
@@ -329,7 +342,7 @@ metta_py_async_outcome(ok, Tagged, Space, done) :-
     (   metta_py_declined(Tagged)
     ->  true
     ;   metta_py_decode_shared(Tagged, Result, _),
-        future_add_atom(Space, Result)
+        lib_thread:future_add_atom(Space, Result)
     ).
 metta_py_async_outcome(cancelled, _, _, cancelled).
 metta_py_async_outcome(error, [Class0, Exception], _,

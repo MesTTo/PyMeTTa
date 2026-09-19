@@ -185,5 +185,5 @@ metta_py_atoms(Space, Encoded) :-
 %The dedicated answer mutex makes the two fields one observation rather than a
 %bag read followed by an unrelated counter read.
 metta_py_future_snapshot(Space, [Watermark, Encoded]) :-
-    metta_future_snapshot(Space, Atoms, Watermark),
+    lib_thread:metta_future_snapshot(Space, Atoms, Watermark),
     maplist(metta_py_encode, Atoms, Encoded).
