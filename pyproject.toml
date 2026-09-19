@@ -1,1 +1,879 @@
-../../pyproject.toml
+# Purpose: Defines MeTTa packaging, dependencies, tool policy, and verification contracts.
+# Assumes: Packaging and gate commands run from the repository root with extensions/python importable.
+# Guarantees: Static import contracts keep the narrow core independent of optional satellites,
+#   while excluding annotations that cannot execute and naming every deferred boundary crossing.
+# Decides: metta._spaces.handle is core; metta._history.world, metta._history.saga,
+#   metta.foreign._persistent, and public integration modules
+#   are satellites; TYPE_CHECKING-only imports do not form runtime dependencies.
+# [tested: cd extensions/python && PYTHONPATH=$PWD lint-imports; commit=350c0d9dbd3c78a4f779d6331e223e939b94c2c8]
+# Decides: NetworkX and NumPy are test-only infrastructure because the
+# blocking gallery executes them, while the core distribution remains
+# dependency-free of them.
+# [tested: test_every_extra_installs_packages_and_never_a_library,
+# test_minimal_version_matrix_installs_blocking_gallery_dependency;
+# commit=8bfe05c3850776543ece25a85038242f10b1d841]
+# Decides: locked CPython files are reference inputs whose exact bytes are
+# checked by protocol_source.Sources, outside authored-code linting.
+# [tested: ProtocolSourceTests.test_locked_bytes_and_complete_packs_fail_closed;
+# commit=f88b11ae305c4e1bfafa8387d1f24e51d0d8cb92]
+
+[build-system]
+requires = ["setuptools>=83"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pymetta"
+dynamic = ["version"]
+description = "MeTTa in Python, on a SWI-Prolog engine"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+#: Runtime, by the test that decides it: delete one, ship the wheel, and a
+#: user's program stops working. Neither is imported by `import metta` --
+#: measured, both absent from sys.modules after it -- but `metta._declare.operations` and
+#: `metta._declare.definitions` reach `_documentation`, and that is mainstream
+#: use, not an optional feature.
+#: The `<0.18` cap on docstring-parser is gone as of 2026-08-28. It was
+#: introduced with the typed-documentation work (bd23e0ee) with no recorded
+#: reason and had come to exclude the CURRENT release: 0.18.0 is the latest.
+#: Measured against it rather than assumed -- the two names this library uses,
+#: DocstringStyle and parse, are present and parse identically, and the whole
+#: pytest gate passes on 0.18.0 -- so the bound was costing a user a resolver
+#: conflict and buying nothing. janus-swi has never carried an upper bound and
+#: this now matches it.
+#: janus-swi is NOT here, and that is the whole of what makes a failed install
+#: legible. It is the bridge to SWI-Prolog, it has no wheel on Linux or macOS,
+#: and its sdist refuses to build when SWI is absent -- inside pip's isolated
+#: subprocess, before any of this package exists. So requiring it meant
+#: `pip install pymetta` on a machine without SWI died in someone else's
+#: setup.py: measured 2026-08-29 on macOS 26.4.1 and on Windows, thirty lines
+#: of traceback ending in `RuntimeError: Failed to find SWI-Prolog components`,
+#: and on Windows `The system was unable to find the specified registry key`.
+#: Nothing of ours ran, so nothing of ours could explain it.
+#: As an extra, `pip install pymetta` always succeeds and the FIRST engine call
+#: raises _engine._no_engine's refusal, which names the platform's install
+#: command and the reinstall that follows it. The engine is a program rather
+#: than a Python package either way; this only decides who gets to say so.
+dependencies = [
+    #: The refinement vocabulary the type reader speaks: `Annotated[int, Gt(0)]`
+    #: declares `(Annotated Number (Gt 0))`. It is the vocabulary pydantic,
+    #: msgspec, beartype and Hypothesis already read, and a reader that speaks a
+    #: vocabulary imports it; the package is pure Python with no dependency of
+    #: its own.
+    "annotated-types>=0.7",
+    "docstring-parser>=0.17",
+]
+classifiers = [
+    # This is alpha because MeTTa is, and this is that statement in PyPI's own
+    # vocabulary, so an installer reading nothing but the metadata is told what
+    # SECURITY.md and CONTRIBUTING.md tell a reader.
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Prolog",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+]
+
+[project.urls]
+Homepage = "https://github.com/MesTTo/MeTTa-Kernel"
+Repository = "https://github.com/MesTTo/MeTTa-Kernel"
+Issues = "https://github.com/MesTTo/MeTTa-Kernel/issues"
+
+[project.entry-points.pytest11]
+metta = "metta.pytest_plugin"
+
+#: The one door that needs no import from a user at all: Pygments loads
+#: this by itself and reads the class's own aliases, filenames and
+#: mimetypes, so Sphinx, mkdocs, rich, IPython, nbconvert and a Jupyter
+#: kernel whose language_info says `text/x-metta` all colour MeTTa the
+#: moment pymetta is installed. The name on the left is ignored by
+#: Pygments and is the distribution's own; Pygments loads the entry point and
+#: reads the CLASS's aliases, which mako's own declaration says out loud
+#: [source: https://github.com/sqlalchemy/mako/blob/rel_1_3_10/pyproject.toml].
+#: The upstream reference names a release. Configuration headers participate
+#: in check_evidence_tags.PROVENANCE_SOURCES. The module is GENERATED from
+#: website/.vitepress/metta.tmLanguage.json by tools/pygmentsgen.py.
+[project.entry-points."pygments.lexers"]
+metta = "metta._pygments:MettaLexer"
+
+[project.scripts]
+metta = "metta.cli:main"
+
+[project.optional-dependencies]
+#: The bridge to SWI-Prolog. Named so `pip install pymetta[engine]` is one
+#: command for a reader who already has SWI, while a plain install stays the
+#: one that cannot fail before this package can speak for itself.
+engine = [
+    "janus-swi>=1.5.2",
+]
+#: EVERY extra below installs PACKAGES, never libraries. pymetta ships zero
+#: integrations (the ruling of 2026-09-07): each library the Python seat can be
+#: extended by is its own distribution under `ext/`,
+#: advertising one `metta.extensions` entry point and found the way a
+#: stranger's package is found. An extra is the convenience name for a set of
+#: them, which is the shape `apache-airflow[amazon]` has for the same reason:
+#: the core knows no cloud, and the extra is how a user says which providers
+#: they want [source: https://airflow.apache.org/docs/apache-airflow-providers/].
+#: So `pip install 'pymetta[dataframes]'` is the command it always was, and
+#: nothing in this file names pandas.
+#: The generic array layer, its default library and its vector index. The layer
+#: itself names no array library: which one is the default is a row against the
+#: `array` point, and `install(m, default=<module>)` takes any module the
+#: standard covers with no package at all.
+arrays = [
+    "metta-arrays",
+    "metta-faiss",
+    "metta-numpy",
+]
+#: The Arrow doors' two producers, which answer two different questions.
+#: nanoarrow builds the ArrowSchema and ArrowArrayStream structs from buffers,
+#: so `rows.__arrow_c_stream__()` needs no pyarrow and a consumer needs only
+#: the Arrow support it already has. pyarrow writes and reads the IPC STREAMING
+#: FORMAT, which is what crosses the gateway as BYTES and is a FlatBuffers
+#: envelope nanoarrow does not write; it is that format's own reference
+#: implementation.
+arrow = [
+    "metta-nanoarrow",
+    "metta-pyarrow",
+]
+das = [
+    "metta-websocket",
+]
+#: A reduction trace as OpenTelemetry spans. Only the API is a dependency of
+#: that package: the SDK, the exporters and the collector are the deployment's,
+#: which is the split the API package exists for, and a library that pulled in
+#: an SDK would be choosing a deployment's pipeline for it.
+otel = [
+    "metta-otel",
+]
+#: Executing a GraphQL query against a served space. The SDL is built as text,
+#: so `GET /graphql` publishes the schema without this; only `POST /graphql`
+#: needs an implementation of the language.
+graphql = [
+    "metta-graphql",
+]
+#: The two frame libraries this repository ships a package for. A third needs
+#: no entry here and no edit anywhere: it registers against the `frame` point
+#: from its own distribution.
+dataframes = [
+    "metta-tables",
+    "metta-pandas",
+    "metta-polars",
+]
+#: The SQL engines a MeTTa head can be registered into as a scalar function.
+#: sqlite3 is the standard library and its package still exists, because "in
+#: the standard library" is not a reason for the core to know a SQL engine.
+sql = [
+    "metta-tables",
+    "metta-duckdb",
+    "metta-sqlite",
+]
+#: A validated model as a constructor expression. The four STRUCTURAL images
+#: (an Enum, a dataclass, a NamedTuple, a class that states __match_args__) are
+#: the core's own and need nothing installed; a model framework's reading is a
+#: package.
+models = [
+    "metta-pydantic",
+]
+live = ["metta-live"]
+remote = ["metta-remote"]
+test = [
+    #: Every extension package this repository ships, so the suite's own
+    #: scenarios RUN rather than skipping. They arrive as PACKAGES, which is
+    #: the whole point: the suite exercises the doors through exactly the
+    #: distributions a user installs, and no library is named here.
+    "pymetta[arrays,arrow,das,dataframes,graphql,live,models,otel,remote,sql]",
+    #: The benchmark plumbing, which is a package of its own because nothing in
+    #: the core needs it: it measures a workload from outside.
+    "metta-benchmarking",
+    #: What a member's own suite needs beyond the member: metta-otel asserts on
+    #: what an EXPORTER received, which is the SDK rather than the API.
+    "metta-otel[test]",
+    "hypothesis>=6.165",
+    #: Reference tests resolve aliases and inherited APIs without importing the
+    #: documented package. This dependency belongs to the test toolchain.
+    "griffelib>=2.3,<3",
+    #: A graph fixture for the blocking gallery, and the OpenAPI
+    #: specification's own validator so the document scenario holds
+    #: `Gateway.openapi()` to the specification rather than to this
+    #: repository's reading of it. Both are the SUITE's tooling, the same class
+    #: as pytest: neither is imported by anything shipped.
+    "networkx>=3.6,<4",
+    "openapi-spec-validator>=0.9",
+    "pytest>=8.4.2",
+    "pytest-benchmark>=5.2",
+    #: Ordering and the per-item wall bound, which the suite's configuration
+    #: reads: pytest-randomly shuffles every run so a test cannot depend on the
+    #: one before it, and pytest-timeout ends an item that is stuck rather than
+    #: slow. Both are in `test` rather than in `checks` because they change what
+    #: the SUITE does, and CI installs `test` to run it.
+    "pytest-randomly>=5",
+    "pytest-timeout>=2.4",
+    "pytest-xdist>=3.8,<4",
+]
+#: Everything `test` installs, plus the linters. Written as the self-reference
+#: PEP 508 gives for exactly this, rather than repeating six pins that then have
+#: to be kept equal by hand: `checks` is a strict superset of `test`, and saying
+#: so once is the only spelling where the two cannot drift.
+checks = [
+    "pymetta[test]",
+    "bandit>=1.9",
+    "codespell>=2.4",
+    #: The `coverage` REPORT lane. pytest-cov is what carries coverage across
+    #: the four xdist workers, each of which is a separate process with its own
+    #: engine; `coverage run -m pytest` alone measures the controller and none
+    #: of them.
+    "coverage[toml]>=7.15",
+    "deptry>=0.25",
+    "import-linter>=2.13",
+    "interrogate>=1.7",
+    "mypy>=1.18",
+    #: The `mutation` REPORT lane, one module per run.
+    "mutmut>=3.7",
+    "perflint>=0.8",
+    "pip-audit>=2.9",
+    "pylint>=3.3,<4",
+    #: The `verifytypes` REPORT lane: how much of the published surface a type
+    #: checker can see a type for. A different question from mypy's, which asks
+    #: whether the annotations that ARE there hold.
+    "pyright>=1.1.411",
+    "pytest-cov>=7",
+    #: The `memray` REPORT lane: what a test still holds when it ends. It is in
+    #: `checks` and not in `test` because its marker is NOT inert without
+    #: `--memray` -- 1.10.0 enforces one on a plain run whenever the plugin is
+    #: installed [measured 2026-09-07] -- so the two `limit_leaks` marks in the
+    #: tree live in tests/checks/memray_plant.py, which the suite never
+    #: collects, and the GATE suite never runs under allocation tracking.
+    #: memray builds for Linux and macOS, and the lane stands down with a note
+    #: where it is absent rather than failing for a reason that is not the tree.
+    "pytest-memray>=1.8",
+    "radon>=6.0",
+    "refurb>=2.3",
+    "ruff>=0.14",
+    "setuptools>=83",
+    "slotscheck>=0.20",
+    "ty>=0.0.1a20",
+    "vulture>=2.16",
+    "xenon>=0.9",
+]
+
+#: This repository is a uv WORKSPACE: pymetta at the root, and one member per
+#: extension package under `ext/`. `uv sync --all-packages`
+#: installs every member from the checkout, and an extra above resolves its
+#: members here rather than from an index, which is what lets
+#: `pip install 'pymetta[dataframes]'` mean the same thing before and after a
+#: release [source: https://docs.astral.sh/uv/concepts/projects/workspaces/].
+#: The membership is a GLOB, so a new package is a directory and no edit here.
+[tool.uv.workspace]
+members = ["ext/metta-*"]
+
+#: Every member resolves from the workspace. Written per name because uv takes
+#: no glob here; `tests/checks/check_layering.py` refuses a member the
+#: workspace does not list and a listing with no member, so the two cannot
+#: drift apart.
+[tool.uv.sources]
+#: The core itself, which every distribution below depends on exactly. It was implicit
+#: while they sat inside its own directory; with `ext/` a sibling of `extensions/` they
+#: are outside it, and uv asks for the mapping rather than guessing
+#: [tested: uv lock --offline --check; commit=WORKTREE].
+pymetta = { workspace = true }
+metta-arrays = { workspace = true }
+metta-benchmarking = { workspace = true }
+metta-duckdb = { workspace = true }
+metta-faiss = { workspace = true }
+metta-graphql = { workspace = true }
+metta-live = { workspace = true }
+metta-nanoarrow = { workspace = true }
+metta-numpy = { workspace = true }
+metta-otel = { workspace = true }
+metta-pandas = { workspace = true }
+metta-polars = { workspace = true }
+metta-pyarrow = { workspace = true }
+metta-pydantic = { workspace = true }
+metta-remote = { workspace = true }
+metta-sqlite = { workspace = true }
+metta-tables = { workspace = true }
+metta-websocket = { workspace = true }
+
+[tool.setuptools]
+package-dir = {"" = "extensions/python"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["extensions/python"]
+include = ["metta", "metta.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+metta = ["*.pyi", "py.typed"]
+"metta._binding" = ["*.pl"]
+
+[tool.setuptools.dynamic]
+version = {attr = "metta._version.__version__"}
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+# The suite's one root, so a run given only FLAGS still collects it.
+# extensions/python/test.sh used to spell `tests` as a trailing argument and
+# drop it whenever the caller passed anything at all, so
+# `sh extensions/python/test.sh -n 0 --durations=25` collected the whole of
+# extensions/python -- benchmarks/conftest.py included -- and died in
+# collection with `PluginValidationError: unknown hook
+# 'pytest_benchmark_update_machine_info'`, because the same command disables the
+# benchmark plugin [measured 2026-09-06]. pytest is the one that can tell a path
+# argument from a flag, so the default belongs here and the runner passes "$@"
+# unchanged. tests/checks/evidence_runners.py READS this value and reports it
+# when it stops naming the pytest collector's own root.
+#: Two roots: the core's suite, and every extension package's own tests. A
+#: member's tests live with the member, which is what makes "delete ext/ and
+#: the core is green" a thing the layout says rather than a thing a reader has
+#: to check. `ext` is the directory, so a package added under it is collected
+#: with no edit here, and the path reaches out of the seat because the
+#: distributions are a sibling of `extensions/` now.
+testpaths = ["tests", "../../ext"]
+
+# pytest-memray's two markers, registered HERE as well as by the plugin, so
+# the plant can carry one where the plugin is absent and be reported as skipped
+# rather than as an error. An unregistered mark raises
+# PytestUnknownMarkWarning, and `filterwarnings = error` below turns that into
+# a failure. pytest merges these with the plugin's own registration.
+markers = [
+    "limit_leaks(location_limit): fail under --memray when one call stack leaves more than this allocated",
+    "limit_memory(limit): fail under --memray when the test's high watermark exceeds this",
+]
+
+# Every thread's stack when an item runs long, dumped from faulthandler's own C
+# watchdog thread, so it reaches a main thread sitting inside a Prolog crossing
+# where no Python bytecode runs. It DUMPS and does not fail: a slow test stays
+# green and a stuck one says where it is.
+#
+# 180 seconds is twice the slowest test measured on this box in the gate's own
+# four-worker configuration -- 89.78s,
+# tests/repository/test_host_carve.py::test_the_python_binding_calls_only_the_published_host_surface,
+# at loadavg 43 [measured 2026-09-06, `-n 4 --dist loadfile --durations=25`] --
+# so ordinary load variation on a box that idles at 25-35 cannot reach it.
+faulthandler_timeout = 180
+
+# The bound that ends a stuck item. Three properties decide the number:
+#   - above every bound a test enforces on its own children, the largest being
+#     600s in tests/ch01_getting_started/test_packaging.py::_build_ext, so the
+#     test's own TimeoutExpired -- which prints the child's output -- always
+#     wins the race and this only ever fires on something genuinely stuck;
+#   - ten times the slowest test measured (89.78s at loadavg 43);
+#   - a quarter of bounded.sh's 3600s ceiling, so a stuck item is NAMED, with
+#     every thread's stack, long before the anonymous session kill.
+timeout = 900
+
+# thread, measured rather than assumed. The engine is embedded in this process
+# and the main thread sits inside PL_next_solution for the length of a crossing,
+# where CPython cannot run a Python-level signal handler:
+#   - signal, --timeout=5 against `janus_swi.query_once("sleep(30)")`: the run
+#     took 30.18s and reported `Failed: Timeout (>5.0s)` only when sleep/1
+#     RETURNED, so a crossing that never returns is never bounded at all;
+#   - signal, --timeout=5 against a hang in a Python callback reached from
+#     Prolog: it fires, and the Failed it raises comes back out of the crossing
+#     as a PrologError, so the report names the engine rather than the timeout;
+#   - thread, the same 30-second crossing: 5.41s wall, exit 1, and the dump
+#     names janus.py:245 query_once -> _swipl.call.
+# [measured 2026-09-06; the two probe files are in the journal entry
+# docs/journal/2026-09-06-a-suite-that-cannot-hide-a-crash.md]
+# thread ends the process with os._exit(1) after printing every thread's stack.
+# It therefore never unwinds a live crossing, which is what the signal method
+# does and what leaves the engine's next call answering for the wrong reason.
+# Under --dist loadfile each worker owns one engine, so the kill is contained,
+# and --max-worker-restart=0 turns it into a loud session failure rather than a
+# retried flake.
+timeout_method = "thread"
+
+# A warning is a failure unless this file says otherwise, and each exception
+# carries the reason it is one. Later entries win, which is why the unraisable
+# rule sits last.
+filterwarnings = [
+    "error",
+    # ResourceWarning is raised from __del__ and from weakref finalizers, so it
+    # is delivered whenever the collector happens to run and is attributed to
+    # whichever test is running then -- an order-dependent failure by
+    # construction, in a suite whose whole point here is to have none. Making it
+    # fatal also raises INSIDE the finalizer, which abandons the cleanup that
+    # finalizer was running: measured 2026-09-06, `-W error` over the suite gave
+    # 125 failures and 54 errors, of which 43 were one library diagnostic
+    # ("an open metta Cursor was discarded") and 42 more were the
+    # PytestUnraisableExceptionWarning cascade from raising inside __del__;
+    # demoting this one category left 3. The contract itself is tested at its
+    # own door, where a test that means to see the warning catches it
+    # (tests/ch04_spaces_and_matching/test_variadic_doors.py,
+    # tests/ch20_extending_the_engine/test_deprecation_catalog.py), so nothing
+    # is lost by not also making it fatal everywhere else.
+    "ignore::ResourceWarning",
+    # bandit's extension loader calls pkg_resources with an argument setuptools
+    # has retired. It is reached by importlib.util.find_spec("bandit") in
+    # test_every_module_invocation_in_the_gate_reaches_an_entry_point, which
+    # imports every `python -m` target the gate names, so the warning is
+    # bandit's and the fix is bandit's
+    # [source: bandit/core/extension_loader.py:29 load_formatters].
+    "ignore:The verify_requirements argument is now a no-op:DeprecationWarning",
+    # pytest-benchmark declares an option with argparse.FileType, which Python
+    # 3.14 deprecates. It fires while pytest registers the plugin, before any
+    # test runs, so it is unreachable from this repository
+    # [source: pytest_benchmark/plugin.py:260 pytest_addoption].
+    "ignore:FileType is deprecated:PendingDeprecationWarning",
+    # Last, so no entry above can soften it. An exception that CPython cannot
+    # raise -- one escaping __del__, a weakref callback or a thread bootstrap --
+    # is otherwise printed to stderr and the test still passes. This week's
+    # finaliser crashes were unraisable exceptions before they were
+    # segmentation faults.
+    "error::pytest.PytestUnraisableExceptionWarning",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["examples/**/_common.py", "**/tools/protocol_sources/cpython/**"]
+
+# The library floor is py312, so Ruff must keep rejecting 3.14-only syntax
+# everywhere it could ship. The one file below is a TEST helper holding the
+# t-string literals the template-hole suite needs, imported only when the
+# running interpreter is 3.14; without this entry Ruff refuses to parse it
+# ("Cannot use t-strings on Python 3.12").
+[tool.ruff.per-file-target-version]
+"tests/ch11_python_as_a_notation/template_literals_314.py" = "py314"
+
+[tool.ruff.lint]
+# Refurb owns these newer rules. Ruff must preserve their targeted ``noqa``
+# directives even though this Ruff version does not implement the codes.
+external = ["FURB104", "FURB141", "FURB143"]
+select = [
+    "F",
+    "E", "W",
+    "I",
+    "UP",
+    "B",
+    "BLE",
+    "S",
+    "PL",
+    "RUF",
+    "FURB",
+    "PYI",
+    "SIM",
+    "C4",
+    "PTH",
+    "RET",
+    "FBT",
+    "N",
+    "A",
+    "ARG",
+    "D",
+    "PERF",
+    "C90",
+    "TRY",
+    "EM",
+]
+ignore = [
+    "E501",
+    "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+    "PLR2004",
+    "S101",
+]
+
+[tool.ruff.lint.mccabe]
+# Generous by ruling (user, 2026-08-24): the limit exists to catch a function
+# nobody can follow, not to tax a readable dispatch ladder into helper
+# fragments. xenon's absolute-D bound remains the real shape gate.
+#
+# RAISED 2026-08-31, 15 to 35, by the same ruling restated: a dispatch ladder
+# that grows one arm should not have to be broken up to keep a counter happy.
+# The functions over 15 are ladders of exactly that kind, each arm short and
+# independent: evidence_runners.executed at 32 and
+# check_evidence_tags._python_targets at 23. 35 sits above the largest, so what
+# still trips this is a function that grew past every one of them rather than
+# one that gained a case.
+max-complexity = 35
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "BLE", "PLW", "SIM", "RUF059", "PLC0415"]
+# An extension package's own suite is a suite, and reads the same way as the
+# core's: a deferred import inside a scenario is how a test reaches an optional
+# library after `importorskip` has decided the scenario runs at all.
+"ext/*/tests/**" = ["S", "BLE", "PLW", "SIM", "RUF059", "PLC0415"]
+# A language-feature example mirrors ITS MeTTa example's program, so the
+# simplifications ruff offers there are requests to stop mirroring it:
+# 05-if4.metta really does read `(if (== 42 42) True False)`, and its Python
+# has to as well or the file no longer answers the program it names. The
+# corpus carried these ignores through `tests/**` while it lived under that
+# directory; the entry is spelled out now that it sits beside the other
+# examples.
+"examples/language-feature-examples/**" = ["S", "BLE", "PLW", "SIM", "RUF059", "PLC0415"]
+"bench.py" = ["S", "PLW"]
+"metta/__init__.py" = ["PLW0603", "PTH"]
+# The root's path helpers moved here and retain their lexical os.path behavior.
+"metta/_spaces/ambient.py" = ["PTH"]
+
+[tool.ruff.lint.isort]
+# This repository's own distributions, so a member sorts with `metta` rather
+# than among the third-party libraries it is there to integrate. Written as a
+# prefix, since the roster is a workspace glob and a list here would drift.
+known-first-party = ["metta"]
+known-local-folder = ["_workspace"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# Every disable below is a judgement with a reason, not a flag list. pylint is
+# a GATE, so an entry here says "this rule is wrong for this codebase" and a
+# finding that is not covered by one is a real finding.
+[tool.pylint."messages control"]
+disable = [
+    # PEP 562 declarations use the explicit re-export idiom required by mypy;
+    # Pylint documents C0414 as a false positive for that convention.
+    "useless-import-alias",
+    # Concept modules colocate public doors with their implementations. A
+    # function-local parameter may name the same concept as a module's door;
+    # Python's lexical binding makes that deliberate shadow unambiguous.
+    "redefined-outer-name",
+    # Style the project settles elsewhere: ruff owns line length and import
+    # order, and interrogate owns docstring coverage with a threshold.
+    "line-too-long",
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "invalid-name",
+    # Size and shape, which xenon already bounds by complexity rather than by
+    # counting. order_key/1 returns seven times because Prolog's standard
+    # order of terms has seven cases, and MeTTa's surface is ledger item B1.
+    "too-many-arguments",
+    "too-many-locals",
+    "too-many-branches",
+    # Evaluation predicates state their full fast-path contract together;
+    # xenon measures complexity, as for branch counts above.
+    "too-many-boolean-expressions",
+    "too-many-statements",
+    "too-many-return-statements",
+    "too-many-instance-attributes",
+    "too-many-public-methods",
+    "too-few-public-methods",
+    "too-many-lines",
+    # A typing.Protocol's members have `...` bodies. A class satisfying one
+    # structurally does not "override" anything, so every hit is a Protocol.
+    "abstract-method",
+    # The underscore marks the PACKAGE boundary, not a per-module one: these
+    # are sibling internals of one package reading each other, which is what
+    # the leading underscore on the module name already says.
+    "protected-access",
+    # Judged per site and marked there for ruff, which sees the same three:
+    # E402 in the bootstrap, BLE001 where a BaseException must reach the
+    # caller, PLC0415 where a module is deliberately lazy.
+    "wrong-import-position",
+    "broad-exception-caught",
+    "import-outside-toplevel",
+    # Counts a function-level deferred import as a module edge. results.py
+    # imports space inside why() precisely to break the cycle, and says so.
+    # import-linter models the real rule and is a passing gate.
+    "cyclic-import",
+    # Every hit is `annotation is type(None)`, which compares an annotation to
+    # the NoneType CLASS by identity. isinstance cannot express that.
+    "unidiomatic-typecheck",
+    # `format` is a public parameter name on save() and load(). The shadow is
+    # function-local; renaming it would break the API to please a linter.
+    "redefined-builtin",
+    # Visitor dispatch: getattr(self, f"_x_{...}") guarded by an is-None
+    # raise, so the value pylint cannot infer is always a bound method.
+    "not-callable",
+    # PEP 562. The name resolves through the module __getattr__ below it, and
+    # ruff's F822 is annotated at the same line for the same reason.
+    "undefined-all-variable",
+    # The three remaining are __all__ lists, which are two modules' public
+    # surfaces rather than duplicated logic.
+    "duplicate-code",
+]
+
+[tool.mypy]
+python_version = "3.12"
+# The core AND every extension package: a member is shipped code, and the
+# overrides below are what let it name its own library without a stub package
+# in the checks extra. Spelled as the directory, so a package added under
+# `ext/` is checked with no edit here. The path reaches out of the seat because
+# the distributions are a sibling of `extensions/` now, and this lane runs
+# inside the seat so `metta` resolves as it always has.
+files = ["metta", "../../ext"]
+# A member's own suite, for the same reason the core's is not checked: this
+# gate is about the surface a program imports, and a test's local bindings are
+# not that. And setuptools' own scratch, which the two shell proofs leave
+# behind whenever they BUILD a member: a copy of the module under `build/lib/`
+# is a second module of the same name and mypy stops on the collision before
+# it checks anything [measured 2026-09-08, `Duplicate module named
+# "metta_arrays"`]. Written as a regex over the path, which is mypy's spelling.
+exclude = "(^|/)ext/[^/]+/(tests|build)/"
+explicit_package_bases = true
+mypy_path = "."
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+no_site_packages = true
+
+[[tool.mypy.overrides]]
+module = ["pytest"]
+ignore_missing_imports = true
+
+
+# Beside rich for the same reason: `pygments.*` is what loads metta/_pygments.py
+# through the entry point and `IPython.*` is what calls
+# metta/ipython.py's load_ipython_extension, so each one's presence is the
+# precondition of the call rather than a dependency of this package. Neither
+# ships stubs (types-Pygments exists and IPython has none), and skipping the
+# follow keeps a stub package out of the checks extra for two import lines.
+[[tool.mypy.overrides]]
+# Short, because an extension package reaches its library through the seam's
+# `module` and `optional-module` services rather than by importing it: the row
+# holds the module NAME, so `import metta_pandas` costs nothing and mypy sees
+# no pandas to be missing. What is left is the handful of libraries something
+# here really does import by statement.
+module = [
+    "annotated_types", "hypothesis.*", "nanoarrow.*",
+    "rich.*", "IPython.*", "pygments.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.interrogate]
+fail-under = 80
+exclude = ["tests", "examples", "build"]
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = true
+ignore-nested-classes = true
+ignore-nested-functions = true
+ignore-overloaded-functions = true
+ignore-private = true
+ignore-property-decorators = true
+ignore-semiprivate = true
+
+[tool.vulture]
+# Dead assignments are 60 percent findings. Vulture hard-ignores private
+# variable names regardless of confidence, so the named delimiter contract
+# also pins the removed _BARE name structurally; dynamic uses are explicit in
+# the whitelist rather than hidden behind broad ignore patterns [tested:
+# test_every_delimiter_check_derives_from_one_grammar_rule and the GATE vulture
+# lane; commit=3ae4e6b08bc82d8b9cbdf934afc92ada7cf7a19e].
+min_confidence = 60
+# `ext` is here because a member is a CALLER: `Projection.retyped` is reached
+# only by the Arrow producer package, and without the members in the scan the
+# core's own doors read as dead the moment their one caller became a
+# distribution. Reading both is what makes the answer true.
+# The path reaches out of the seat for the reason the mypy one does, and the
+# two stay in ONE scan for the reason above rather than becoming a lane each:
+# split, the core's doors read as dead again.
+paths = ["metta", "../../ext", "bench.py", "vulture_whitelist.py", "tools/bindinggen.py"]
+# The generated vocabulary and function-mention modules are data: every member is read by VALUE
+# (membership, iteration, the wire), so name-reachability is the wrong
+# question for it and each catalog row would need a fresh whitelist line.
+# A member's own suite and the hook file above it, for the reason the core's
+# tests are simply not in `paths`: a pytest hook is called by NAME from
+# outside, and every fixture and every declarative class attribute in a test
+# reads as dead to a reachability scan.
+exclude = ["metta/vocabularies.py", "metta/_catalog/fn.py", "*/ext/conftest.py", "*/tests/*"]
+ignore_names = ["exc_type", "exc_val", "exc_tb", "tb", "exc"]
+
+# Six of refurb's rules are wrong for this codebase rather than unfixed, and
+# the reason is written here so nobody re-opens them one at a time.
+#
+# FURB123  "redundant cast". It reads an annotation as a fact, and here an
+#          annotation is a claim about what a caller SHOULD pass: the casts
+#          are what make it true. Removing tuple(columns) in results.py would
+#          break outright, since the next line indexes what a generator
+#          argument would already have consumed.
+# FURB149  `truth is True` at the janus boundary means EXACTLY the boolean and
+#          not merely truthy, which is the distinction the boundary exists to
+#          keep.
+# FURB138  the loop it wants comprehended deduplicates against the list being
+#          built, and a comprehension cannot reference that list.
+# FURB107  contextlib.suppress costs a context manager per call where
+#          try/except costs nothing on the success path, and the site is an
+#          attribute-cache lookup.
+# FURB140  starmap erases the names the comprehension gives its pair, which is
+#          what says what the pair IS.
+# FURB184  chaining away a named intermediate is a style preference, and this
+#          codebase's is the named one.
+[tool.refurb]
+ignore = ["FURB123", "FURB149", "FURB138", "FURB107", "FURB140", "FURB184"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "build"]
+
+# _compliance.py, _gateway_compliance.py and _space_machine.py are test
+# machinery that happens to ship: their asserts ARE the contract a space
+# provider or gateway is held to, and B101 exists because asserts vanish under
+# -O, which is not how a test suite is run. ruff's S101 is already ignored
+# project-wide for the same reason, so this only makes the two tools agree.
+[tool.bandit.assert_used]
+skips = [
+    "*/testing/_providers.py",
+    "*/testing/_gateway.py",
+    "*/testing/_machine.py",
+]
+
+[tool.deptry]
+# check.sh supplies package, tool and repository-checker source roots, so local
+# modules follow their directories. Repository checkers are a discovery root;
+# their imports are outside this package manifest's dependency ownership.
+# `ext` is excluded because deptry reads ONE manifest and every member has its
+# own: it would judge `metta-nanoarrow`'s import of nanoarrow against pymetta's
+# dependencies, which do not and must not contain it. What it would have said
+# there, `check_layering.py` says exactly: a member may name the libraries its
+# OWN pyproject declares and no other, derived from that manifest and the
+# syntax tree, which is a per-member deptry with no second manifest to read.
+extend_exclude = ["examples", "build", "bench.py", "benchmarks", "ext", "tools/protocol_sources/cpython", "../../tests/checks"]
+optional_dependencies_dev_groups = ["test", "checks"]
+
+# Every one of these is imported, and none of them by a statement a static
+# scan can see. janus_swi goes through importlib.import_module so that
+# importing metta does not start an engine, which is a property the suite
+# tests for by name (test_package_import_does_not_require_janus); the rest go
+# through require_module, which raises installation guidance instead of an
+# ImportError when an extra is absent. Declaring them is correct and deptry
+# cannot see the use.
+[tool.deptry.per_rule_ignores]
+# pytest is imported only by the pytest11 plugin module, which pytest
+# itself loads; it is not a runtime dependency of the library. rich is
+# imported only inside the __rich__ protocol method, which only rich
+# itself calls, so its presence is the precondition of the call. hypothesis is
+# imported by _space_machine.py, which is reached only through
+# `metta.testing.SpaceMachine` behind PEP 562 and whose require_module guard
+# runs first, so importing metta or metta.testing loads neither the module nor
+# the package it needs.
+DEP004 = ["pytest", "hypothesis", "griffe", "mypy"] # griffe is used by tools/reference.py and mypy's typeshed by tools/doororder.py, shipped development tooling in the checks extra.
+# pygments is imported only by metta/_pygments.py, which nothing in this
+# package imports: Pygments itself loads it through the entry point above,
+# so its presence is the precondition of the load, exactly as rich's is
+# the precondition of the __rich__ call. IPython is the same shape from the
+# other side: metta/ipython.py imports IPython's own UsageError inside
+# load_ipython_extension, which only a running IPython calls, so the shell
+# that reaches that line is what put IPython there.
+DEP003 = ["rich", "pygments", "IPython"]
+# Every extra is a set of PACKAGES now, and a package is not imported by the
+# core -- that is the whole ruling -- so deptry sees each as declared and
+# unused. It is right about the import and wrong about the conclusion: an
+# extra exists so a user can name a set of distributions in one word, which is
+# the shape apache-airflow[amazon] has. janus-swi keeps its own line for the
+# older reason: it is imported through importlib so that importing metta does
+# not start an engine.
+DEP002 = [
+    "janus-swi",
+    "metta-arrays",
+    "metta-benchmarking",
+    "metta-duckdb",
+    "metta-faiss",
+    "metta-graphql",
+    "metta-live",
+    "metta-nanoarrow",
+    "metta-numpy",
+    "metta-otel",
+    "metta-pandas",
+    "metta-polars",
+    "metta-pyarrow",
+    "metta-pydantic",
+    "metta-remote",
+    "metta-sqlite",
+    "metta-tables",
+    "metta-websocket",
+]
+
+[tool.importlinter]
+root_package = "metta"
+# Import Linter 2.13 treats imports guarded by TYPE_CHECKING as runtime edges
+# unless this root option is enabled; these annotations never execute.
+exclude_type_checking_imports = true
+
+# begin generated package layers (extensions/python/tools/layergen.py; source=metta/_layers.py:BUILDS_ON)
+[[tool.importlinter.contracts]]
+name = "package orders follow declared foundations"
+type = "layers"
+containers = ["metta"]
+exhaustive = true
+layers = [
+    "_history",
+    "__main__ | aio",
+    "importing | manifest | subscribe | testing",
+    "events | integrate | lint | live | remote | spaces | tables",
+    "_pygments | algebra | cli | convert | derivation | foreign | ipython | library | parallel | paths | pytest_plugin | structures | typing",
+    "_faces",
+    "_observe",
+    "_declare",
+    "_spaces",
+    "_binding | _compile | doors",
+    "_catalog",
+    "vocabularies",
+    "_atoms",
+    "_errors",
+    "seam",
+    "_layers | _lazy | _version",
+]
+# end generated package layers
+
+# The `coverage` REPORT lane. Branch coverage over the library, no percentage
+# gate: the number is a map of what the suite reaches, and a threshold on it
+# rewards writing tests that touch lines rather than tests that decide
+# anything -- which is what the `mutation` lane below measures instead.
+[tool.coverage.run]
+branch = true
+source = ["metta"]
+# Each xdist worker is its own process; pytest-cov writes one data file per
+# worker and combines them, which needs the suffixed form.
+parallel = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# `if TYPE_CHECKING:` bodies and `@overload` stubs never execute, and a
+# NotImplementedError body is a refusal a subclass answers.
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "@overload",
+    "raise NotImplementedError",
+]
+
+# The `mutation` REPORT lane. It runs from `.mutmut/`, a scratch directory ONE
+# level under the repository root holding a copy of the package and a copy of
+# the suite, and that depth is the whole reason the directory exists:
+#
+#   - mutmut names a mutant from the file's path under the current directory and
+#     matches it at run time against the function's `__module__`, so the two
+#     agree only when the package sits DIRECTLY under the directory mutmut runs
+#     in. From the repository root, `extensions/python/metta` produced keys
+#     `extensions.python.metta._atoms.answer.*` against a runtime module `metta._atoms.answer`
+#     and every mutant read "no tests": 55 of them, 0 functions traced
+#     [measured 2026-09-07; mutmut/mutation/trampoline.py:60 builds the runtime
+#     name from `orig_func.__module__`].
+#   - mutmut runs the suite inside `mutants/`, which puts the copy back at the
+#     depth the tree assumes: `.mutmut/mutants/metta/_binding/shim.pl` reaches the
+#     engine as `../../../engine`, and `.mutmut/mutants/tests/conftest.py`
+#     reaches bounded.sh as `parents[3]`, exactly as `extensions/python/metta`
+#     and `extensions/python/tests` do. So nothing needs copying but the two
+#     directories: the engine, the shipped libraries and the Python seat's
+#     bridge.pl are read from the real tree.
+#
+# WHICH mutants are tested is the lane's argument, an fnmatch pattern over
+# mutmut's own mutant names (`mutmut run 'metta._atoms.answer.*'`); WHICH tests judge
+# them is PYTEST_ADDOPTS, because mutmut takes its test selection from
+# configuration alone and a lane cannot rewrite this file.
+[tool.mutmut]
+source_paths = ["metta"]
+also_copy = ["tests"]
+pytest_add_cli_args = [
+    "-p", "no:benchmark",
+    "-p", "no:randomly",
+    "-p", "no:cacheprovider",
+    "-q",
+]
+# mutmut's own budget per mutant: it times the clean suite once and kills a
+# mutant that takes longer than `baseline * multiplier + constant`. Four times
+# is generous enough for a box that idles at loadavg 25-35 while still ending a
+# mutant that turned a bounded loop into an unbounded one, and the fifteen
+# seconds keep a sub-second baseline from making the bound unreachably tight.
+timeout_multiplier = 4.0
+timeout_constant = 15.0
