@@ -182,12 +182,16 @@ RESERVED_HEADS = frozenset({"package"})
 
 
 def _head_of(equation: Expression) -> tuple[str, int] | None:
-    """The name and MeTTa arity an `(= head body)` row defines, if any."""
+    """The name and MeTTa arity an `(= head body)` row defines, if any.
+
+    None for a row that is not that shape, and for one whose head is RESERVED:
+    a reserved head is the space describing itself and defines nothing.
+    """
     if len(equation.children) < 2:
         return None
     head = equation.children[1]
     if isinstance(head, Symbol):
-        return (None if str(head) in RESERVED_HEADS else (str(head), 0))
+        return None if str(head) in RESERVED_HEADS else (str(head), 0)
     if isinstance(head, Expression) and head.children:
         first = head.children[0]
         if isinstance(first, Symbol) and str(first) not in RESERVED_HEADS:
