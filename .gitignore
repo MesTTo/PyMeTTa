@@ -18,3 +18,11 @@ metta/*.so
 # for every other build product.
 *.py[cod]
 __pycache__/
+
+# This seat IS a distribution, `pymetta`, so building it leaves setuptools'
+# scratch beside the source it was built from. An egg-info here also SHADOWS
+# the installed metadata for every later run in the checkout, which is the same
+# reason the mypyc rule above exists.
+*.egg-info/
+build/
+dist/
