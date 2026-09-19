@@ -172,6 +172,7 @@ from metta._errors.errors import (
     refusal_classes,
     refusing,
 )
+from metta._roots import workspace
 
 logger = logging.getLogger(__name__)
 
@@ -901,7 +902,7 @@ def _resolve_metta_path() -> str:
     if bundled is not None:
         return bundled
     # _binding/runtime.py -> _binding -> metta -> python -> extensions -> root.
-    return str(Path(__file__).resolve().parents[4])
+    return str(workspace())
 
 
 def _bundled_runtime() -> str | None:

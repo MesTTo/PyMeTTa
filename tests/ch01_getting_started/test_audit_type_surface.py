@@ -14,9 +14,10 @@ Guarantees:
 
 import subprocess
 import sys
-from pathlib import Path
 
-SEAT = Path(__file__).resolve().parents[2]
+from metta._roots import seat
+
+SEAT = seat()
 
 
 def test_audit_owned_type_surface(tmp_path):

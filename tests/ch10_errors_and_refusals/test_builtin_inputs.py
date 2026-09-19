@@ -35,13 +35,13 @@ Open Obligations:
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
 from metta import MeTTa, MettaError
+from metta._roots import workspace
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = workspace()
 
 # The probe, run on a fresh engine. The TABLE is the engine's own, so this
 # cannot go stale by hand: declaring a type for a new builtin adds a row to it

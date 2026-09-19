@@ -37,7 +37,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists())))
 
 from metta import S, V, space  # noqa: E402
 from metta._atoms.factories import Expression, Symbol, Variable, _match  # noqa: E402

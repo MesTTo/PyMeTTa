@@ -37,8 +37,9 @@ import pytest
 import metta
 from metta import MeTTa, S, lib
 from metta._errors.errors import LockDrift, MettaError
+from metta._roots import seat
 
-_PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
+_PACKAGE_ROOT = str(seat())
 
 
 def _program(directory: Path, text: str = "(= (answer) 1)\n!(answer)\n") -> Path:

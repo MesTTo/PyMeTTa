@@ -51,10 +51,11 @@ from metta import MeTTa, S, ground
 from metta.__main__ import _completer, _history_path, _scan_line
 from metta.__main__ import main as module_main
 from metta._atoms.factories import _atom_from_wire
+from metta._roots import seat, workspace
 
-_PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
+_PACKAGE_ROOT = str(seat())
 _CONVERT_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "convert_program.py"
-_ROOT_SHEET = Path(__file__).resolve().parents[4] / "llms.txt"
+_ROOT_SHEET = workspace() / "llms.txt"
 
 
 def _environment():

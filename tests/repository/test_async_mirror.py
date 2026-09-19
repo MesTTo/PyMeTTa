@@ -19,7 +19,7 @@ import pytest
 
 from metta.doors import Owner, Tier
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 CORE = REPO / "extensions/python/metta"
 WORKER = CORE / "aio/_worker.py"
 MIRROR = CORE / "aio/_mirror.py"

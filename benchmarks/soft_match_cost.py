@@ -25,7 +25,7 @@ from pathlib import Path
 
 #: The checkout, derived rather than written: a tracked file may not cite an
 #: absolute workspace path, and the ai-tmp probe this replaces did.
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 
 sys.path.insert(0, str(ROOT / "extensions" / "python"))
 os.environ["METTA_PATH"] = str(ROOT)

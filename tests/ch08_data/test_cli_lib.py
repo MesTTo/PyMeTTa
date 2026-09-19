@@ -8,13 +8,13 @@ Owns resources: the argv fixture joins its subprocess and captures its streams.
 """
 
 import subprocess
-from pathlib import Path
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from metta import G, S, lib
+from metta._roots import workspace
 
 
 @pytest.fixture(scope="module")
@@ -64,7 +64,7 @@ def test_cli_literal_tokens(cli, text, operands):
 
 def test_cli_process_arguments():
     """A real process exposes numeric spelling, Unicode and empty argv tokens."""
-    root = Path(__file__).resolve().parents[4]
+    root = workspace()
     goal = ("load_files('engine/metta.pl',[silent(true)]),"
             "use_module('lib/lib_cli/lib_cli'),"
             "'cli-arguments!'([\"007\",\"\",\"π\"]),writeln(argv_preserved)")

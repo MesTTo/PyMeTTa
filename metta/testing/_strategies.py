@@ -10,7 +10,6 @@ import functools
 import json
 import sys
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 import metta._catalog.types as _projection
@@ -24,6 +23,7 @@ from metta._atoms.factories import (
 )
 from metta._errors.errors import Ground, MettaError, Remedy, refusing
 from metta._lazy import optional as require_module
+from metta._roots import workspace
 
 #: programs() draws only from heads the ARBITER reduces, so the census it
 #: refuses without is upstream PeTTa's own answer set rather than this
@@ -220,7 +220,7 @@ def from_pattern(pattern, max_leaves: int = 8):
 #: `tests/conformance/petta_capture.py --census` and committed beside the
 #: corpus it was read from. A checkout has it; an installed wheel does not, and
 #: `programs(census=...)` is the door for that case.
-_CENSUS = Path(__file__).resolve().parents[4] / "tests" / "conformance" / "petta" / "HEADS.json"
+_CENSUS = workspace() / "tests" / "conformance" / "petta" / "HEADS.json"
 
 #: How many equations one program defines. Not a parameter, because it is not a
 #: knob a caller turns: one exercises a defined head, two exercise a head

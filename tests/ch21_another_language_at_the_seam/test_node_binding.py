@@ -52,7 +52,6 @@ import re
 import shutil
 import struct
 import subprocess
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -62,8 +61,9 @@ import metta.remote._client as _moved_metta_remote__client
 import metta.remote._gateway as _moved_metta_remote__gateway
 import metta.remote._transport as _moved_metta_remote__transport
 from metta import convert, parse
+from metta._roots import workspace
 
-_BINDING = Path(__file__).resolve().parents[4] / "extensions" / "node"
+_BINDING = workspace() / "extensions" / "node"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
 
 # What the WebAssembly build refuses at boot, as extensions/node/src/engine.ts

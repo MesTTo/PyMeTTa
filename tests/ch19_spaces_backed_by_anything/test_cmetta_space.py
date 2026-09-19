@@ -11,15 +11,15 @@ import os
 import shutil
 import sys
 from importlib import util as _importlib_util
-from pathlib import Path
 
 import pytest
 
 import metta
 from metta import S, V, testing
 from metta._declare import declarations as _space_declarations
+from metta._roots import seat
 
-_MODULE_PATH = Path(__file__).resolve().parents[2] / "examples" / "integration" / "cmetta_space.py"
+_MODULE_PATH = seat() / "examples" / "integration" / "cmetta_space.py"
 
 
 def _cmetta_binary():

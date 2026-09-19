@@ -49,7 +49,7 @@ from metta.doors import (
 )
 from metta.vocabularies import ArgumentDelivery, Determinism, EffectClass, RefusalKind
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 sys.path.insert(0, str(ROOT / "extensions/python/tools"))
 import doorfaces  # noqa: E402 -- the shared face emitter
 import doorgen  # noqa: E402  -- the generator is checked as a public build tool

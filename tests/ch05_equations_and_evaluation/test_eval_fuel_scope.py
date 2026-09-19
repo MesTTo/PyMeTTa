@@ -18,9 +18,10 @@ Open Obligations:
 
 import subprocess
 import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+REPO = workspace()
 
 # The coverage lane's one DECLINED form, examples/ch14-seeing-your-program/01-time_and_pragmas.metta
 # form 15, written both ways. The two equations are non-exclusive, so the base

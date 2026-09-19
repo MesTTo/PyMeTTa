@@ -10,10 +10,11 @@ from __future__ import annotations
 import ast
 import types
 import unittest
-from pathlib import Path
 from typing import Any, Literal, get_args
 
-ROOT = Path(__file__).resolve().parents[2]
+from metta._roots import seat
+
+ROOT = seat()
 
 
 def _tree(relative: str) -> ast.Module:

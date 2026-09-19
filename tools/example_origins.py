@@ -42,12 +42,14 @@ from pathlib import Path
 
 from example_parity import corpus
 
+from metta._roots import workspace
+
 #: Below this, a resemblance is coincidence rather than derivation. Chosen
 #: because the examples between 0.75 and 0.85 are recognisably the same
 #: program with an edited body, and nothing between 0.5 and 0.75 was.
 THRESHOLD = 0.75
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = workspace()
 MANIFEST = REPO / "examples" / "ORIGINS.tsv"
 
 UPSTREAM_SOURCE = "https://github.com/patham9/PeTTa"

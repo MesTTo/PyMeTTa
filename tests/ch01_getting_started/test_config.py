@@ -31,6 +31,7 @@ import metta._binding.runtime as _engine
 from metta import S, V
 from metta._catalog.annotations import _bounded_product
 from metta._catalog.bounds import Config
+from metta._roots import seat
 from metta._spaces.results import Rows
 
 
@@ -60,7 +61,7 @@ def test_setting_declaration_reaches_every_projection(metta, monkeypatch):
 
     from metta._catalog import bounds
 
-    tool_path = Path(__file__).resolve().parents[2] / "tools"
+    tool_path = seat() / "tools"
     with monkeypatch.context() as patch:
         patch.syspath_prepend(str(tool_path))
         import boundsgen

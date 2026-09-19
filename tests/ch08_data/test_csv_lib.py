@@ -25,8 +25,9 @@ from hypothesis import strategies as st
 import metta
 from metta import G, S, lib
 from metta._errors.errors import EngineError
+from metta._roots import workspace
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = workspace()
 FIELD = st.one_of(st.sampled_from(("", "001", "\x00", "é🦊λ", "\r\n", "a\"b", "from", "internal")),
                   st.text(st.characters(blacklist_categories=("Cs",)), max_size=30))
 ROWS = st.lists(st.lists(FIELD, max_size=5), max_size=7)

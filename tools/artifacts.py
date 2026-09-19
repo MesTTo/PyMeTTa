@@ -27,7 +27,9 @@ from dataclasses import dataclass
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+ROOT = workspace()
 TOOLS = "@root/extensions/python/tools/"
 SEAT = "extensions/python/metta/"
 BEGIN = "# begin generated artifact selection"

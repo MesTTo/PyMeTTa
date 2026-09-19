@@ -54,13 +54,13 @@ import itertools
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
 import metta._binding.runtime as _engine
 from metta import S, V
 from metta._binding.runtime import bridge
+from metta._roots import workspace
 
 _NAMES = itertools.count()
 
@@ -392,7 +392,7 @@ def test_a_finaliser_at_interpreter_shutdown_prints_nothing(tmp_path):
     """
     program = tmp_path / "held_cursor.py"
     program.write_text(_SHUTDOWN_PROBE, encoding="utf-8")
-    repository = Path(__file__).resolve().parents[4]
+    repository = workspace()
     result = subprocess.run(
         [sys.executable, str(program)],
         capture_output=True,

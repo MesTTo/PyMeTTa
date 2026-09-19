@@ -13,7 +13,6 @@ import subprocess
 import sys
 import tempfile
 from contextlib import contextmanager
-from pathlib import Path
 
 import pytest
 from hypothesis import given, settings
@@ -21,6 +20,7 @@ from hypothesis import strategies as st
 
 from metta import G, S, V, lib
 from metta._errors.errors import EngineError
+from metta._roots import seat
 
 
 @pytest.fixture(scope="module")
@@ -94,7 +94,7 @@ with MeTTa() as engine:
         finally:
             engine.fn['database-close!'](handle).one()
 """
-    environment = os.environ | {"PYTHONPATH": str(Path(__file__).resolve().parents[2])}
+    environment = os.environ | {"PYTHONPATH": str(seat())}
     with store(database, path) as handle:
         assert database.fn["database-add!"](handle, S.parent).one() is True
         locked = subprocess.run([sys.executable, "-c", code, str(path), "locked"],

@@ -16,9 +16,10 @@ Guarantees:
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+_ROOT = workspace()
 
 
 def counter_configuration() -> dict[str, bool]:

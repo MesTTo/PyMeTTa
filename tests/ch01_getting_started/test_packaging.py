@@ -67,9 +67,10 @@ from packaging.requirements import Requirement
 
 import metta._atoms.factories as metta_atoms
 from metta import __version__
+from metta._roots import workspace
 from metta._spaces.intents import _LINT_CATALOGUE
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = workspace()
 
 
 def _manifest() -> dict:

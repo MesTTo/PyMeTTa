@@ -117,11 +117,12 @@ from benchmarks import atomic_json, collect_worker, curves
 from benchmarks.scaling import configuration_drift, stamp_worker
 from metta import engine
 from metta._atoms.factories import Expression, Symbol, V, Variable
+from metta._roots import seat
 
 SCHEMA_VERSION = 1
 DEFAULT_REPETITIONS = 1
 DEFAULT_TIMEOUT = 200.0
-_BINDING_ROOT = Path(__file__).resolve().parents[1]
+_BINDING_ROOT = seat()
 LEDGER_PATH = Path(__file__).resolve().parent / "cost-baseline.json"
 
 #: The ladder a `length` measure fills its hole from. It has to be tall enough

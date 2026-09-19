@@ -37,15 +37,15 @@ import traceback
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from pathlib import Path
 from threading import Barrier, Lock
 
 import pytest
 
 from metta import Expression, MeTTa, S, State, V
 from metta._errors.errors import MettaResultError
+from metta._roots import workspace
 
-_REPOSITORY = Path(__file__).resolve().parents[4]
+_REPOSITORY = workspace()
 
 
 def _guide(name: str) -> str:

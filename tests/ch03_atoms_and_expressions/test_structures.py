@@ -12,7 +12,6 @@ Open Obligations:
 
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 from hypothesis import given
@@ -20,6 +19,7 @@ from hypothesis import strategies as st
 
 from metta import Expression, Handle, S, V, ground
 from metta._atoms.factories import unify
+from metta._roots import seat
 from metta.structures import AlphaSet, MatchIndex, PatternMap
 from metta.testing import atoms as atom_strategy
 
@@ -192,7 +192,7 @@ def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or inj
         capture_output=True,
         text=True,
         timeout=60,
-        cwd=Path(__file__).resolve().parents[2],
+        cwd=seat(),
     )
     assert done.returncode == 0, done.stderr
     assert "engine-free ok" in done.stdout

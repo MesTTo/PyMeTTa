@@ -18,7 +18,6 @@ import signal
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 import pytest
 
@@ -26,9 +25,10 @@ import metta
 import metta.remote._transport as _moved_metta_remote__transport
 from metta import S, V, aio, testing
 from metta._declare import declarations as _space_declarations
+from metta._roots import seat
 from metta.remote._client import RemoteSpace
 
-_SERVER_DIR = Path(__file__).resolve().parents[2] / "examples" / "integration" / "typescript_space"
+_SERVER_DIR = seat() / "examples" / "integration" / "typescript_space"
 _NODE = shutil.which("node")
 
 

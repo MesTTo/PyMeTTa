@@ -76,7 +76,9 @@ import re
 import sys
 from dataclasses import dataclass
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+ROOT = workspace()
 GRAMMAR = ROOT / "website" / ".vitepress" / "metta.tmLanguage.json"
 MODULE = ROOT / "extensions" / "python" / "metta" / "_pygments.py"
 

@@ -23,7 +23,9 @@ import sys
 
 import griffe
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+ROOT = workspace()
 PAGES = ROOT / "website" / "reference"
 SOURCE = re.compile(r"^Source: `([^`]+)`\.$", re.MULTILINE)
 PREAMBLE = "The entries below reproduce the source signatures and docstrings."

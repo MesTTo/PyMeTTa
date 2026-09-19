@@ -58,9 +58,10 @@ from benchmarks.scaling import (
     ledger_document,
     reduce_repetitions,
 )
+from metta._roots import seat
 
 MEMORY_SCALE_BASELINE = (
-    Path(__file__).resolve().parents[2] / "benchmarks" / "memory-scale-baseline.json"
+    seat() / "benchmarks" / "memory-scale-baseline.json"
 )
 
 #: Two rows whose committed `fit` block does not describe the `representative`
@@ -809,7 +810,7 @@ def test_the_families_keep_their_engine_invariants_in_their_own_process():
     """
     completed = subprocess.run(
         [sys.executable, "-m", "benchmarks.scaling", "--selfcheck"],
-        cwd=Path(__file__).resolve().parents[2],
+        cwd=seat(),
         capture_output=True,
         text=True,
         timeout=300,

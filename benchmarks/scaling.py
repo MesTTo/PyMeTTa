@@ -125,10 +125,11 @@ from metta_benchmarking import measure_instructions, measured_main
 from benchmarks import atomic_json, collect_worker, curves
 from benchmarks.configuration import counter_configuration
 from metta import S, Space, V, engine
+from metta._roots import seat
 
 SCHEMA_VERSION = 1
 DEFAULT_REPETITIONS = 3
-_BINDING_ROOT = Path(__file__).resolve().parents[1]
+_BINDING_ROOT = seat()
 POLICY_PATH = Path(__file__).resolve().parent / "scaling-policy.json"
 LEDGER_PATH = Path(__file__).resolve().parent / "scaling-baseline.json"
 

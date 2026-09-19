@@ -44,6 +44,7 @@ import pytest
 
 from metta import G, S
 from metta._errors.errors import MettaError
+from metta._roots import workspace
 from metta.parallel import ProcessPool, call, process_pool, program
 
 RULES = "(= (pp-sq $x) (* $x $x))"
@@ -246,7 +247,7 @@ def _run_child_script(source: str, tmp_path: Path) -> subprocess.CompletedProces
     [measured 2026-09-07: the same script refused under a file and answered
     normally under -c].
     """
-    root = Path(__file__).resolve().parents[4]
+    root = workspace()
     script = tmp_path / "ai-forking-child.py"
     script.write_text(source, encoding="utf-8")
     return subprocess.run(

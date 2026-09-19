@@ -20,7 +20,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+ROOT = workspace()
 RUNNER = ROOT / "tests" / "conformance" / "petta.py"
 
 

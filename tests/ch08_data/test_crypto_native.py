@@ -8,11 +8,12 @@ Owns resources: pytest removes copied sources and objects; each child is joined.
 
 import json
 import subprocess
-from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+ROOT = workspace()
 SOURCE = ROOT / "lib/lib_crypto/support/crypto_native.c"
 HEADERS = """
 #include <openssl/bn.h>

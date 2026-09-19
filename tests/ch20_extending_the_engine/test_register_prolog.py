@@ -42,12 +42,12 @@ Open Obligations:
 import contextlib
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
 from metta import MettaError
 from metta._errors.errors import EngineError, SourceNotFound
+from metta._roots import workspace
 from metta._spaces import evaluate as _space_evaluate
 
 
@@ -620,7 +620,7 @@ def test_an_unknown_determinism_is_refused(space, tmp_path):  # noqa: D103  -- p
 # D5.1: the C tier is the cheapest row on EXTENDING.md's table and reaching it
 # meant hand-writing two Prolog directives with an absolute path computed from
 # __file__. The path trap is the reason this exists rather than the typing.
-_C_EXTENSION = Path(__file__).resolve().parents[4] / "examples" / "ch19-spaces-backed-by-anything" / "19-03-a-builtin-in-c"
+_C_EXTENSION = workspace() / "examples" / "ch19-spaces-backed-by-anything" / "19-03-a-builtin-in-c"
 
 
 @pytest.mark.skipif(

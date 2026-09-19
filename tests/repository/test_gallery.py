@@ -19,12 +19,12 @@ from pathlib import Path
 
 import pytest
 
-TOOLS = Path(__file__).resolve().parents[2] / "tools"
+TOOLS = next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists()) / "tools"
 sys.path.insert(0, str(TOOLS))
 
 from executable_docs import source_expectations  # noqa: E402  -- tools are executable modules
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+EXAMPLES = next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists()) / "examples"
 GALLERY = EXAMPLES / "gallery"
 PROGRAMS = (
     "ecosystem_graph.py",

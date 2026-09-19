@@ -60,6 +60,7 @@ from benchmarks.workloads import (
 )
 from metta import Answer, Expression, MeTTa, S, V, tables
 from metta._declare import declarations as _space_declarations
+from metta._roots import workspace
 
 _ROWS = 2_000
 
@@ -1324,12 +1325,11 @@ def test_table_bridge_match(benchmark, inference_baseline):
 
 
 def _handle_space():
-    from pathlib import Path
 
     import pytest
 
     library = (
-        Path(__file__).resolve().parents[3]
+        workspace()
         / "examples"
         / "ch19-spaces-backed-by-anything"
         / "19-03-a-builtin-in-c"

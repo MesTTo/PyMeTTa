@@ -37,7 +37,9 @@ import re
 import subprocess
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+ROOT = workspace()
 PAGE = ROOT / "website" / "reference" / "refusals.md"
 FIXTURE = ROOT / "tests" / "data" / "error-kinds.json"
 

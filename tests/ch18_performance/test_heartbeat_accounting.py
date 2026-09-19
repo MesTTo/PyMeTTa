@@ -29,7 +29,9 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+ROOT = workspace()
 
 
 def _prepare() -> None:

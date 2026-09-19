@@ -9,18 +9,18 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 import pytest
 
 import metta
+from metta._roots import workspace
 
 #: The provider moved into the chapter it teaches; this path did not follow
 #: it, so the fixture's artefact check never found cstore.so and every test
 #: here SKIPPED instead of exercising the real C-backed provider [measured
 #: 2026-09-01, the same silent-skip class as the twin's relative path].
 _PROVIDER = (
-    Path(__file__).resolve().parents[4]
+    workspace()
     / "examples"
     / "ch19-spaces-backed-by-anything"
     / "19-02-a-space-in-c"

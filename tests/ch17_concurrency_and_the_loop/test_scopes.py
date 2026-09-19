@@ -25,7 +25,6 @@ import sys
 import threading
 import time
 from collections import deque
-from pathlib import Path
 from random import Random
 
 import pytest
@@ -37,6 +36,7 @@ import metta.aio._worker as aio_module
 from metta import G, S, Space
 from metta._atoms.factories import Expression
 from metta._errors.errors import MettaError
+from metta._roots import seat
 from metta.aio import AsyncMeTTa
 from metta.foreign import SpaceProvider
 from metta.parallel import EnginePool, ProcessPool, program
@@ -808,7 +808,7 @@ messages = [str(w.message) for w in seen if issubclass(w.category, ResourceWarni
 assert messages == [], messages
 """
     result = subprocess.run(
-        [sys.executable, "-c", program], cwd=Path(__file__).resolve().parents[2],
+        [sys.executable, "-c", program], cwd=seat(),
         capture_output=True, text=True, check=False,
     )
     if abandon_cursor:

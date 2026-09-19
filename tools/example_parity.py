@@ -106,7 +106,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+REPO = workspace()
 SKIPS = REPO / "tests" / "data" / "example_skips.txt"
 #: A verdict line, by its SHAPE rather than by a word inside it. Both
 #: configurations print `is X, should Y. <mark>` per `!(test ...)`, and reading

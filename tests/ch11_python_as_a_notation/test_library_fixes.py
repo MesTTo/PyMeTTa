@@ -85,6 +85,7 @@ import pytest
 from metta import FALSE, TRUE, Expression, G, S, V, fn, if_, space
 from metta._atoms.factories import order_key
 from metta._errors.errors import EngineError
+from metta._roots import workspace
 from metta.vocabularies import SpaceCapability
 
 
@@ -540,7 +541,7 @@ def test_if_builder_accepts_the_one_armed_form() -> None:
 
 def test_first_answer_pull_has_no_late_consult_floor() -> None:
     """A fresh process prices its first lazy pull near direct evaluation."""
-    repo = Path(__file__).resolve().parents[4]
+    repo = workspace()
     script = """
 from metta import S, space
 m = space()

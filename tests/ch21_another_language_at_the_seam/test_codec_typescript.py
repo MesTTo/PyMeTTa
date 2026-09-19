@@ -33,14 +33,14 @@ import signal
 import subprocess
 import urllib.error
 import urllib.request
-from pathlib import Path
 
 import pytest
 
+from metta._roots import seat
 from metta.testing import check_codec, codec_plan
 
 _SERVER = (
-    Path(__file__).resolve().parents[2]
+    seat()
     / "examples"
     / "integration"
     / "typescript_space"

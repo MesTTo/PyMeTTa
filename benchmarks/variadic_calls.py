@@ -26,8 +26,9 @@ from metta_benchmarking import measure_instructions
 
 from benchmarks.pure import _controlled
 from metta import Expression, MeTTa, S, V, arrow, equation, seg, typed
+from metta._roots import workspace
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = workspace()
 
 
 def call_case(family: str, arity: int, arm: str, iterations: int,

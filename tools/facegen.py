@@ -41,7 +41,7 @@ import difflib
 import pathlib
 import sys
 
-_REPO = pathlib.Path(__file__).resolve().parents[3]
+_REPO = next(parent for parent in pathlib.Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 sys.path.insert(0, str(_REPO / "extensions" / "python"))
 
 from metta._errors.errors import MettaError  # noqa: E402

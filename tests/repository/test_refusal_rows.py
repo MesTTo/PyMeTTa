@@ -36,17 +36,17 @@ Open Obligations:
 import json
 import sys
 from collections import Counter
-from pathlib import Path
 
 import pytest
 
 from metta import MeTTa
 from metta._errors.errors import APPLICABILITIES, GROUND_KINDS, REMEDY_KINDS
+from metta._roots import seat, workspace
 
 #: Read at import, like its neighbour: the cases below are one test per kind
 #: and parametrize runs at collection time.
 KINDS = json.loads(
-    (Path(__file__).resolve().parents[4] / "tests" / "data" / "error-kinds.json").read_text()
+    (workspace() / "tests" / "data" / "error-kinds.json").read_text()
 )["kinds"]
 
 _ROW_IS_THE_NAME = (
@@ -290,7 +290,7 @@ def test_the_refusal_table_is_generated():
     `tools/refusalgen.py` writes from them, and the classes it names exist and
     take the fields their kinds declare.
     """
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    sys.path.insert(0, str(seat() / "tools"))
     try:
         import refusalgen
     finally:

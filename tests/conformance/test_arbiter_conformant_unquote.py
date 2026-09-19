@@ -19,7 +19,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402

@@ -16,7 +16,9 @@ Open Obligations:
 import re
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+REPO = workspace()
 
 CONTROL_GLOB = "'../extensions/*/extension.pl'"
 

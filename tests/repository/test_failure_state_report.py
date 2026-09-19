@@ -27,14 +27,14 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
 from typing import ClassVar
 
 import pytest
 
+from metta._roots import workspace
 from tests import conftest as suite_conftest
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = workspace()
 PYTHON_ROOT = REPO / "extensions" / "python"
 
 #: A test that fails on purpose while an engine-wide pragma is in force, which

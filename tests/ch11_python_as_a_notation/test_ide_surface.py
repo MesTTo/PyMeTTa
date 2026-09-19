@@ -38,8 +38,9 @@ from metta._catalog.declarations import declarations
 from metta._declare import functions as _space_functions
 from metta._declare.stubs import stubs
 from metta._errors.errors import CompileError
+from metta._roots import seat
 
-_PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+_PACKAGE_ROOT = seat()
 
 
 @pytest.fixture()

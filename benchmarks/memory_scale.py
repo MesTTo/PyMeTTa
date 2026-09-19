@@ -68,6 +68,7 @@ from metta_benchmarking import measure_instructions
 
 from benchmarks import atomic_json, curves
 from metta import MeTTa, S, Space, V, ground
+from metta._roots import seat
 
 STANDARD_SIZES = (10, 100, 1_000, 10_000)
 WIDE_SIZES = (1, 10, 100, 1_000)
@@ -94,7 +95,7 @@ _PROCESS_METRICS = frozenset(
         "vm_size_steady_bytes",
     }
 )
-_BINDING_ROOT = Path(__file__).resolve().parents[1]
+_BINDING_ROOT = seat()
 
 
 @dataclass(frozen=True)

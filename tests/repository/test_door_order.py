@@ -22,13 +22,13 @@ import ast
 import sys
 import types
 from dataclasses import replace
-from pathlib import Path
 from textwrap import dedent
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from metta._roots import seat
 from metta.doors import AnswersAs, Sugar, _order
 from metta.doors._analysis import CallGraph, Calls
 from metta.doors._order import Order, Verdict, analyse, components, derive, orders
@@ -555,7 +555,7 @@ def _gate_report(monkeypatch, tmp_path, result):
 
 
 def _tool(monkeypatch):
-    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "tools"))
+    monkeypatch.syspath_prepend(str(seat() / "tools"))
     import doororder
 
     return doororder
@@ -743,7 +743,7 @@ def test_door_order_gate_refuses_a_stale_verdict_table(monkeypatch, tmp_path, ca
 ), max_size=8))
 def test_verdict_table_round_trips_every_verdict(verdicts):
     """The rendered module evaluates back to exactly the verdicts it was rendered from."""
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    sys.path.insert(0, str(seat() / "tools"))
     import doororder
 
     namespace: dict[str, object] = {"__name__": "rendered"}

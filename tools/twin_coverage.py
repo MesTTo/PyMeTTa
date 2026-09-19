@@ -206,7 +206,7 @@ from pathlib import Path
 # (spelling `a == b` as `S.eq(a, b)`) goes unreported. Script mode puts
 # tools/ on sys.path rather than the package parent, so the parent is
 # inserted first.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists())))
 import example_parity as parity
 
 from metta import vocabularies

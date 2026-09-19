@@ -39,8 +39,9 @@ from typing import Any
 
 from benchmarks.query_planning import finish_metadata, source_snapshot
 from metta import MeTTa
+from metta._roots import workspace
 
-_ROOT = Path(__file__).resolve().parents[3]
+_ROOT = workspace()
 
 
 def _measure(

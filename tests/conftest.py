@@ -53,6 +53,7 @@ os.environ["METTA_EAGER_IMPORT"] = "1"
 
 import metta.pytest_plugin as metta_pytest_plugin
 from metta import Space
+from metta._roots import workspace
 
 #: The repository's one bound, which check.sh, test.sh, run.sh, engine/test.sh
 #: and every seat's test.sh also call. It holds a deadline in a process of the
@@ -62,7 +63,7 @@ from metta import Space
 #: and stops enforcing when the parent does, which is how two swipl children
 #: spawned by a repository runner survived from 2026-09-01 to 2026-09-03,
 #: spinning at 100% for 122 CPU-hours between them.
-BOUNDED = Path(__file__).resolve().parents[3] / "bounded.sh"
+BOUNDED = workspace() / "bounded.sh"
 
 
 def _bound_children_to_a_wrapper() -> None:
@@ -213,7 +214,7 @@ class MettaExampleManifest(pytest.File):
 
     def collect(self):
         """One item per listed example, in the order the manifest lists them."""
-        repository = Path(__file__).resolve().parents[3]
+        repository = workspace()
         skips = _corpus_skips(repository)
         listed = _manifest_rows(self.path.read_text(encoding="utf-8"))
         missing = [name for name in listed if not (repository / name).is_file()]
@@ -492,7 +493,7 @@ def _pragmas_are_not_left_set():
 
 @pytest.fixture(scope="session")
 def repo_root():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return Path(__file__).resolve().parents[3]
+    return workspace()
 
 
 @pytest.fixture(scope="session")

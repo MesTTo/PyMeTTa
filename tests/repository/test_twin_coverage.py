@@ -98,7 +98,7 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 TOOL = REPO / "extensions" / "python" / "tools" / "twin_coverage.py"
 sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 

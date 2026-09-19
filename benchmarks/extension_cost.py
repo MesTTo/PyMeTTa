@@ -55,6 +55,7 @@ from metta_benchmarking import BenchmarkBaseline
 
 from benchmarks.configuration import counter_configuration
 from metta import Space
+from metta._roots import workspace
 from metta._spaces import evaluate as _space_evaluate
 
 CALLS = 3_000
@@ -63,7 +64,7 @@ CALLS = 3_000
 # spelling landed one directory short, inside the seat root, so has_c read
 # False with the artifact built and the C row silently left the gate from
 # ac083177 until 2026-08-26.
-C_EXTENSION = Path(__file__).resolve().parents[3] / "examples/ch19-spaces-backed-by-anything/19-03-a-builtin-in-c"
+C_EXTENSION = workspace() / "examples/ch19-spaces-backed-by-anything/19-03-a-builtin-in-c"
 ROUNDS = 3
 
 

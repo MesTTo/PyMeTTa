@@ -28,11 +28,12 @@ Open Obligations:
 from __future__ import annotations
 
 import json
-import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+ROOT = workspace()
 CORPUS = ROOT / "tests" / "codec" / "corpus.json"
 DOCUMENT = ROOT / "CODEC.md"
 FENCE = re.compile(

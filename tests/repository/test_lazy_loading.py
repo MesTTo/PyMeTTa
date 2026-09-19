@@ -16,15 +16,15 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from importlib.machinery import SourceFileLoader
 from importlib.util import spec_from_file_location
-from pathlib import Path
 from threading import Barrier, Event
 from types import ModuleType, SimpleNamespace
 
 import pytest
 
 from metta import _lazy
+from metta._roots import seat
 
-SEAT = Path(__file__).resolve().parents[2]
+SEAT = seat()
 MODULES = tuple(sorted({"metta." + str(path.relative_to(SEAT / "metta").with_suffix("")).replace(os.sep, ".")
                         .removesuffix(".__init__") for path in (SEAT / "metta").rglob("*.py")} - {"metta.__init__"}))
 

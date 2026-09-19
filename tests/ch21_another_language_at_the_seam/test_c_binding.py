@@ -49,8 +49,9 @@ from typing import Any
 import pytest
 
 import metta
+from metta._roots import workspace
 
-_BINDING = Path(__file__).resolve().parents[4] / "extensions" / "cmetta"
+_BINDING = workspace() / "extensions" / "cmetta"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
 
 # The C seat splits what the Python seat keeps whole, because C has the types

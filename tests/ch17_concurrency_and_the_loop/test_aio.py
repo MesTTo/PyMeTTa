@@ -70,7 +70,6 @@ import threading
 import time
 import uuid
 from collections import Counter
-from pathlib import Path
 
 import pytest
 
@@ -88,6 +87,7 @@ from metta._errors.errors import (
     MettaSyntaxError,
     TimeLimitError,
 )
+from metta._roots import seat
 from metta.foreign import SpaceProvider
 
 
@@ -418,7 +418,7 @@ def test_aio_covers_the_whole_synchronous_surface():
 
     # The ledger the GENERATOR reads, so one list decides both what is
     # excluded and what gets generated; each entry carries its own reason.
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    sys.path.insert(0, str(seat() / "tools"))
     from aio_divergences import DIVERGENT, EXCLUDED
 
     excluded = {name for name in EXCLUDED if not name.startswith('_')}

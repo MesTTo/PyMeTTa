@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parents[4] / "website" / "scripts"
+SCRIPTS = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir()) / "website" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import audit_snippets as auditor  # noqa: E402

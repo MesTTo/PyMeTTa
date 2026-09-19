@@ -5,14 +5,14 @@ Process exit is confined to subprocesses. Fixtures own temporary files.
 """
 
 import subprocess
-from pathlib import Path
 
 import pytest
 
 from metta import MeTTa, S, lib
 from metta._errors.errors import EngineError
+from metta._roots import workspace
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = workspace()
 EXAMPLES = ROOT / "examples/ch20-extending-the-engine/20-06-files-and-processes"
 
 

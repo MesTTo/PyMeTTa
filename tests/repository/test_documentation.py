@@ -62,7 +62,9 @@ from pathlib import Path
 
 import pytest
 
-_REPO = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+_REPO = workspace()
 
 
 def _load_reference():

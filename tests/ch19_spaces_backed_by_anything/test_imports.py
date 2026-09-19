@@ -14,11 +14,11 @@ import builtins
 import sys
 import types
 import uuid
-from pathlib import Path
 
 import pytest
 
 from metta._binding.runtime import bridge
+from metta._roots import workspace
 
 
 def _texts(groups):
@@ -321,7 +321,7 @@ def test_minimal_lib_install_is_idempotent_after_cross_file_traffic(metta):
     clone = metta.copy()
     clone.drop()
 
-    lib = Path(__file__).resolve().parents[4] / "lib" / "minimal_metta_lib"
+    lib = workspace() / "lib" / "minimal_metta_lib"
     sys.path.insert(0, str(lib))
     try:
         import minimal_metta_lib

@@ -68,7 +68,7 @@ from __future__ import annotations
 import pathlib
 import sys
 
-_REPO = pathlib.Path(__file__).resolve().parents[3]
+_REPO = next(parent for parent in pathlib.Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 sys.path.insert(0, str(_REPO / "extensions" / "python"))
 
 from typing import Any  # noqa: E402

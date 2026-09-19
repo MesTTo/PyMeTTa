@@ -32,7 +32,6 @@ Open Obligations:
 import json
 import re
 import subprocess
-from pathlib import Path
 
 import janus_swi as janus
 import pytest
@@ -42,10 +41,11 @@ from metta._atoms.wire import Undefined, _from_wire
 from metta._binding.dispatch import dispatch
 from metta._catalog.types import WIRE_TAGS as PROJECTION_TAGS
 from metta._errors.errors import stream_failure
+from metta._roots import workspace
 from metta.remote._schemas import atom_schema
 from metta.vocabularies import WIRE_TAGS, WireClass
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = workspace()
 
 #: Read at import, like its neighbours: the cases below parametrize over it and
 #: parametrize runs at collection time.

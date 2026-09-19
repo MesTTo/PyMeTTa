@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+REPO = workspace()
 MANIFEST = REPO / "examples" / "ORIGINS.tsv"
 README = REPO / "examples" / "README.md"
 TOOL = REPO / "extensions" / "python" / "tools" / "example_origins.py"

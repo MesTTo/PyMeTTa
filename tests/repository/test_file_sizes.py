@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 sys.path.insert(0, str(ROOT / "extensions/python/tools"))
 
 import artifacts  # noqa: E402 -- inspect the checkout's output declarations

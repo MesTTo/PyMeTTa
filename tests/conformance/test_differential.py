@@ -17,11 +17,11 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists()) / "tools"))
 
 import alpha
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 
 #: The canonical text form lives in one place, because two lanes need it and a
 #: third spelling of the law's own relation would be a third thing to drift.

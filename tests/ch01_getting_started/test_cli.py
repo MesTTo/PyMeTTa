@@ -16,12 +16,12 @@ Open Obligations:
 import os
 import subprocess
 import sys
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 
 from metta import cli
+from metta._roots import workspace
 
 
 def test_package_import_does_not_require_janus():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -166,7 +166,7 @@ def test_the_bare_demo_runs_the_interop_example_and_backend_selftests():
     own output line pin all three, in the bare form and the extensions form
     the packaged launcher passes.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    repo = Path(__file__).resolve().parents[4]
+    repo = workspace()
     mork_built = (
         repo / "extensions" / "mork" / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
     ).exists()

@@ -16,7 +16,9 @@ from pathlib import Path
 
 import pytest
 
-EXAMPLES_ROOT = Path(__file__).resolve().parents[2] / "examples"
+from metta._roots import seat
+
+EXAMPLES_ROOT = seat() / "examples"
 
 # The language-feature examples are the SAME corpus in a different key: one
 # Python file per shipped MeTTa example, each defining twin(m) rather than

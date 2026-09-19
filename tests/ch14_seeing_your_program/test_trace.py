@@ -9,15 +9,15 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-from pathlib import Path
 
 import pytest
 
 from metta import S, Symbol
+from metta._roots import workspace
 from metta.vocabularies import Limit
 
 _C_EXTENSION = (
-    Path(__file__).resolve().parents[4] / "examples" / "ch19-spaces-backed-by-anything" / "19-03-a-builtin-in-c"
+    workspace() / "examples" / "ch19-spaces-backed-by-anything" / "19-03-a-builtin-in-c"
 )
 
 

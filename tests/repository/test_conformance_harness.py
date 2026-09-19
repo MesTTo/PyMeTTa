@@ -40,7 +40,7 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 sys.path.insert(0, str(REPO / "tests" / "conformance"))
 
 import petta  # noqa: E402  -- REPO/tests/conformance must be on the path first

@@ -45,7 +45,6 @@ import os
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
 from pkgutil import iter_modules
 
 import pytest
@@ -53,6 +52,7 @@ import pytest
 import metta
 import metta._atoms.factories as atom_module
 from metta import MeTTa, Space
+from metta._roots import workspace
 
 BASELINE_METTA_METHODS = 90
 BASELINE_PACKAGE_EXPORTS = 152
@@ -400,7 +400,7 @@ def _workspace_members() -> list[str]:
     `[tool.uv.workspace] members` is the roster, and it is a glob, so this
     reads the directory the glob names rather than a second list.
     """
-    root = Path(__file__).resolve().parents[4]
+    root = workspace()
     manifest = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     members = manifest["tool"]["uv"]["workspace"]["members"]
     found = [path for pattern in members for path in sorted(root.glob(pattern))]
@@ -455,7 +455,7 @@ def test_m7_narrow_core_surface():
 
 def test_m7_satellites_are_lazy_and_identity_stable():
     """Check laziness and both real-module identity orders in fresh processes."""
-    root = Path(__file__).resolve().parents[4]
+    root = workspace()
     environment = os.environ | {"PYTHONPATH": str(root / "extensions" / "python"), "METTA_EAGER_IMPORT": "0"}
     # Vocabulary values appear as public defaults, so their data module is
     # already loaded. Every other directory entry stays deferred.
@@ -529,7 +529,7 @@ def test_m7_unknown_attribute_has_normal_module_error():
 
 def test_retired_root_names_are_absent_in_a_fresh_process():
     """The retired root doors stay absent on a plain import, not only under pytest."""
-    root = Path(__file__).resolve().parents[4]
+    root = workspace()
     environment = os.environ | {"PYTHONPATH": str(root / "extensions" / "python")}
     subprocess.run(
         [

@@ -48,11 +48,12 @@ import signal
 import subprocess
 import threading
 import time
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+REPO = workspace()
 BOUNDED = REPO / "bounded.sh"
 
 #: A child that spins at 100% and refuses SIGTERM, so only an escalation to

@@ -36,7 +36,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 MODULE = ROOT / "extensions/python/metta/_catalog/fn.py"
 
 sys.path.insert(0, str(ROOT / "extensions" / "python"))

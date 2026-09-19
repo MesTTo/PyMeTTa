@@ -26,17 +26,17 @@ import os
 import re
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
 from metta import S, ground
 from metta._atoms.factories import Atom, Expression, Grounded, Symbol, Variable, _decode
+from metta._roots import workspace
 
 #: The shared test vector every seat that answers digest() runs. Node's own
 #: suite reads the same file, so the two seats cannot drift apart quietly.
 VECTOR = json.loads(
-    (Path(__file__).resolve().parents[4] / "tests" / "fixtures" / "space_digest_vector.json").read_text(
+    (workspace() / "tests" / "fixtures" / "space_digest_vector.json").read_text(
         encoding="utf-8"
     )
 )

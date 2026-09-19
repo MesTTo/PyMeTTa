@@ -35,7 +35,6 @@ import dataclasses
 import importlib.util
 import re
 import sys
-from pathlib import Path
 from types import ModuleType
 
 import pytest
@@ -45,9 +44,10 @@ import tests.fixtures.face_source as source
 from metta._atoms.factories import parse
 from metta._atoms.names import attribute_name
 from metta._errors.errors import EngineError, MettaError
+from metta._roots import workspace
 from metta.library._face import Manifest, imports_from, read, render
 
-_REPO = Path(__file__).resolve().parents[4]
+_REPO = workspace()
 _PURPOSE = "A module the face tests read"
 
 #: What the fixture module says its version is, which is nothing at all.

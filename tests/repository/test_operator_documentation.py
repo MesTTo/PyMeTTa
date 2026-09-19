@@ -11,7 +11,6 @@ Owns resources: scratch_space retires the temporary matmul equation.
 from __future__ import annotations
 
 import operator
-from pathlib import Path
 
 import pytest
 
@@ -23,8 +22,9 @@ from metta import (
 )
 from metta._atoms.factories import OPERATOR_LOWERINGS, order_key
 from metta._atoms.operators import selector
+from metta._roots import workspace
 
-DOC = Path(__file__).resolve().parents[4] / "website" / "guide" / "atoms-terms.md"
+DOC = workspace() / "website" / "guide" / "atoms-terms.md"
 
 def _head(expr) -> str:
     return str(next(iter(expr)))

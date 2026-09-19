@@ -10,13 +10,13 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import re
-from pathlib import Path
 
 import pytest
 
 import metta as metta_module
+from metta._roots import workspace
 
-README = Path(__file__).resolve().parents[4] / "README.md"
+README = workspace() / "README.md"
 
 _BLOCKS = re.findall(r"```python\n(.*?)```", README.read_text(), re.DOTALL)
 assert _BLOCKS, "the README lost its python blocks"

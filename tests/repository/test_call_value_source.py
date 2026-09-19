@@ -12,10 +12,11 @@ import inspect
 import types
 import unittest
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[2]
+from metta._roots import seat
+
+ROOT = seat()
 
 
 class Atom:

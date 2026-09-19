@@ -10,7 +10,7 @@ import argparse
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 sys.path.insert(0, str(ROOT / "extensions/python"))
 
 from metta._layers import BUILDS_ON, ORDERS, layer_groups  # noqa: E402 -- checkout declarations

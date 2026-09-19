@@ -38,7 +38,6 @@ Open Obligations:
 import subprocess
 import sys
 from collections.abc import Iterator
-from pathlib import Path
 from typing import Any, ClassVar
 
 import pytest
@@ -57,6 +56,7 @@ from metta import (
 from metta import space as make_space
 from metta._declare import declarations as _space_declarations
 from metta._errors.errors import EngineError, InferenceLimitError, TimeLimitError
+from metta._roots import seat
 from metta.foreign import (
     Adder,
     Clearer,
@@ -1211,7 +1211,7 @@ def test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception():
         text=True,
         timeout=120,
         check=False,
-        cwd=Path(__file__).resolve().parents[2],
+        cwd=seat(),
     )
     assert done.returncode == 0, done.stderr
     assert "both signals crossed" in done.stdout

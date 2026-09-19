@@ -16,7 +16,6 @@ import warnings
 import weakref
 from collections.abc import Hashable, Mapping, Sequence
 from difflib import get_close_matches
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import metta._declare.definitions as _declare_definitions_module
@@ -38,6 +37,7 @@ from metta._binding.runtime import Runtime
 from metta._catalog.declarations import INFERRED_NOTE, inferred, is_arrow
 from metta._errors.errors import MettaError, Remedy, refusing
 from metta._lazy import lazy
+from metta._roots import seat
 from metta._spaces.handle import _require_name
 
 _UNDEFINED_TYPE = Symbol("%Undefined%")
@@ -103,7 +103,7 @@ def _format_doc_atom(doc: Expression) -> str:
         lines.append(f"Returns: {returns}")
     return "\n".join(lines)
 
-_COST_LEDGER = Path(__file__).resolve().parents[2] / "benchmarks" / "cost-baseline.json"
+_COST_LEDGER = seat() / "benchmarks" / "cost-baseline.json"
 
 @functools.cache
 def _cost_measurement_dates() -> Mapping[str, str]:

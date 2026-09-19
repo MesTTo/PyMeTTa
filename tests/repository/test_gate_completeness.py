@@ -49,8 +49,9 @@ from pathlib import Path
 import pytest
 
 from metta._declare import functions as _space_functions
+from metta._roots import workspace
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = workspace()
 PYTHON_ROOT = REPO / "extensions" / "python"
 RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
 # One entry per (working directory, paths) pair, NOT one flat path list. Ruff

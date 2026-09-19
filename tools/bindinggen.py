@@ -25,7 +25,7 @@ from typing import Any
 
 from prologmacros import scoped_goal_expansions
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
 SEAT = ROOT / "extensions/python"
 sys.path.insert(0, str(SEAT))
 

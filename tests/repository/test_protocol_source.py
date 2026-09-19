@@ -19,7 +19,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-TOOLS = Path(__file__).resolve().parents[2] / "tools"
+from metta._roots import seat
+
+TOOLS = seat() / "tools"
 SPEC = importlib.util.spec_from_file_location("protocol_source", TOOLS / "protocol_source.py")
 SOURCE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(SOURCE)

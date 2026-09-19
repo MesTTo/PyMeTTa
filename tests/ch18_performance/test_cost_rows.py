@@ -43,7 +43,6 @@ Open Obligations:
 
 import itertools
 import json
-from pathlib import Path
 
 import pytest
 
@@ -67,9 +66,10 @@ from benchmarks.costs import (
 from metta import MeTTa
 from metta._atoms.factories import Symbol
 from metta._errors.errors import EngineError
+from metta._roots import workspace
 from metta.vocabularies import CostClass
 
-_REPOSITORY = Path(__file__).resolve().parents[4]
+_REPOSITORY = workspace()
 
 
 def _row(head: str, cost_class: str, **overrides) -> Row:

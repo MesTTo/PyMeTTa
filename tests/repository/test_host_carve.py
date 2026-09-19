@@ -17,9 +17,10 @@ Open Obligations:
 
 import re
 import subprocess
-from pathlib import Path
 
 import pytest
+
+from metta._roots import workspace
 
 #: `py-` is here because MeTTa spells its names with hyphens and Prolog does
 #: not: without it the pattern could match `py_arg_norm` and never `'py-list'`,
@@ -43,7 +44,7 @@ def _engine_sources():
     before the fix: 7 offenders with both filters corrected, 0 with either one
     left in place.
     """
-    root = Path(__file__).resolve().parents[4]
+    root = workspace()
     return sorted((root / "engine").rglob("*.pl"))
 
 

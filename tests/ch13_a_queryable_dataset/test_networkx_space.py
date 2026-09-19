@@ -11,16 +11,16 @@ import os
 import subprocess
 import sys
 from importlib import util as _importlib_util
-from pathlib import Path
 
 import pytest
 
 import metta
+from metta._roots import seat
 
 nx = pytest.importorskip("networkx")
 
 _MODULE_PATH = (
-    Path(__file__).resolve().parents[2] / "examples" / "integration" / "networkx_space.py"
+    seat() / "examples" / "integration" / "networkx_space.py"
 )
 
 

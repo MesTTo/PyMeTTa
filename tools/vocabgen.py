@@ -79,13 +79,14 @@ from __future__ import annotations
 import itertools
 import json
 import keyword
-import pathlib
 import re
 import subprocess
 import sys
 from typing import NamedTuple
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+ROOT = workspace()
 MODULE = ROOT / "extensions" / "python" / "metta" / "vocabularies.py"
 TS_MODULE = ROOT / "extensions" / "node" / "src" / "vocabularies.ts"
 

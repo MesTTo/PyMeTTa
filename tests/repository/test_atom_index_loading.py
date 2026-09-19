@@ -8,11 +8,12 @@ Owns resources: pytest owns copied artifacts; every subprocess is joined.
 
 import shutil
 import subprocess
-from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[4]
+from metta._roots import workspace
+
+ROOT = workspace()
 
 
 @pytest.mark.parametrize("compiled", (False, True))

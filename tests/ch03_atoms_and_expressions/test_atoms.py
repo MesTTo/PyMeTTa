@@ -78,6 +78,7 @@ from metta._atoms.factories import (
     register_object_repr,
     unregister_object_repr,
 )
+from metta._roots import seat
 from metta._spaces import evaluate as _space_evaluate
 
 
@@ -1014,7 +1015,6 @@ def test_the_atom_factories_are_concrete_to_a_type_checker(tmp_path):
     """
     import subprocess
     import sys
-    from pathlib import Path
 
     #`sys.executable -m mypy`, not a bare `mypy` from PATH: the gate runs
     #`"$PY" -m mypy`, and this must check the SAME one or it certifies a
@@ -1032,7 +1032,7 @@ def test_the_atom_factories_are_concrete_to_a_type_checker(tmp_path):
         "reveal_type(S['car-atom'])\n",
         encoding="utf-8",
     )
-    package = Path(__file__).resolve().parents[2]
+    package = seat()
     result = subprocess.run(
         [sys.executable, "-m", "mypy", "--no-error-summary", str(probe)],
         cwd=package, capture_output=True, text=True, check=False, timeout=300,

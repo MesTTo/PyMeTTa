@@ -46,7 +46,6 @@ import inspect
 import json
 import re
 import subprocess
-from pathlib import Path
 
 import pytest
 
@@ -57,12 +56,13 @@ from metta import MeTTa
 # shared list, so reading it here is the point rather than a way around a
 # public door. Nothing else in the suite touches it.
 from metta._binding.runtime import _EXCEPTION_TYPES
+from metta._roots import workspace
 
 #: Read at import rather than through the repo_root fixture, because the cases
 #: below are one test per kind and parametrize runs at collection time. Same
 #: derivation the host-carve scan uses.
 KINDS = json.loads(
-    (Path(__file__).resolve().parents[4] / "tests" / "data" / "error-kinds.json").read_text()
+    (workspace() / "tests" / "data" / "error-kinds.json").read_text()
 )["kinds"]
 
 _ADD_A_KIND = (

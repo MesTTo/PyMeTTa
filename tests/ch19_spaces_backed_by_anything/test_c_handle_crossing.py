@@ -8,16 +8,16 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-from pathlib import Path
 
 import pytest
 
 import metta
 from metta import Handle
 from metta._errors.errors import EngineError
+from metta._roots import workspace
 
 _LIBRARY = (
-    Path(__file__).resolve().parents[4]
+    workspace()
     / "examples"
     / "ch19-spaces-backed-by-anything"
     / "19-03-a-builtin-in-c"

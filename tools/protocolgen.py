@@ -24,7 +24,9 @@ from textwrap import indent
 from artifacts import notice
 from protocol_source import inventory, validate_inventory
 
-ROOT = Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+ROOT = workspace()
 ROW_PATH = "extensions/python/metta/_atoms/_python_protocols.py"
 TWIN_PATH = "extensions/python/tests/ch11_python_as_a_notation/_protocol_programs.py"
 

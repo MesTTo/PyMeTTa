@@ -14,11 +14,12 @@ import importlib
 import os
 import subprocess
 import sys
-from pathlib import Path
+
+from metta._roots import workspace
 
 
 def test_optional_surfaces_load_only_when_requested():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    root = Path(__file__).resolve().parents[4]
+    root = workspace()
     source = """
 import importlib
 import sys

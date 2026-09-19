@@ -11,7 +11,6 @@ from __future__ import annotations
 import hashlib
 import re
 import textwrap
-from pathlib import Path
 
 import pytest
 from hypothesis import example, given, settings
@@ -19,8 +18,9 @@ from hypothesis import strategies as st
 
 from metta import G, S, V, lib, library
 from metta._errors.errors import MettaError
+from metta._roots import workspace
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = workspace()
 SCALAR = st.characters(blacklist_categories=("Cs",))
 TEXT = st.text(SCALAR, max_size=60)
 

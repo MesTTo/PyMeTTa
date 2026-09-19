@@ -23,7 +23,6 @@ Open Obligations:
 
 import sys
 from importlib import util as _importlib_util
-from pathlib import Path
 
 import pytest
 from hypothesis import example, given
@@ -33,10 +32,11 @@ import metta
 from metta import S, testing
 from metta._declare import declarations as _space_declarations
 from metta._errors.errors import EngineError
+from metta._roots import seat
 from metta.tables import TableBridge
 
 _MODULE_PATH = (
-    Path(__file__).resolve().parents[2] / "examples" / "integration" / "sqlite_space.py"
+    seat() / "examples" / "integration" / "sqlite_space.py"
 )
 
 

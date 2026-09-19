@@ -45,6 +45,7 @@ import metta
 import metta.aio as _aio_surface
 from metta import MettaError, S, V
 from metta._errors.errors import InferenceLimitError
+from metta._roots import seat
 from metta._spaces.scope import _apply_limited, _limits
 
 
@@ -336,7 +337,7 @@ def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):  # noqa: D103  --
     import os
 
     environment = dict(os.environ)
-    package_root = str(Path(__file__).resolve().parents[2])
+    package_root = str(seat())
     existing = environment.get("PYTHONPATH")
     environment["PYTHONPATH"] = (
         f"{package_root}{os.pathsep}{existing}" if existing else package_root
@@ -375,7 +376,7 @@ def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):  # noqa: D103  --
 def test_the_entry_point_is_declared():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import tomllib
 
-    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    pyproject = seat() / "pyproject.toml"
     data = tomllib.loads(pyproject.read_text())
     assert data["project"]["entry-points"]["pytest11"]["metta"] == "metta.pytest_plugin"
 

@@ -13,9 +13,10 @@ import itertools
 import types
 import unittest
 from collections.abc import Collection
-from pathlib import Path
 
-SOURCE = Path(__file__).resolve().parents[2] / "metta/_catalog/call_values.py"
+from metta._roots import seat
+
+SOURCE = seat() / "metta/_catalog/call_values.py"
 
 
 def _source_projection():

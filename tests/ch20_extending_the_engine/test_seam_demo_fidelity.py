@@ -15,10 +15,11 @@ Open Obligations:
 from __future__ import annotations
 
 import re
-from pathlib import Path
+
+from metta._roots import workspace
 
 DEMO = (
-    Path(__file__).resolve().parents[4]
+    workspace()
     / "extensions" / "python" / "examples" / "integration" / "sqlite_space.py"
 )
 

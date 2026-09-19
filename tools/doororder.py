@@ -35,7 +35,7 @@ from dataclasses import asdict
 from graphlib import TopologicalSorter
 from pathlib import Path
 
-SEAT = Path(__file__).resolve().parents[1]
+SEAT = next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists())
 sys.path.insert(0, str(SEAT))
 
 import doorgen  # noqa: E402 -- the checkout source precedes an installed seat

@@ -47,13 +47,14 @@ from __future__ import annotations
 import builtins
 import inspect
 import json
-import pathlib
 import subprocess
 import sys
 from collections import Counter
 from typing import Any, NamedTuple
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+from metta._roots import workspace
+
+ROOT = workspace()
 MODULE = ROOT / "extensions/python/metta/_errors/refusals.py"
 KINDS = ROOT / "tests" / "data" / "error-kinds.json"
 

@@ -58,7 +58,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-BINDING_ROOT = Path(__file__).resolve().parents[1]
+from metta._roots import seat
+
+BINDING_ROOT = seat()
 REPOSITORY_ROOT = BINDING_ROOT.parents[1]
 
 #: The named workloads. `bench` is the repository's own larger MeTTa programs
