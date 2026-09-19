@@ -361,14 +361,29 @@ class CallGraph:
     def _put(self, slot: Slot, values: Values) -> None:
         if self._reporting:
             return
-        previous = self.values.get(slot, frozenset())
-        added = values - previous
-        if added:
-            self.values[slot] = previous | added
-            for reader in self.readers[slot]:
-                self._schedule(reader)
-            for key in self.memo_readers.pop(slot, ()):
-                self.memos.pop(key, None)
+        # ONE set operation, not two. `values - previous` was computed only to ask whether
+        # anything was new and then thrown away, while `previous | added` built the answer a
+        # second time; the union alone answers both, because a slot only ever grows and so a
+        # union that did not change its size added nothing. _put is the single largest self
+        # time in the profile, 24.8s over 10.6M calls, and both operations are linear in the
+        # slot [measured 2026-09-19].
+        previous = self.values.get(slot)
+        if previous is None:
+            if not values:
+                return
+            # frozenset() on the FIRST write to a slot, which is rare against the updates: the
+            # old code always built a new set, so storing a caller's own object here would be
+            # the one way a later mutation of theirs could reach the store.
+            self.values[slot] = frozenset(values)
+        else:
+            merged = previous | values
+            if len(merged) == len(previous):
+                return
+            self.values[slot] = merged
+        for reader in self.readers[slot]:
+            self._schedule(reader)
+        for key in self.memo_readers.pop(slot, ()):
+            self.memos.pop(key, None)
 
     def _stored(self, name: str, slot: str) -> Values:
         """Everything the container `name` can yield at `slot`: that slot and its unknown items.
