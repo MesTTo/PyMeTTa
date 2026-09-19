@@ -167,16 +167,30 @@ class _Rows:
     registered: bool = False
 
 
+#: The heads a row can carry that are the library describing ITSELF rather than
+#: a head it defines. `(= (package backing) (prolog F (heads)))` says what backs
+#: the library; reading it as a definition made `package` a public head of every
+#: library that declares one, which the reference page counted
+#: [measured 2026-09-20: nine libraries each one head over].
+#:
+#: The engine fixes the same thing as law 1, `metta_reference_internal(_, package)`
+#: in engine/metta/references.pl, so that one library's rows are never read as its
+#: importer's own. Written again here because this reader runs with NO engine and
+#: cannot ask one; tests/checks/check_package_backings.py holds the two spellings
+#: to each other so neither can move alone.
+RESERVED_HEADS = frozenset({"package"})
+
+
 def _head_of(equation: Expression) -> tuple[str, int] | None:
     """The name and MeTTa arity an `(= head body)` row defines, if any."""
     if len(equation.children) < 2:
         return None
     head = equation.children[1]
     if isinstance(head, Symbol):
-        return str(head), 0
+        return (None if str(head) in RESERVED_HEADS else (str(head), 0))
     if isinstance(head, Expression) and head.children:
         first = head.children[0]
-        if isinstance(first, Symbol):
+        if isinstance(first, Symbol) and str(first) not in RESERVED_HEADS:
             return str(first), len(head.children) - 1
     return None
 
