@@ -682,27 +682,33 @@ class CallGraph:
 
         concrete = self._contract_free(declared)
 
-        def refined(reference: Reference) -> Values:
+        # Accumulated rather than unioned from one frozenset per reference. Three of the
+        # four arms keep the reference itself, so the union form built a singleton for
+        # each and then folded the lot: 30,352,000 calls and most of 45.5 million
+        # `Reference` constructions in one solve [measured 2026-09-19, cProfile].
+        refinement: set[Reference] = set()
+        for reference in values:
             # policy-inventory-exempt: mechanism-internal; reason=a declaration refines a value whose structure the source does not give; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._declared_values
             if reference.kind in {"opaque", "external"} or (
                 reference.kind == "instance" and reference.name == "builtins.object"
             ):
-                return declared
+                refinement |= declared
+                continue
             # policy-inventory-exempt: mechanism-internal; reason=a caller's supplied or unknown value reaches a concrete declaration as that class; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._declared_values
             if reference.kind in {"parameter", "unknown"} and concrete:
-                # A caller's own value reaches a parameter declared as a
-                # concrete class as that class: the callee may rely on what
-                # it declared, and the caller's re-entrancy or undeclared
-                # read is recorded at the caller's own site.
-                return concrete
+                # A caller's own value reaches a parameter declared as a concrete class as
+                # that class: the callee may rely on what it declared, and the caller's
+                # re-entrancy or undeclared read is recorded at the caller's own site.
+                refinement |= concrete
+                continue
             name = reference.receiver if reference.kind == "container" else reference.name
             # policy-inventory-exempt: mechanism-internal; reason=these two reference variants carry a class identity a declaration can refuse; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._declared_values
             if reference.kind in {"instance", "container"} and (name in self.classes or _stdlib_object(name) is not None):
-                return frozenset({reference}) if any(self._admits(base, name) for base in admitted) else frozenset()
-            return frozenset({reference})
-
-        refinement = frozenset().union(*(refined(reference) for reference in values)) if values else frozenset()
-        return refinement or values
+                if any(self._admits(base, name) for base in admitted):
+                    refinement.add(reference)
+                continue
+            refinement.add(reference)
+        return frozenset(refinement) or values
 
     def _admits(self, declared: str, name: str) -> bool:
         """Whether a declared class admits instances of a source or stdlib class."""
