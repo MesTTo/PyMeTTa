@@ -206,7 +206,13 @@ from pathlib import Path
 # (spelling `a == b` as `S.eq(a, b)`) goes unreported. Script mode puts
 # tools/ on sys.path rather than the package parent, so the parent is
 # inserted first.
-sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists())))
+# A component is a distribution OR a repository, so both markers are asked for:
+# a tree copied without its history has no `.git`, which is how every gate here
+# runs, in a worktree populated by rsync. Derived inline rather than through
+# `metta._roots`, which states the same rule, because this tool runs as a SCRIPT
+# and puts tools/ on sys.path rather than the seat.
+sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents
+     if (parent / 'pyproject.toml').exists() or (parent / '.git').exists())))
 import example_parity as parity
 
 from metta import vocabularies

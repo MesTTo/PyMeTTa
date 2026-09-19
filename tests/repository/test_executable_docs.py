@@ -23,8 +23,9 @@ from pathlib import Path
 import pytest
 
 from metta import MeTTa, S
+from metta._roots import seat
 
-TOOLS = next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists()) / "tools"
+TOOLS = seat() / "tools"
 sys.path.insert(0, str(TOOLS))
 
 from executable_docs import (  # noqa: E402  -- tools are scripts, not package modules

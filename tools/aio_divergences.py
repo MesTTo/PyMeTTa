@@ -10,7 +10,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists())))
+# A component is a distribution OR a repository, so both markers are asked for:
+# a tree copied without its history has no `.git`, which is how every gate here
+# runs, in a worktree populated by rsync. Derived inline rather than through
+# `metta._roots`, which states the same rule, because this tool runs as a SCRIPT
+# and puts tools/ on sys.path rather than the seat.
+sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents
+     if (parent / 'pyproject.toml').exists() or (parent / '.git').exists())))
 from metta.doors import Owner, Tier, core_rows
 
 _rows = core_rows()

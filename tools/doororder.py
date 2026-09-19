@@ -35,7 +35,13 @@ from dataclasses import asdict
 from graphlib import TopologicalSorter
 from pathlib import Path
 
-SEAT = next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists())
+# A component is a distribution OR a repository, so both markers are asked for:
+# a tree copied without its history has no `.git`, which is how every gate here
+# runs, in a worktree populated by rsync. Derived inline rather than through
+# `metta._roots`, which states the same rule, because this tool runs as a SCRIPT
+# and puts tools/ on sys.path rather than the seat.
+SEAT = next(parent for parent in Path(__file__).resolve().parents
+     if (parent / 'pyproject.toml').exists() or (parent / '.git').exists())
 sys.path.insert(0, str(SEAT))
 
 import doorgen  # noqa: E402 -- the checkout source precedes an installed seat

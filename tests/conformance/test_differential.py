@@ -17,7 +17,11 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists()) / "tools"))
+# Both markers, because a component is a distribution OR a repository and a tree
+# copied without its history has no `.git`, which is how every gate here runs.
+# `metta._roots` states the same rule and is not importable at this point.
+sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents
+        if (parent / 'pyproject.toml').exists() or (parent / '.git').exists()) / "tools"))
 
 import alpha
 

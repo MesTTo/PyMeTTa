@@ -19,12 +19,17 @@ from pathlib import Path
 
 import pytest
 
-TOOLS = next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists()) / "tools"
+# Both markers, because a component is a distribution OR a repository and a tree
+# copied without its history has no `.git`, which is how every gate here runs.
+# `metta._roots` states the same rule and is not importable at this point.
+TOOLS = next(parent for parent in Path(__file__).resolve().parents
+        if (parent / 'pyproject.toml').exists() or (parent / '.git').exists()) / "tools"
 sys.path.insert(0, str(TOOLS))
 
 from executable_docs import source_expectations  # noqa: E402  -- tools are executable modules
 
-EXAMPLES = next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists()) / "examples"
+EXAMPLES = next(parent for parent in Path(__file__).resolve().parents
+        if (parent / 'pyproject.toml').exists() or (parent / '.git').exists()) / "examples"
 GALLERY = EXAMPLES / "gallery"
 PROGRAMS = (
     "ecosystem_graph.py",

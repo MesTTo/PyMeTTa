@@ -50,7 +50,11 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents if (parent / '.git').exists())))
+# Both markers, because a component is a distribution OR a repository and a tree
+# copied without its history has no `.git`, which is how every gate here runs.
+# `metta._roots` states the same rule and is not importable at this point.
+sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents
+        if (parent / 'pyproject.toml').exists() or (parent / '.git').exists())))
 
 import metta
 import metta._catalog.bounds as config_module
