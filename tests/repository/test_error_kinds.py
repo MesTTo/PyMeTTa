@@ -101,7 +101,7 @@ def thrown_kinds(repo_root):
     prunes the whole tree.
     """
     listing = subprocess.run(
-        ["git", "ls-files", "--", *_SOURCE_ROOTS],
+        ["git", "ls-files", "--recurse-submodules", "--", *_SOURCE_ROOTS],
         cwd=repo_root, capture_output=True, text=True, timeout=60, check=True,
     )
     found = set()

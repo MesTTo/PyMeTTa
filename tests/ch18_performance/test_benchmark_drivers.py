@@ -38,7 +38,7 @@ def drivers() -> list[Path]:
     # git, with a fixed argument list, resolved from PATH the way every
     # other repository check in this suite resolves it.
     listed = subprocess.run(
-        ["git", "ls-files", "*bench.py"],
+        ["git", "ls-files", "--recurse-submodules", "*bench.py"],
         cwd=ROOT,
         capture_output=True,
         text=True,

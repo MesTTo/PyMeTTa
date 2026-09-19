@@ -27,7 +27,9 @@ _WINDOWS_ROOT = re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\\\/](?:Users|home|a)[\\\\/
 
 def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     listing = subprocess.run(
-        ["git", "ls-files"],
+        # Components are submodules, so a plain listing stops at each gitlink and this
+        # lane would scan a fraction of the tree while still reporting a pass.
+        ["git", "ls-files", "--recurse-submodules"],
         cwd=repo_root, capture_output=True, text=True, timeout=60, check=False,
     )
     if listing.returncode != 0:
