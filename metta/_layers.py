@@ -25,6 +25,9 @@ from typing import Literal
 BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "_layers": (),
     "_lazy": (),
+    # Stdlib only, so it is a foundation: it derives the seat and the workspace
+    # from a file's own position and imports nothing of this package's.
+    "_roots": (),
     "_version": (),
     "seam": ("_lazy",),
     "_errors": ("seam",),
@@ -32,10 +35,10 @@ BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "vocabularies": ("_atoms",),
     "_catalog": ("vocabularies", "_atoms", "_errors", "seam"),
     "doors": ("_catalog", "vocabularies", "_atoms", "_layers"),
-    "_binding": ("_catalog", "_atoms", "_errors", "seam"),
+    "_binding": ("_roots", "_catalog", "_atoms", "_errors", "seam"),
     "_compile": ("_catalog", "_atoms", "_errors", "vocabularies"),
     "_spaces": ("_binding", "doors", "_catalog", "_atoms", "_errors", "seam", "_version"),
-    "_declare": ("_spaces", "_compile", "doors", "_catalog", "_atoms", "_errors", "seam"),
+    "_declare": ("_roots", "_spaces", "_compile", "doors", "_catalog", "_atoms", "_errors", "seam"),
     "_observe": ("_declare", "_spaces", "_binding", "_catalog", "_atoms", "_errors", "seam"),
     "_faces": ("_declare", "_observe", "_spaces", "doors", "_atoms"),
     "algebra": ("_faces",),
@@ -62,7 +65,7 @@ BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "importing": ("_faces", "integrate"),
     "manifest": ("_faces", "remote", "tables"),
     "subscribe": ("_faces", "events", "foreign"),
-    "testing": ("_faces", "algebra", "convert", "foreign", "remote"),
+    "testing": ("_roots", "_faces", "algebra", "convert", "foreign", "remote"),
     "aio": ("_faces", "subscribe", "lint"),
     "_history": ("aio", "importing", "manifest", "subscribe", "testing", "parallel", "spaces"),
     "metta": (
