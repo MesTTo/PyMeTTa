@@ -279,7 +279,7 @@ members = ["ext/metta-*"]
 #: The core itself, which every distribution below depends on exactly. It was implicit
 #: while they sat inside its own directory; with `ext/` a sibling of `extensions/` they
 #: are outside it, and uv asks for the mapping rather than guessing
-#: [tested: uv lock --offline --check; commit=WORKTREE].
+#: [tested: uv lock --offline --check; commit=500290ef67f6198adc1ce17c1f70e5a5173647bb].
 pymetta = { workspace = true }
 metta-arrays = { workspace = true }
 metta-benchmarking = { workspace = true }
