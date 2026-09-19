@@ -144,7 +144,11 @@ class RefuseEngine(importlib.abc.MetaPathFinder):
 sys.meta_path.insert(0, RefuseEngine())
 from metta.doors import core_rows, table, validate
 assert len(validate(core_rows())) > 200
-assert len(table(discover=False)) == len(core_rows())
+# The KEYS rather than the count: _core_entries() seeds the solved call graph
+# from core_rows(), so a row set that merely has the right size would solve the
+# core for entries the generated verdict table was not derived from, and every
+# door analysed at runtime would be measured against the wrong core.
+assert {row.key for row in table(discover=False).values()} == {row.key for row in core_rows()}
 print('engine-free')
 """
     completed = subprocess.run(

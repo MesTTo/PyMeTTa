@@ -34,7 +34,7 @@ from types import MappingProxyType
 
 from metta.doors import AnswersAs, Door
 from metta.doors._analysis import CallGraph, Calls, ContractCall
-from metta.doors._scan import core_paths
+from metta.doors._scan import core, core_paths
 
 
 def components(graph: Mapping[str, Iterable[str]]) -> tuple[tuple[str, ...], ...]:
@@ -268,6 +268,30 @@ def _entry_names(records: tuple[Door, ...], modules: Container[str] | None = Non
         and (not deferring or row.answers in {AnswersAs.context, AnswersAs.stream}))
 
 
+@cache
+def _core_entries() -> tuple[frozenset[str], frozenset[str]]:
+    """The SHIPPED table's own entries and lifetimes, read from marked source.
+
+    `_core` is keyed on the entry set it solves for, so taking that set from the
+    caller's records gives a different key per caller and pays the fixed point
+    again under each one. The catalog snapshot passes the whole live table, which
+    made the key look constant until something passed a subset
+    [measured 2026-09-20: `orders()` over the 210 shipped rows plus one provider
+    row took 105.03s cold and 3.79s on the same key, while callers passing 3 and
+    5 of those rows each missed and solved again].
+
+    Reading the shipped rows makes the key a constant of the tree, so one solve
+    serves every caller in the process. It is also the entry set doororder.py
+    derives the verdict table from, so a row analysed at runtime is now measured
+    against the same core as the table it sits beside, instead of against
+    whichever subset its caller happened to name -- an entry set reaches fewer
+    symbols, and a helper only a shipped entry reaches is one the smaller
+    analysis cannot see is part of a cycle.
+    """
+    rows = core()
+    return _entry_names(rows), _entry_names(rows, deferring=True)
+
+
 def live(rows: Iterable[Door]) -> Mapping[str, Order]:
     """Analyse the shipped core and the loaded providers' own source files.
 
@@ -279,22 +303,32 @@ def live(rows: Iterable[Door]) -> Mapping[str, Order]:
     synthetic doors paid sixty whole-program analyses, each keyed on an entry set
     no other test shared, which is why a larger cache could not help
     [measured 2026-09-19: one solve is 97.73s, of which the fixed point is 95.28s].
+
+    The entries the core is solved for come from `_core_entries`, not from these
+    records, which is what leaves one cache entry rather than one per caller.
+    The extension still names every record, since a caller's rows can add
+    entries the shipped table has not got.
     """
     records = tuple(rows)
-    core = {module: path for path, module in core_paths()}
+    core_modules = {module: path for path, module in core_paths()}
     outside: dict[str, Path] = {}
     for row in records:
-        if row.body and row.body.module not in core:
+        if row.body and row.body.module not in core_modules:
             loaded = sys.modules.get(row.body.module)
             filename = vars(loaded).get("__file__") if loaded is not None else None
             if filename:
                 outside[row.body.module] = Path(filename)
+    # Read once: every core source is opened to build this, and the two paths
+    # below both want it.
+    sources = source_text(core_modules)
     if not outside:
-        return analyse(records, source_text(core))
-    graph = _core(tuple(sorted(source_text(core).items())),
-                  _entry_names(records, core), _entry_names(records, core, deferring=True))
-    return derive(records, graph.extended(source_text(outside),
-                                          _entry_names(records), _entry_names(records, deferring=True)))
+        return analyse(records, sources)
+    entries, lifetimes = _core_entries()
+    graph = _core(tuple(sorted(sources.items())), entries, lifetimes)
+    return derive(records, graph.extended(
+        source_text(outside),
+        entries | _entry_names(records),
+        lifetimes | _entry_names(records, deferring=True)))
 
 
 def orders(rows: Iterable[Door]) -> Mapping[str, Verdict]:
