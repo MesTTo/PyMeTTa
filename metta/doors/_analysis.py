@@ -305,6 +305,8 @@ class CallGraph:
         self.lifetimes = frozenset(lifetimes)
         self.values: dict[Slot, Values] = {}
         self.readers: dict[Slot, set[str]] = defaultdict(set)
+        #: One canonical object per distinct value set, see `_intern`.
+        self._interned: dict[Values, Values] = {}
         self.queue: deque[str] = deque()
         self.queued: set[str] = set()
         self.current = ""
@@ -368,18 +370,21 @@ class CallGraph:
         # time in the profile, 24.8s over 10.6M calls, and both operations are linear in the
         # slot [measured 2026-09-19].
         previous = self.values.get(slot)
+        if previous is not None and (values is previous or values <= previous):
+            # Nothing new. The IDENTITY test is the one that pays: equal sets are interned to
+            # one object, and 706 slots were measured holding the same 1,361-element set, so the
+            # common case of propagating a saturated set between them is a pointer comparison
+            # instead of a union linear in the set.
+            return
         if previous is None:
             if not values:
                 return
             # frozenset() on the FIRST write to a slot, which is rare against the updates: the
             # old code always built a new set, so storing a caller's own object here would be
             # the one way a later mutation of theirs could reach the store.
-            self.values[slot] = frozenset(values)
+            self.values[slot] = self._intern(frozenset(values))
         else:
-            merged = previous | values
-            if len(merged) == len(previous):
-                return
-            self.values[slot] = merged
+            self.values[slot] = self._intern(previous | values)
         for reader in self.readers[slot]:
             self._schedule(reader)
         for key in self.memo_readers.pop(slot, ()):
@@ -400,6 +405,22 @@ class CallGraph:
         """
         return self._memo("stored:" + name + ":" + slot,
                           lambda: self._get((name, slot)) | self._get((name, "<unknown-items>")))
+
+    def _intern(self, values: Values) -> Values:
+        """One object per distinct value set, so sets that are EQUAL become IDENTICAL.
+
+        The store holds the same answer over and over: 103,943 slots were measured holding only
+        19,912 distinct sets, with 90.7 per cent of all stored references sitting in redundant
+        copies and one 1,361-element set held by 706 slots [measured 2026-09-19 on the merged
+        tree]. That is the shape an inclusion-constraint solver removes by collapsing the
+        strongly connected components whose members provably converge to the same set
+        (Fahndrich, Foster, Su and Aiken, PLDI 1998, `10.1145/277650.277667`), and this analyser
+        does not materialise the edge graph that identifies them. Interning captures the same
+        redundancy from the other side, by the answers rather than the edges: it costs one hash
+        per NEW set, since a frozenset caches its own, and it makes `_put`'s common case an
+        identity test.
+        """
+        return self._interned.setdefault(values, values)
 
     def _memo[T](self, key: str, compute: Callable[[], T]) -> T:
         """Reuse a pure store lookup until one of the slots it read grows.
