@@ -144,7 +144,7 @@ def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Ord
         dependencies = [summaries[target] for target in predecessors[group]]
         door_calls = frozenset(key for fact in facts for target in fact.targets
                                for key in bodies.get(target, ()))
-        native = frozenset(site for fact in facts for site in fact.native)
+        native = frozenset(site for fact in facts if not fact.guard for site in fact.native)
         opened = frozenset(site for fact in facts for site in fact.open)
         contracts = frozenset(call for fact in facts for call in fact.contracts)
         cycle = (members,) if len(members) > 1 or members[0] in helper_graph[members[0]] else ()
@@ -164,7 +164,8 @@ def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Ord
         direct = frozenset(key for target in fact.targets for key in bodies.get(target, ()))
         if row.body is None and row.sugar_of:
             direct |= frozenset({row.sugar_of.base})
-        native = fact.native | (frozenset({"declared binding: " + row.binding.door}) if row.binding else frozenset())
+        crossings = frozenset() if fact.guard else fact.native
+        native = crossings | (frozenset({"declared binding: " + row.binding.door}) if row.binding else frozenset())
         unknown = fact.targets - calls.keys() - bodies.keys()
         opened = fact.open | frozenset("source unavailable: " + name for name in unknown)
         initial[row.key] = Order(

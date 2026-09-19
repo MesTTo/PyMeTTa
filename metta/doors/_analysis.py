@@ -257,6 +257,9 @@ class Calls:
     native: frozenset[str] = frozenset()
     open: frozenset[str] = frozenset()
     contracts: frozenset[ContractCall] = frozenset()
+    #: Whether `metta.doors.guard` marks this body, so its crossings are liveness
+    #: checks that neither count for it nor propagate to what calls it.
+    guard: bool = False
 
 
 @dataclass(slots=True)
@@ -1935,7 +1938,7 @@ class CallGraph:
             for protocol, receivers in deferred.items():
                 self._protocol(frozenset(receivers), protocol, scope.node)
         self.facts[scope.name] = Calls(frozenset(self.targets), frozenset(self.native), frozenset(self.open),
-                                      frozenset(self.contracts))
+                                      frozenset(self.contracts), "guard" in scope.decorators)
         self.current = ""
 
     def _complete_annotations(self) -> bool:

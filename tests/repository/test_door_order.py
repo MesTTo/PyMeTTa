@@ -73,6 +73,45 @@ def test_door_order_follows_aliases_and_helpers(tmp_path):
     assert not result["space:second"].native
 
 
+GUARDED = """
+    from metta._binding.runtime import Runtime
+    class Space:
+        def __init__(self):
+            self._rt = Runtime()
+        @property
+        @guard
+        def _name(self) -> str:
+            \"\"\"Refuse a dead handle. Every call reads the name through here.\"\"\"
+            return self._rt.must("live(Name)")
+        @marked
+        def first(self) -> int:
+            \"\"\"Cross to the engine and answer.\"\"\"
+            return self._rt.must("value")
+        @marked
+        def second(self) -> int:
+            \"\"\"Compose a door, reading the guarded name on the way.\"\"\"
+            _ = self._name
+            return self.first()
+"""
+
+
+def test_a_guarded_crossing_is_not_charged_to_what_reads_it(tmp_path):
+    """A liveness check on the path of every call is not the caller's own work."""
+    _, result = _program(tmp_path, GUARDED)
+    assert result["space:first"].number == 1, "a direct crossing is still order 1"
+    assert not result["space:second"].mixed, "the guard must not make a composition mixed"
+    assert not result["space:second"].native, "the guard's crossing must not propagate"
+    assert result["space:second"].number == 2, "so the door is numbered by what it calls"
+
+
+def test_without_the_guard_the_same_crossing_makes_the_caller_mixed(tmp_path):
+    """The negative control: the mark is what separates these, not the shape."""
+    _, result = _program(tmp_path, GUARDED.replace("        @guard\n", ""))
+    assert result["space:second"].mixed, "an unmarked crossing reaching a composition is mixed"
+    assert result["space:second"].native, "and it propagates to the caller"
+    assert result["space:second"].number is None, "so the door cannot be numbered"
+
+
 def test_door_order_keeps_mixed_crossings_as_findings(tmp_path):
     """Adding a local crossing to a composition removes its integer order."""
     _, result = _program(tmp_path, '''

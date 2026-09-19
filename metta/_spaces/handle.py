@@ -428,6 +428,7 @@ class SpaceHandle(Handle):
         self._scoped = _spaces_lifetime_module.attach(self)
 
     @property
+    @_doors.guard
     def _space(self) -> _SpaceId:
         """The space name, refused once this handle has been dropped.
 
