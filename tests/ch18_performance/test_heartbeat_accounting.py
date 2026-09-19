@@ -29,13 +29,25 @@ from pathlib import Path
 
 import pytest
 
-from metta._roots import workspace
+# The seat goes on sys.path HERE, before `metta` is imported, because this file
+# is ALSO the body of the children `_launch` spawns: they run it as __main__
+# with the workspace root as cwd, and `metta` lives under extensions/python,
+# which a child's path does not carry -- pymetta is not installed in this
+# environment and nothing exports PYTHONPATH. `_prepare` used to do this and
+# runs too late, from __main__, after the import below has already raised
+# `ModuleNotFoundError: No module named 'metta'` and killed the child; the
+# parent then reported every worker returning 1.
+#
+# parents[2] rather than a marker walk: where a test sits inside its own seat
+# is fixed by the layout, so there is nothing to discover.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from metta._roots import workspace  # noqa: I001 -- the line above is what makes this importable in a spawned child, so sorting it into the block above is not allowed
 
 ROOT = workspace()
 
 
 def _prepare() -> None:
-    sys.path.insert(0, str(ROOT / "extensions/python"))
     from _workspace import on_path
 
     on_path()
