@@ -61,7 +61,9 @@ def module_path(name: str, root: Path = ROOT) -> Path:
         package = seat / name.replace(".", "/") / "__init__.py"
         if package.is_file():
             return package
-    found = [path for path in (seat / "ext").glob("metta-*/*.py") if path.stem == name]
+    # The distributions are a sibling of `extensions/`, not inside the seat: the seat
+    # must work without them, so it cannot be where they are looked up.
+    found = [path for path in (root / "ext").glob("metta-*/*.py") if path.stem == name]
     if len(found) != 1:
         msg = f"door implementation module {name!r} has {len(found)} source files"
         raise ValueError(msg)

@@ -63,16 +63,20 @@ RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
 # tools/ and the repository's tests/checks/ were in no ruff lane at all until
 # 2026-09-04, so their suppressions were counted by nothing: a burn-down that
 # cannot see a directory is a ceiling with a door under it.
-# `ext`, the seat's conftest and the workspace helper joined on 2026-09-08 with
-# the extension packages: the lane checks them, and a scope this test cannot see
+# The seat's conftest and the workspace helper joined on 2026-09-08 with the
+# extension packages: the lane checks them, and a scope this test cannot see
 # is a burn-down with a door under it, which is the reason the line above says
 # tools/ and tests/checks/ joined for.
+# `ext` moved to the repository scope on 2026-09-19 when the distributions
+# became a component beside the seat rather than a directory inside it. It is
+# the same ruff project root either way, because `ext/` carries no config of
+# its own and the repository's governs both it and tests/checks/.
 RUFF_SCOPES = (
     (
         PYTHON_ROOT,
-        ("metta", "tests", "bench.py", "tools", "ext", "conftest.py", "_workspace.py"),
+        ("metta", "tests", "bench.py", "tools", "conftest.py", "_workspace.py"),
     ),
-    (REPO, ("tests/checks",)),
+    (REPO, ("ext", "tests/checks")),
 )
 REQUIRED_RUFF_FAMILIES = frozenset({"FBT", "N", "A", "D", "ARG", "PERF", "C90", "TRY", "EM"})
 RUFF_SUPPRESSION_GUARDS = frozenset({"RUF100", "RUF103"})
@@ -88,7 +92,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # and the import-reuse, saga and identity-wire controls ask the engine
     # about the atoms True and False as literals; every site states its
     # reason inline, and RUF100 refuses one that stops being needed.
-    "FBT": 68,
+    # 68 -> 69 for the string library's overlap flag, which the merged
+    # standard-library work added: `string-count`'s third argument asks for
+    # overlapping counts and MeTTa takes it positionally, because MeTTa calls
+    # have no keywords. It is the same boolean-LITERAL-as-atom case as the
+    # sites above rather than a behaviour switch.
+    "FBT": 69,
     # 35 -> 37 with the compiled dict story: _x_Set and _x_DictComp join the
     # _x_<Node> translator-dispatch family, whose suffix mirrors ast class
     # names by contract.

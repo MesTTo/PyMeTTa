@@ -40,7 +40,20 @@ from collections.abc import Iterator
 from importlib import metadata
 from pathlib import Path
 
-EXT = Path(__file__).resolve().parent / "ext"
+#: The one level count in the tree. A count is silent when it is wrong -- the
+#: glob matches nothing and every member stops being importable with no error
+#: naming the cause -- so it is made once here and named everywhere else, and
+#: `tests/checks/check_layering.py` compares EXT against the workspace roster
+#: so a layout change fails a lane instead of a member's imports
+#: [measured 2026-09-19: the move to a top-level `ext/` left five files
+#: counting to the old depth, costing 22 collection errors and 12 setup
+#: errors before the count became one].
+#: The distributions are a sibling of `extensions/`, not of this file: they
+#: are a separate component so that deleting `ext/` leaves the seat whole,
+#: which it cannot be while they sit inside it.
+SEAT = Path(__file__).resolve().parent
+ROOT = SEAT.parents[1]
+EXT = ROOT / "ext"
 
 
 def members() -> list[Path]:

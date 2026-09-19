@@ -202,14 +202,17 @@ class SourceGraph:
         seat = root / "extensions/python"
         capture = SourceModules()
         self.loader = griffe.GriffeLoader(
-            search_paths=[seat, *sorted((seat / "ext").glob("metta-*"))],
+            search_paths=[seat, *sorted((ROOT / "ext").glob("metta-*"))],
             extensions=griffe.Extensions(capture),
             allow_inspection=False,
         )
         self.loader.load("metta", try_relative_path=False)
         for page in sorted((root / "website/reference").glob("metta*.md")):
             match = SOURCE.search(page.read_text(encoding="utf-8"))
-            if match and "/ext/" in match[1]:
+            # A path comparison, not a substring: the distributions are a
+            # top-level component now, so their sources START with `ext/`
+            # and no longer contain `/ext/` for a substring to find.
+            if match and pathlib.PurePosixPath(match[1]).is_relative_to("ext"):
                 self.loader.load(pathlib.Path(match[1]).stem, try_relative_path=False)
         # A callable module may be annotated as a Protocol in __init__.pyi.
         # Restore the loader's source modules before resolving their exports.
