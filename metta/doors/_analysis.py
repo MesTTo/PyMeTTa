@@ -111,7 +111,7 @@ import types
 import typing
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cache
 from typing import NamedTuple, cast
 
@@ -301,6 +301,30 @@ def _terminates(statements: list[ast.stmt]) -> bool:
     if isinstance(last, ast.If):
         return _terminates(last.body) and _terminates(last.orelse)
     return False
+
+
+def _duplicated(value: object) -> object:
+    """A container nothing else can reach, sharing whatever cannot be written to.
+
+    Recursion stops at the first thing that is not a container, so value sets, AST
+    nodes and `Reference`s are shared: they are immutable, and sharing the interned
+    sets is what keeps `_put`'s identity test meaning the same thing in a copy as in
+    the graph it came from. `defaultdict` keeps its factory, because a copy that
+    turned one into a plain dict would raise the first time a missing slot was read.
+    """
+    if isinstance(value, defaultdict):
+        clone = defaultdict(value.default_factory)
+        clone.update({key: _duplicated(item) for key, item in value.items()})
+        return clone
+    if isinstance(value, dict):
+        return {key: _duplicated(item) for key, item in value.items()}
+    if isinstance(value, set):
+        return set(value)
+    if isinstance(value, deque):
+        return deque(value)
+    if isinstance(value, list):
+        return [_duplicated(item) for item in value]
+    return value
 
 
 class CallGraph:
@@ -1961,4 +1985,98 @@ class CallGraph:
         self.memo_readers.clear()
         for name in tuple(self.facts):
             self._evaluate(self.scopes[name])
+        return self._answer()
+
+    def _answer(self) -> Mapping[str, Calls]:
         return {name: self.facts[name] for name in sorted(self.functions.intersection(self.facts))}
+
+    def extended(self, sources: Mapping[str, str], entries: Iterable[str],
+                 lifetimes: Iterable[str]) -> Mapping[str, Calls]:
+        """Solve for MORE sources and entries without re-deriving what this graph holds.
+
+        Registering a door the generated verdict table does not name sends `orders()`
+        to `live()`, which analyses the core again, so a test registering sixty
+        synthetic doors pays sixty whole-program analyses. The core's answer does not
+        depend on them: this store is the least fixed point for the core's entries,
+        the store only ever grows, and adding sources and entries can only add values,
+        so the fixed point for the larger input is reachable from here by propagating
+        what is new. That is the ordinary argument for incremental evaluation of a
+        monotone analysis, and it is why nothing already at rest needs revisiting:
+        a scope whose inputs did not change still satisfies its own equations, and
+        `_put` reschedules every reader of a slot that does change.
+
+        The graph is COPIED rather than reused, because `_index` and `_evaluate` both
+        write to a `_Scope`'s `locals` and `redirects`, so an extension sharing scope
+        objects would corrupt the graph it was seeded from and every later extension
+        with it.
+
+        Measured 2026-09-19 on the merged tree: a full solve is 97.73s, of which the
+        fixed point is 95.28s, the reporting pass 2.45s and building the graph 0.55s.
+        An extension pays the copy, the index of its own module and the reporting
+        pass, so the fixed point is what it skips.
+        """
+        fresh_entries = frozenset(entries) - self.entries
+        fresh_lifetimes = frozenset(lifetimes) - self.lifetimes
+        clone = self._copy()
+        clone.entries = frozenset(entries)
+        clone.lifetimes = frozenset(lifetimes)
+        fresh: set[str] = set()
+        for module, text in sources.items():
+            if module in clone.modules:
+                continue
+            clone.modules.add(module)
+            clone.module_prefixes.add(module)
+            known = set(clone.scopes)
+            clone._index(_Scope(module, module, ast.parse(text), None))
+            fresh |= set(clone.scopes) - known
+        # A scope that GAINED a lifetime is evaluated differently, so it is new work
+        # even though it is old code.
+        fresh |= (fresh_entries | fresh_lifetimes) & set(clone.scopes)
+        clone._propagate(fresh)
+        return clone._answer()
+
+    def _propagate(self, fresh: set[str]) -> None:
+        """Run the fixed point from the new scopes alone, then report over every fact.
+
+        `solve` leaves `_reporting` set, and a copy inherits it. Both `_schedule`
+        and `_put` do nothing while it is set, so an extension that did not clear
+        it first evaluated nothing at all and returned the base's own answers: the
+        differential caught it as three functions the full solve had and the
+        extension did not, one of them the planted entry itself.
+        """
+        self._reporting = False
+        for name in sorted(fresh):
+            if name in self.classes:
+                self._bases(name)
+        for final in (False, True):
+            self._final = final
+            self.memos.clear()
+            self.memo_readers.clear()
+            for name in sorted(fresh):
+                self._schedule(name)
+            while True:
+                while self.queue:
+                    name = self.queue.popleft()
+                    self.queued.remove(name)
+                    self._evaluate(self.scopes[name])
+                if not final or not self._complete_annotations():
+                    break
+        self._reporting = True
+        self.memos.clear()
+        self.memo_readers.clear()
+        for name in tuple(self.facts):
+            self._evaluate(self.scopes[name])
+
+    def _copy(self) -> CallGraph:
+        """A graph with this one's answers and none of its mutable state shared.
+
+        Duplicated by SHAPE rather than by a list of which fields carry results and
+        which carry structure. A list of that kind is an invariant held by hand and
+        goes wrong the first time a field is added; walking the instance and
+        duplicating every container cannot.
+        """
+        clone = object.__new__(CallGraph)
+        clone.__dict__.update({name: _duplicated(value) for name, value in self.__dict__.items()})
+        clone.scopes = {name: replace(scope, locals=set(scope.locals), redirects=dict(scope.redirects))
+                        for name, scope in self.scopes.items()}
+        return clone
