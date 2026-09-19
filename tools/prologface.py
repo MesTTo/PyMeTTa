@@ -112,9 +112,15 @@ def generated_body(rows: list[tuple[str, tuple[str, ...], str, tuple[str, ...]]]
     """Render the direct registration and the metadata that describes it."""
     names = sorted({name for name, _, _, _ in rows})
     native_path = json.dumps(os.path.relpath(source.resolve(), ROOT / "lib"))
+    # A face DESCRIBES the artifact that backs it rather than calling the
+    # importer. The row is data any implementation can read, decide whether it
+    # can perform, and refuse by name when it cannot, where the call was an
+    # instruction only this engine understands; the loader performs it after
+    # the file's rows are in the space
+    # [source: docs/journal/2026-09-09-packages-are-equations.md, law 14].
     lines = [f"; {generated_notice}", "!(import! &self (library lib_import))",
-             f"!(import_prolog_functions_from_file (library {native_path})",
-             "  (" + " ".join(names) + "))", ""]
+             f"(= (package backing) (prolog (library {native_path})",
+             "  (" + " ".join(names) + ")))", ""]
     by_name: dict[str, list[tuple[str, tuple[str, ...], str, tuple[str, ...]]]] = {}
     for row in rows:
         by_name.setdefault(row[0], []).append(row)
