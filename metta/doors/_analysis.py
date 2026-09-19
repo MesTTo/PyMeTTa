@@ -74,6 +74,14 @@ test_type_of_a_value_is_its_class_and_a_made_class_resolves_through_its_bases,
 test_a_source_iter_yields_its_elements_to_a_loop,
 test_an_inherited_container_iterates_what_it_stores,
 test_a_field_test_against_none_narrows_the_field; commit=a6874e867225cd6efb26177d803b942d0dc02dcf].
+Every transfer function that takes a value set is called ONCE with the whole
+set, never once per reference: each is distributive, so the union of the
+singleton answers is the answer for the union, and the fixed cost of entering
+one is what a per-reference call pays again for every reference. Reference is
+a tuple so that set algebra over it runs in C [measured 2026-09-19: the full
+solve falls from 392.4s to 128.6s and every published figure is unchanged,
+the verdict table in sync and the same 227 rows, 29,583 sites, 130 mixed, 131
+recursive, 160 undeclared-open and 182 unordered; commit=WORKTREE].
 Fails when: a setter carries statements beside its intrinsic call; its
 callers' names and values are then joined across all call sites, which
 reports every assigned value as a possible receiver [tested:
@@ -105,14 +113,28 @@ from collections import defaultdict, deque
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from functools import cache
-from typing import cast
+from typing import NamedTuple, cast
 
 from metta.doors._invocations import INVOCATIONS
 
 
-@dataclass(frozen=True, slots=True)
-class Reference:
-    """One finite possible value, with a receiver for a bound method."""
+class Reference(NamedTuple):
+    """One finite possible value, with a receiver for a bound method.
+
+    A tuple rather than a frozen dataclass, because it is the element type of every set this
+    analysis builds and set algebra over it is the analysis's whole inner loop. A dataclass
+    pays a Python frame per element on both operations a set performs: `__hash__` is a method
+    call even when it only reads a cached int, and the generated `__eq__` builds two
+    six-field tuples and compares those. A tuple does both in C, and CPython caches the hash
+    of every string inside it, so recomputing the six-field hash beats fetching a cached one
+    through a method call.
+
+    Measured across the three set sizes the profile's distribution spans, 32, 256 and 2048:
+    the subset test `_put` performs on every write is 7.5x to 9.6x faster, union is 5.0x to
+    5.8x, and construction is 2.6x [measured 2026-09-19, timeit]. In one solve `_put` runs
+    76,444,351 times, `Reference.__hash__` 176,041,197 times and the dataclass `__eq__`
+    43,002,228 [measured 2026-09-19, cProfile over the merged tree].
+    """
 
     kind: str
     name: str
@@ -120,16 +142,6 @@ class Reference:
     member: str = ""
     operations: frozenset[str] = frozenset()
     literal: str | None = None
-    _hash: int = field(init=False, repr=False, compare=False, default=0)
-
-    def __post_init__(self) -> None:
-        # Set algebra hashes every member on each union and difference; the
-        # six-field tuple hash is computed once per reference instead.
-        object.__setattr__(self, "_hash", hash((self.kind, self.name, self.receiver, self.member,
-                                                self.operations, self.literal)))
-
-    def __hash__(self) -> int:
-        return self._hash
 
 
 type Values = frozenset[Reference]
@@ -950,6 +962,12 @@ class CallGraph:
                         result.add(Reference("unknown", base + "." + member))
                         return
                 continue
+            # Both calls below take a SET and are distributive over it, and everything
+            # they would be given besides the member is fixed by `reference`, so the loop
+            # collects and each runs once. Per member they were two of the singleton calls
+            # that put `_attribute` and `_call` at 24.5 million each [measured 2026-09-19].
+            descriptors: set[Reference] = set()
+            properties: set[Reference] = set()
             for value in members:
                 descriptor = value.kind == "instance" and self._has_method(value, "__get__")
                 data = descriptor and (self._has_method(value, "__set__") or self._has_method(value, "__delete__"))
@@ -962,23 +980,28 @@ class CallGraph:
                     result.update(fields)
                     continue
                 if descriptor:
-                    if node is not None:
-                        receiver = reference if reference.kind == "instance" else Reference("instance", "builtins.NoneType")
-                        result.update(self._call(
-                            self._attribute(frozenset({value}), "__get__", node),
-                            [frozenset({receiver}), frozenset({Reference("class", reference.name)})], {}, node,
-                        ))
+                    descriptors.add(value)
                     continue
                 if value.kind != "function" or reference.kind != "instance":
                     result.add(value)
                     continue
                 if property_:
-                    if node is not None:
-                        result.update(self._call(frozenset({Reference("bound", value.name, reference.name)}), [], {}, node))
+                    properties.add(Reference("bound", value.name, reference.name))
                 elif "staticmethod" in decorators:
                     result.add(value)
                 else:
                     result.add(Reference("bound", value.name, reference.name))
+            # Both invocations need a site to charge, so the absence of one is the condition
+            # written here rather than repeated at each collection point.
+            if node is not None:
+                if descriptors:
+                    receiver = reference if reference.kind == "instance" else Reference("instance", "builtins.NoneType")
+                    result.update(self._call(
+                        self._attribute(frozenset(descriptors), "__get__", node),
+                        [frozenset({receiver}), frozenset({Reference("class", reference.name)})], {}, node,
+                    ))
+                if properties:
+                    result.update(self._call(frozenset(properties), [], {}, node))
             return
         if fields:
             result.update(fields)
@@ -1030,6 +1053,12 @@ class CallGraph:
     def _set_attribute(self, receivers: Values, member: str, values: Values, node: ast.AST,
                        *, base: bool = False) -> None:
         """Follow a declared setter, or retain an ordinary instance field."""
+        # Both `_attribute` and `_call` are distributive, so the loop collects and each
+        # runs once. The setter call is grouped BY its setter set rather than pooled: two
+        # receivers with different setters must not be paired with each other's, which
+        # would be a cross-product and strictly less precise than what it replaces.
+        overriding: set[Reference] = set()
+        writing: dict[Values, set[Reference]] = defaultdict(set)
         for receiver in self._references(receivers):
             # policy-inventory-exempt: mechanism-internal; reason=module and function namespaces hold plain attributes, not instance fields; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._set_attribute
             if receiver.kind in {"module", "function"}:
@@ -1041,22 +1070,26 @@ class CallGraph:
                     self.open.add(self._where(node, "unresolved attribute receiver"))
                 continue
             if receiver.kind == "instance" and not base and self._has_method(receiver, "__setattr__"):
-                self._call(self._attribute(frozenset({receiver}), "__setattr__", node),
-                           [frozenset({Reference("instance", "builtins.str", literal=member)}), values], {}, node)
+                overriding.add(receiver)
                 continue
-            setters: set[Reference] = set()
+            described: set[Reference] = set()
             for owner in self._bases(receiver.name):
                 members = self._references(self._get((owner, member)))
                 if members:
-                    for descriptor in members:
-                        if descriptor.kind == "instance" and self._has_method(descriptor, "__set__"):
-                            setters.update(self._attribute(frozenset({descriptor}), "__set__", node))
+                    described.update(descriptor for descriptor in members
+                                     if descriptor.kind == "instance" and self._has_method(descriptor, "__set__"))
                     break
+            setters = self._attribute(frozenset(described), "__set__", node) if described else frozenset()
             if receiver.kind == "instance" and setters:
-                self._call(frozenset(setters), [frozenset({receiver}), values], {}, node)
+                writing[setters].add(receiver)
             else:
                 slot = f"<field:{member}>" if receiver.kind == "instance" else member
                 self._put((receiver.name, slot), values)
+        if overriding:
+            self._call(self._attribute(frozenset(overriding), "__setattr__", node),
+                       [frozenset({Reference("instance", "builtins.str", literal=member)}), values], {}, node)
+        for setters, written in writing.items():
+            self._call(setters, [frozenset(written), values], {}, node)
 
     def _where(self, node: ast.AST, reason: str) -> str:
         cached = self.unparsed.get(id(node))
@@ -1161,6 +1194,7 @@ class CallGraph:
             return none
         # policy-inventory-exempt: mechanism-internal; reason=bulk builtin mutations propagate every supplied element; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
         if method in {"extend", "update", "__ior__", "__iadd__"}:
+            iterated: set[Reference] = set()
             for argument in positional:
                 for value in argument:
                     if _mapping(container.receiver) and value.kind == "container" and _mapping(value.receiver):
@@ -1168,11 +1202,16 @@ class CallGraph:
                         self._put((name, "<unknown-items>"), self._get((value.name, "<items>")))
                         self._put((name, "<keys>"), self._get((value.name, "<keys>")))
                     else:
-                        values = self._protocol(frozenset({value}), "__iter__", node)
-                        if _mapping(container.receiver):
-                            values = self._protocol(values, "__iter__", node)
-                        self._put((name, "<items>"), values)
-                        self._put((name, "<unknown-items>"), values)
+                        iterated.add(value)
+            if iterated:
+                # One `_protocol` over everything being iterated in, not one per element:
+                # it is distributive, so the union of the singleton answers IS the answer
+                # for the union.
+                values = self._protocol(frozenset(iterated), "__iter__", node)
+                if _mapping(container.receiver):
+                    values = self._protocol(values, "__iter__", node)
+                self._put((name, "<items>"), values)
+                self._put((name, "<unknown-items>"), values)
             for values in keywords.values():
                 self._put((name, "<items>"), values)
                 self._put((name, "<unknown-items>"), values)
@@ -1395,6 +1434,19 @@ class CallGraph:
         references = self._references(values)
         if not references and self._reporting:
             self.open.add(self._where(node, "unresolved call target"))
+        # `_attribute`, `_call`, `_store` and `_protocol` each take a SET and are
+        # distributive over it, so calling one per reference pays its fixed per-call cost
+        # once per reference where calling it once with the whole set pays it once. That
+        # fixed cost is not small: `_protocol` reaches `_attribute`, `_call` and the
+        # container expansion, and it was measured at 31,779,766 calls carrying 433s of
+        # cumulative time against a 392s solve, most of them singletons from this loop
+        # [measured 2026-09-19, cProfile over the merged tree]. So the loop collects and
+        # the calls happen after it. Grouping cannot change the answer, because chaotic
+        # iteration reaches the same least fixed point under any fair order and every
+        # reader of a slot is rescheduled when it grows.
+        constructed: set[Reference] = set()
+        inherited: dict[str, set[Reference]] = defaultdict(set)
+        invoked: set[Reference] = set()
         for reference in references:
             if reference.kind == "unreachable":
                 continue
@@ -1435,15 +1487,14 @@ class CallGraph:
             if reference.kind == "class":
                 instance = Reference("instance", reference.name)
                 result.add(instance)
-                constructors = self._attribute(frozenset({instance}), "__init__", node)
-                self._call(constructors, positional, keywords, node)
+                constructed.add(instance)
                 storage = next((_INHERITED_STORAGE[base] for base in self._bases(reference.name)
                                 if base in _INHERITED_STORAGE), None)
                 if storage is not None and positional:
-                    self._store(frozenset({instance}), storage, positional[0], node)
+                    inherited[storage].add(instance)
                 continue
             if reference.kind == "instance":
-                result.update(self._protocol(frozenset({reference}), "__call__", node))
+                invoked.add(reference)
                 continue
             # policy-inventory-exempt: mechanism-internal; reason=plain and bound function references carry indexed callable scopes; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
             if reference.kind in {"function", "bound"}:
@@ -1502,6 +1553,12 @@ class CallGraph:
             # policy-inventory-exempt: mechanism-internal; reason=callable reference cases already handled above must not become unresolved calls; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
             elif reference.kind not in {"class", "instance", "function", "bound", "external"} and self._final:
                 self.open.add(self._where(node, f"unresolved callable {reference.name}"))
+        if constructed:
+            self._call(self._attribute(frozenset(constructed), "__init__", node), positional, keywords, node)
+        for storage, instances in inherited.items():
+            self._store(frozenset(instances), storage, positional[0], node)
+        if invoked:
+            result.update(self._protocol(frozenset(invoked), "__call__", node))
         return frozenset(result)
 
     def _value(self, node: ast.expr | None, scope: _Scope) -> Values:
@@ -1608,13 +1665,16 @@ class CallGraph:
                 # for the same reason: it cost 133 million element visits and 16.7s of self
                 # time rebuilt per reference per evaluation [measured 2026-09-19].
                 members: set[Reference] = set()
+                opaque: set[Reference] = set()
                 for reference in values:
                     if reference.kind == "container":
                         members.update(self._stored(
                             reference.name,
                             str(index) if reference.name in self.positioned else "<items>"))
                     else:
-                        members.update(self._protocol(frozenset({reference}), "__iter__", node))
+                        opaque.add(reference)
+                if opaque:
+                    members.update(self._protocol(frozenset(opaque), "__iter__", node))
                 self._assign(element, frozenset(members), scope)
         elif isinstance(node, ast.Subscript):
             self._call(self._attribute(self._value(node.value, scope), "__setitem__", node),
@@ -1835,11 +1895,14 @@ class CallGraph:
             self._statement(statement, scope)
         if scope.name in self.lifetimes:
             values = self._get((scope.name, "<return>"))
+            deferred: dict[str, set[Reference]] = defaultdict(set)
             for reference in values:
                 if reference.kind == "instance" and reference.name in self.classes and reference.name != scope.owner:
                     for protocol in ("__enter__", "__exit__", "__iter__", "__next__", "close"):
                         if any(self._get((base, protocol)) for base in self._bases(reference.name)):
-                            self._protocol(frozenset({reference}), protocol, scope.node)
+                            deferred[protocol].add(reference)
+            for protocol, receivers in deferred.items():
+                self._protocol(frozenset(receivers), protocol, scope.node)
         self.facts[scope.name] = Calls(frozenset(self.targets), frozenset(self.native), frozenset(self.open),
                                       frozenset(self.contracts))
         self.current = ""
