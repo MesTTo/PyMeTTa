@@ -370,6 +370,22 @@ class CallGraph:
             for key in self.memo_readers.pop(slot, ()):
                 self.memos.pop(key, None)
 
+    def _stored(self, name: str, slot: str) -> Values:
+        """Everything the container `name` can yield at `slot`: that slot and its unknown items.
+
+        A container's contents are split across the slot a key or position names and the
+        `<unknown-items>` slot that holds what could not be placed, so every reader of a
+        container wants their union. It is a pure store lookup, so it goes through `_memo`,
+        which records the two slots it read and evicts the entry when either grows.
+
+        Rebuilt at each of its three call sites on every evaluation, this was the dominant cost
+        of the whole analysis: 491 million element visits in the `__iter__` expansion and 133
+        million more in destructuring, against 158 million `Reference.__hash__` calls for the
+        entire run afterwards [measured 2026-09-19, cProfile over the merged tree].
+        """
+        return self._memo("stored:" + name + ":" + slot,
+                          lambda: self._get((name, slot)) | self._get((name, "<unknown-items>")))
+
     def _memo[T](self, key: str, compute: Callable[[], T]) -> T:
         """Reuse a pure store lookup until one of the slots it read grows.
 
@@ -1066,7 +1082,7 @@ class CallGraph:
             return stored
         key = self._key(node.slice if isinstance(node, ast.Subscript) else
                         node.args[0] if isinstance(node, ast.Call) and node.args else None)
-        selected = items if key == "<unknown-items>" else self._get((name, key)) | self._get((name, "<unknown-items>"))
+        selected = items if key == "<unknown-items>" else self._stored(name, key)
         # policy-inventory-exempt: mechanism-internal; reason=these builtin methods read a stored element; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._container_call
         if method in {"__getitem__", "pop"}:
             if method == "pop" and not _mapping(container.receiver):
@@ -1211,10 +1227,19 @@ class CallGraph:
             answered = self._call(self._attribute(concrete, name, node), [], {}, node)
             # policy-inventory-exempt: mechanism-internal; reason=these two protocols answer an iterator whose elements are what a loop binds; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._protocol
             if name in {"__iter__", "__aiter__"}:
-                answered = frozenset(value for reference in answered for value in (
-                    self._get((reference.name, "<items>")) | self._get((reference.name, "<unknown-items>"))
-                    if reference.kind == "container" else (reference,)
-                ))
+                # A container's elements are the union of its two item slots. That union is a
+                # pure store lookup, so it goes through the memo that evicts when either slot
+                # grows rather than being rebuilt per reference per call. Rebuilt, it was the
+                # single dominant cost of the whole analysis: 491 million element visits and
+                # most of 515 million `Reference.__hash__` calls, against 158 million after
+                # [measured 2026-09-19, cProfile over the merged tree].
+                expanded: set[Reference] = set()
+                for reference in answered:
+                    if reference.kind == "container":
+                        expanded.update(self._stored(reference.name, "<items>"))
+                    else:
+                        expanded.add(reference)
+                answered = frozenset(expanded)
             yielded.update(answered)
         return frozenset(yielded)
 
@@ -1528,12 +1553,18 @@ class CallGraph:
             self._set_attribute(self._value(node.value, scope), node.attr, values, node)
         elif isinstance(node, (ast.Tuple, ast.List)):
             for index, element in enumerate(node.elts):
-                members = frozenset(value for reference in values for value in (
-                    (self._get((reference.name, str(index) if reference.name in self.positioned else "<items>"))
-                     | self._get((reference.name, "<unknown-items>")))
-                    if reference.kind == "container" else self._protocol(frozenset({reference}), "__iter__", node)
-                ))
-                self._assign(element, members, scope)
+                # The same union, over the element slot a positioned container uses. Memoised
+                # for the same reason: it cost 133 million element visits and 16.7s of self
+                # time rebuilt per reference per evaluation [measured 2026-09-19].
+                members: set[Reference] = set()
+                for reference in values:
+                    if reference.kind == "container":
+                        members.update(self._stored(
+                            reference.name,
+                            str(index) if reference.name in self.positioned else "<items>"))
+                    else:
+                        members.update(self._protocol(frozenset({reference}), "__iter__", node))
+                self._assign(element, frozenset(members), scope)
         elif isinstance(node, ast.Subscript):
             self._call(self._attribute(self._value(node.value, scope), "__setitem__", node),
                        [self._value(node.slice, scope), values], {}, node)
