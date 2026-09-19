@@ -1512,6 +1512,7 @@ class CallGraph:
                                 else keywords.get(parameters[index], frozenset()) for index in indices]
                     self.forwarding.add(name)
                     try:
+                        # per-reference: each forwarding body resolves its OWN intrinsic and its own argument permutation, so there is no set to call once with
                         result.update(self._call(frozenset({Reference("external", intrinsic)}), supplied, {}, node))
                     finally:
                         self.forwarding.discard(name)
