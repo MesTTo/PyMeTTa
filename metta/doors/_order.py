@@ -193,14 +193,33 @@ def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Ord
     return MappingProxyType({row.key: result[row.key] for row in records})
 
 
+#: Two, because that is what a registration cycle alternates between: the rows with the new one
+#: and the rows without it. A miss is correct and only slower, so this bounds memory rather than
+#: guessing at a workload.
+@lru_cache(maxsize=2)
+def _facts(sources: tuple[tuple[str, str], ...], entries: frozenset[str],
+           lifetimes: frozenset[str]) -> Mapping[str, Calls]:
+    """Solve the call graph, cached on exactly what the SOLVE reads.
+
+    The solve is the whole cost of the analysis and it reads three things: the sources, the
+    entry points, and which of those defer to a lifetime protocol. It does not read anything
+    else a `Door` row carries. Keying the cache on the whole row set instead meant that
+    registering a door the generated table does not name re-solved the entire program, because
+    two row sets differing in a field the solve never reads are different keys
+    [measured 2026-09-19: one solve is 460s on this tree, and `tests/repository/test_door_rows.py`
+    registers a fixture door dozens of times].
+    """
+    return CallGraph(dict(sources), entries, lifetimes).solve()
+
+
 def analyse(rows: Iterable[Door], sources: Mapping[str, str]) -> Mapping[str, Order]:
     """Read one explicit source set without importing any of its bodies."""
     records = tuple(rows)
-    entries = {row.body.module + "." + row.body.symbol for row in records if row.body}
-    lifetimes = {row.body.module + "." + row.body.symbol for row in records
-                 # policy-inventory-exempt: mechanism-internal; reason=context and stream results defer execution to their lifetime protocols; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._evaluate
-                 if row.body and row.answers in {AnswersAs.context, AnswersAs.stream}}
-    return derive(records, CallGraph(sources, entries, lifetimes).solve())
+    entries = frozenset(row.body.module + "." + row.body.symbol for row in records if row.body)
+    lifetimes = frozenset(row.body.module + "." + row.body.symbol for row in records
+                          # policy-inventory-exempt: mechanism-internal; reason=context and stream results defer execution to their lifetime protocols; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._evaluate
+                          if row.body and row.answers in {AnswersAs.context, AnswersAs.stream})
+    return derive(records, _facts(tuple(sorted(sources.items())), entries, lifetimes))
 
 
 def source_text(paths: Mapping[str, Path]) -> dict[str, str]:
@@ -216,11 +235,6 @@ def source_text(paths: Mapping[str, Path]) -> dict[str, str]:
     return sources
 
 
-@lru_cache(maxsize=1)
-def _snapshot(rows: tuple[Door, ...], sources: tuple[tuple[str, str], ...]) -> Mapping[str, Order]:
-    return analyse(rows, dict(sources))
-
-
 def live(rows: Iterable[Door]) -> Mapping[str, Order]:
     """Analyse the shipped core and the loaded providers' own source files."""
     records = tuple(rows)
@@ -231,8 +245,7 @@ def live(rows: Iterable[Door]) -> Mapping[str, Order]:
             filename = vars(loaded).get("__file__") if loaded is not None else None
             if filename:
                 paths[row.body.module] = Path(filename)
-    sources = tuple(source_text(paths).items())
-    return _snapshot(records, sources)
+    return analyse(records, source_text(paths))
 
 
 def orders(rows: Iterable[Door]) -> Mapping[str, Verdict]:
