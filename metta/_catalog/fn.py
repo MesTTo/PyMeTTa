@@ -278,6 +278,7 @@ if TYPE_CHECKING:
         or_else: Symbol
         owned_record_read: Symbol
         "owned-record-read: (-> Atom Atom)\n\nRead a native owned record as data: the held `@owned-record` key names the home, the owner, the storage and the row prefix; the answer is the record's zero or one complete rows, with a stored expression left unevaluated. A retired owner or a second value refuses."
+        package_prolog: Symbol
         parse: Symbol
         parse_command: Symbol
         pow: Symbol
@@ -349,6 +350,7 @@ if TYPE_CHECKING:
         sealed: Symbol
         "sealed: (-> Expression Atom Atom)\n\nFreshening every variable except a named few, the hygiene primitive under rule emission. The Python surface makes most uses unnecessary by construction, because a parameter-scoped rule is fresh per rule, so the row shows the law spelling."
         second_from_pair: Symbol
+        setup: Symbol
         sin_math: Symbol
         "sin-math: (-> Number Number)\n\n`math.sin`."
         size_atom: Symbol
@@ -625,6 +627,7 @@ _NAMES = frozenset(
         "or",
         "or-else",
         "owned-record-read",
+        "package-prolog",
         "parse",
         "parse-command",
         "pow-math",
@@ -687,6 +690,7 @@ _NAMES = frozenset(
         "round-math",
         "sealed",
         "second-from-pair",
+        "setup!",
         "sin-math",
         "size-atom",
         "sleep",
@@ -915,6 +919,7 @@ _ALIASES.update(
         ("or_", "or"),
         ("or_else", "or-else"),
         ("owned_record_read", "owned-record-read"),
+        ("package_prolog", "package-prolog"),
         ("parse", "parse"),
         ("parse_command", "parse-command"),
         ("pow", "pow-math"),
@@ -977,6 +982,7 @@ _ALIASES.update(
         ("round_math", "round-math"),
         ("sealed", "sealed"),
         ("second_from_pair", "second-from-pair"),
+        ("setup", "setup!"),
         ("sin_math", "sin-math"),
         ("size_atom", "size-atom"),
         ("sleep", "sleep"),
