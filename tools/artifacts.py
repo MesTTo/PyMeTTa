@@ -91,9 +91,30 @@ def tool(name: str, *args: str) -> Command:
 
 
 def suite(*targets: str) -> Command:
-    """Use the seat runner and its interpreter, collection and cleanup policy."""
+    """Use the seat runner and its interpreter, collection and cleanup policy.
+
+    EVERY target is rooted, not just the seat-relative ones. `test.sh` does
+    `cd "$HERE"` into the seat before running pytest, so a target left relative
+    resolves under extensions/python/ and is not there. pytest handed one good
+    path and one bad one collects NOTHING and reports "no tests ran", naming
+    neither, so the lane reads as a lane while running none of its cases
+    [measured 2026-09-20: face-sync-selftest passed 32 cases with its second
+    target rooted and ran zero with it bare, and the hand-fix to the generated
+    block in check.sh was reverted by the next `artifacts.py --write`, which is
+    what says the rooting belongs here].
+
+    A target beginning `tests/` is the seat's own; one carrying a separator is
+    named from the repository root, which is where the sibling distributions
+    under ext/ live. Anything else is a pytest flag or a flag's value, `-k`
+    and the expression it selects on, and is passed through untouched: rooting
+    those is what the manifest's own "missing command path" check refuses, and
+    it refused them here before this comment was written.
+    """
     return ("env", "CHECK_PY=@python", "sh", "@root/extensions/python/test.sh",
-            *("@root/extensions/python/" + target if target.startswith("tests/") else target for target in targets))
+            *("@root/extensions/python/" + target if target.startswith("tests/")
+              else "@root/" + target if "/" in target
+              else target
+              for target in targets))
 
 
 ARTIFACTS = (

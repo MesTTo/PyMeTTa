@@ -816,7 +816,7 @@ layers = [
     "_atoms",
     "_errors",
     "seam",
-    "_layers | _lazy | _version",
+    "_layers | _lazy | _roots | _version",
 ]
 # end generated package layers
 
