@@ -65,11 +65,12 @@ from pathlib import Path
 import pytest
 from packaging.requirements import Requirement
 
-from _workspace import normalised
 import metta._atoms.factories as metta_atoms
 from metta import __version__
 from metta._roots import workspace
 from metta._spaces.intents import _LINT_CATALOGUE
+
+from _workspace import normalised
 
 ROOT = workspace()
 
