@@ -191,6 +191,7 @@ import json
 import keyword
 import os
 import re
+import subprocess
 import sys
 import textwrap
 from collections import Counter, defaultdict
@@ -220,7 +221,19 @@ from metta._atoms.factories import Atom, _alpha_eq, _encode
 from metta._atoms.names import attribute_name, operator_attribute_target
 
 REPO = parity.REPO
-TWINS = REPO / "extensions" / "python" / "examples" / "language-feature-examples"
+def twins_root(root: Path = REPO) -> Path:
+    """The twins repository for a checkout, derived rather than fixed.
+
+    twin_for/2, example_for/2 and orphans/1 each take a `root` and each used to
+    read a module constant instead, so passing any root but this checkout's
+    silently mixed two trees and no planted tree could reach them. A guarantee
+    about what orphans/1 reports is only held by something that can call it
+    against a tree it controls.
+    """
+    return root / "extensions" / "python" / "examples" / "language-feature-examples"
+
+
+TWINS = twins_root()
 RESIDUE = TWINS / "residue.json"
 
 
@@ -858,12 +871,12 @@ def twin_for(example: Path, root: Path = REPO) -> Path:
     """The twin that would cover this example. A pure path transform, so the
     corpus stays the single definition of what exists.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return TWINS / example.relative_to(root / "examples").with_suffix(".py")
+    return twins_root(root) / example.relative_to(root / "examples").with_suffix(".py")
 
 
 def example_for(twin: Path, root: Path = REPO) -> Path:
     """The example a twin covers, the transform above run backwards."""
-    return root / "examples" / twin.relative_to(TWINS).with_suffix(".metta")
+    return root / "examples" / twin.relative_to(twins_root(root)).with_suffix(".metta")
 
 
 def written(root: Path = REPO) -> list[Path]:
@@ -875,12 +888,46 @@ def orphans(root: Path = REPO) -> list[Path]:
     """Twins covering nothing the corpus discovers: a renamed or deleted
     example leaves one behind, and a twin nothing runs proves nothing.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    twins = twins_root(root)
     known = {twin_for(path, root) for path in parity.corpus(root)}
+    # The twin set is what the twins REPOSITORY tracks, not what a walk of its
+    # directory finds; tests/checks/evidence_runners.py:tracked/1 states that
+    # rule and check.sh's ruff-drivers lane states it again. The corpus is
+    # mounted inside this one as a submodule, so rglob descended into a second
+    # repository and reported ITS .py examples as twins of examples nothing
+    # runs. Naming "examples" beside "_fixtures" would guard one spelling and
+    # leave the next mounted component to repeat it.
+    #
+    # BARE, not --recurse-submodules, which is where that shared helper cannot
+    # be borrowed: it answers what any repository under a root owns, and this
+    # asks what THIS repository owns. Recursing would list the mounted
+    # corpus's own examples again and restore the defect
+    # [measured 2026-09-21: a directory walk finds 4 .py files under the
+    # mounted corpus where bare `git ls-files` finds 0, and its 323 tracked
+    # twins are exactly the twinned-example count the lane reports].
     # `_fixtures/` is excluded for the reason parity.corpus excludes it: it
     # holds inputs a twin imports rather than twins, so a helper there covers
     # nothing by construction and reporting it says nothing about rot.
-    return sorted(path for path in TWINS.rglob("*.py")
-                  if path not in known and "_fixtures" not in path.parts)
+    listing = subprocess.run(  # noqa: S603  -- fixed argv, the path is this repository's own
+        ["git", "-C", str(twins), "ls-files", "*.py"],  # noqa: S607  -- PATH git, as every lane runs it
+        capture_output=True, text=True, check=False,
+    )
+    # A failed listing must not read as "no orphans". An empty answer and a
+    # broken command are the same three characters of stdout, and taking the
+    # second for the first is how a lane reports 0 findings over a tree it
+    # never read; tests/checks/evidence_runners.py:tracked/1 raises here for
+    # the same reason.
+    if listing.returncode != 0:
+        msg = (
+            f"{twins} is not a git repository, so the twin set cannot be read: "
+            "orphan discovery asks what this repository tracks, and a planted "
+            "tree is a repository (git init -q; git add -A) or it is not scanned"
+        )
+        raise RuntimeError(msg)
+    listed = listing.stdout.split()
+    return sorted(twins / name for name in listed
+                  if twins / name not in known
+                  and "_fixtures" not in Path(name).parts)
 
 
 # ------------------------------------------------------------- source discipline
