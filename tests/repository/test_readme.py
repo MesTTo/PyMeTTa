@@ -95,13 +95,18 @@ def test_readme_metta_block_is_hermetic(index):
 
 
 @pytest.mark.parametrize("index", range(len(_METTA)), ids=lambda i: f"metta-{i + 1}")
-def test_readme_metta_block_runs(index):
+def test_readme_metta_block_runs(index, tmp_path, monkeypatch):
     """A metta fence runs on a fresh space, and its own `!(test ...)` judges it.
 
     A block of bare atoms with nothing to reduce is still run rather than
     skipped: it proves the text PARSES, which is the failure a hand-written
     fence actually has.
+
+    In a directory of its own, because a fence WRITES. The catalog fence
+    imports lib_package, which opens a catalog journal where the program runs,
+    and running it here left `catalog/` in the checkout.
     """
+    monkeypatch.chdir(tmp_path)
     source = _METTA[index]
     space = metta_module.space()
     space.run(source)
