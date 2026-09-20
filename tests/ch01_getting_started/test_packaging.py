@@ -65,6 +65,7 @@ from pathlib import Path
 import pytest
 from packaging.requirements import Requirement
 
+from _workspace import normalised
 import metta._atoms.factories as metta_atoms
 from metta import __version__
 from metta._roots import workspace
@@ -101,8 +102,11 @@ def test_package_and_tools_share_one_manifest():  # noqa: D103  -- pytest discov
     # Compared NORMALISED, because PEP 503 makes a distribution name
     # case-insensitive and collapses runs of -, _ and .: pinning the
     # spelling would fail on a legal re-spelling while catching nothing a
-    # different distribution could do.
-    assert re.sub(r"[-_.]+", "-", project["name"]).lower() == "pymetta"
+    # different distribution could do. Through `_workspace.normalised`, which
+    # is the same call the import system and `check_layering.py` decide name
+    # identity by; the copy of the regex that used to sit here is how this file
+    # could hold the rule while the gate's own roster comparison did not.
+    assert normalised(project["name"]) == "pymetta"
     assert project["dynamic"] == ["version"]
     # 3.12 is the floor the style guide sets, because that is where the class
     # shape's own syntax arrives (PEP 695 generics), which the guide's worked

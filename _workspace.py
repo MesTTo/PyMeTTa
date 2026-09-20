@@ -109,14 +109,28 @@ class CheckoutDistributions(metadata.DistributionFinder):
         self, context: metadata.DistributionFinder.Context | None = None
     ) -> Iterator[metadata.Distribution]:
         """Every member, or the one `context.name` asks for, by normalised name."""
-        wanted = None if context is None or context.name is None else _normalised(context.name)
+        wanted = None if context is None or context.name is None else normalised(context.name)
         for member in members():
-            if wanted is None or wanted == _normalised(member.name):
+            if wanted is None or wanted == normalised(member.name):
                 yield CheckoutDistribution(member)
 
 
-def _normalised(name: str) -> str:
-    """PEP 503's project-name normalisation: `metta_live`, `Metta-Live` and `metta-live` are one name."""
+def normalised(name: str) -> str:
+    """PEP 503's project-name normalisation: `metta_live`, `Metta-Live` and `metta-live` are one name.
+
+    The ONE home for that rule. uv, pip and `importlib.metadata` all decide
+    name identity this way, so anything here comparing two distribution names
+    raw disagrees with every tool it talks to about what a package is called.
+    It was private with two callers in this file while a second copy sat in
+    `tests/ch01_getting_started/test_packaging.py` and `check_layering.py` had
+    none, which is how the gate came to demand the removal of a
+    `[tool.uv.sources]` entry `uv lock --check` refuses to resolve without: the
+    workspace root declares `PyMeTTa` and keys itself `pymetta`
+    [measured 2026-09-21: `sh tools/check.sh layering` reported
+    "names pymetta, which is no longer a workspace member" against a tree uv
+    resolves; commit=WORKTREE]
+    [source: https://peps.python.org/pep-0503/#normalized-names].
+    """
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
