@@ -876,7 +876,11 @@ def orphans(root: Path = REPO) -> list[Path]:
     example leaves one behind, and a twin nothing runs proves nothing.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     known = {twin_for(path, root) for path in parity.corpus(root)}
-    return sorted(path for path in TWINS.rglob("*.py") if path not in known)
+    # `_fixtures/` is excluded for the reason parity.corpus excludes it: it
+    # holds inputs a twin imports rather than twins, so a helper there covers
+    # nothing by construction and reporting it says nothing about rot.
+    return sorted(path for path in TWINS.rglob("*.py")
+                  if path not in known and "_fixtures" not in path.parts)
 
 
 # ------------------------------------------------------------- source discipline
