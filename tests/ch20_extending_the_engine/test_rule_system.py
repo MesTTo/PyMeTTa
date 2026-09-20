@@ -114,7 +114,7 @@ UNDECLARED_EXTRA_VARIABLE = """(: p2b-invents (-> Atom %Undefined%))
 
 def _run_metta(repo_root: Path, path: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["sh", "run.sh", str(path), "silent"],
+        ["sh", "tools/run.sh", str(path), "silent"],
         capture_output=True,
         text=True,
         timeout=280,

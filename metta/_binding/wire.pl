@@ -37,7 +37,7 @@
 %NOT reach here. Sending it was measured breaking round-trip identity
 %(a variable through a registered op stopped unifying home) and aliasing
 %distinct answer variables that shared a spelling.
-%A wire name is FIRST-OCCURRENCE POSITIONAL, the numbering engine/writer.c
+%A wire name is FIRST-OCCURRENCE POSITIONAL, the numbering engine/c/writer.c
 %and numbervars/3 already give a term's variables. It used to be the printed
 %form, and SWI prints an unbound variable as its STACK OFFSET:
 %  if (p > (Word) lBase) iref = ((Word)p - (Word)lBase)*2+1;
@@ -150,7 +150,7 @@ metta_py_encode_each([T|Ts], N0, N, [E|Es]) :-
 
 %The name this cell already has, or a fresh one. Compared by ==, because
 %identity of a Prolog variable is only answerable by comparison
-%[source: engine/writer.c, METTA_WRITER_VARS], which is why this scan and
+%[source: engine/c/writer.c, METTA_WRITER_VARS], which is why this scan and
 %writer.c's are both linear in the count of DISTINCT variables a term holds.
 metta_py_wire_name(Variable, Names0, Names, Name) :-
     (   metta_py_var_name(Names0, Variable, Found)

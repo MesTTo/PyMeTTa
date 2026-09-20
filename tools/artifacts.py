@@ -120,7 +120,7 @@ def suite(*targets: str) -> Command:
 ARTIFACTS = (
     Artifact(
         "artifact-sync", ("extensions/python/tools/artifacts.py",), tool("artifacts", "--write"),
-        (Output("check.sh", (BEGIN, END)), Output("check.sh", (LANES_BEGIN, LANES_END)),
+        (Output("tools/check.sh", (BEGIN, END)), Output("tools/check.sh", (LANES_BEGIN, LANES_END)),
          Output("DEVELOPING.md", (DOC_BEGIN, DOC_END))),
         ("@python", "@root/tests/checks/check_generated_artifact_group.py"),
         (("@python", "@root/tests/checks/check_generated_artifact_group_selftest.py"),),
@@ -451,7 +451,7 @@ def documentation(records: tuple[Artifact, ...]) -> str:
 def projections(root: Path = ROOT, records: tuple[Artifact, ...] = ARTIFACTS) -> dict[Path, str]:
     """Derive both gate regions and the contributor guide from the graph."""
     rows = ordered(records)
-    check, guide = root / "check.sh", root / "DEVELOPING.md"
+    check, guide = root / "tools" / "check.sh", root / "DEVELOPING.md"
     text = region(check.read_text(encoding="utf-8"), BEGIN, END, selection(rows))
     return {
         check: region(text, LANES_BEGIN, LANES_END, lanes(rows)),

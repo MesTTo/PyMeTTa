@@ -83,7 +83,7 @@ def _manifest() -> dict:
 #: check, it is a check that stops seeing its subject: measured 2026-08-28, the
 #: `python -m` scan fell from 18 targets to 1 the moment those lanes moved, and
 #: it went on passing, which is the shape of a lane that can no longer fail.
-GATE_SCRIPTS = ("check.sh", "engine/check.sh", "extensions/*/check.sh")
+GATE_SCRIPTS = ("tools/check.sh", "engine/check.sh", "extensions/*/check.sh")
 
 
 def _gate_text() -> str:

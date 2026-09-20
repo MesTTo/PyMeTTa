@@ -583,7 +583,7 @@ _SECURITY_CLAUSES = (
 _CONTRIBUTING_CLAUSES = (
     "0.y.z",
     "labelled alpha",
-    "GATE_ONLY=1 sh check.sh",
+    "GATE_ONLY=1 sh tools/check.sh",
     "no contributor license agreement",
     "obligation header",
     "evidence tag",

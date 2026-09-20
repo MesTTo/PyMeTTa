@@ -567,7 +567,7 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
     and what made those true was the client decoding the reply with
     `library(json)`: an eager reply carrying ten thousand atoms cost 1,490,407
     inferences to READ where two atoms cost 1,250. The C codec in
-    engine/json_codec.c moved that reading out of the inference counter --
+    engine/c/json_codec.c moved that reading out of the inference counter --
     the same run now reads 77 for both eager sizes -- so the counter stopped
     seeing reply volume at all and both comparisons went vacuous, then red.
     Reply volume is what they were always about, so it is counted directly and

@@ -19,7 +19,7 @@ EXAMPLES = ROOT / "examples/ch20-extending-the-engine/20-06-files-and-processes"
 def test_standard_streams_and_explicit_exit():
     """EOF reads preserve text and stderr remains separate from stdout."""
     completed = subprocess.run(
-        ["sh", "run.sh", str(EXAMPLES / "02-standard-streams.metta"), "--silent"],
+        ["sh", "tools/run.sh", str(EXAMPLES / "02-standard-streams.metta"), "--silent"],
         cwd=ROOT, input="first\nλ last\n", text=True, capture_output=True, check=False,
     )
     assert completed.returncode == 0, completed.stderr
@@ -30,7 +30,7 @@ def test_standard_streams_and_explicit_exit():
 def test_exit_is_process_termination_even_inside_catch():
     """An exit status is not a recoverable function return."""
     completed = subprocess.run(
-        ["sh", "run.sh", str(EXAMPLES / "_fixtures/exit-status.metta"), "--silent"],
+        ["sh", "tools/run.sh", str(EXAMPLES / "_fixtures/exit-status.metta"), "--silent"],
         cwd=ROOT, text=True, capture_output=True, check=False,
     )
     assert completed.returncode == 17, completed.stderr
