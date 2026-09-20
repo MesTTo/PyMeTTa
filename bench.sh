@@ -23,13 +23,13 @@ set -u
 HERE=$(cd -- "$(dirname -- "$0")" && pwd)
 
 METTA_ROOT="$HERE/../.."
-. "$HERE/../../select-python.sh"
+. "$HERE/../../tools/select-python.sh"
 [ -n "$PY" ] || {
     echo "extensions/python/bench.sh: no python found (set CHECK_PY)" >&2
     exit 2
 }
 
-bounded() { sh "$HERE/../../bounded.sh" "$@"; }
+bounded() { sh "$HERE/../../tools/bounded.sh" "$@"; }
 
 cd "$HERE"
 status=0

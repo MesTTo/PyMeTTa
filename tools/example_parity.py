@@ -163,7 +163,7 @@ CHILD_GRACE = 60
 
 #: The repository's one bound. Every runner in this tree, and a command
 #: typed by hand, reach the same file.
-BOUNDED = REPO / "bounded.sh"
+BOUNDED = REPO / "tools" / "bounded.sh"
 
 #: What every child cost, appended as it finishes, so `main` can print the
 #: slowest against TIMEOUT. `list.append` is what the threads share; nothing

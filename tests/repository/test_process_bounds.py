@@ -54,7 +54,7 @@ import pytest
 from metta._roots import workspace
 
 REPO = workspace()
-BOUNDED = REPO / "bounded.sh"
+BOUNDED = REPO / "tools" / "bounded.sh"
 
 #: A child that spins at 100% and refuses SIGTERM, so only an escalation to
 #: SIGKILL ends it. The 2026-09-05 spinner needed one.

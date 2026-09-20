@@ -94,13 +94,13 @@ def test_all_fifteen_assigned_rows_have_a_code_authority():
 def test_lint_authorities_are_durable_public_references():
     """Runtime evidence names an immutable document rather than local scratch."""
     assert _LINT_CATALOGUE == (
-        "https://github.com/MesTTo/MeTTa-Kernel/blob/"
+        "https://github.com/MesTTo/MeTTa/blob/"
         "7de3d32d25a7166b12f7c68c179e9cbb931ac044/"
         "website/guide/run-query.md#lint-a-space"
     )
     authorities = (*_AUTHORITIES.values(), _INTENT_AUTHORITY)
     for authority in authorities:
-        assert "github.com/MesTTo/MeTTa-Kernel/blob/" in authority
+        assert "github.com/MesTTo/MeTTa/blob/" in authority
         assert "/website/guide/run-query.md#" in authority
 
 

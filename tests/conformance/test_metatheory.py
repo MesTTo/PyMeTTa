@@ -147,7 +147,7 @@ def _confluence_report(repo_root: Path, files: list[Path]) -> str:
 
 def _run_metta(repo_root: Path, path: Path) -> list[str]:
     finished = subprocess.run(
-        ["sh", "run.sh", str(path), "silent"],
+        ["sh", "tools/run.sh", str(path), "silent"],
         capture_output=True,
         text=True,
         timeout=280,

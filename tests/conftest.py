@@ -63,7 +63,7 @@ from metta._roots import workspace
 #: and stops enforcing when the parent does, which is how two swipl children
 #: spawned by a repository runner survived from 2026-09-01 to 2026-09-03,
 #: spinning at 100% for 122 CPU-hours between them.
-BOUNDED = workspace() / "bounded.sh"
+BOUNDED = workspace() / "tools" / "bounded.sh"
 
 
 def _bound_children_to_a_wrapper() -> None:
@@ -250,7 +250,7 @@ class MettaExample(pytest.Item):
         if self.skip is not None:
             pytest.skip(f"{CORPUS_SKIPS}: {self.skip}")
         result = subprocess.run(
-            ["sh", "run.sh", self.example],
+            ["sh", "tools/run.sh", self.example],
             capture_output=True,
             text=True,
             timeout=300,

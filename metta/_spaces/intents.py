@@ -55,7 +55,7 @@ from metta._binding.dispatch import live_registration
 # These are the adopted authorities, not implementation folklore. Keeping the
 # row IDs with every emitted kind lets a finding answer which ruling it applies.
 _LINT_CATALOGUE = (
-    "https://github.com/MesTTo/MeTTa-Kernel/blob/"
+    "https://github.com/MesTTo/MeTTa/blob/"
     "7de3d32d25a7166b12f7c68c179e9cbb931ac044/website/guide/run-query.md#lint-a-space"
 )
 class Ruling(NamedTuple):

@@ -493,7 +493,7 @@ class MettaLexer(RegexLexer):
     """MeTTa, from the grammar at website/.vitepress/metta.tmLanguage.json."""
 
     name = "MeTTa"
-    url = "https://mestto.github.io/MeTTa-Kernel/"
+    url = "https://mestto.github.io/MeTTa/"
     #: What get_lexer_by_name, get_lexer_for_filename and get_lexer_for_mimetype
     #: each key on, and what get_all_lexers lists. Tuples rather than the lists
     #: Pygments' own lexers declare: all four read them by `in` or by iterating,

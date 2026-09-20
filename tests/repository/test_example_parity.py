@@ -83,7 +83,7 @@ def test_the_chess_example_is_skipped_for_the_reason_that_is_true():
     assert "interactive terminal" in parity.skips()[example]
 
     quits = subprocess.run(
-        ["sh", "run.sh", example],
+        ["sh", "tools/run.sh", example],
         cwd=REPO,
         input="q\n",
         capture_output=True,
@@ -98,7 +98,7 @@ def test_the_chess_example_is_skipped_for_the_reason_that_is_true():
     # so a process still producing refusals after four times that many
     # bytes is not a program taking its time.
     looping = subprocess.Popen(
-        ["sh", "run.sh", example],
+        ["sh", "tools/run.sh", example],
         cwd=REPO,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,

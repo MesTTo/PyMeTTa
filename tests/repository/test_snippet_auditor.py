@@ -24,7 +24,7 @@ import audit_snippets as auditor  # noqa: E402
 
 
 def test_the_snippet_auditor_runs_from_the_gate(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    gate = (repo_root / "check.sh").read_text(encoding="utf8")
+    gate = (repo_root / "tools" / "check.sh").read_text(encoding="utf8")
     assert (
         'run REPORT snippets    "$PY" "$HERE/website/scripts/audit_snippets.py"'
         in gate
@@ -37,7 +37,7 @@ def test_the_snippet_auditor_runs_from_the_gate(repo_root):  # noqa: D103  -- py
     child_env = {k: v for k, v in os.environ.items() if k != "GATE_ONLY"}
     child_env["CHECK_PY"] = sys.executable
     run = subprocess.run(
-        ["sh", "check.sh", "snippets"],
+        ["sh", "tools/check.sh", "snippets"],
         cwd=repo_root,
         env=child_env,
         capture_output=True,

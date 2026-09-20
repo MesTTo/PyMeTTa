@@ -618,7 +618,7 @@ def test_the_runner_prints_every_assertion_it_collects():
     computed and dropped is worse than one never computed, because the run
     looks like it reported.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    text = (REPO / "test.sh").read_text(encoding="utf-8")
+    text = (REPO / "tools" / "test.sh").read_text(encoding="utf-8")
     assigned = [n for n, line in enumerate(text.splitlines(), 1) if "assertions=" in line]
     assert assigned, "test.sh no longer collects assertions; this test guards the wrong thing now"
     used = [

@@ -27,7 +27,7 @@ set -eu
 HERE=$(cd -- "$(dirname -- "$0")" && pwd)
 
 METTA_ROOT="$HERE/../.."
-. "$HERE/../../select-python.sh"
+. "$HERE/../../tools/select-python.sh"
 [ -n "$PY" ] || {
     echo "extensions/python/test.sh: no python found (set CHECK_PY)" >&2
     exit 2
@@ -74,5 +74,5 @@ export PYTHONFAULTHANDLER
 # 'pytest_benchmark_update_machine_info'` -- raised by the plugin this same
 # command disables [measured 2026-09-06]. pytest is the one that can tell a path
 # argument from a flag, so the default belongs in its configuration.
-exec sh "$HERE/../../bounded.sh" \
+exec sh "$HERE/../../tools/bounded.sh" \
     "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0 "$@"

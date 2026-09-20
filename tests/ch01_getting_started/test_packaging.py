@@ -98,7 +98,11 @@ def _gate_text() -> str:
 def test_package_and_tools_share_one_manifest():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert (ROOT / "extensions" / "python" / "pyproject.toml").samefile(ROOT / "pyproject.toml")
     project = _manifest()["project"]
-    assert project["name"] == "pymetta"
+    # Compared NORMALISED, because PEP 503 makes a distribution name
+    # case-insensitive and collapses runs of -, _ and .: pinning the
+    # spelling would fail on a legal re-spelling while catching nothing a
+    # different distribution could do.
+    assert re.sub(r"[-_.]+", "-", project["name"]).lower() == "pymetta"
     assert project["dynamic"] == ["version"]
     # 3.12 is the floor the style guide sets, because that is where the class
     # shape's own syntax arrives (PEP 695 generics), which the guide's worked
@@ -107,9 +111,9 @@ def test_package_and_tools_share_one_manifest():  # noqa: D103  -- pytest discov
     # spellings"].
     assert project["requires-python"] == ">=3.12"
     assert project["urls"] == {
-        "Homepage": "https://github.com/MesTTo/MeTTa-Kernel",
-        "Repository": "https://github.com/MesTTo/MeTTa-Kernel",
-        "Issues": "https://github.com/MesTTo/MeTTa-Kernel/issues",
+        "Homepage": "https://github.com/MesTTo/MeTTa",
+        "Repository": "https://github.com/MesTTo/MeTTa",
+        "Issues": "https://github.com/MesTTo/MeTTa/issues",
     }
 
 
@@ -121,7 +125,7 @@ def test_release_and_citation_metadata_ship_in_source_archives():  # noqa: D103 
     assert "## [Unreleased]" in changelog
     assert "## [1.0.5] - 2026-03-02" in changelog
     assert citation.startswith("cff-version: 1.2.0\n")
-    assert 'repository-code: "https://github.com/MesTTo/MeTTa-Kernel"' in citation
+    assert 'repository-code: "https://github.com/MesTTo/MeTTa"' in citation
     assert {"include CHANGELOG.md", "include CITATION.cff"} <= set(source_manifest)
 
 

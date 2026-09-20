@@ -79,9 +79,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/MesTTo/MeTTa-Kernel"
-Repository = "https://github.com/MesTTo/MeTTa-Kernel"
-Issues = "https://github.com/MesTTo/MeTTa-Kernel/issues"
+Homepage = "https://github.com/MesTTo/MeTTa"
+Repository = "https://github.com/MesTTo/MeTTa"
+Issues = "https://github.com/MesTTo/MeTTa/issues"
 
 [project.entry-points.pytest11]
 metta = "metta.pytest_plugin"
