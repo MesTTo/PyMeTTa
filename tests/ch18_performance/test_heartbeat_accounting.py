@@ -38,9 +38,16 @@ import pytest
 # `ModuleNotFoundError: No module named 'metta'` and killed the child; the
 # parent then reported every worker returning 1.
 #
-# parents[2] rather than a marker walk: where a test sits inside its own seat
-# is fixed by the layout, so there is nothing to discover.
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+# The derivation `metta._roots.seat()` makes, written inline because THIS is
+# the line that makes `metta` importable, so nothing from it can be imported
+# yet. A component is the nearest ancestor holding a `pyproject.toml` or a
+# `.git`, which is what `_roots._COMPONENT` names; counting directory levels
+# instead is what the root-walks lane refuses, and rightly, because a layout
+# change moves the count while leaving the marker where it is.
+sys.path.insert(0, str(next(
+    ancestor for ancestor in Path(__file__).resolve().parents
+    if (ancestor / "pyproject.toml").exists() or (ancestor / ".git").exists()
+)))
 
 from metta._roots import workspace  # noqa: I001 -- the line above is what makes this importable in a spawned child, so sorting it into the block above is not allowed
 
