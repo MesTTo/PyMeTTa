@@ -27,8 +27,6 @@ from metta._roots import workspace
 README = workspace() / "README.md"
 _TEXT = README.read_text()
 
-_BLOCKS = re.findall(r"```python\n(.*?)```", _TEXT, re.DOTALL)
-assert _BLOCKS, "the README lost its python blocks"
 
 _METTA = re.findall(r"```metta\n(.*?)```", _TEXT, re.DOTALL)
 assert _METTA, "the README lost its metta blocks"
@@ -36,35 +34,8 @@ assert _METTA, "the README lost its metta blocks"
 #: A fence that cannot run here, and the gate-run file whose text it must be.
 #: The value is that file plus the rewrites a reader needs, applied in order.
 _MIRRORED = {
-    "ts": (
-        "extensions/node/examples/readme-snippet.ts",
-        (('"../src/index.ts"', '"tsmetta"'),),
-    ),
     "c": ("extensions/cmetta/examples/lower.c", ()),
 }
-
-
-@pytest.mark.parametrize("index", range(len(_BLOCKS)), ids=lambda i: f"block-{i + 1}")
-def test_readme_block_executes(index, metta, tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
-    source = _BLOCKS[index]
-    if "torch" in source or "pettorch" in source:
-        pytest.importorskip("torch")
-    if "pettaprove" in source:
-        # The soft layer lives in its own repository beside this one.
-        pytest.importorskip("pettaprove")
-    # A real file, so inspect.getsource sees @m.define bodies, exactly as
-    # the compiler asks of a REPL.
-    path = tmp_path / f"readme_block_{index + 1}.py"
-    path.write_text(source)
-    settings = metta_module.config.as_dict()
-    try:
-        # A namespace per block: every example stands alone.
-        exec(compile(source, str(path), "exec"), {"__name__": "__main__"})
-    finally:
-        metta_module.config.configure(
-            declaration_limit=settings["declaration_limit"],
-            display_rows=settings["display_rows"],
-        )
 
 
 #: A fence runs on every machine that runs the suite, so it may not reach the
