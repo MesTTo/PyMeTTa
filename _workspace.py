@@ -128,7 +128,7 @@ def normalised(name: str) -> str:
     workspace root declares `PyMeTTa` and keys itself `pymetta`
     [measured 2026-09-21: `sh tools/check.sh layering` reported
     "names pymetta, which is no longer a workspace member" against a tree uv
-    resolves; commit=WORKTREE]
+    resolves; commit=c6ed562a1a6f964aba906206f2558489b107dc24]
     [source: https://peps.python.org/pep-0503/#normalized-names].
     """
     return re.sub(r"[-_.]+", "-", name).lower()

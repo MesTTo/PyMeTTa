@@ -45,7 +45,7 @@ SEAT = "extensions/python/metta/"
 #: while its own output column still read `check.sh` where the row already said
 #: `tools/check.sh` [measured 2026-09-21: `check_generated_artifact_group.py`
 #: reported "artifact manifest projection drift: DEVELOPING.md" and the diff
-#: carried both directions; commit=WORKTREE].
+#: carried both directions; commit=c6ed562a1a6f964aba906206f2558489b107dc24].
 #: A fixture planting a gate tree joins these onto its own root, which is what
 #: stops a planted tree and the code reading it from drifting apart.
 CHECK_SH = "tools/check.sh"
