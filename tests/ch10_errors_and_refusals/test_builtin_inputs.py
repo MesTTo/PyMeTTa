@@ -244,9 +244,12 @@ def test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason():
 
     # The fragment, one unknown among integers, forwards and backwards. The
     # name carries this row's prefix because &self is shared by every MeTTa()
-    # in a process: README.md registers a Python `double`, so a plain `double`
-    # here answers twice whenever tests/test_readme.py ran first in the same
-    # worker [measured 2026-08-21].
+    # in a process, so a plain `double` answers twice for any other test in
+    # the same worker that defined one. README.md used to be that other test
+    # and is no longer: its Python fences left with the PyMeTTa section, so
+    # tests/repository/test_readme.py now runs metta fences only. The prefix
+    # stays because the hazard is the shared space, not that one neighbour
+    # [measured 2026-08-21; the README half removed 2026-09-21].
     engine.run("(= (p225-double $x) (* 2 $x))")
     assert answers("!(p225-double 5)") == ["10"]
     assert answers("!(let 10 (p225-double $x) $x)")[0] == "5"
