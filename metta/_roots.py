@@ -38,10 +38,10 @@ Assumes: a checkout, or `METTA_WORKSPACE`/`METTA_PATH` naming one. An installed
 Guarantees:
   - `seat()` and `workspace()` answer the same directories the counts did, from any
     file at any depth, and keep answering after a file moves [tested:
-    tests/repository/test_roots.py; commit=WORKTREE]
+    tests/repository/test_roots.py; commit=561cfeaa23b27fc84f86a9bcccf6ccf8b9d2e73f]
   - `workspace()` refuses rather than guessing when no checkout is above this file,
     naming the two environment variables that would settle it [tested:
-    tests/repository/test_roots.py; commit=WORKTREE]
+    tests/repository/test_roots.py; commit=561cfeaa23b27fc84f86a9bcccf6ccf8b9d2e73f]
 Fails when: a component is vendored with its `.git` stripped and no marker put in
   its place, where `seat()` answers the nearest ancestor that does have one.
 Open Obligations:

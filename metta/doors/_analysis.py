@@ -81,7 +81,7 @@ one is what a per-reference call pays again for every reference. Reference is
 a tuple so that set algebra over it runs in C [measured 2026-09-19: the full
 solve falls from 392.4s to 128.6s and every published figure is unchanged,
 the verdict table in sync and the same 227 rows, 29,583 sites, 130 mixed, 131
-recursive, 160 undeclared-open and 182 unordered; commit=WORKTREE].
+recursive, 160 undeclared-open and 182 unordered; commit=561cfeaa23b27fc84f86a9bcccf6ccf8b9d2e73f].
 Fails when: a setter carries statements beside its intrinsic call; its
 callers' names and values are then joined across all call sites, which
 reports every assigned value as a possible receiver [tested:
