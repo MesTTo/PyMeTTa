@@ -450,12 +450,34 @@
 %   Future Enhancements: None
 
 :- use_module(library(janus)).
-:- use_module('../../../../engine/atom_index',
+%This file ships at two depths and one relative path cannot serve both:
+%`../../../../engine` is right for the checkout and for the copy inside
+%_runtime/extensions, and `../_runtime/engine` is right for the copy beside
+%runtime.py that the Python tier consults. So the engine is RESOLVED here
+%rather than spelled, and resolved by this file rather than by the engine,
+%because tests/prolog/suites/spaces/shared_decode_index.plt consults this
+%file on its own with no engine loaded and an alias the engine registers
+%would not exist yet [measured 2026-09-21: 196 tests failed that way].
+:- ( user:file_search_path(metta_engine_home, _)
+   -> true
+   ;  prolog_load_context(directory, Here),
+      (  absolute_file_name('../../../../engine', Dir,
+                            [ relative_to(Here), file_type(directory),
+                              file_errors(fail), access(read) ])
+      -> assertz(user:file_search_path(metta_engine_home, Dir))
+      ;  absolute_file_name('../_runtime/engine', Dir,
+                            [ relative_to(Here), file_type(directory),
+                              file_errors(fail), access(read) ])
+      -> assertz(user:file_search_path(metta_engine_home, Dir))
+      ;  true
+      )
+   ).
+:- use_module(metta_engine_home(atom_index),
               [metta_atom_index_new/1, metta_atom_index_bind/4, metta_atom_index_get/3]).
 % query.pl and evaluation.pl build a repeatable-evaluation goal from the
 % translator's goal lists with its own conjunction builder; the name was
 % called unqualified in this module and defined nowhere it could see.
-:- use_module('../../../../engine/translator', [goals_list_to_conj/2]).
+:- use_module(metta_engine_home(translator), [goals_list_to_conj/2]).
 % These predicates are called directly by binding units. Declare their host
 % imports here instead of making the first count, variable, or bounded cursor
 % load the missing import through Prolog's global autoloader.
