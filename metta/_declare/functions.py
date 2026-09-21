@@ -103,8 +103,6 @@ def _format_doc_atom(doc: Expression) -> str:
         lines.append(f"Returns: {returns}")
     return "\n".join(lines)
 
-_COST_LEDGER = seat() / "benchmarks" / "cost-baseline.json"
-
 @functools.cache
 def _cost_measurement_dates() -> Mapping[str, str]:
     """Each measured head's date from the ledger, empty when it is not on disk.
@@ -113,10 +111,21 @@ def _cost_measurement_dates() -> Mapping[str, str]:
     rewrites, not live state, so a process that started before a re-record
     keeps showing the date it started with; `help()` in a fresh process shows
     the new one.
+
+    `seat()` is called HERE rather than at module scope. An installed wheel has
+    no component above it, so `seat()` raises by design, and resolving this path
+    at import made 37 of the 185 shipped modules unimportable for anyone whose
+    venv is not inside a project directory -- metta.algebra, metta.library,
+    metta.lint, metta.testing and the rest, through metta._declare.define
+    [measured 2026-09-22: 0.8.0 imports 97 of 98 from a rootless location, this
+    tree 148 of 185]. The ledger is a checkout's build artifact and its absence
+    was ALREADY the silent case here; only the resolution sat above the handler
+    that covers it.
     """
     try:
-        document = json.loads(_COST_LEDGER.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        ledger = seat() / "benchmarks" / "cost-baseline.json"
+        document = json.loads(ledger.read_text(encoding="utf-8"))
+    except (OSError, RuntimeError, ValueError):
         return {}
     rows = document.get("rows", {})
     return {
