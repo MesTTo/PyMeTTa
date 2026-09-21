@@ -1,5 +1,6 @@
-"""Purpose: a translator rule answers the same thing in every space, not only
-in the space that registered it.
+"""Purpose: a translator rule answers the same thing in every space.
+
+Not only in the space that registered it.
 
 `add-translator-rule!` takes a head over for the WHOLE PROCESS, which the
 engine documents and intends: translate_expr_dl/4 consults the rules one line
@@ -37,7 +38,7 @@ Open Obligations:
 
 from __future__ import annotations
 
-import os
+import contextlib
 
 import metta as metta_module
 
@@ -49,12 +50,8 @@ CUT = "(1)"
 
 def _answer(source: str, tmp_path) -> str:
     """Run `source` on a fresh space in its own directory, as the README suite does."""
-    here = os.getcwd()
-    os.chdir(tmp_path)
-    try:
+    with contextlib.chdir(tmp_path):
         return str(metta_module.space().run(source)[-1])
-    finally:
-        os.chdir(here)
 
 
 def test_a_registered_rule_answers_the_same_in_a_space_that_never_imported_it(tmp_path):

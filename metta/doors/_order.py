@@ -24,9 +24,10 @@ than writing to it.
 from __future__ import annotations
 
 import ast
+import contextlib
 import hashlib
 import os
-import pickle
+import pickle  # nosec B403 -- a cache this process writes and content-addresses, never foreign input
 import sys
 import tempfile
 from collections.abc import Container, Iterable, Mapping
@@ -252,7 +253,7 @@ def source_text(paths: Mapping[str, Path]) -> dict[str, str]:
 #: which is how every tool cache in this tree stays out of `git status`: ruff,
 #: pytest, mypy, Hypothesis and import-linter each write a `.gitignore` holding
 #: `*` inside the directory they create, so the repository's own .gitignore
-#: stays about repository-wide rules [source: .gitignore's header].
+#: stays about repository-wide rules [source: .gitignore, the header block naming tool caches].
 _CORE_CACHE = Path(__file__).resolve().parent / ".analysis-cache"
 
 
@@ -268,15 +269,26 @@ def _core_fingerprint(sources: tuple[tuple[str, str], ...], entries: frozenset[s
     cache needs, because everything else it reads is already in the key.
     """
     digest = hashlib.blake2b(digest_size=20)
+
+    def absorb(*chunks: bytes) -> None:
+        """Feed one field, delimited, so two fields cannot spell one digest."""
+        for chunk in chunks:
+            digest.update(chunk)
+            digest.update(b"\0")
+
     for module, text in sources:
-        digest.update(module.encode()); digest.update(b"\0")
-        digest.update(text.encode()); digest.update(b"\0")
+        absorb(module.encode(), text.encode())
     for group in (sorted(entries), sorted(lifetimes)):
         for name in group:
-            digest.update(name.encode()); digest.update(b"\0")
+            absorb(name.encode())
         digest.update(b"\1")
-    digest.update(Path(sys.modules[CallGraph.__module__].__file__).read_bytes())
-    digest.update(sys.version.encode())
+    # The analysis module's own bytes. `__file__` is typed optional because a
+    # module can be built without one; this one is imported from a file, and a
+    # cache that cannot find it must MISS rather than key on a partial digest.
+    source = getattr(sys.modules[CallGraph.__module__], "__file__", None)
+    if source is None:
+        return ""
+    absorb(Path(source).read_bytes(), sys.version.encode())
     return digest.hexdigest()
 
 
@@ -289,7 +301,13 @@ def _read_core(path: Path) -> CallGraph | None:
     """
     try:
         with path.open("rb") as handle:
-            graph = pickle.load(handle)
+            # Deliberate, and safe by construction: this reads a file THIS
+            # repository's own process wrote, under a name that is a digest of
+            # the sources, the entry sets, the interpreter and the analysis
+            # module's own bytes. Anything else cannot match that name, and a
+            # file that somehow did is caught below and answered as a miss, so
+            # the cache degrades to a rebuild rather than to misplaced trust.
+            graph = pickle.load(handle)  # noqa: S301  # nosec B301 -- see above
     except (OSError, EOFError, AttributeError, ImportError, IndexError,
             KeyError, TypeError, ValueError, pickle.UnpicklingError):
         return None
@@ -305,19 +323,17 @@ def _write_core(path: Path, graph: CallGraph) -> None:
     store is not an error: the cache is an optimisation and a read-only or full
     filesystem must cost time rather than the run.
     """
-    try:
+    with contextlib.suppress(OSError):
         path.parent.mkdir(parents=True, exist_ok=True)
         (path.parent / ".gitignore").write_text("*\n", encoding="utf-8")
         descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
         try:
             with os.fdopen(descriptor, "wb") as handle:
                 pickle.dump(graph, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            os.replace(temporary, path)
+            Path(temporary).replace(path)
         except BaseException:
             Path(temporary).unlink(missing_ok=True)
             raise
-    except OSError:
-        return
 
 
 @cache

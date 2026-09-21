@@ -79,7 +79,7 @@ from metta._spaces.results import Rows  # noqa: E402
 from metta.library import roster, rows  # noqa: E402
 
 #: One `@desc` body, for the glossary's one-line rendering.
-_DESC = re.compile(r'\(@desc\s+"(.*?)"\s*\)', re.S)
+_DESC = re.compile(r'\(@desc\s+"(.*?)"\s*\)', re.DOTALL)
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
 
@@ -297,7 +297,16 @@ def page() -> str:
 #: link, so the roster it used to end with -- a pointer at
 #: website/reference/metta-libraries.md -- told a reader where the heads were
 #: without telling them what they are. The same rows render here instead.
-_GLOSSARY_FILE = _REPO / "llms.txt"
+def _glossary_file() -> Path:
+    """The glossary's home, resolved from `_REPO` when asked rather than at import.
+
+    A module-level constant would freeze the root, and the projection tests move
+    `_REPO` to a temporary tree to drive this generator over a planted library.
+    Frozen, the page followed the move and the glossary did not, so `main` read
+    a one-library rendering against the real file and called it stale.
+    """
+    return _REPO / "llms.txt"
+
 _GLOSSARY_REGION = (
     "<!-- begin generated library glossary -->",
     "<!-- end generated library glossary -->",
@@ -364,10 +373,14 @@ def main(argv: list[str]) -> int:
     if current != wanted:
         stale.append((_PAGE, wanted))
 
-    text = _GLOSSARY_FILE.read_text(encoding="utf-8")
-    refreshed = _replace_region(text, _GLOSSARY_REGION, glossary())
-    if text != refreshed:
-        stale.append((_GLOSSARY_FILE, refreshed))
+    # A root with no llms.txt has no glossary to keep current, which is the
+    # ordinary case for a planted tree and never the case for this repository.
+    home = _glossary_file()
+    if home.is_file():
+        text = home.read_text(encoding="utf-8")
+        refreshed = _replace_region(text, _GLOSSARY_REGION, glossary())
+        if text != refreshed:
+            stale.append((home, refreshed))
 
     if not stale:
         return 0
