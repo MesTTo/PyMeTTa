@@ -82,10 +82,29 @@ def readme_counts(text: str, *, derived_count: int, total: int,
 
 
 def upstream_root() -> Path | None:
-    """The upstream checkout, or None when this tree does not carry one."""
+    """The upstream checkout, or None when this tree does not carry one.
+
+    A WORKTREE's parent is not the checkout's parent, and every gate runs in
+    one: from ai-tmp/wt-merge, `REPO.parent` is .../PeTTa/ai-tmp and the
+    sibling is two levels above that, so this lane answered "no upstream
+    checkout" and exited 0 in exactly the runs that matter. It checked only
+    when somebody ran it by hand in the main checkout, which is how the README
+    came to say 143 of 365 against a corpus of 386 [measured 2026-09-22].
+
+    `--git-common-dir` names the MAIN .git whatever tree asks, so its
+    checkout's own parent is where the siblings are. Derived rather than
+    counted, for the reason metta/_roots.py gives: a count is silent when it
+    is wrong, and this one was.
+    """
     named = os.environ.get("METTA_UPSTREAM")
     candidates = [Path(named)] if named else []
     candidates.append(REPO.parent / "PeTTa-base")
+    common = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],  # noqa: S607  -- git from PATH
+        cwd=REPO, capture_output=True, text=True, check=False,
+    )
+    if common.returncode == 0 and common.stdout.strip():
+        candidates.append(Path(common.stdout.strip()).parent.parent / "PeTTa-base")
     return next((p for p in candidates if (p / "examples").is_dir()), None)
 
 

@@ -396,6 +396,46 @@ def _core_entries() -> tuple[frozenset[str], frozenset[str]]:
 
 
 def live(rows: Iterable[Door]) -> Mapping[str, Order]:
+    """The orders for these rows, analysed once per distinct thing to analyse.
+
+    Everything `_live` READS is in its key, which is why the key is three
+    things rather than the rows alone. Besides the rows it reads which modules
+    are loaded, through `sys.modules`, and the bytes of both the core's sources
+    and theirs; a key holding only the rows would answer from before a reload
+    or an edit. That the two are rare is not a soundness argument, and the
+    cost of the wider key is already being paid, since `_core` is itself keyed
+    on the whole core source text on every call.
+
+    `core_paths()` and `_core_entries()` are read too and are deliberately NOT
+    in the key: the first only decides which modules count as outside, and
+    those modules' sources are in the key already, while the second is cached
+    and constant for the process.
+    """
+    records = tuple(rows)
+    core_modules = {module: path for path, module in core_paths()}
+    outside: dict[str, Path] = {}
+    for row in records:
+        if row.body and row.body.module not in core_modules:
+            loaded = sys.modules.get(row.body.module)
+            filename = vars(loaded).get("__file__") if loaded is not None else None
+            if filename:
+                outside[row.body.module] = Path(filename)
+    # Read once: every core source is opened to build this, and the two paths
+    # below both want it.
+    sources = source_text(core_modules)
+    return _live(records, tuple(sorted(sources.items())),
+                 tuple(sorted(source_text(outside).items())) if outside else ())
+
+
+#: Two, and BOUNDED, for the reason `_facts` above is: the key holds both source
+#: snapshots, so an unbounded cache would retain a copy of the whole core's text
+#: per distinct thing analysed, and `source_text` re-reads the files so those
+#: strings are not shared between calls. Two is what the pattern this exists for
+#: needs -- `atoms(rows)` calls `orders(rows)`, so the same input arrives twice in
+#: a row -- and a miss is correct and only slower.
+@lru_cache(maxsize=2)
+def _live(records: tuple[Door, ...], core_sources: tuple[tuple[str, str], ...],
+          outside_sources: tuple[tuple[str, str], ...]) -> Mapping[str, Order]:
     """Analyse the shipped core and the loaded providers' own source files.
 
     A door the generated table does not name is analysed against the core rather
@@ -411,25 +451,21 @@ def live(rows: Iterable[Door]) -> Mapping[str, Order]:
     records, which is what leaves one cache entry rather than one per caller.
     The extension still names every record, since a caller's rows can add
     entries the shipped table has not got.
+
+    CACHED, because the extension was not and the same one was solved again for
+    the same input: `atoms(rows)` calls `orders(rows)`, which calls this, so a
+    caller doing both paid two whole solves. Measured 2026-09-22 with the
+    identical tuple object, 70.65s then 50.98s, and the shipped table alone
+    costs 0.00s because its answers come from the on-disk core, so this is
+    where the time of a door test goes. `Door` is a frozen slotted dataclass
+    and the sources are strings, so the key hashes.
     """
-    records = tuple(rows)
-    core_modules = {module: path for path, module in core_paths()}
-    outside: dict[str, Path] = {}
-    for row in records:
-        if row.body and row.body.module not in core_modules:
-            loaded = sys.modules.get(row.body.module)
-            filename = vars(loaded).get("__file__") if loaded is not None else None
-            if filename:
-                outside[row.body.module] = Path(filename)
-    # Read once: every core source is opened to build this, and the two paths
-    # below both want it.
-    sources = source_text(core_modules)
-    if not outside:
-        return analyse(records, sources)
+    if not outside_sources:
+        return analyse(records, dict(core_sources))
     entries, lifetimes = _core_entries()
-    graph = _core(tuple(sorted(sources.items())), entries, lifetimes)
+    graph = _core(core_sources, entries, lifetimes)
     return derive(records, graph.extended(
-        source_text(outside),
+        dict(outside_sources),
         entries | _entry_names(records),
         lifetimes | _entry_names(records, deferring=True)))
 
