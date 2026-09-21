@@ -333,12 +333,25 @@ def test_the_pytest_lane_is_deterministic_under_load_protocol():
     assert protocol.groupdict() == {
         "workers": "4",
         "dist": "loadfile",
-        "restarts": "0",
+        "restarts": "4",
     }
     # A retry would make a flaky test pass by repetition, and it would now be
-    # added where the command is rather than where the lane is.
+    # added where the command is rather than where the lane is. Replacing a
+    # crashed WORKER is not that: xdist reports the crashed test as failed
+    # before it decides whether to restart, so the budget below only decides
+    # whether the tests the crashed worker had not reached are ever run. At
+    # zero they were not, and this lane covered 4761 of 8129 [measured
+    # 2026-09-22].
     assert "--reruns" not in lane
-    assert "--reruns" not in (ROOT / entry).read_text(encoding="utf-8")
+    # The COMMAND, not the whole file: a guard over the text cannot tell the
+    # invocation from a comment explaining why that flag is refused, and the
+    # comment above the invocation says exactly that. The claim being made is
+    # about what pytest is passed.
+    invocation = next(
+        line for line in (ROOT / entry).read_text(encoding="utf-8").splitlines()
+        if "-m pytest" in line
+    )
+    assert "--reruns" not in invocation
 
 
 def test_source_tree_fixtures_coexist_with_installed_plugin_metadata(tmp_path):

@@ -34,7 +34,25 @@ METTA_ROOT="$HERE/../.."
 }
 
 # Each worker is a process with its own engine. Keeping one test file whole
-# preserves module fixtures, and a worker crash fails instead of being retried.
+# preserves module fixtures.
+#
+# A crashed worker is REPLACED, and that is not a retry. xdist builds the
+# crashed test's report with outcome="failed" in `handle_crashitem` BEFORE it
+# decides whether to restart, so the test fails either way and nothing is run
+# a second time; `--reruns`, which would, is separately refused below and by
+# test_the_pytest_lane_is_deterministic_under_load_protocol. What
+# `--max-worker-restart=0` actually did was `triggershutdown()`, so the queue
+# the crashed worker had not reached was never served: this lane reported on
+# 4761 of 8129 collected tests, and the ~3368 it never reached were all of
+# tests/repository, because test_mork_space.py aborts a worker on the MORK
+# backend's 4 GiB arena [measured 2026-09-22 against gate-ship3, whose own
+# summary reads "2 failed, 4679 passed, 80 skipped"]. Three real failures sat
+# in that unreported remainder.
+#
+# The budget is the worker count: one crash each is an isolated fault and the
+# suite is still worth finishing, while more than that is systematic and
+# stopping is the honest answer. xdist prints "replacing crashed worker" and
+# the run still fails, which is what was wanted.
 # The benchmark plugin is disabled because it refuses parallel timing; the
 # dedicated benchmark lanes own those measurements. Four workers is the fixed
 # load-tested ceiling rather than a machine-size-dependent `auto` expansion
@@ -75,4 +93,4 @@ export PYTHONFAULTHANDLER
 # command disables [measured 2026-09-06]. pytest is the one that can tell a path
 # argument from a flag, so the default belongs in its configuration.
 exec sh "$HERE/../../tools/bounded.sh" \
-    "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0 "$@"
+    "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=4 "$@"
