@@ -44,7 +44,13 @@
 # extensions/python/test.sh, so a developer running that file gets the settings
 # that make the run correct instead of a plainer pytest invocation that shares
 # one engine across workers.
-run GATE pytest       env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh"
+# `--cov` rides the GATE run because collection is free and a second pass is
+# not: on the 2026-09-21 release gate the plain lane took 30.9 minutes and the
+# instrumented one 31.0, the same two tests failed in both, and together they
+# were 62 of that run's 120 minutes. `--cov-report=` collects without printing,
+# leaving the combined data file the coverage REPORT renders in about two
+# seconds, so the suite is measured once and read twice.
+run GATE pytest       env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" --cov --cov-report=
 run GATE gallery      sh -c "cd '$PYDIR' && '$PY' -m pytest tests/repository/test_executable_docs.py tests/repository/test_gallery.py tests/repository/test_twin_coverage.py::test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity -q --rootdir=. -c pyproject.toml"
 run GATE benchmarks   in_py "$PY" bench.py --counter-only --keep-going
 run GATE instructions in_py "$PY" -m benchmarks.check_instructions
@@ -444,14 +450,21 @@ run GATE   interrogate in_py "$PY" -m interrogate metta
 # rewards tests that touch lines; the mutation lane below is the one that asks
 # whether touching them decides anything.
 #
-# Through the seat's own test.sh, so the coverage run is the SAME run the gate
-# makes -- four workers, loadfile, the same bound -- rather than a second,
-# plainer invocation that would measure a configuration nobody ships.
-# pytest-cov is what carries coverage across those four processes; `coverage run
-# -m pytest` would measure the controller and none of the workers.
+# It RENDERS the pytest lane's data rather than running the suite again, which
+# is coverage.py's own split between collecting and reporting: `--cov` on that
+# lane writes one data file per xdist worker and combines them, and this reads
+# the combination. Re-running cost a second full suite and decided nothing,
+# since instrumentation is inside the noise here.
+#
+# `coverage run -m pytest` remains wrong for the collecting half and that is why
+# the flag lives on the suite lane: it would measure the controller and none of
+# the four workers.
 check_coverage() {
-    in_py env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" \
-        --cov --cov-report=term-missing:skip-covered
+    if ! [ -f "$PYDIR/.coverage" ]; then
+        echo "coverage: no data file; the pytest lane did not run in this invocation"
+        return 0
+    fi
+    in_py "$PY" -m coverage report --show-missing --skip-covered
 }
 run REPORT coverage    check_coverage
 
