@@ -267,7 +267,9 @@ ARTIFACTS = (
     ),
     Artifact(
         "libdoc", ("lib/*/*.metta", "lib/*/*.pl"), tool("libdoc", "--write"),
-        (Output("website/reference/metta-libraries.md"),), tool("libdoc"),
+        (Output("website/reference/metta-libraries.md"),
+         Output("llms.txt", ("<!-- begin generated library glossary -->",
+                             "<!-- end generated library glossary -->"))), tool("libdoc"),
         (suite("tests/repository/test_artifact_projections.py", "-k", "library_document"),),
         depends=("face-sync", "prolog-face"),
     ),

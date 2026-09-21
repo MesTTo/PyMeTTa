@@ -66,6 +66,7 @@ Open Obligations:
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 _REPO = next(parent for parent in pathlib.Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
@@ -76,6 +77,9 @@ from typing import Any  # noqa: E402
 from metta import Expression, Symbol, render  # noqa: E402
 from metta._spaces.results import Rows  # noqa: E402
 from metta.library import roster, rows  # noqa: E402
+
+#: One `@desc` body, for the glossary's one-line rendering.
+_DESC = re.compile(r'\(@desc\s+"(.*?)"\s*\)', re.S)
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
 
@@ -289,18 +293,92 @@ def page() -> str:
     )
 
 
+#: The glossary's home. llms.txt is read by something that will not follow a
+#: link, so the roster it used to end with -- a pointer at
+#: website/reference/metta-libraries.md -- told a reader where the heads were
+#: without telling them what they are. The same rows render here instead.
+_GLOSSARY_FILE = _REPO / "llms.txt"
+_GLOSSARY_REGION = (
+    "<!-- begin generated library glossary -->",
+    "<!-- end generated library glossary -->",
+)
+
+
+def glossary() -> str:
+    """Every documented head as one line: name, declared type, first sentence.
+
+    A SECOND TEMPLATE over `catalog()`'s rows rather than a second generator,
+    which is the split this module's own header names. The reference page
+    renders each head as a section with its parameters and origin; a reader
+    who cannot fetch that page needs the name, what it takes and what it is
+    for, and nothing else, so density rather than completeness of detail
+    decides the shape here.
+
+    Libraries carrying no `@doc` atom contribute nothing and are not named:
+    an empty heading would claim the glossary had looked and found no heads,
+    where the truth is that the library documents none. `catalog()`'s coverage
+    rows are where that gap is counted.
+    """
+    _coverage, entries, _gaps = catalog(_REPO)
+    families: dict[str, list[str]] = {}
+    for row in entries:
+        types, documentation = row.parts
+        described = _first_sentence(documentation)
+        signature = f" {types[0]}" if types else ""
+        families.setdefault(str(row.library), []).append(
+            f"- `{row.name}`{signature}" + (f" -- {described}" if described else "")
+        )
+    lines = [_GLOSSARY_REGION[0]]
+    for library in sorted(families):
+        lines.append(f"\n#### {library}\n")
+        lines.extend(sorted(families[library]))
+    lines.append(_GLOSSARY_REGION[1])
+    return "\n".join(lines)
+
+
+def _first_sentence(documentation: object) -> str:
+    """The `@desc` text up to its first full stop, on one line."""
+    match = _DESC.search(str(documentation))
+    if match is None:
+        return ""
+    text = " ".join(match.group(1).split())
+    return text.split(". ")[0].rstrip(".")
+
+
+def _replace_region(text: str, region: tuple[str, str], body: str) -> str:
+    """Swap one delimited region, refusing a file that does not carry exactly one."""
+    begin, end = region
+    if text.count(begin) != 1 or text.count(end) != 1:
+        msg = f"llms.txt carries {text.count(begin)} copies of {begin!r}, expected exactly 1"
+        raise SystemExit(msg)
+    head, _, rest = text.partition(begin)
+    _, _, tail = rest.partition(end)
+    return head + body + tail
+
+
 def main(argv: list[str]) -> int:
-    """Check the page, or regenerate it when ``--write`` is requested."""
+    """Check both renderings, or regenerate them when ``--write`` is requested."""
+    stale = []
     wanted = page()
     current = _PAGE.read_text(encoding="utf-8") if _PAGE.exists() else ""
-    if current == wanted:
+    if current != wanted:
+        stale.append((_PAGE, wanted))
+
+    text = _GLOSSARY_FILE.read_text(encoding="utf-8")
+    refreshed = _replace_region(text, _GLOSSARY_REGION, glossary())
+    if text != refreshed:
+        stale.append((_GLOSSARY_FILE, refreshed))
+
+    if not stale:
         return 0
     if "--write" in argv:
-        _PAGE.write_text(wanted, encoding="utf-8")
-        print(f"rewrote {_PAGE.name}")
+        for path, body in stale:
+            path.write_text(body, encoding="utf-8")
+            print(f"rewrote {path.name}")
         return 0
+    names = ", ".join(path.name for path, _ in stale)
     print(
-        f"{_PAGE.name} no longer matches the libraries' @doc atoms: "
+        f"{names} no longer matches the libraries' @doc atoms: "
         f"run extensions/python/tools/libdoc.py --write"
     )
     return 1
