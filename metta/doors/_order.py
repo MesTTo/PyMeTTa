@@ -24,7 +24,11 @@ than writing to it.
 from __future__ import annotations
 
 import ast
+import hashlib
+import os
+import pickle
 import sys
+import tempfile
 from collections.abc import Container, Iterable, Mapping
 from dataclasses import dataclass
 from functools import cache, lru_cache
@@ -244,6 +248,78 @@ def source_text(paths: Mapping[str, Path]) -> dict[str, str]:
     return sources
 
 
+#: Where a solved core is kept between processes. The directory ignores itself,
+#: which is how every tool cache in this tree stays out of `git status`: ruff,
+#: pytest, mypy, Hypothesis and import-linter each write a `.gitignore` holding
+#: `*` inside the directory they create, so the repository's own .gitignore
+#: stays about repository-wide rules [source: .gitignore's header].
+_CORE_CACHE = Path(__file__).resolve().parent / ".analysis-cache"
+
+
+def _core_fingerprint(sources: tuple[tuple[str, str], ...], entries: frozenset[str],
+                      lifetimes: frozenset[str]) -> str:
+    """Name a stored core by everything its contents depend on.
+
+    The source text, the entry and lifetime sets, the interpreter and the
+    ANALYSIS MODULE itself: a stored graph is an instance graph of the classes
+    in `_analysis.py`, so a change there can make yesterday's file describe
+    objects this process no longer has. Keying on it turns that into a miss
+    rather than into a wrong answer, which is the only invalidation rule this
+    cache needs, because everything else it reads is already in the key.
+    """
+    digest = hashlib.blake2b(digest_size=20)
+    for module, text in sources:
+        digest.update(module.encode()); digest.update(b"\0")
+        digest.update(text.encode()); digest.update(b"\0")
+    for group in (sorted(entries), sorted(lifetimes)):
+        for name in group:
+            digest.update(name.encode()); digest.update(b"\0")
+        digest.update(b"\1")
+    digest.update(Path(sys.modules[CallGraph.__module__].__file__).read_bytes())
+    digest.update(sys.version.encode())
+    return digest.hexdigest()
+
+
+def _read_core(path: Path) -> CallGraph | None:
+    """A stored core, or None for anything at all wrong with the file.
+
+    A cache may never turn a rebuild into a failure, so every way of not
+    getting a graph back -- absent, truncated by a killed writer, written by an
+    incompatible build -- answers the same way and the caller solves instead.
+    """
+    try:
+        with path.open("rb") as handle:
+            graph = pickle.load(handle)
+    except (OSError, EOFError, AttributeError, ImportError, IndexError,
+            KeyError, TypeError, ValueError, pickle.UnpicklingError):
+        return None
+    return graph if isinstance(graph, CallGraph) else None
+
+
+def _write_core(path: Path, graph: CallGraph) -> None:
+    """Store a solved core so the next process loads it instead of solving.
+
+    Written to a temporary file in the same directory and renamed, because the
+    four xdist workers of the test lane solve at once and a reader must never
+    meet a half-written file; rename is atomic within a filesystem. Failing to
+    store is not an error: the cache is an optimisation and a read-only or full
+    filesystem must cost time rather than the run.
+    """
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        (path.parent / ".gitignore").write_text("*\n", encoding="utf-8")
+        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                pickle.dump(graph, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(temporary, path)
+        except BaseException:
+            Path(temporary).unlink(missing_ok=True)
+            raise
+    except OSError:
+        return
+
+
 @cache
 def _core(sources: tuple[tuple[str, str], ...], entries: frozenset[str],
           lifetimes: frozenset[str]) -> CallGraph:
@@ -252,9 +328,20 @@ def _core(sources: tuple[tuple[str, str], ...], entries: frozenset[str],
     Held as the GRAPH rather than its answers, because what a door outside the
     shipped table needs is the store the answers were derived from. `extended`
     copies it, so the cached graph is never the one that gets written to.
+
+    Kept ACROSS processes as well as within one. Solving costs 108s over the
+    172 core modules and `@cache` is per-process, so every xdist worker that
+    met a door outside the shipped table paid it again; loading the same graph
+    costs 1.1s [measured 2026-09-21: build 108.15s, dump 0.69s into 98.0 MB,
+    load 1.14s, and the restored graph extends to an identical result].
     """
+    path = _CORE_CACHE / (_core_fingerprint(sources, entries, lifetimes) + ".pickle")
+    stored = _read_core(path)
+    if stored is not None:
+        return stored
     graph = CallGraph(dict(sources), entries, lifetimes)
     graph.solve()
+    _write_core(path, graph)
     return graph
 
 

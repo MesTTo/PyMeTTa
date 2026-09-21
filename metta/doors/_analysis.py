@@ -356,7 +356,7 @@ class CallGraph:
         self.native: set[str] = set()
         self.open: set[str] = set()
         self.contracts: set[ContractCall] = set()
-        self.lambdas: dict[int, str] = {}
+        self.lambdas: dict[tuple[str, str, int, int, int, int], str] = {}
         self.generators: set[str] = set()
         self.containers: dict[str, Reference] = {}
         self.positioned: set[str] = set()
@@ -372,8 +372,8 @@ class CallGraph:
         self.collecting: list[set[Slot]] = []
         # Keyed by node identity and holding the node, so a synthetic node
         # freed and reallocated at the same address cannot hit a stale entry.
-        self.unparsed: dict[int, tuple[ast.AST, str]] = {}
-        self.literal_keys: dict[int, tuple[ast.AST, str]] = {}
+        self.unparsed: dict[tuple[str, str, int, int, int, int], str] = {}
+        self.literal_keys: dict[tuple[str, str, int, int, int, int], str] = {}
         self._final = False
         self._reporting = False
         for module, text in sources.items():
@@ -518,7 +518,7 @@ class CallGraph:
                 return
             if isinstance(node, ast.Lambda):
                 name = f"{scope.name}.<lambda@{node.lineno}:{node.col_offset}>"
-                self.lambdas[id(node)] = name
+                self.lambdas[self._site(scope.module, node)] = name
                 self.functions.add(name)
                 self._index(_Scope(name, scope.module, node, scope.name))
                 return
@@ -599,7 +599,7 @@ class CallGraph:
     def _annotation(self, node: ast.expr | None, scope: _Scope) -> Values:
         if node is None:
             return frozenset()
-        return self._memo(f"annotation:{id(node)}", lambda: self._annotation_of(node, scope))
+        return self._memo(f"annotation:{self._site(scope.module, node)}", lambda: self._annotation_of(node, scope))
 
     def _annotation_of(self, node: ast.expr, scope: _Scope) -> Values:
         if isinstance(node, ast.Constant):
@@ -793,7 +793,7 @@ class CallGraph:
         """Read a caller-implemented contract from an entry's own annotation."""
         if node is None:
             return frozenset()
-        return self._memo(f"contract:{id(node)}", lambda: self._parameter_contract_of(node, scope))
+        return self._memo(f"contract:{self._site(scope.module, node)}", lambda: self._parameter_contract_of(node, scope))
 
     def _parameter_contract_of(self, node: ast.expr, scope: _Scope) -> frozenset[str]:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -1126,25 +1126,47 @@ class CallGraph:
         for setters, written in writing.items():
             self._call(setters, [frozenset(written), values], {}, node)
 
+    @staticmethod
+    def _site(module: str, node: ast.AST) -> tuple[str, str, int, int, int, int]:
+        """A node key that survives re-parsing, where `id(node)` does not.
+
+        `id` is a memory address: unique only inside the process that built the
+        tree, and reused once a node is freed. That reuse is why the two caches
+        below used to store the node itself and re-check `cached[0] is not
+        node` -- a guard held by hand against a key that could silently mean a
+        different node. A module with the node's own span and type is stable
+        across parses, so the guard stops being expressible rather than being
+        checked, and a graph keyed this way can outlive its process.
+
+        The span alone is not unique: an `ast.Expr` statement and the
+        expression inside it share one, and so do `a.b` and its `a`. The type
+        name separates those.
+        """
+        return (module, type(node).__name__,
+                getattr(node, "lineno", 0), getattr(node, "col_offset", 0),
+                getattr(node, "end_lineno", 0) or 0, getattr(node, "end_col_offset", 0) or 0)
+
     def _where(self, node: ast.AST, reason: str) -> str:
-        cached = self.unparsed.get(id(node))
-        if cached is None or cached[0] is not node:
-            cached = self.unparsed[id(node)] = node, ast.unparse(node)
-        return f"{self.current}:{getattr(node, 'lineno', 0)}: {reason} ({cached[1]})"
+        site = self._site(self.current, node)
+        text = self.unparsed.get(site)
+        if text is None:
+            text = self.unparsed[site] = ast.unparse(node)
+        return f"{self.current}:{getattr(node, 'lineno', 0)}: {reason} ({text})"
 
     def _key(self, node: ast.AST | None) -> str:
         """Join equal literal keys using Python's own mapping equality."""
         if node is None:
             return "<unknown-items>"
-        cached = self.literal_keys.get(id(node))
-        if cached is None or cached[0] is not node:
+        site = self._site(self.current, node)
+        key = self.literal_keys.get(site)
+        if key is None:
             try:
                 index = self.container_keys.setdefault(ast.literal_eval(node), len(self.container_keys))
                 key = f"<key:{index}>"
             except (ValueError, TypeError):
                 key = "<unknown-items>"
-            cached = self.literal_keys[id(node)] = node, key
-        return cached[1]
+            self.literal_keys[site] = key
+        return key
 
     def _container(self, node: ast.AST, kind: str, elements: Iterable[Values] = (),
                    *, keys: Values = frozenset(), positions: bool = False, owner: str | None = None) -> Values:
@@ -1611,7 +1633,7 @@ class CallGraph:
         if isinstance(node, ast.Attribute):
             return self._attribute(self._value(node.value, scope), node.attr, node)
         if isinstance(node, ast.Lambda):
-            return frozenset({Reference("function", self.lambdas[id(node)] )})
+            return frozenset({Reference("function", self.lambdas[self._site(scope.module, node)])})
         if isinstance(node, ast.Call):
             references = self._value(node.func, scope)
             positional = [self._value(argument, scope) for argument in node.args]
