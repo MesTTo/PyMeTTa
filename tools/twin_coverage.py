@@ -695,7 +695,9 @@ RETIRED_ROOT = {
     # keyed beside it because that is how the name survived a mechanical sweep:
     # two twins reach past the root for the private atom rather than write the
     # receiver [measured 2026-08-24: `from metta.atoms import _HERE as HERE` in
-    # examples/language-feature-examples/reasoning/peano.py and examples/language-feature-examples/reasoning/scallop_readme.py,
+    # examples/language-feature-examples/ch07-control-flow/07-05-recursion/06-peano.py
+    # and examples/language-feature-examples/ch22-a-reasoner-you-can-serve/
+    # 22-01-logic-programs/05-scallop_readme.py,
     # and nowhere else in the corpus; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "HERE": "the space handle itself; match(...) reads the ambient space",
     "_HERE": "the space handle itself; match(...) reads the ambient space",
