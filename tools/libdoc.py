@@ -297,7 +297,7 @@ def page() -> str:
 #: link, so the roster it used to end with -- a pointer at
 #: website/reference/metta-libraries.md -- told a reader where the heads were
 #: without telling them what they are. The same rows render here instead.
-def _glossary_file() -> Path:
+def _glossary_file() -> pathlib.Path:
     """The glossary's home, resolved from `_REPO` when asked rather than at import.
 
     A module-level constant would freeze the root, and the projection tests move
