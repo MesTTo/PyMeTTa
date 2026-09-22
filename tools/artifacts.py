@@ -180,7 +180,8 @@ ARTIFACTS = (
     Artifact(
         "fn-sync", ("engine/**/*.pl", "lib/*/*.metta", SEAT + "_atoms/names.py",
                     "extensions/python/tools/phrasebook_entries.py"), tool("fngen", "--write"),
-        (Output(SEAT + "_catalog/fn.py"),), tool("fngen"),
+        (Output(SEAT + "_catalog/fn.py"),
+         Output("extensions/node/src/heads.ts")), tool("fngen"),
         (suite("tests/ch11_python_as_a_notation/test_mention_doors.py", "tests/repository/test_doc_emission.py"),),
         depends=("vocab-sync", "protocol-sync"), requires=("engine",),
     ),
