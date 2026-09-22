@@ -104,6 +104,7 @@ __all__ = [
     "MettaResultError",
     "MettaSyntaxError",
     "NotReducible",
+    "PlatformCapabilityError",
     "Remedy",
     "ResourceLimitError",
     "RestraintError",
@@ -740,6 +741,44 @@ class SpaceCapabilityError(EngineError):
             ground=ground,
             remedy=remedy,
         )
+
+
+class PlatformCapabilityError(EngineError):
+    """A form needs a platform capability this build was not made with.
+
+    The sibling of SpaceCapabilityError and a different act: that one is
+    repaired by granting a capability to a space, this one by building the
+    deployment with what `requires` names. `costs` is what stays unavailable
+    until it is, so a caller can say which features it is giving up rather
+    than reading the sentence.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        operation: str | None = None,
+        capability: str | None = None,
+        requires: str | None = None,
+        costs: str | None = None,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
+    ):
+        """Carry the refused form, the capability, its build need and its cost.
+
+        `operation` and `capability` are parts the base class already carries
+        for every refusal; `requires` and `costs` are this kind's own and are
+        set here, which is how RestraintError carries its three.
+        """
+        super().__init__(
+            message,
+            operation=operation,
+            capability=capability,
+            ground=ground,
+            remedy=remedy,
+        )
+        self.requires = requires
+        self.costs = costs
 
 
 class MettaOperationError(EngineError):
