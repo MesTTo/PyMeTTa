@@ -125,6 +125,14 @@ def _root(root: str | os.PathLike[str] | None) -> str:
     return runtime().metta_path or _resolve_metta_path()
 
 
+#: The file a library directory is entered through. engine/metta.pl's
+#: library_within/2 is the authority -- it is what resolves a bare library
+#: name -- and extensions/python/tools/prologface.py holds the same pair of
+#: names for the file it writes into. Three homes for one fact is one too
+#: many; unifying them across Prolog and Python is its own change.
+MANIFEST = "pkg.metta"
+
+
 def _files(name: str, root: str | os.PathLike[str] | None) -> tuple[Path, ...]:
     """One library's source files, refusing a name the roster does not hold."""
     known = roster(root)
@@ -137,12 +145,17 @@ def _files(name: str, root: str | os.PathLike[str] | None) -> tuple[Path, ...]:
             f"`m += lib(S['path/to/module'])`, and has no card"
         )
         raise MettaError(msg)
-    written = [path for path in files if path.suffix == ".metta"]
+    # The MANIFEST is not a source. A library is a manifest naming what it
+    # depends on, beside the lib.metta that is the library, so exactly two
+    # .metta files is the normal shape rather than the ambiguity this once
+    # refused. What would still be ambiguous is two SOURCES, which is what
+    # the count is now over: `(library lib_x)` reaches one manifest, and the
+    # manifest names one source.
+    written = [path for path in files
+               if path.suffix == ".metta" and path.name != MANIFEST]
     if len(written) > 1:
-        # `(library lib_x)` resolves to ONE file, so two under the roster's
-        # name are an ambiguity a description would silently pick a side in.
         joined = ", ".join(str(path) for path in written)
-        msg = f"{name} has more than one MeTTa source: {joined}"
+        msg = f"{name} has more than one MeTTa source beside its manifest: {joined}"
         raise MettaError(msg)
     return files
 

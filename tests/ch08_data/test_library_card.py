@@ -64,8 +64,13 @@ def _plant(root: Path, name: str, metta: str = "", prolog: str | None = None) ->
     """One library under a fresh engine tree, for the refusals and the version."""
     directory = root / "lib" / name
     directory.mkdir(parents=True, exist_ok=True)
+    # The shipped layout: a manifest naming the source, and the source. A
+    # directory without a manifest is not a library, which is how the roster
+    # tells lib_json from _support, so planting only a source plants nothing.
+    (directory / "pkg.metta").write_text(
+        f'!(import! &self (library "{name}/lib.metta"))\n', encoding="utf-8")
     if metta:
-        (directory / f"{name}.metta").write_text(metta, encoding="utf-8")
+        (directory / "lib.metta").write_text(metta, encoding="utf-8")
     if prolog is not None:
         (directory / f"{name}.pl").write_text(prolog, encoding="utf-8")
     return directory
@@ -155,7 +160,8 @@ def test_the_digest_composes_the_sha256_of_every_source():
 
     assert card.digest == expected
     assert library.digest("lib_memo") == expected
-    assert len(card.files) == 2
+    # Three: the manifest, the source it names, and the Prolog half.
+    assert len(card.files) == 3
 
 
 def test_a_card_for_a_name_outside_the_roster_refuses_with_it():
@@ -167,12 +173,16 @@ def test_a_card_for_a_name_outside_the_roster_refuses_with_it():
     assert "lib_he" in str(raised.value)
 
 
-def test_a_library_with_two_metta_sources_is_refused(tmp_path):
-    """`(library lib_x)` resolves to one file, so two are an ambiguity."""
-    _plant(tmp_path, "lib_planted", metta="(: a (-> Number))\n")
-    second = tmp_path / "lib" / "elsewhere"
-    second.mkdir(parents=True)
-    (second / "lib_planted.metta").write_text("(: b (-> Number))\n", encoding="utf-8")
+def test_a_library_with_two_sources_beside_its_manifest_is_refused(tmp_path):
+    """A manifest names ONE source, so a second beside it is an ambiguity.
+
+    The manifest itself is not a source and must not be counted as one, or
+    every library in the tree reads as ambiguous: two .metta files is the
+    normal shape now, and what is not normal is two that are not the
+    manifest.
+    """
+    planted = _plant(tmp_path, "lib_planted", metta="(: a (-> Number))\n")
+    (planted / "extra.metta").write_text("(: b (-> Number))\n", encoding="utf-8")
 
     with pytest.raises(MettaError, match="more than one MeTTa source"):
         library.card("lib_planted", root=tmp_path)

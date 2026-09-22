@@ -71,7 +71,14 @@ def _library_source_files(root: str | os.PathLike[str]) -> list[Path]:
         if entry.is_file()
         # policy-inventory-exempt: mechanism-internal; reason=the two source suffixes a shipped library file can have, the catalog filter rather than an operator policy; evidence=engine/metta/interop.pl:resolve_module_form/2
         and entry.suffix in {".metta", ".pl"}
-        and entry.parent.name.startswith("lib_")
+        # A directory is a library because it carries a MANIFEST, never
+        # because of how its name begins. The prefix test hid
+        # minimal_metta_lib from the roster and from dir(metta.lib)
+        # entirely, and it is the same guard that made two separate
+        # migrations skip that library. _support and builtin_mods hold
+        # .metta files and no manifest, so they stay out by structure
+        # rather than by a second rule.
+        and (entry.parent / "pkg.metta").is_file()
     )
 
 
