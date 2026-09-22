@@ -1,11 +1,14 @@
-"""Purpose: gate defects while reporting every unordered Python door boundary.
+"""Purpose: certify the published partial order of Python door boundaries.
 
-Guarantees: the report and catalog call the same source analysis. Mixed,
-recursive and undeclared open boundaries fail. Supplied parameter contracts
-and their dependent doors stay unordered and remain visible
-[tested: test_door_order_gate_refuses_each_boundary_defect,
-test_declared_supplied_callable_is_unordered_by_contract,
-test_composition_of_contract_open_door_is_unordered_by_dependency; commit=07976cf8b415390449863d803277b73102673b51].
+Decides: a finite strict rank cannot exist on a call cycle: following its
+edges would require rank(f) > rank(f). Mixed crossings, recursion and open
+dispatch therefore remain explicit unnumbered results. The default gate
+checks rank equations, boundary witnesses and generated tables; it does not
+require every implementation to have a finite order. --require-ordered
+names that stronger obligation and refuses an unordered or missing door,
+including after --write [tested:
+test_gate_keeps_honest_boundaries_and_refuses_a_required_order,
+test_gate_refuses_invalid_order_certificates; commit=WORKTREE].
 The shipped verdict table metta/doors/_orders.py is a projection of this
 analysis: --write regenerates it and a check refuses drift, so a boot reads
 the table instead of analysing the tree [tested:
@@ -32,7 +35,7 @@ import sys
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict
-from graphlib import TopologicalSorter
+from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 
 # A component is a distribution OR a repository, so both markers are asked for:
@@ -46,7 +49,7 @@ sys.path.insert(0, str(SEAT))
 
 import doorgen  # noqa: E402 -- the checkout source precedes an installed seat
 
-from metta.doors._order import Order, Verdict, analyse, source_text  # noqa: E402
+from metta.doors._order import Order, Verdict, analyse, source_text, violations  # noqa: E402
 from metta.doors._scan import core_paths  # noqa: E402
 
 TABLE = SEAT / "metta/doors/_orders.py"
@@ -187,7 +190,12 @@ def derived(root: Path = doorgen.ROOT) -> Mapping[str, Order]:
     for row in rows:
         if row.body:
             paths.setdefault(row.body.module, doorgen.module_path(row.body.module, root))
-    return analyse(rows, source_text(paths))
+    result = analyse(rows, source_text(paths))
+    expected = {row.key for row in rows}
+    if result.keys() != expected:
+        message = f"door-order coverage: missing {sorted(expected - result.keys())}; extra {sorted(result.keys() - expected)}"
+        raise ValueError(message)
+    return result
 
 
 def report(root: Path = doorgen.ROOT, orders: Mapping[str, Order] | None = None) -> dict:
@@ -204,11 +212,16 @@ def report(root: Path = doorgen.ROOT, orders: Mapping[str, Order] | None = None)
     permitted = {name for name, value in orders.items() if value.number is not None}
     candidates = {name: value.blocked_by for name, value in orders.items()
                   if value.number is None and not (value.mixed or value.cycles or value.defect_open)}
-    for name in TopologicalSorter(candidates).static_order():
-        if name in candidates and candidates[name] <= permitted:
-            permitted.add(name)
+    errors = violations(orders)
+    try:
+        for name in TopologicalSorter(candidates).static_order():
+            if name in candidates and candidates[name] <= permitted:
+                permitted.add(name)
+    except CycleError:
+        errors += ("unordered dependencies contain a cycle without a cycle witness",)
     return {
-        "analysis": "Possible calls from a context-insensitive source graph. Declared caller-implemented contracts stay open; mixed crossings, recursion and other unresolved dispatch fail the gate. Every open call retains its owning source site.",
+        "analysis": "Possible calls from a context-insensitive source graph. The gate certifies the partial ranking and table freshness. Mixed crossings, recursion and open dispatch remain unnumbered; --require-ordered refuses them. Every open call retains its owning source site.",
+        "certificate_errors": errors,
         "counts": dict(sorted(counts.items())),
         "first_order": sum(value.number == 1 for value in orders.values()),
         "mixed": [name for name, value in orders.items() if value.mixed],
@@ -273,10 +286,12 @@ def drift(orders: Mapping[str, Order], table: Path | None = None, invocation_tab
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Print every source-derived boundary and fail on unresolved findings or drift."""
+    """Reject invalid certificates, drift and unsatisfied finite-order obligations."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--write", action="store_true", help="regenerate the shipped verdict table")
+    parser.add_argument("--require-ordered", nargs="+", default=[], metavar="DOOR",
+                        help="require these door keys to have a proven finite order")
     arguments = parser.parse_args(argv)
     if arguments.write:
         # The invocation table feeds the analysis, so it is written first.
@@ -285,6 +300,8 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.write:
         TABLE.write_text(render({name: value.verdict for name, value in orders.items()}), encoding="utf-8")
     result = report(orders=orders)
+    result["required_unordered"] = [name for name in arguments.require_ordered
+                                    if name not in orders or orders[name].number is None]
     result["stale"] = drift(orders)
     if arguments.json:
         print(json.dumps(result, default=sorted, sort_keys=True, indent=2))
@@ -296,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
             print("site", position, site)
         if result["stale"]:
             print(result["stale"])
-    return int(bool(result["stale"]) or any(result[key] for key in ("mixed", "defect_open_dependencies", "recursive")))
+    return int(bool(result["stale"] or result["certificate_errors"] or result["required_unordered"]))
 
 
 if __name__ == "__main__":

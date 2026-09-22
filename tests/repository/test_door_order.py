@@ -14,6 +14,9 @@ have positive and planted-negative controls [tested: this file; commit=2ef13993e
 Authoritative declarations, Any narrowing, getattr defaults, type(), source
 and inherited iteration, field narrowing and unreachable branches have
 controls [tested: this file; commit=a6874e867225cd6efb26177d803b942d0dc02dcf].
+Concrete declarations have controls for callable species, class objects and
+incompatible-only actuals [tested: test_concrete_declarations_filter_callable_alternatives,
+test_incompatible_callable_actual_is_not_erased; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -30,7 +33,7 @@ from hypothesis import strategies as st
 
 from metta._roots import seat
 from metta.doors import AnswersAs, Sugar, _order
-from metta.doors._analysis import CallGraph, Calls
+from metta.doors._analysis import CallGraph, Calls, Reference
 from metta.doors._order import Order, Verdict, analyse, components, derive, orders
 from metta.doors._scan import scan
 
@@ -562,6 +565,98 @@ def test_components_have_no_python_recursion_depth_limit():
     assert len(components(graph)) == 1
 
 
+@given(st.lists(st.tuples(st.integers(0, 6), st.integers(0, 6), st.booleans()), max_size=50))
+def test_copy_components_preserve_the_least_fixed_point(actions):
+    """Late edges and writes agree with an independent, unquotiented set solver."""
+    graph = CallGraph({}, ())
+    cells = [("cell", str(index)) for index in range(7)]
+    expected = {cell: set() for cell in cells}
+    edges = set()
+    for left, right, copy in actions:
+        source, target = cells[left], cells[right]
+        if copy:
+            edges.add((source, target))
+            graph._put(target, graph._get(source), source=source)
+        else:
+            value = Reference("instance", str(left))
+            expected[target].add(value)
+            graph._put(target, frozenset({value}))
+        changed = True
+        while changed:
+            changed = False
+            for before, after in edges:
+                previous = len(expected[after])
+                expected[after].update(expected[before])
+                changed |= previous != len(expected[after])
+        graph._collapse_copies()
+        assert {cell: graph._get(cell) for cell in cells} == expected
+    # Equal answers never establish equality of cells without mutual reachability.
+    reached = {cell: {cell} for cell in cells}
+    for cell in cells:
+        pending = [cell]
+        while pending:
+            current = pending.pop()
+            for before, after in edges:
+                if before == current and after not in reached[cell]:
+                    reached[cell].add(after)
+                    pending.append(after)
+    for left in cells:
+        for right in cells:
+            assert (graph.copies.representative(left) == graph.copies.representative(right)) == (
+                right in reached[left] and left in reached[right])
+
+
+def test_copy_quotient_retains_call_cycles_and_extension_isolation(monkeypatch):
+    """Copy equality cannot erase recursion, and a cloned store owns its quotient."""
+    sources = {"example": dedent('''
+        def first(value):
+            alias = value
+            value = alias
+            return second(alias)
+        def second(value):
+            return first(value)
+        first(1)
+    ''')}
+    graph = CallGraph(sources, ())
+    actual = graph.solve()
+    assert graph.copies.parents
+    assert actual["example.first"].targets == {"example.second"}
+    assert actual["example.second"].targets == {"example.first"}
+    clone = graph._copy()
+    clone._reporting = False
+    cell = ("example.first", "alias")
+    extra = Reference("instance", "builtins.str")
+    clone._put(cell, frozenset({extra}))
+    assert extra in clone._get(cell)
+    assert extra not in graph._get(cell)
+    extension = {"plugin": "from example import first\ndef entry(): return first('new')\n"}
+    entries = ("plugin.entry",)
+    assert graph.extended(extension, entries, ()) == CallGraph({**sources, **extension}, entries).solve()
+    assert extra not in graph._get(cell)
+    monkeypatch.setattr(CallGraph, "_collapse_copies", lambda _self: None)
+    plain = CallGraph(sources, ())
+    assert plain.solve() == actual
+    for slot in plain.values:
+        assert graph._get(slot) == plain._get(slot)
+
+
+@given(st.integers(min_value=1, max_value=40))
+def test_copy_cycle_cost_is_one_cell_after_quotient(size):
+    """An n-cell copy cycle stores each later value once, retaining all n readers."""
+    graph = CallGraph({}, ())
+    cells = [("cycle", str(index)) for index in range(size)]
+    for source, target in zip(cells, [*cells[1:], cells[0]], strict=True):
+        graph.readers[source].add("reader" + source[1])
+        graph._put(target, frozenset(), source=source)
+    graph._collapse_copies()
+    value = Reference("instance", "builtins.int")
+    graph._put(cells[0], frozenset({value}))
+    assert len(graph.values) == 1
+    assert all(graph._get(cell) == {value} for cell in cells)
+    assert set(graph.queue) == {"reader" + cell[1] for cell in cells}
+    assert not graph.copies.edges
+
+
 def test_binding_metadata_and_open_helper_cycles_are_independent(tmp_path):
     """A native declaration cannot hide an unmarked recursive helper."""
     rows, _ = _program(tmp_path, '''
@@ -581,16 +676,15 @@ def test_binding_metadata_and_open_helper_cycles_are_independent(tmp_path):
     assert result.native == {"Runtime.must"}
 
 
-def _gate_report(monkeypatch, tmp_path, result):
+def _gate_report(monkeypatch, tmp_path, result, *, require_ordered=False):
     """Run the actual report and verdict over one planted source graph."""
     doororder = _tool(monkeypatch)
-    monkeypatch.setattr(doororder.doorgen, "all_rows", lambda _root: ())
-    monkeypatch.setattr(doororder, "core_paths", lambda _root: ())
-    monkeypatch.setattr(doororder, "analyse", lambda *_: result)
+    monkeypatch.setattr(doororder, "derived", lambda _root=None: result)
     table = tmp_path / "_orders.py"
     table.write_text(doororder.render({name: value.verdict for name, value in result.items()}))
     monkeypatch.setattr(doororder, "TABLE", table)
-    return doororder.report(), doororder.main(["--json"])
+    arguments = ["--json"] + (["--require-ordered", *result] if require_ordered else [])
+    return doororder.report(), doororder.main(arguments)
 
 
 def _tool(monkeypatch):
@@ -612,7 +706,7 @@ def test_registry_callable_is_a_defect_open_boundary(tmp_path, monkeypatch):
                 return operations["current"]()
     ''')
     assert result["space:selected"].number is None
-    report, status = _gate_report(monkeypatch, tmp_path, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result, require_ordered=True)
     assert status == 1
     assert report["open_dependencies"] == ["space:selected"]
     assert report["defect_open_dependencies"] == ["space:selected"]
@@ -633,7 +727,7 @@ def test_supplied_callable_with_native_crossing_is_mixed(tmp_path, monkeypatch):
     ''')
     assert result["space:apply"].number is None
     assert result["space:apply"].mixed
-    _, status = _gate_report(monkeypatch, tmp_path, result)
+    _, status = _gate_report(monkeypatch, tmp_path, result, require_ordered=True)
     assert status == 1
 
 
@@ -713,7 +807,7 @@ def test_undeclared_parameter_members_remain_defects(tmp_path, monkeypatch, anno
                 """Invoke an undeclared operation."""
                 return source.hidden()
     ''')
-    report, status = _gate_report(monkeypatch, tmp_path, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result, require_ordered=True)
     assert status == 1
     assert report["defect_open_dependencies"] == ["space:use"]
 
@@ -734,7 +828,7 @@ def test_contract_does_not_hide_a_separate_defect_or_its_dependents(tmp_path, mo
                 """Depend on the unresolved operation."""
                 return self.apply(callback)
     ''')
-    report, status = _gate_report(monkeypatch, tmp_path, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result, require_ordered=True)
     assert status == 1
     assert report["defect_open_dependencies"] == ["space:apply"]
     assert report["unordered_by_contract"] == []
@@ -756,8 +850,67 @@ def test_door_order_gate_refuses_each_boundary_defect(monkeypatch, tmp_path, cap
     for orders_, status in (({"space:planted": planted}, 1), ({"space:planted": Order(0, none, none, none, ())}, 0)):
         monkeypatch.setattr(doororder, "derived", lambda orders_=orders_: orders_)
         table.write_text(doororder.render({name: value.verdict for name, value in orders_.items()}))
-        assert doororder.main([]) == status
+        assert doororder.main(["--require-ordered", "space:planted"]) == status
         assert "space:planted" in capsys.readouterr().out
+
+
+def test_gate_keeps_honest_boundaries_and_refuses_a_required_order(monkeypatch, tmp_path):
+    """An unresolved implementation stays visible and cannot satisfy a finite-order claim."""
+    _, result = _program(tmp_path, '''
+        from plugins import registry
+        class Space:
+            @marked
+            def selected(self):
+                """Invoke a runtime-selected plugin."""
+                return registry.current()
+    ''')
+    report, status = _gate_report(monkeypatch, tmp_path, result)
+    assert status == 0
+    assert report["defect_open_dependencies"] == ["space:selected"]
+    assert not report["certificate_errors"]
+    tool = _tool(monkeypatch)
+    assert tool.main(["--write", "--require-ordered", "space:selected"]) == 1
+    assert tool.main(["--require-ordered", "space:missing"]) == 1
+
+
+def test_gate_requires_a_result_for_every_declared_door(monkeypatch, tmp_path):
+    """A partial analysis cannot certify a table by omitting the difficult rows."""
+    rows, _ = _program(tmp_path, '''
+        class Space:
+            @marked
+            def selected(self):
+                """Return a host value."""
+                return 1
+    ''')
+    tool = _tool(monkeypatch)
+    monkeypatch.setattr(tool.doorgen, "all_rows", lambda _root: rows)
+    monkeypatch.setattr(tool.doorgen, "module_path", lambda *_: tmp_path / "example.py")
+    monkeypatch.setattr(tool, "core_paths", lambda *_: ())
+    monkeypatch.setattr(tool, "analyse", lambda *_: {})
+    with pytest.raises(ValueError, match=r"door-order coverage: missing .*space:selected"):
+        tool.main(["--write"])
+
+
+@pytest.mark.parametrize("change", [
+    {"number": 0}, {"number": 2}, {"number": None},
+    {"calls": frozenset({"space:missing"})},
+    {"open": frozenset({"planted unknown dispatch"})},
+    {"cycles": (("space:planted",),)},
+    {"blocked_by": frozenset({"space:missing"})},
+])
+def test_gate_refuses_invalid_order_certificates(monkeypatch, tmp_path, change):
+    """Regenerating a table cannot certify an invalid rank or invented dependency."""
+    original = Order(1, frozenset(), frozenset({"Runtime.must"}), frozenset(), ())
+    _, status = _gate_report(monkeypatch, tmp_path, {"space:planted": replace(original, **change)})
+    assert status == 1
+
+
+def test_gate_refuses_invented_cycle_witnesses(monkeypatch, tmp_path):
+    """An invented door cycle cannot license an otherwise unjustified unknown rank."""
+    value = Order(None, frozenset(), frozenset(), frozenset(), (("space:planted",),))
+    report, status = _gate_report(monkeypatch, tmp_path, {"space:planted": value})
+    assert status == 1
+    assert "cycle witnesses disagree" in report["certificate_errors"][0]
 
 
 def test_door_order_gate_refuses_a_stale_verdict_table(monkeypatch, tmp_path, capsys):
@@ -1508,7 +1661,7 @@ def test_callable_and_early_exit_narrowing_separate_a_union(tmp_path, monkeypatc
                     return target.run()
                 return target()
     ''')
-    report, status = _gate_report(monkeypatch, tmp_path, result)
+    report, status = _gate_report(monkeypatch, tmp_path, result, require_ordered=True)
     # The term arm crosses natively and the callable arm is supplied, which
     # the 2026-09-15 ruling keeps mixed; what the narrowing removes is every
     # undeclared-member defect on the supplied parameter.
@@ -1601,6 +1754,57 @@ def test_a_verified_return_declaration_excludes_the_values_it_refuses(tmp_path):
     assert not result["space:first"].open
     assert result["space:second"].number == 0
     assert not result["space:second"].open
+
+
+@pytest.mark.parametrize("alternative", ["host", "Receiver().method", "[].append", "Receiver", "generated()"])
+def test_concrete_declarations_filter_callable_alternatives(tmp_path, alternative):
+    """A callable cannot leak out beside the concrete declared receiver."""
+    _, result = _program(tmp_path, f'''
+        from metta._binding.runtime import Runtime
+        def host(): return 0
+        def generated(): yield 1
+        class Receiver:
+            def method(self): return 0
+        def selected(flag) -> Runtime:
+            return Runtime() if flag else {alternative}
+        class Space:
+            @marked
+            def read(self) -> int:
+                """Read through a concrete declaration."""
+                return selected(True).must("value")
+    ''')
+    assert result["space:read"].number == 1
+    assert not result["space:read"].open
+
+
+def test_incompatible_callable_actual_is_not_erased(tmp_path):
+    """A wrong actual alone must not fabricate a valid annotated receiver."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        def host(): return 0
+        def crossed(value: Runtime): return value.must("value")
+        class Space:
+            @marked
+            def read(self):
+                """Pass the wrong species to a concrete parameter."""
+                return crossed(host)
+    ''')
+    assert result["space:read"].number is None
+    assert result["space:read"].defect_open
+
+
+def test_class_declarations_preserve_class_objects(tmp_path):
+    """A type[C] return retains C and can construct its native receiver."""
+    _, result = _program(tmp_path, '''
+        from metta._binding.runtime import Runtime
+        def selected() -> type[Runtime]: return Runtime
+        class Space:
+            @marked
+            def read(self):
+                """Construct a declared class."""
+                return selected()().must("value")
+    ''')
+    assert result["space:read"].number == 1
 
 
 def test_getattr_with_a_default_answers_the_default(tmp_path):

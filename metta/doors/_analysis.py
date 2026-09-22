@@ -6,6 +6,14 @@ call site [tested: test_door_order_retains_unresolved_callbacks; commit=cd62330c
 Guarantees: aliases and helper arguments propagate to a fixed point before
 call facts are returned [tested: test_door_order_follows_aliases_and_helpers;
 commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]. No analyzed source is imported or executed.
+Concrete declarations filter known callable species as well as instances;
+an incompatible-only actual remains visible as a defect [tested:
+test_concrete_declarations_filter_callable_alternatives,
+test_incompatible_callable_actual_is_not_erased; commit=WORKTREE].
+Identity-copy SCCs share a store cell without collapsing call edges or
+sharing mutable state with extensions [tested:
+test_copy_components_preserve_the_least_fixed_point,
+test_copy_quotient_retains_call_cycles_and_extension_isolation; commit=WORKTREE].
 Declared container contents and alias writes retain callable targets; type
 qualifiers do not replace their initializers [tested:
 test_declared_callable_mapping_retains_every_door_target,
@@ -115,6 +123,7 @@ from dataclasses import dataclass, field, replace
 from functools import cache
 from typing import NamedTuple, cast
 
+from metta.doors._flow import CopyGraph, Slot
 from metta.doors._invocations import INVOCATIONS
 
 
@@ -145,7 +154,18 @@ class Reference(NamedTuple):
 
 
 type Values = frozenset[Reference]
-type Slot = tuple[str, str]
+
+# Python exposes these runtime species directly. Their identity is known even
+# when a reference carries its callable target instead of its type's name.
+# https://docs.python.org/3.14/library/types.html#standard-interpreter-types
+# policy-inventory-exempt: mechanism-internal; reason=these reference variants store callable targets rather than runtime type names; evidence=extensions/python/metta/doors/_analysis.py:Reference
+_CALLABLE_TYPES = {
+    "function": types.FunctionType,
+    "bound": types.MethodType,
+    "container_method": types.BuiltinMethodType,
+    "class": type,
+    "generator": types.GeneratorType,
+}
 
 # These builtins read or write the member named by their second argument.
 # A body that only forwards its own parameters to one of them is that
@@ -345,6 +365,10 @@ class CallGraph:
         self.entries = frozenset(entries)
         self.lifetimes = frozenset(lifetimes)
         self.values: dict[Slot, Values] = {}
+        self.copies = CopyGraph()
+        self.copy_functions: dict[Slot, str] = {}
+        self.copy_imports: set[Slot] = set()
+        self.copy_writes: set[Slot] = set()
         self.readers: dict[Slot, set[str]] = defaultdict(set)
         #: One canonical object per distinct value set, see `_intern`.
         self._interned: dict[Values, Values] = {}
@@ -395,15 +419,31 @@ class CallGraph:
             self.queued.add(name)
 
     def _get(self, slot: Slot) -> Values:
+        cell = self.copies.representative(slot)
         if self.current:
-            self.readers[slot].add(self.current)
+            self.readers[cell].add(self.current)
         for reads in self.collecting:
             reads.add(slot)
-        return self.narrowed.get(slot, self.values.get(slot, frozenset()))
+        return self.narrowed.get(slot, self.values.get(cell, frozenset()))
 
-    def _put(self, slot: Slot, values: Values) -> None:
+    def _put(self, slot: Slot, values: Values, *, source: Slot | None = None) -> None:
+        """Propagate a write through identity inclusions until no reached cell grows.
+
+        Time: sum of old and incoming set sizes over cell visits, plus reader
+        notifications. Pending work holds references to stored sets, not copies.
+        """
         if self._reporting:
             return
+        if source is not None:
+            self.copies.add(source, slot)
+        pending = [(self.copies.representative(slot), values)]
+        while pending:
+            cell, incoming = pending.pop()
+            if self._merge(cell, incoming):
+                pending.extend((target, self.values[cell]) for target in self.copies.edges.get(cell, ()))
+
+    def _merge(self, slot: Slot, values: Values) -> bool:
+        """Union one cell and notify its readers; cost is linear in its value set."""
         # ONE set operation, not two. `values - previous` was computed only to ask whether
         # anything was new and then thrown away, while `previous | added` built the answer a
         # second time; the union alone answers both, because a slot only ever grows and so a
@@ -416,10 +456,10 @@ class CallGraph:
             # one object, and 706 slots were measured holding the same 1,361-element set, so the
             # common case of propagating a saturated set between them is a pointer comparison
             # instead of a union linear in the set.
-            return
+            return False
         if previous is None:
             if not values:
-                return
+                return False
             # frozenset() on the FIRST write to a slot, which is rare against the updates: the
             # old code always built a new set, so storing a caller's own object here would be
             # the one way a later mutation of theirs could reach the store.
@@ -430,6 +470,42 @@ class CallGraph:
             self._schedule(reader)
         for key in self.memo_readers.pop(slot, ()):
             self.memos.pop(key, None)
+        return True
+
+    def _collapse_copies(self) -> None:
+        """At quiescence each copy SCC shares one cell, including future writes."""
+        groups = self.copies.collapse()
+        if groups:
+            self.memos.clear()
+            self.memo_readers.clear()
+        for representative, *members in groups:
+            for member in members:
+                values = self.values.pop(member, frozenset())
+                # The worklist has enforced every inclusion before the merge.
+                assert values == self.values.get(representative, frozenset())  # nosec B101
+                self.readers[representative].update(self.readers.pop(member, ()))
+
+    def _static_function(self, node: ast.expr, scope: _Scope) -> str | None:
+        """A lexical function binding that no assignment or import can replace."""
+        if not isinstance(node, ast.Name):
+            return None
+        slot = self._slot(scope, node.id)
+        return None if slot in self.copy_writes or slot in self.copy_imports else self.copy_functions.get(slot)
+
+    def _copy_source(self, node: ast.expr | None, scope: _Scope) -> Slot | None:
+        """A syntactically unfiltered identity read, never equality guessed from values."""
+        if self.narrowed:
+            return None
+        if isinstance(node, ast.Name):
+            slot = self._slot(scope, node.id)
+            return None if slot in self.copy_imports else slot
+        if isinstance(node, ast.Call) and (name := self._static_function(node.func, scope)):
+            callee = self.scopes[name]
+            if (name not in self.generators and name not in self.overloads
+                    and getattr(callee.node, "returns", None) is None
+                    and self._forwarder(callee) is None):
+                return name, "<return>"
+        return None
 
     def _stored(self, name: str, slot: str) -> Values:
         """Everything the container `name` can yield at `slot`: that slot and its unknown items.
@@ -453,11 +529,8 @@ class CallGraph:
         The store holds the same answer over and over: 103,943 slots were measured holding only
         19,912 distinct sets, with 90.7 per cent of all stored references sitting in redundant
         copies and one 1,361-element set held by 706 slots [measured 2026-09-19 on the merged
-        tree]. That is the shape an inclusion-constraint solver removes by collapsing the
-        strongly connected components whose members provably converge to the same set
-        (Fahndrich, Foster, Su and Aiken, PLDI 1998, `10.1145/277650.277667`), and this analyser
-        does not materialise the edge graph that identifies them. Interning captures the same
-        redundancy from the other side, by the answers rather than the edges: it costs one hash
+        tree]. CopyGraph merges cells whose copy constraints prove equality, while interning
+        also shares coincidentally equal answers without equating their cells. It costs one hash
         per NEW set, since a frozenset caches its own, and it makes `_put`'s common case an
         identity test.
         """
@@ -476,7 +549,7 @@ class CallGraph:
             cached, read = hit
             if self.current:
                 for slot in read:
-                    self.readers[slot].add(self.current)
+                    self.readers[self.copies.representative(slot)].add(self.current)
             for outer in self.collecting:
                 outer.update(read)
             return cast("T", cached)
@@ -489,7 +562,7 @@ class CallGraph:
         if not any(slot in self.narrowed for slot in reads):
             self.memos[key] = value, frozenset(reads)
             for slot in reads:
-                self.memo_readers[slot].add(key)
+                self.memo_readers[self.copies.representative(slot)].add(key)
         return value
 
     def _index(self, scope: _Scope) -> None:
@@ -514,6 +587,8 @@ class CallGraph:
                 (self.classes if kind == "class" else self.functions).add(name)
                 owner = scope.name if isinstance(scope.node, ast.ClassDef) else None
                 decorators = frozenset(ast.unparse(item).rsplit(".", 1)[-1] for item in node.decorator_list)
+                if kind == "function" and not decorators:
+                    self.copy_functions[scope.name, node.name] = name
                 self._index(_Scope(name, scope.module, node, scope.name, owner, decorators=decorators))
                 return
             if isinstance(node, ast.Lambda):
@@ -532,8 +607,10 @@ class CallGraph:
                 for alias in node.names:
                     name = alias.asname or (alias.name.split(".")[0] if isinstance(node, ast.Import) else alias.name)
                     scope.locals.add(name)
+                    self.copy_imports.add(self._slot(scope, name))
             elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
                 scope.locals.add(node.id)
+                self.copy_writes.add(self._slot(scope, node.id))
             elif isinstance(node, ast.Global):
                 scope.redirects.update((name, scope.module) for name in node.names)
             elif isinstance(node, ast.Nonlocal):
@@ -708,6 +785,7 @@ class CallGraph:
         if not declared:
             return values
         admitted = {reference.receiver if reference.kind == "container" else reference.name for reference in declared}
+        unstructured = self._unstructured(annotation, scope)
 
         concrete = self._contract_free(declared)
 
@@ -731,12 +809,25 @@ class CallGraph:
                 refinement |= concrete
                 continue
             name = reference.receiver if reference.kind == "container" else reference.name
+            runtime_type = _CALLABLE_TYPES.get(reference.kind)
+            if runtime_type is not None and not unstructured:
+                # type[C] describes the class C itself, not an instance of C.
+                name = runtime_type.__module__ + "." + runtime_type.__qualname__
+                if any(self._admits(base, name) for base in admitted) or (
+                    reference.kind == "class" and any(
+                        value.kind == "class" and self._admits(value.name, reference.name)
+                        for value in declared
+                    )
+                ):
+                    refinement.add(reference)
+                continue
             # policy-inventory-exempt: mechanism-internal; reason=these two reference variants carry a class identity a declaration can refuse; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._declared_values
             if reference.kind in {"instance", "container"} and (name in self.classes or _stdlib_object(name) is not None):
                 if any(self._admits(base, name) for base in admitted):
                     refinement.add(reference)
                 continue
             refinement.add(reference)
+        # An incompatible-only actual must remain visible at an invalid call.
         return frozenset(refinement) or values
 
     def _admits(self, declared: str, name: str) -> bool:
@@ -878,7 +969,10 @@ class CallGraph:
                 elif member == "__call__":
                     result.add(reference)
                 elif self._reporting:
-                    result.add(Reference("instance", "builtins.object"))
+                    if member in _members("builtins.function"):
+                        result.add(Reference("opaque", "builtins.function." + member))
+                    else:
+                        result.add(Reference("unknown", f"attribute on {reference.name}.{member}"))
             elif reference.kind == "external":
                 # A name outside the analysed tree extends through modules,
                 # classes and builtin type members. One member that exists on
@@ -1332,13 +1426,22 @@ class CallGraph:
         assert signature is not None  # nosec B101 # only a callable scope is called
         positional = [*signature.posonlyargs, *signature.args]
         annotations = {parameter.arg: parameter.annotation for parameter in scope.parameters}
-        for parameter, actual in zip(positional, arguments, strict=False):
-            self._put((name, parameter.arg), self._declared_values(actual, parameter.annotation, scope))
+        caller = self.scopes[self.current]
+        static = (isinstance(node, ast.Call) and self._static_function(node.func, caller) == name
+                  and name not in self.overloads and not any(isinstance(arg, ast.Starred) for arg in node.args))
+        for index, (parameter, actual) in enumerate(zip(positional, arguments, strict=False)):
+            source = (self._copy_source(node.args[index], caller)
+                      if static and isinstance(node, ast.Call) and index < len(node.args)
+                      and parameter.annotation is None else None)
+            self._put((name, parameter.arg), self._declared_values(actual, parameter.annotation, scope), source=source)
         for parameter_name, actual in keywords.items():
             # policy-inventory-exempt: mechanism-internal; reason=a variadic parameter is bound as a whole, never by a caller's keyword; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._bind
             if parameter_name in annotations and parameter_name not in {
                 getattr(signature.vararg, "arg", None), getattr(signature.kwarg, "arg", None)}:
-                self._put((name, parameter_name), self._declared_values(actual, annotations[parameter_name], scope))
+                source = (next((self._copy_source(item.value, caller) for item in node.keywords
+                                if item.arg == parameter_name), None)
+                          if static and isinstance(node, ast.Call) and annotations[parameter_name] is None else None)
+                self._put((name, parameter_name), self._declared_values(actual, annotations[parameter_name], scope), source=source)
         if signature.vararg is not None:
             extra = [self._declared_values(actual, signature.vararg.annotation, scope)
                      for actual in arguments[len(positional):]]
@@ -1651,7 +1754,7 @@ class CallGraph:
             return self._call(references, positional, keywords, node)
         if isinstance(node, ast.NamedExpr):
             values = self._value(node.value, scope)
-            self._assign(node.target, values, scope)
+            self._assign(node.target, values, scope, source=self._copy_source(node.value, scope))
             return values
         if isinstance(node, ast.IfExp):
             self._value(node.test, scope)
@@ -1712,9 +1815,9 @@ class CallGraph:
         kind = "list" if isinstance(node, ast.List) else "tuple" if isinstance(node, ast.Tuple) else "dict" if isinstance(node, ast.Dict) else "set" if isinstance(node, ast.Set) else "object"
         return frozenset({Reference("instance", "builtins." + kind)})
 
-    def _assign(self, node: ast.expr, values: Values, scope: _Scope) -> None:
+    def _assign(self, node: ast.expr, values: Values, scope: _Scope, *, source: Slot | None = None) -> None:
         if isinstance(node, ast.Name):
-            self._put(self._slot(scope, node.id), values)
+            self._put(self._slot(scope, node.id), values, source=source)
         elif isinstance(node, ast.Attribute):
             self._set_attribute(self._value(node.value, scope), node.attr, values, node)
         elif isinstance(node, (ast.Tuple, ast.List)):
@@ -1873,10 +1976,12 @@ class CallGraph:
             if isinstance(node, ast.AnnAssign) and node.value is not None:
                 values = self._declared_values(values, node.annotation, scope)
             for target in node.targets if isinstance(node, ast.Assign) else (node.target,):
-                self._assign(target, values, scope)
+                source = self._copy_source(node.value, scope) if isinstance(node, ast.Assign) else None
+                self._assign(target, values, scope, source=source)
             return
         if isinstance(node, ast.Return):
-            self._put((scope.name, "<return>"), self._value(node.value, scope))
+            values = self._value(node.value, scope)
+            self._put((scope.name, "<return>"), values, source=self._copy_source(node.value, scope))
             return
         if isinstance(node, ast.If):
             self._value(node.test, scope)
@@ -2003,6 +2108,7 @@ class CallGraph:
                     name = self.queue.popleft()
                     self.queued.remove(name)
                     self._evaluate(self.scopes[name])
+                self._collapse_copies()
                 if not final or not self._complete_annotations():
                     break
         # Report missing declarations against the completed graph. A missing
@@ -2086,6 +2192,7 @@ class CallGraph:
                     name = self.queue.popleft()
                     self.queued.remove(name)
                     self._evaluate(self.scopes[name])
+                self._collapse_copies()
                 if not final or not self._complete_annotations():
                     break
         self._reporting = True
@@ -2106,4 +2213,6 @@ class CallGraph:
         clone.__dict__.update({name: _duplicated(value) for name, value in self.__dict__.items()})
         clone.scopes = {name: replace(scope, locals=set(scope.locals), redirects=dict(scope.redirects))
                         for name, scope in self.scopes.items()}
+        clone.copies = CopyGraph()
+        clone.copies.__dict__.update({name: _duplicated(value) for name, value in self.copies.__dict__.items()})
         return clone

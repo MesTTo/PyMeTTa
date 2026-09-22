@@ -3,6 +3,10 @@
 Guarantees: strongly connected components are enumerated before longest paths;
 mixed crossings, recursion and open dependencies remain separate findings
 [tested: tests/repository/test_door_order.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+The gate certifies the published partial ordering. Honest unordered results
+remain unnumbered; explicit finite-order obligations reject them [tested:
+test_gate_keeps_honest_boundaries_and_refuses_a_required_order,
+test_gate_refuses_invalid_order_certificates; commit=WORKTREE].
 Caller-implemented contracts remain open, including through helper arguments;
 combining a contract call with a native crossing is mixed [tested:
 test_supplied_callable_with_native_crossing_is_mixed,
@@ -39,54 +43,8 @@ from types import MappingProxyType
 
 from metta.doors import AnswersAs, Door
 from metta.doors._analysis import CallGraph, Calls, ContractCall
+from metta.doors._flow import CopyGraph, components
 from metta.doors._scan import core, core_paths
-
-
-def components(graph: Mapping[str, Iterable[str]]) -> tuple[tuple[str, ...], ...]:
-    """Enumerate SCCs with two iterative depth-first traversals in O(V+E)."""
-    # Kosaraju's reverse-postorder construction, as in NetworkX 3.6.1:
-    # https://github.com/networkx/networkx/blob/7530809bfa1ea7ed6fdf918a4d1431488953cb1f/networkx/algorithms/components/strongly_connected.py
-    edges = {name: tuple(targets) for name, targets in graph.items()}
-    for targets in tuple(edges.values()):
-        for target in targets:
-            edges.setdefault(target, ())
-    reverse: dict[str, list[str]] = {name: [] for name in edges}
-    for name, targets in edges.items():
-        for target in targets:
-            reverse[target].append(name)
-    seen: set[str] = set()
-    postorder: list[str] = []
-    for name in sorted(edges):
-        if name in seen:
-            continue
-        seen.add(name)
-        stack = [(name, iter(reverse[name]))]
-        while stack:
-            current, children = stack[-1]
-            child = next(children, None)
-            if child is None:
-                postorder.append(current)
-                stack.pop()
-            elif child not in seen:
-                seen.add(child)
-                stack.append((child, iter(reverse[child])))
-    seen.clear()
-    result = []
-    for name in reversed(postorder):
-        if name in seen:
-            continue
-        members = []
-        pending = [name]
-        seen.add(name)
-        while pending:
-            current = pending.pop()
-            members.append(current)
-            for child in edges[current]:
-                if child not in seen:
-                    seen.add(child)
-                    pending.append(child)
-        result.append(tuple(sorted(members)))
-    return tuple(result)
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,6 +159,54 @@ def derive(rows: Iterable[Door], calls: Mapping[str, Calls]) -> Mapping[str, Ord
     return MappingProxyType({row.key: result[row.key] for row in records})
 
 
+def violations(orders: Mapping[str, Order]) -> tuple[str, ...]:
+    """Check the local equations that certify a partial strict ranking.
+
+    A finite rank decreases on each door edge. A cycle would imply n > n,
+    so it must remain unnumbered. An unnumbered result needs its own boundary
+    evidence or a dependency that is itself unnumbered. No particular door
+    name or previous count is privileged.
+
+    Time: O(V log V+E+C+W), V doors, E door edges, C cycle members,
+    W contract witnesses. The SCC traversal sorts its component members.
+    Space: O(V+E+C), including findings and component membership.
+    """
+    errors = []
+    graph = {name: order.calls & orders.keys() for name, order in orders.items()}
+    cycles = {name: group for group in components(graph) for name in group
+              if len(group) > 1 or name in graph[name]}
+    for name, order in orders.items():
+        missing = order.calls - orders.keys()
+        if missing:
+            errors.append(f"{name}: missing dependencies {sorted(missing)}")
+            continue
+        peers = {member for cycle in order.cycles if name in cycle for member in cycle}
+        blocked = frozenset(target for target in order.calls - peers if orders[target].number is None)
+        if order.blocked_by != blocked:
+            errors.append(f"{name}: blocked dependencies disagree with their verdicts")
+        if any(not cycle for cycle in order.cycles):
+            errors.append(f"{name}: empty cycle witness")
+        door_cycles = {cycle for cycle in order.cycles if any(member in orders for member in cycle)}
+        expected_cycles = {cycles[name]} if name in cycles else set()
+        if door_cycles != expected_cycles:
+            errors.append(f"{name}: cycle witnesses disagree with door edges")
+        if any(contract.site not in order.open for contract in order.contracts):
+            errors.append(f"{name}: contract witness has no open site")
+        boundary = bool(order.mixed or order.open or order.cycles or blocked)
+        if boundary:
+            if order.number is not None:
+                errors.append(f"{name}: an unordered boundary was assigned order {order.number}")
+        else:
+            callee_orders = [orders[target].number for target in order.calls]
+            expected = 1 if order.native else max(
+                (number + 1 for number in callee_orders if number is not None),
+                default=0,
+            )
+            if type(order.number) is not int or order.number != expected:
+                errors.append(f"{name}: order {order.number!r} does not satisfy rank {expected}")
+    return tuple(errors)
+
+
 #: Two, because that is what a whole-tree analysis alternates between when a source set is
 #: analysed with and without a row. A miss is correct and only slower, so this bounds memory
 #: rather than guessing at a workload. It is no longer what a REGISTRATION costs: a door from
@@ -262,8 +268,8 @@ def _core_fingerprint(sources: tuple[tuple[str, str], ...], entries: frozenset[s
     """Name a stored core by everything its contents depend on.
 
     The source text, the entry and lifetime sets, the interpreter and the
-    ANALYSIS MODULE itself: a stored graph is an instance graph of the classes
-    in `_analysis.py`, so a change there can make yesterday's file describe
+    SOLVER MODULES themselves: a stored graph contains CallGraph and CopyGraph
+    objects, so a change there can make yesterday's file describe
     objects this process no longer has. Keying on it turns that into a miss
     rather than into a wrong answer, which is the only invalidation rule this
     cache needs, because everything else it reads is already in the key.
@@ -282,13 +288,15 @@ def _core_fingerprint(sources: tuple[tuple[str, str], ...], entries: frozenset[s
         for name in group:
             absorb(name.encode())
         digest.update(b"\1")
-    # The analysis module's own bytes. `__file__` is typed optional because a
+    # The solver modules' own bytes. `__file__` is typed optional because a
     # module can be built without one; this one is imported from a file, and a
     # cache that cannot find it must MISS rather than key on a partial digest.
-    source = getattr(sys.modules[CallGraph.__module__], "__file__", None)
-    if source is None:
-        return ""
-    absorb(Path(source).read_bytes(), sys.version.encode())
+    for module in (CallGraph.__module__, CopyGraph.__module__):
+        source = getattr(sys.modules[module], "__file__", None)
+        if source is None:
+            return ""
+        absorb(Path(source).read_bytes())
+    absorb(sys.version.encode())
     return digest.hexdigest()
 
 
