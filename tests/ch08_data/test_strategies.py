@@ -1,6 +1,6 @@
 """Purpose: prove Python builds the reified plans declared by lib_strategy.
 
-Assumes: ``m += lib.strategy`` imports ``lib/lib_strategy/lib_strategy.metta`` through the
+Assumes: ``m += lib.strategy`` imports ``lib/lib_strategy/pkg.metta`` through the
 normal library door.
 Guarantees:
   - a library face is exactly the library's own declared heads, spelled Python's

@@ -304,10 +304,10 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert any(name.endswith("/lib/lib_csv/support/csv_codec.pl") for name in source_names)
     assert any(name.endswith("/lib/_support/owned_resources.pl") for name in source_names)
     provider_files = ["lib/lib_string/support/string_native.cpp", "lib/lib_string/vendor/SHA256SUMS",
-                      "lib/lib_vector/lib_vector.pl", "lib/lib_vector/lib_vector.metta",
+                      "lib/lib_vector/lib_vector.pl", "lib/lib_vector/pkg.metta",
                       "lib/lib_vector/README.md", "lib/lib_vector/vendor/README.md",
                       "lib/lib_vector/vendor/PYTHON-LICENSE",
-                      "lib/lib_database/lib_database.pl", "lib/lib_database/lib_database.metta"]
+                      "lib/lib_database/lib_database.pl", "lib/lib_database/pkg.metta"]
     provider_files.extend("lib/lib_string/vendor/" + line.split("  ", 1)[1]
                         for line in (ROOT / "lib/lib_string/vendor/SHA256SUMS").read_text(encoding="utf-8").splitlines())
     provider_files.extend(str(path.relative_to(ROOT))

@@ -98,16 +98,22 @@ SUFFIXES = (".metta", ".metta.gz")
 def _candidates(root: Path, name: str) -> _collections_abc.Iterable[Path]:
     """Where one directory could hold the source for one module name.
 
-    The file beside the directory first, `rules.metta`, then the engine's own
-    library layout, `rules/rules.metta`: a shipped library is a directory
-    named for the library holding its surface, which is also the shape
-    Python's own `FileFinder` gives a package in `<name>/__init__.py`
-    [source: engine/metta.pl, library_within/2; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451].
+    The file beside the directory first, `rules.metta`, then the directory's
+    MANIFEST, `rules/pkg.metta`, which is the shape Python's own `FileFinder`
+    gives a package in `<name>/__init__.py`: a conventional entry-point name
+    rather than one repeated from the directory
+    [source: engine/metta.pl, library_within/2].
+
+    It used to yield `rules/rules.metta`, and that is the whole point of the
+    change: the entry point's name had to equal its directory's, so renaming
+    the directory broke every importer. This order mirrors the engine's, and
+    the two are separate implementations of one fact, which is why each cites
+    the other.
     """
     for suffix in SUFFIXES:
         yield root / f"{name}{suffix}"
     for suffix in SUFFIXES:
-        yield root / name / f"{name}{suffix}"
+        yield root / name / f"pkg{suffix}"
 
 
 def _in_directories(directories: _collections_abc.Iterable[Any], name: str) -> str | None:
@@ -139,7 +145,7 @@ def _file_rows(text: str) -> tuple[_catalog_declarations.Declaration, ...]:
     One `parse` per non-runnable form. The crossing count is the form count,
     and it stays there: a door answering the reader's own terms for the whole
     file in one crossing measured 17,460 inferences against 13,831 for the 82
-    forms of `lib/lib_pln/lib_pln.metta` parsed one at a time, because the
+    forms of `lib/lib_pln/pkg.metta` parsed one at a time, because the
     atoms cross either way and only a RUNNABLE form's parse captures its
     variable names, so the whole-file terms arrive as `$_1 $_2` and pay to
     have those minted [measured 2026-09-07, three runs, no spread;

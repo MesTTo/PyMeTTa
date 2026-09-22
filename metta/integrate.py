@@ -564,7 +564,7 @@ def face(
         source = metta.integrate.face(
             math, ["sqrt", "gcd"], purpose="Arithmetic from the C library"
         )
-        Path("lib/lib_math/lib_math.metta").write_text(source, encoding="utf-8")
+        Path("lib/lib_math/pkg.metta").write_text(source, encoding="utf-8")
 
     module_ops is this act at run time: the same names, the same reachable
     arities, the same map from a Python annotation to a MeTTa type. This
