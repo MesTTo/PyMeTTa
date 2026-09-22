@@ -77,8 +77,8 @@ import importlib
 import itertools
 import logging
 import os
-import sys
 import stat
+import sys
 import tempfile
 import threading
 from collections import Counter
@@ -349,7 +349,8 @@ def _claim_journal_lock(journal: Path) -> int:
         # it removes the platform question instead of answering it, and PEP 446
         # made descriptors non-inheritable by default anyway, so this states
         # the intent rather than changing the behaviour.
-        os.set_inheritable(descriptor, False)
+        os.set_inheritable(descriptor, False)  # noqa: FBT003  -- os.set_inheritable's
+        # second parameter is positional-only, so there is no keyword to give it.
     except OSError as exc:
         msg = f"cannot open the claim file {lock} for persistent journal {journal}: {exc}"
         raise MettaError(msg) from exc
