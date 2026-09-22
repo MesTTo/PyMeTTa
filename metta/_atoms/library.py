@@ -97,7 +97,7 @@ def _attribute_of(library: str) -> str | None:
     `lib_he` is `lib.he`, `minimal_metta_lib` is `lib.minimal_metta_lib`, and
     `lib_import` stays bracket-only because `import` is a Python keyword.
     """
-    suffix = library[len(_FAMILY):] if library.startswith(_FAMILY) else library
+    suffix = library.removeprefix(_FAMILY)
     return suffix if _attribute_safe(suffix) else None
 
 

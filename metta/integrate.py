@@ -559,7 +559,7 @@ def face(
     effects: Iterable[tuple[str, str, str]] = (),
     signatures: Iterable[str] = (),
 ) -> str:
-    """Selected callables of any module as MeTTa SOURCE, in one call.
+    r"""Selected callables of any module as MeTTa SOURCE, in one call.
 
         source = metta.integrate.face(
             math, ["sqrt", "gcd"], purpose="Arithmetic from the C library"
