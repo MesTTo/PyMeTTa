@@ -2,7 +2,7 @@
 
 Guarantees: SCC members denote the same value set at a fixed point; directed
 edges outside an SCC retain their direction [tested:
-test_copy_components_preserve_the_least_fixed_point; commit=WORKTREE].
+test_copy_components_preserve_the_least_fixed_point; commit=6a308d416acecf40363f665100729460726d997a].
 Owns resources: each CopyGraph owns its mutable edge and representative maps.
 Guarded by: the owning CallGraph evaluates one worklist in one thread.
 """

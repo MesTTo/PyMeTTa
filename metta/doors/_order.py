@@ -6,7 +6,7 @@ mixed crossings, recursion and open dependencies remain separate findings
 The gate certifies the published partial ordering. Honest unordered results
 remain unnumbered; explicit finite-order obligations reject them [tested:
 test_gate_keeps_honest_boundaries_and_refuses_a_required_order,
-test_gate_refuses_invalid_order_certificates; commit=WORKTREE].
+test_gate_refuses_invalid_order_certificates; commit=6a308d416acecf40363f665100729460726d997a].
 Caller-implemented contracts remain open, including through helper arguments;
 combining a contract call with a native crossing is mixed [tested:
 test_supplied_callable_with_native_crossing_is_mixed,

@@ -8,7 +8,7 @@ require every implementation to have a finite order. --require-ordered
 names that stronger obligation and refuses an unordered or missing door,
 including after --write [tested:
 test_gate_keeps_honest_boundaries_and_refuses_a_required_order,
-test_gate_refuses_invalid_order_certificates; commit=WORKTREE].
+test_gate_refuses_invalid_order_certificates; commit=6a308d416acecf40363f665100729460726d997a].
 The shipped verdict table metta/doors/_orders.py is a projection of this
 analysis: --write regenerates it and a check refuses drift, so a boot reads
 the table instead of analysing the tree [tested:

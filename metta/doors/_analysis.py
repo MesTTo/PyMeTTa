@@ -9,11 +9,11 @@ commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]. No analyzed source is imported
 Concrete declarations filter known callable species as well as instances;
 an incompatible-only actual remains visible as a defect [tested:
 test_concrete_declarations_filter_callable_alternatives,
-test_incompatible_callable_actual_is_not_erased; commit=WORKTREE].
+test_incompatible_callable_actual_is_not_erased; commit=6a308d416acecf40363f665100729460726d997a].
 Identity-copy SCCs share a store cell without collapsing call edges or
 sharing mutable state with extensions [tested:
 test_copy_components_preserve_the_least_fixed_point,
-test_copy_quotient_retains_call_cycles_and_extension_isolation; commit=WORKTREE].
+test_copy_quotient_retains_call_cycles_and_extension_isolation; commit=6a308d416acecf40363f665100729460726d997a].
 Declared container contents and alias writes retain callable targets; type
 qualifiers do not replace their initializers [tested:
 test_declared_callable_mapping_retains_every_door_target,

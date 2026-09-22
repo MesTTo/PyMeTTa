@@ -16,7 +16,7 @@ and inherited iteration, field narrowing and unreachable branches have
 controls [tested: this file; commit=a6874e867225cd6efb26177d803b942d0dc02dcf].
 Concrete declarations have controls for callable species, class objects and
 incompatible-only actuals [tested: test_concrete_declarations_filter_callable_alternatives,
-test_incompatible_callable_actual_is_not_erased; commit=WORKTREE].
+test_incompatible_callable_actual_is_not_erased; commit=6a308d416acecf40363f665100729460726d997a].
 """
 
 from __future__ import annotations
