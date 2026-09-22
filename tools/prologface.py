@@ -30,6 +30,29 @@ BEGIN = "; begin generated Prolog face"
 END = "; end generated Prolog face"
 SOURCE_ROOTS = ((ROOT / "lib", "*/*.pl"), (ROOT / "tests/data/prologface", "*.pl"))
 
+#: A library directory's two halves are `<dir>.pl` and `pkg.metta`, and they
+#: do NOT share a stem. Everywhere else the pair does, so a suffix swap is
+#: right there. Pairing them is one rule used in both directions, written
+#: once: read off the suffix alone it paired `lib_x/pkg.metta` with a
+#: `lib_x/pkg.pl` that has never existed, handing the reader 23 absent paths,
+#: and `lib_x/lib_x.pl` with the `lib_x/lib_x.metta` the rename removed.
+MANIFEST = "pkg.metta"
+
+
+def _prolog_face(face: Path) -> Path:
+    """The Prolog half of a MeTTa face."""
+    if face.name == MANIFEST:
+        return face.with_name(f"{face.parent.name}.pl")
+    return face.with_suffix(".pl")
+
+
+def _metta_face(source: Path) -> Path:
+    """The MeTTa half of a Prolog source."""
+    if source.stem == source.parent.name:
+        return source.with_name(MANIFEST)
+    return source.with_suffix(".metta")
+
+
 
 def source_records(paths: list[Path]) -> list[dict[str, Any]]:
     """Read source through SWI's cross-referencer, never through consult."""
@@ -111,7 +134,12 @@ def generated_body(rows: list[tuple[str, tuple[str, ...], str, tuple[str, ...]]]
                    generated_notice: str) -> str:
     """Render the direct registration and the metadata that describes it."""
     names = sorted({name for name, _, _, _ in rows})
-    native_path = json.dumps(os.path.relpath(source.resolve(), ROOT / "lib"))
+    # Beside the manifest that carries it, and named plainly. Both halves of a
+    # library live in one directory, so the row is the file's own name. The
+    # (library ...) wrapper this used to emit was what dragged NAME MATCHING
+    # back in, which pkg.metta exists to remove, and regenerating with it
+    # rewrote 23 shipped rows to the spelling that decision replaced.
+    native_path = json.dumps(source.name)
     # A face DESCRIBES the artifact that backs it rather than calling the
     # importer. The row is data any implementation can read, decide whether it
     # can perform, and refuse by name when it cannot, where the call was an
@@ -119,7 +147,7 @@ def generated_body(rows: list[tuple[str, tuple[str, ...], str, tuple[str, ...]]]
     # the file's rows are in the space
     # [source: docs/journal/2026-09-09-packages-are-equations.md, law 14].
     lines = [f"; {generated_notice}", "!(import! &self (library lib_import))",
-             f"(= (package backing) (prolog (library {native_path})",
+             f"(= (package backing) (prolog {native_path}",
              "  (" + " ".join(names) + ")))", ""]
     by_name: dict[str, list[tuple[str, tuple[str, ...], str, tuple[str, ...]]]] = {}
     for row in rows:
@@ -169,14 +197,14 @@ def review(paths: list[Path] | None = None, *, rewrite: bool = False) -> tuple[l
     if paths is None:
         paths = sorted({path for root, pattern in SOURCE_ROOTS for path in root.glob(pattern)})
         for root, pattern in SOURCE_ROOTS:
-            paths.extend(path.with_suffix(".pl") for path in root.glob(pattern.replace(".pl", ".metta"))
-                         if BEGIN in path.read_text(encoding="utf-8") and path.with_suffix(".pl") not in paths)
+            paths.extend(_prolog_face(path) for path in root.glob(pattern.replace(".pl", ".metta"))
+                         if BEGIN in path.read_text(encoding="utf-8") and _prolog_face(path) not in paths)
     paths = [path.resolve() for path in paths]
     records = source_records(paths)
     problems, pending = [], []
     skipped = 0
     for source, record in zip(paths, records, strict=True):
-        target = source.with_suffix(".metta")
+        target = _metta_face(source)
         current = target.read_text(encoding="utf-8") if target.exists() else ""
         if not explicit and not record["described"] and BEGIN not in current:
             skipped += 1
