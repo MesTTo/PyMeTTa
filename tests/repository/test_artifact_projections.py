@@ -235,8 +235,12 @@ def test_library_document_reads_changed_parameter_facts(tmp_path, monkeypatch):
     """An edited @param reaches the generated page and invalidates the old one."""
     library = tmp_path / "lib/lib_fixture"
     library.mkdir(parents=True)
-    source = library / "lib_fixture.metta"
+    source = library / "lib.metta"
     source.write_text('(: fixture (-> Number Number))\n(@doc fixture (@params ((@param "width"))))\n', encoding="utf-8")
+    # A directory is a library because it holds a MANIFEST, and its source is
+    # lib.metta beside it; a planted tree carries both or it is not a library.
+    (library / "pkg.metta").write_text(
+        '(= (package requires) "lib.metta")\n', encoding="utf-8")
     page = tmp_path / "metta-libraries.md"
     monkeypatch.setattr(libdoc, "_REPO", tmp_path)
     monkeypatch.setattr(libdoc, "_PAGE", page)
@@ -252,12 +256,16 @@ def test_library_document_keeps_every_declared_arity(tmp_path, monkeypatch):
     """A shared doc row must not erase an earlier overload's arrow."""
     library = tmp_path / "lib/lib_fixture"
     library.mkdir(parents=True)
-    (library / "lib_fixture.metta").write_text(
+    (library / "lib.metta").write_text(
         '(: fixture (-> String Number))\n'
         '(: fixture (-> String Symbol Number))\n'
         '(@doc fixture (@desc "Parse, optionally naming a format"))\n',
         encoding="utf-8",
     )
+    # A directory is a library because it holds a MANIFEST, and its source is
+    # lib.metta beside it; a planted tree carries both or it is not a library.
+    (library / "pkg.metta").write_text(
+        '(= (package requires) "lib.metta")\n', encoding="utf-8")
     monkeypatch.setattr(libdoc, "_REPO", tmp_path)
     text = libdoc.page()
     assert "(: fixture (-> String Number))" in text
