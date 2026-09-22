@@ -38,7 +38,14 @@ def thread_state(space) -> dict:
     """Read the receipt, source payload, compiled clauses, and registry together."""
     return bridge().query_once(
         "user:import_receipt(Space, Canon, _, _), "
-        "file_base_name(Canon, 'lib_thread.metta'), "
+        # The library by its DIRECTORY, which is what identifies one now: a
+        # library is a directory carrying a manifest, and its source is
+        # lib.metta inside it. Naming the source `lib_thread.metta` held the
+        # pre-manifest spelling, so this receipt lookup simply failed and
+        # query_once answered None, which the assertions read as a missing
+        # receipt. Matching the base name alone would match any library's
+        # lib.metta.
+        "file_directory_name(Canon, _Dir), file_base_name(_Dir, lib_thread), "
         "findall(_ReceiptLoad, user:import_receipt(Space, Canon, _ReceiptLoad, _Digest), _Receipts), "
         "length(_Receipts, ReceiptCount), "
         "(user:import_receipt(Space, Canon, ReceiptLoadId, _) -> true ; ReceiptLoadId = none), "
