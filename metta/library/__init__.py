@@ -106,7 +106,7 @@ def roster(root: str | os.PathLike[str] | None = None) -> dict[str, tuple[Path, 
     """
     known: dict[str, list[Path]] = {}
     for path in _library_source_files(_root(root)):
-        known.setdefault(path.stem, []).append(path)
+        known.setdefault(path.parent.name, []).append(path)
     return {name: tuple(sorted(files)) for name, files in sorted(known.items())}
 
 

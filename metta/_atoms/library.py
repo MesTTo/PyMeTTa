@@ -71,7 +71,7 @@ def _library_source_files(root: str | os.PathLike[str]) -> list[Path]:
         if entry.is_file()
         # policy-inventory-exempt: mechanism-internal; reason=the two source suffixes a shipped library file can have, the catalog filter rather than an operator policy; evidence=engine/metta/interop.pl:resolve_module_form/2
         and entry.suffix in {".metta", ".pl"}
-        and entry.stem.startswith("lib_")
+        and entry.parent.name.startswith("lib_")
     )
 
 
