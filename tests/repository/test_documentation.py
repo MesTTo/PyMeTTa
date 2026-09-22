@@ -433,6 +433,11 @@ def test_a_prolog_only_library_is_part_of_the_reference(tmp_path, monkeypatch):
     libdoc = _load_libdoc()
     library = tmp_path / "lib" / "lib_planted"
     library.mkdir(parents=True)
+    # A directory is a library because it carries a MANIFEST, so a fixture that
+    # plants only sources plants nothing the roster can see
+    # [source: extensions/python/metta/_atoms/library.py:_library_source_files].
+    (library / "pkg.metta").write_text(
+        "; the manifest is what makes this directory a library.\n", encoding="utf-8")
     (library / "lib_planted.pl").write_text("planted(true).\n", encoding="utf-8")
     monkeypatch.setattr(libdoc, "_REPO", tmp_path)
 
@@ -446,6 +451,11 @@ def test_metta_and_prolog_halves_share_one_library_row(tmp_path, monkeypatch):
     libdoc = _load_libdoc()
     library = tmp_path / "lib" / "lib_planted"
     library.mkdir(parents=True)
+    # A directory is a library because it carries a MANIFEST, so a fixture that
+    # plants only sources plants nothing the roster can see
+    # [source: extensions/python/metta/_atoms/library.py:_library_source_files].
+    (library / "pkg.metta").write_text(
+        "; the manifest is what makes this directory a library.\n", encoding="utf-8")
     (library / "lib_planted.pl").write_text("planted(true).\n", encoding="utf-8")
     (library / "lib_planted.metta").write_text(
         '(: planted (-> Atom))\n(@doc planted (@desc "A planted name."))\n',
@@ -472,6 +482,11 @@ def test_a_doc_atom_renders_its_parts_in_written_order(tmp_path, monkeypatch):
     libdoc = _load_libdoc()
     library = tmp_path / "lib" / "lib_planted"
     library.mkdir(parents=True)
+    # A directory is a library because it carries a MANIFEST, so a fixture that
+    # plants only sources plants nothing the roster can see
+    # [source: extensions/python/metta/_atoms/library.py:_library_source_files].
+    (library / "pkg.metta").write_text(
+        "; the manifest is what makes this directory a library.\n", encoding="utf-8")
     (library / "lib_planted.metta").write_text(
         '(@doc planted (@return "a planted answer") (@desc "A planted name."))\n'
         "(= (planted) 1)\n"
@@ -501,6 +516,11 @@ def test_a_typed_parameter_renders_its_description(tmp_path, monkeypatch):
     libdoc = _load_libdoc()
     library = tmp_path / "lib" / "lib_planted"
     library.mkdir(parents=True)
+    # A directory is a library because it carries a MANIFEST, so a fixture that
+    # plants only sources plants nothing the roster can see
+    # [source: extensions/python/metta/_atoms/library.py:_library_source_files].
+    (library / "pkg.metta").write_text(
+        "; the manifest is what makes this directory a library.\n", encoding="utf-8")
     (library / "lib_planted.metta").write_text(
         "(@doc planted (@desc \"A planted name.\")"
         ' (@params ((@param (@type Number) (@desc "how many"))'
@@ -855,6 +875,11 @@ def test_a_registered_head_is_counted_in_the_reference(tmp_path, monkeypatch):
     libdoc = _load_libdoc()
     library = tmp_path / "lib" / "lib_planted"
     library.mkdir(parents=True)
+    # A directory is a library because it carries a MANIFEST, so a fixture that
+    # plants only sources plants nothing the roster can see
+    # [source: extensions/python/metta/_atoms/library.py:_library_source_files].
+    (library / "pkg.metta").write_text(
+        "; the manifest is what makes this directory a library.\n", encoding="utf-8")
     (library / "lib_planted.metta").write_text(
         '(@doc planted-doc (@desc "A documented planted name."))\n'
         "(: planted-doc (-> Atom))\n"
