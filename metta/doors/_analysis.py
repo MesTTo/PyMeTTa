@@ -502,7 +502,13 @@ class CallGraph:
         if isinstance(node, ast.Call) and (name := self._static_function(node.func, scope)):
             callee = self.scopes[name]
             if (name not in self.generators and name not in self.overloads
-                    and getattr(callee.node, "returns", None) is None
+                    # Two `is None` tests rather than the chain FURB124 asks
+                    # for, because a chain cannot short-circuit: its second
+                    # operand is the MIDDLE and is evaluated whatever the first
+                    # answers. _forwarder is a memoised AST walk over a scope's
+                    # statements, and a node that HAS a return annotation, which
+                    # most here do, skips it today and would pay it per scope.
+                    and getattr(callee.node, "returns", None) is None  # noqa: FURB124
                     and self._forwarder(callee) is None):
                 return name, "<return>"
         return None
@@ -812,7 +818,7 @@ class CallGraph:
             runtime_type = _CALLABLE_TYPES.get(reference.kind)
             if runtime_type is not None and not unstructured:
                 # type[C] describes the class C itself, not an instance of C.
-                name = runtime_type.__module__ + "." + runtime_type.__qualname__
+                name = f"{runtime_type.__module__}.{runtime_type.__qualname__}"
                 if any(self._admits(base, name) for base in admitted) or (
                     reference.kind == "class" and any(
                         value.kind == "class" and self._admits(value.name, reference.name)

@@ -461,7 +461,7 @@ extend-exclude = ["examples/**/_common.py", "**/tools/protocol_sources/cpython/*
 [tool.ruff.lint]
 # Refurb owns these newer rules. Ruff must preserve their targeted ``noqa``
 # directives even though this Ruff version does not implement the codes.
-external = ["FURB104", "FURB141", "FURB143"]
+external = ["FURB104", "FURB124", "FURB141", "FURB143"]
 select = [
     "F",
     "E", "W",
