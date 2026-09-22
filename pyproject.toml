@@ -803,6 +803,10 @@ DEP002 = [
     "metta-sqlite",
     "metta-tables",
     "metta-websocket",
+    # pymetta-host is the linux engine extra's package and ships a BINARY:
+    # a patched SWI home with its bridge vendored under _vendor. Nothing
+    # imports it by name, which is the same shape as every extra above.
+    "pymetta-host",
 ]
 
 [tool.importlinter]
