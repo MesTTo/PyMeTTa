@@ -2,7 +2,7 @@
 
 Guarantees: the manifest orders producers before consumers and derives gate
 ownership, selection, literal commands and the contributor table [tested:
-tests/checks/check_generated_artifact_group_selftest.py; commit=WORKTREE].
+tests/checks/check_generated_artifact_group_selftest.py; commit=c470c0ae64427770dda49c1ccd1a0413326e6105].
 Fails when: an input, output or command is missing, output ownership overlaps,
 dependencies cycle, or any generated projection drifts.
 Decides: observed outputs require their explicit remeasurement command.
