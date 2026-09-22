@@ -147,8 +147,8 @@ Decides:
   - BUDGET and RUNG sit at the END of a twin, each under the `#:` run that
     documents it, and a re-pin APPENDS to that run rather than growing a
     header. The chain never shrinks and every merge adds a paragraph, so at
-    the top it buries what the file is for: `basics/identity.py` opened with
-    297 comment lines before its first statement [tested:
+    the top it buries what the file is for: `ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.py`
+    opened with 297 comment lines before its first statement [tested:
     test_a_twin_declaring_above_its_code_is_a_finding,
     test_the_layout_check_passes_the_shipped_twins;
     commit=845d851b7241ccea3b6a13f532172945bf6d8d9e]

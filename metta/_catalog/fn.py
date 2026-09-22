@@ -87,6 +87,7 @@ if TYPE_CHECKING:
         bit_shift_left: Symbol
         bit_shift_right: Symbol
         bit_xor: Symbol
+        c_iter: Symbol
         call: Symbol
         callPredicate: Symbol  # noqa: N815 -- the catalog owns this Python-compatible spelling
         car_atom: Symbol
@@ -517,6 +518,7 @@ _NAMES = frozenset(
         "bit-shift-left",
         "bit-shift-right",
         "bit-xor",
+        "c-iter",
         "call",
         "callPredicate",
         "car-atom",
@@ -827,6 +829,7 @@ _ALIASES.update(
         ("bit_shift_left", "bit-shift-left"),
         ("bit_shift_right", "bit-shift-right"),
         ("bit_xor", "bit-xor"),
+        ("c_iter", "c-iter"),
         ("call", "call"),
         ("callPredicate", "callPredicate"),
         ("car_atom", "car-atom"),

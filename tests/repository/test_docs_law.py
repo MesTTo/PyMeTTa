@@ -230,18 +230,20 @@ def test_twin_docs_state_python_stack_engine_lco_and_answer_equality() -> None:
 
 
 def test_twin_docs_state_where_the_pricing_block_lives() -> None:
-    """The convention a twin author reads, and the door that keeps it true."""
-    path = (
-        _REPOSITORY
-        / "extensions"
-        / "python"
-        / "examples"
-        / "language-feature-examples"
-        / "README.md"
-    )
+    """The convention a twin author reads, and the door that keeps it true.
+
+    Read from the LANE's own documentation rather than the corpus README.
+    0679b0e2 moved it deliberately: the README "opened on BUDGET, RUNG and the
+    re-pin chain: how to move a number and where the paragraph lands. That is
+    the lane's business, not a reader's, and it was the whole document, so
+    nothing here said what the 323 twins actually cover." The obligation is
+    that the convention is WRITTEN DOWN, which this still holds; only the
+    place it belongs changed, and the law had gone on reading the old one.
+    """
+    path = _REPOSITORY / "extensions" / "python" / "tools" / "twin_coverage.py"
     text = " ".join(path.read_text(encoding="utf-8").split())
-    assert "sit at the END of the file" in text
-    assert "a re-pin APPENDS one more paragraph there" in text
+    assert "sit at the END of a twin" in text
+    assert "a re-pin APPENDS to that run" in text
     assert "opened with 297 comment lines" in text
     assert "twin_coverage.py --repin" in text
 
