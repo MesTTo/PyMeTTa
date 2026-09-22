@@ -423,7 +423,16 @@ def test_function_catalog_changes_reach_runtime_and_closed_declarations(repo_roo
     names = ["fixture-head", "fixture_head", "hidden-head"]
     visibility = {name: "INTERNAL" if name == "hidden-head" else "PUBLIC" for name in names}
     module = tmp_path / "fn.py"
+    # EVERY output main/1 writes is redirected, not just the Python half. The
+    # TypeScript half arrived after this test and nobody taught it, so a run
+    # wrote the fixture catalog over the seat's shipped heads.ts and left it
+    # there: `export type CatalogName = "another-head" | "fixture-head"` in a
+    # tracked file, and a green lane. The `untouched` check below is what makes
+    # a third output fail here rather than silently ship.
+    untouched = {path: path.read_bytes()
+                 for path in (generator.MODULE, generator.TS_MODULE) if path.exists()}
     monkeypatch.setattr(generator, "MODULE", module)
+    monkeypatch.setattr(generator, "TS_MODULE", tmp_path / "heads.ts")
     monkeypatch.setattr(generator, "catalog_snapshot", lambda: (names, visibility))
     assert generator.main(["--write"]) == 0
     assert generator.main([]) == 0
@@ -447,6 +456,8 @@ def test_function_catalog_changes_reach_runtime_and_closed_declarations(repo_roo
     assert generator.main([]) == 1
     assert generator.main(["--write"]) == 0
     assert "another_head: Symbol" in module.read_text()
+    for path, before in untouched.items():
+        assert path.read_bytes() == before, f"the generator wrote the tracked {path.name}"
 
 
 def test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door():
