@@ -39,17 +39,27 @@ SOURCE_ROOTS = ((ROOT / "lib", "*/*.pl"), (ROOT / "tests/data/prologface", "*.pl
 MANIFEST = "pkg.metta"
 
 
+#: A library's MeTTa source, beside its manifest. The face lands HERE rather
+#: than in pkg.metta because a face is the library's surface: it declares the
+#: types and documents the heads its Prolog half exports, and a manifest that
+#: carries 275 type declarations is a manifest in name only. Its
+#: `(= (package backing) ...)` row travels with it, and must: package_coverage
+#: resolves each name the row claims through package_source_equation scoped to
+#: the row's OWN file, so a row parted from its declarations fails coverage.
+SOURCE = "lib.metta"
+
+
 def _prolog_face(face: Path) -> Path:
-    """The Prolog half of a MeTTa face."""
-    if face.name == MANIFEST:
+    """The Prolog half of a MeTTa face. Inverse of _metta_face."""
+    if face.name == SOURCE:
         return face.with_name(f"{face.parent.name}.pl")
     return face.with_suffix(".pl")
 
 
 def _metta_face(source: Path) -> Path:
-    """The MeTTa half of a Prolog source."""
+    """The MeTTa half of a Prolog source. Inverse of _prolog_face."""
     if source.stem == source.parent.name:
-        return source.with_name(MANIFEST)
+        return source.with_name(SOURCE)
     return source.with_suffix(".metta")
 
 
