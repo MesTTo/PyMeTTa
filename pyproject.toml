@@ -104,11 +104,22 @@ metta = "metta._pygments:MettaLexer"
 metta = "metta.cli:main"
 
 [project.optional-dependencies]
-#: The bridge to SWI-Prolog. Named so `pip install pymetta[engine]` is one
-#: command for a reader who already has SWI, while a plain install stays the
-#: one that cannot fail before this package can speak for itself.
+#: The engine's host. `pip install pymetta[engine]` is one command whether or
+#: not the reader already has SWI, while a plain install stays the one that
+#: cannot fail before this package can speak for itself.
+#:
+#: Two rows because there is one dimension: whether a pymetta-host wheel exists
+#: for this platform. Where it does, it carries the PATCHED SWI the engine
+#: needs, so nothing has to be installed or built by hand; where it does not,
+#: janus-swi binds whatever SWI the reader supplies. The rows must PARTITION
+#: rather than overlap: pymetta-host vendors its bridge under `_vendor` and
+#: refuses to run beside a foreign `janus_swi`, so installing both is the split
+#: that refusal exists to catch. PEP 508's marker grammar has no `not`, so the
+#: complement of `linux and x86_64` is spelled out as the `or` of the negated
+#: halves [source: https://peps.python.org/pep-0508/#grammar].
 engine = [
-    "janus-swi>=1.5.2",
+    "pymetta-host>=0.9.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "janus-swi>=1.5.2; sys_platform != 'linux' or platform_machine != 'x86_64'",
 ]
 #: EVERY extra below installs PACKAGES, never libraries. pymetta ships zero
 #: integrations (the ruling of 2026-09-07): each library the Python seat can be
@@ -611,7 +622,13 @@ files = ["metta", "../../ext"]
 # is a second module of the same name and mypy stops on the collision before
 # it checks anything [measured 2026-09-08, `Duplicate module named
 # "metta_arrays"`]. Written as a regex over the path, which is mypy's spelling.
-exclude = "(^|/)ext/[^/]+/(tests|build)/"
+#: A package's tests and build directory are not its surface, and neither
+#: is setup.py: it runs under setuptools at build time rather than being
+#: imported, and `no_site_packages = true` above means the setuptools
+#: stubs are invisible here even when types-setuptools is installed, so
+#: checking it reports two import errors about the build tool rather
+#: than anything about this project. Same rule, one more build path.
+exclude = "(^|/)ext/[^/]+/((tests|build)/|setup\\.py$)"
 explicit_package_bases = true
 mypy_path = "."
 warn_unused_configs = true

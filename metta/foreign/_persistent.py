@@ -77,6 +77,7 @@ import importlib
 import itertools
 import logging
 import os
+import sys
 import stat
 import tempfile
 import threading
@@ -106,7 +107,14 @@ _MODULE_POOL: dict[tuple[tuple[str, int], ...], list[str]] = {}
 #: flock(2), where the journal's interprocess claim lives. Imported this way
 #: because it does not exist off POSIX, where _claim_journal_lock refuses by
 #: name rather than letting an import error stand in for the explanation.
-_FCNTL = importlib.import_module("fcntl") if os.name == "posix" else None
+#: sys.platform rather than os.name, because that is the spelling a type
+#: checker narrows and the one typeshed keys its own availability
+#: annotations on: with os.name the guard was invisible, so the os.pread below
+#: it read as an error under `mypy --platform win32` even though the runtime
+#: never reaches it. O_CLOEXEC is not among them any more: the flag is
+#: replaced by os.set_inheritable, PEP 446's portable spelling, which removes
+#: the platform question rather than answering it.
+_FCNTL = importlib.import_module("fcntl") if sys.platform != "win32" else None
 
 # closed-set: decides; policy=which predicates of SWI's library(persistency) a journalled space uses, and at which arity, so a missing one is named at attach rather than at the first write; reads=none, it is that library's surface rather than this engine's
 _PERSISTENCY_API = {
@@ -261,7 +269,7 @@ def _journal_path(path: str | os.PathLike[str]) -> Path:
 
 
 def _sync_directory(path: Path) -> None:
-    if os.name != "posix":
+    if sys.platform == "win32":
         return
     descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
     try:
@@ -277,6 +285,14 @@ def _lock_path(journal: Path) -> Path:
 
 def _lock_holder(descriptor: int) -> str:
     """Whatever the standing claim recorded about itself, for the refusal."""
+    if sys.platform == "win32":
+        # Unreachable: _claim_journal_lock refuses before any descriptor
+        # exists. Stated here anyway because the refusal is in the CALLER and
+        # no type checker narrows across a call, so without this line
+        # `mypy --platform win32` reports os.pread and cannot be told why it
+        # is wrong. os.pread is kept rather than replaced by lseek plus read,
+        # which would move the file offset where pread does not.
+        return "another process"
     try:
         recorded = os.pread(descriptor, 64, 0).decode("utf-8", "replace").strip()
     except OSError:
@@ -327,7 +343,13 @@ def _claim_journal_lock(journal: Path) -> int:
         raise MettaError(msg)
     lock = _lock_path(journal)
     try:
-        descriptor = os.open(lock, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)
+        descriptor = os.open(lock, os.O_RDWR | os.O_CREAT, 0o644)
+        # PEP 446's portable spelling of O_CLOEXEC, which exists on every
+        # platform where os.open does. Replacing the flag rather than guarding
+        # it removes the platform question instead of answering it, and PEP 446
+        # made descriptors non-inheritable by default anyway, so this states
+        # the intent rather than changing the behaviour.
+        os.set_inheritable(descriptor, False)
     except OSError as exc:
         msg = f"cannot open the claim file {lock} for persistent journal {journal}: {exc}"
         raise MettaError(msg) from exc

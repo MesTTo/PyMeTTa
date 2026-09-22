@@ -418,9 +418,18 @@ def _install_readline(m) -> object | None:
     useful. Whitespace, parentheses and the string quote are the only
     characters that actually end a head here.
     """
+    if sys.platform == "win32":
+        # Windows has no readline AT ALL, and typeshed says so, which is what
+        # lets `mypy --platform win32` check the calls below instead of
+        # reporting every one of them as a missing attribute. The try/except
+        # underneath cannot do that job: it is a runtime fact and a type
+        # checker reads neither its condition nor its consequence.
+        return None
     try:
         import readline  # noqa: PLC0415  deferred: --version and help must not boot
     except ImportError:
+        # A POSIX build can still lack it, which the platform test above does
+        # not cover, so both guards stay and each answers its own case.
         return None
     backend = getattr(readline, "backend", None)
     if backend is None:

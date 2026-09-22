@@ -830,9 +830,9 @@ def _refuse_inherited_engine() -> None:
     """Poison an inherited engine in the child, and reset what fork left held.
 
     Installed as ``os.register_at_fork(after_in_child=...)`` on this module's
-    import, so the hazard is answered where it belongs -- any fork of a
-    process that booted an engine -- rather than only for the pool that
-    happens to know about it.
+    import wherever fork exists, so the hazard is answered where it belongs --
+    any fork of a process that booted an engine -- rather than only for the
+    pool that happens to know about it.
 
     The locks come first and are reset rather than released, the repair
     CPython applies to its own after a fork (``logging`` reinitialises its
@@ -859,7 +859,18 @@ def _refuse_inherited_engine() -> None:
         _STATE.runtime._janus = poison
 
 
-os.register_at_fork(after_in_child=_refuse_inherited_engine)
+#: Registered where fork EXISTS, which is the hazard's own precondition rather
+#: than a capability probe: `os.register_at_fork` is present on exactly the
+#: platforms that have `os.fork`, and with no fork there is no inherited engine
+#: to poison, so the registration is vacuous rather than unavailable.
+#:
+#: Unguarded this ran at module scope, so on Windows `import metta` raised
+#: `AttributeError: module 'os' has no attribute 'register_at_fork'` and the
+#: whole library was unimportable -- not the engine, the library
+#: [measured 2026-09-22 on Windows 11 26200 with CPython 3.12.10 against
+#: PyMeTTa 0.9.0 from PyPI].
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_refuse_inherited_engine)
 
 
 def bridge() -> JanusBridge:

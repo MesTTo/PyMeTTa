@@ -11,7 +11,10 @@
 #   and resolving $HERE/ and $PYDIR/, so a path reached through a local variable
 #   is a path the evidence gate cannot see.  Mypy checks the installed package
 #   surface, the shadowed root implementation, and the callable-algebra consumer
-#   independently [tested: mypy, mypy-root-impl, mypy-algebra-surface;
+#   independently, and as if on Windows and macOS so a POSIX-only call on a
+#   reachable path is a red lane rather than a user's traceback
+#   [tested: mypy, mypy-root-impl, mypy-algebra-surface, mypy-win32,
+#   mypy-darwin;
 #   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e], the class door's PEP 681
 #   declaration is executable in a consumer file, and stubtest holds the root
 #   declaration against the runtime [tested: mypy-class-door, stubtest;
@@ -364,6 +367,26 @@ run GATE   mypy-algebra-surface in_py "$PY" -m mypy tests/typing/algebra_surface
 # `conversion: str | None` in place of the read-only property made it 7 errors
 # [measured 2026-09-07].
 run GATE   mypy-template-surface in_py "$PY" -m mypy --python-version 3.14 tests/typing/template_surface.py
+
+# The same files, type-checked AS IF on Windows and macOS. typeshed marks every
+# POSIX-only name with `sys.platform != "win32"`, so this asks whether a
+# platform-only call is reachable on a platform that lacks it, with no
+# hand-written list of such names: CPython's docs own that fact and typeshed
+# already encodes it.
+#
+# It found a real one. PyMeTTa 0.9.0 shipped `os.register_at_fork(...)` at
+# MODULE scope in metta/_binding/runtime.py, so `import metta` raised
+# AttributeError on Windows and the library was unimportable, which no lane
+# here could see and which a Windows box proved in one command
+# [measured 2026-09-22, Windows 11 26200, CPython 3.12.10, PyMeTTa 0.9.0 from
+# PyPI]. Fifteen more sites were runtime-correct but guarded with `os.name`,
+# which mypy does not narrow where it does narrow `sys.platform`.
+#
+# --no-warn-unused-ignores because a `type: ignore` that is necessary on Linux
+# is unused on Windows, and that difference is about ignore hygiene rather than
+# about whether the code can run.
+run GATE   mypy-win32  in_py "$PY" -m mypy --platform win32 --no-warn-unused-ignores
+run GATE   mypy-darwin in_py "$PY" -m mypy --platform darwin --no-warn-unused-ignores
 # The other consumer file: `@metta.define` on an annotated class synthesises a
 # constructor at run time, and PEP 681 is how a checker is told so. The gate's
 # mypy reads `files = ["metta"]` and never opens the suite, so an assertion
