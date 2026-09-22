@@ -201,8 +201,7 @@ class _LibraryNamespace:
         # holding its MeTTa surface beside the Prolog it rides on, so the
         # source files are one level down [source: engine/metta.pl:library_within/2].
         for entry in _library_source_files(root):
-            stem = entry.stem
-            suffix = stem[4:]
+            suffix = entry.parent.name[4:]
             if _attribute_safe(suffix):
                 names.add(suffix)
         return sorted(names)

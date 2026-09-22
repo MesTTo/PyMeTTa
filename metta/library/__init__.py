@@ -19,8 +19,11 @@ FAT* 2019, sections 4.1-4.9].
 and the generated reference page from disagreeing about the same library.
 
 Assumes:
-  - the roster is `lib/*/lib_*.metta` and `lib/*/lib_*.pl` under the running
-    engine's tree, the same discovery `dir(metta.lib)` lists
+  - the roster is every `.metta` or `.pl` one level under a `lib/lib_*/`
+    directory of the running engine's tree, named for the DIRECTORY, which is
+    the same discovery `dir(metta.lib)` lists. It was `lib/*/lib_*.metta`
+    while the entry point carried the directory's name, and 25 pure-MeTTa
+    libraries fell out of both when it became `pkg.metta`
     [source: extensions/python/metta/_atoms/library.py:60, _library_source_files; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - the engine answers which heads a form REGISTERS, so no spelling of
     `import_prolog_function` is written down here
