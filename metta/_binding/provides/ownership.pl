@@ -586,11 +586,23 @@ seam:foreign_remove(Space, Term, Removed) :-
 
 provides_declaration(host, user, grounded_type_names/2).
 
+%These two seams receive an ARBITRARY grounded value from the engine and
+%claim it, so they guard on the blob TYPE and not on py_is_object/1 alone,
+%which answers for a foreign blob this seat does not own. With the C seat
+%loaded as well, a C object reaching get-type passed the bare guard and
+%py_call raised `Domain error: py_term expected, found <CAccount>`; the
+%engine's own rule is that a bridge whose clause THROWS is the registrant's
+%bug, so the guard belongs here [source: engine/metta/types.pl, the no-catch
+%paragraph above metta_grounded_type/2]. seam:host_object/1 already conjoins
+%the two, which is the pattern followed. A clause whose argument is Python by
+%CONSTRUCTION, such as the Obj inside a python_error/2 term, needs only the
+%liveness check and keeps it.
 %Class names cross as text; protocol type atoms use the ordinary wire.
 %Decode each complete type with shared variables so (Pair $t $t) remains
 %one constraint rather than two independently fresh variables.
 provides(host, user, (
 seam:grounded_type_names(X, Names) :-
+    python_object_blob(X),
     py_is_object(X),
     py_call(metta_ops:type_names(X), Candidates),
     maplist(metta_py_protocol_type, Candidates, Names)
@@ -603,6 +615,7 @@ provides_declaration(host, user, grounded_algebra_type/3).
 % [tested: test_carrier_preserves_text_and_symbol_types; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 provides(host, user, (
 seam:grounded_algebra_type(Type, Value, Truth) :-
+    python_object_blob(Type),
     py_is_object(Type),
     metta_py_encode(Type, TypeWire),
     metta_py_encode(Value, ValueWire),

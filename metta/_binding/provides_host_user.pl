@@ -240,11 +240,13 @@ seam:foreign_remove(Space, Term, Removed) :-
     metta_py_bool(R0, Removed).
 
 seam:grounded_type_names(X, Names) :-
+    python_object_blob(X),
     py_is_object(X),
     py_call(metta_ops:type_names(X), Candidates),
     maplist(metta_py_protocol_type, Candidates, Names).
 
 seam:grounded_algebra_type(Type, Value, Truth) :-
+    python_object_blob(Type),
     py_is_object(Type),
     metta_py_encode(Type, TypeWire),
     metta_py_encode(Value, ValueWire),
