@@ -613,6 +613,8 @@ The four decorators in [effect_ranks.py](examples/operations/effect_ranks.py) de
 | A generator with `@m.pure` or `@m.reads` | Lifted to `nondeterministicReadOnly` | More than one possible answer |
 
 A callback stays Python while the engine calls it by its registered name.
+Each decorator is `@m.op` with the effect fixed; [EXTENDING.md](EXTENDING.md)
+covers the longhand, generated library faces, and shipping what you write.
 
 ```python
 from metta import MeTTa, S

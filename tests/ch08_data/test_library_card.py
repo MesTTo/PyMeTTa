@@ -32,7 +32,7 @@ Guarantees:
   - a name outside the roster refuses with the roster, and a library with two
     MeTTa sources refuses with both
     [tested: test_a_card_for_a_name_outside_the_roster_refuses_with_it,
-    test_a_library_with_two_metta_sources_is_refused]
+    test_a_library_with_two_sources_beside_its_manifest_is_refused]
 Open Obligations:
   To Do: None
   Hacks: None

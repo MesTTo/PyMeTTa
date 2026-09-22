@@ -82,6 +82,50 @@ def _library_source_files(root: str | os.PathLike[str]) -> list[Path]:
     )
 
 
+#: The prefix most shipped libraries carry. It is a naming CONVENTION and not
+#: what makes a directory a library, which is its manifest, so a name outside
+#: the family keeps its own spelling instead of losing four characters to a
+#: blind slice [measured 2026-09-22: dir(lib) offered `mal_metta_lib` and
+#: omitted `minimal_metta_lib`, because the listing sliced every name while
+#: the lookup prefixed every name, and the two halves never had to agree].
+_FAMILY = "lib_"
+
+
+def _attribute_of(library: str) -> str | None:
+    """The dotted spelling for a library name, or None when only brackets reach it.
+
+    `lib_he` is `lib.he`, `minimal_metta_lib` is `lib.minimal_metta_lib`, and
+    `lib_import` stays bracket-only because `import` is a Python keyword.
+    """
+    suffix = library[len(_FAMILY):] if library.startswith(_FAMILY) else library
+    return suffix if _attribute_safe(suffix) else None
+
+
+def _library_of(attribute: str) -> str:
+    """The library an attribute names, the inverse of `_attribute_of`.
+
+    Both `lib_he` and a hypothetical `he` would answer to `lib.he`, so the
+    roster decides rather than a guess. With no engine tree to read, the
+    family prefix is the answer: every shipped library but one follows it, and
+    a name that is not a library refuses at import naming the roster.
+    """
+    try:
+        shipped = _shipped_names()
+    except (AttributeError, OSError, RuntimeError, ValueError):
+        return _FAMILY + attribute
+    for candidate in (_FAMILY + attribute, attribute):
+        if candidate in shipped:
+            return candidate
+    return _FAMILY + attribute
+
+
+def _shipped_names() -> frozenset[str]:
+    """Every shipped library name, from the engine tree the runtime resolves."""
+    active = getattr(_binding.runtime._STATE, "runtime", None)
+    root = active.metta_path if active is not None else _binding.runtime._resolve_metta_path()
+    return frozenset(entry.parent.name for entry in _library_source_files(root))
+
+
 def _attribute_safe(suffix: str) -> bool:
     """Whether a family suffix can be a dotted attribute, the same safety
     generated_aliases/1 applies to closed namespaces (identifier, not a
@@ -169,10 +213,13 @@ def _(value: Library) -> Atom:
 
 
 class _LibraryNamespace:
-    """`lib.he` is the shipped library `lib_he`; brackets and calls give exact
-    names: `lib["minimal_metta_lib"]` for an exact
-    library name outside the `lib_` family, `lib(S["path/to/module"])` for
-    an exact module form such as a source path, named by its atom.
+    """`lib.he` is the shipped library `lib_he` and `lib.minimal_metta_lib` is
+    the one outside that family, because the dotted spelling drops the `lib_`
+    prefix where a library carries it and keeps the name where it does not.
+    Brackets and calls give exact names: `lib["lib_import"]` for a suffix
+    Python cannot spell, which today is only that one, and
+    `lib(S["path/to/module"])` for an exact module form such as a source path,
+    named by its atom.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ()
@@ -180,14 +227,13 @@ class _LibraryNamespace:
     def __getattr__(self, name: str) -> Library:
         if name.startswith("_"):
             raise AttributeError(name)
-        return self[f"lib_{name}"]
+        return self[_library_of(name)]
 
     def __getitem__(self, exact: str) -> Library:
         # The dotted spelling only exists where Python can say it: lib_import
         # strips to the keyword `import`, so its handle keeps the bracket.
-        suffix = exact[4:] if exact.startswith("lib_") else None
-        dotted = suffix is not None and _attribute_safe(suffix)
-        spelling = f"lib.{suffix}" if dotted else f'lib["{exact}"]'
+        dotted = _attribute_of(exact)
+        spelling = f"lib.{dotted}" if dotted else f'lib["{exact}"]'
         return Library(Expression((_LIBRARY, Symbol(exact))), spelling)
 
     def __call__(self, module: str | os.PathLike[str] | Atom) -> Library:
@@ -208,9 +254,9 @@ class _LibraryNamespace:
         # holding its MeTTa surface beside the Prolog it rides on, so the
         # source files are one level down [source: engine/metta.pl:library_within/2].
         for entry in _library_source_files(root):
-            suffix = entry.parent.name[4:]
-            if _attribute_safe(suffix):
-                names.add(suffix)
+            dotted = _attribute_of(entry.parent.name)
+            if dotted is not None:
+                names.add(dotted)
         return sorted(names)
 
 

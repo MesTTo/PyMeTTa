@@ -564,7 +564,15 @@ def face(
         source = metta.integrate.face(
             math, ["sqrt", "gcd"], purpose="Arithmetic from the C library"
         )
-        Path("lib/lib_math/pkg.metta").write_text(source, encoding="utf-8")
+        Path("lib/lib_math/lib.metta").write_text(source, encoding="utf-8")
+        Path("lib/lib_math/pkg.metta").write_text(
+            '(= (package requires) "lib.metta")\n', encoding="utf-8"
+        )
+
+    The face is the library's SOURCE and goes in `lib.metta`. Beside it,
+    `pkg.metta` is the manifest, and writing it is what makes the directory a
+    library the engine can resolve by name: without it the face is a file
+    nothing imports.
 
     module_ops is this act at run time: the same names, the same reachable
     arities, the same map from a Python annotation to a MeTTa type. This

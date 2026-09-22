@@ -302,9 +302,11 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert any(name.endswith("/lib/lib_crypto/support/crypto_native.c") for name in source_names)
     assert any(name.endswith("/lib/_support/native_build.pl") for name in source_names)
     assert any(name.endswith("/lib/lib_csv/support/csv_codec.pl") for name in source_names)
-    assert any(name.endswith("/lib/_support/owned_resources.pl") for name in source_names)
+    assert any(name.endswith("/engine/owned_resources.pl") for name in source_names)
+    assert any(name.endswith("/engine/packages.pl") for name in source_names)
     provider_files = ["lib/lib_string/support/string_native.cpp", "lib/lib_string/vendor/SHA256SUMS",
                       "lib/lib_vector/lib_vector.pl", "lib/lib_vector/pkg.metta",
+                      "lib/lib_vector/lib.metta", "lib/lib_database/lib.metta",
                       "lib/lib_vector/README.md", "lib/lib_vector/vendor/README.md",
                       "lib/lib_vector/vendor/PYTHON-LICENSE",
                       "lib/lib_database/lib_database.pl", "lib/lib_database/pkg.metta"]
@@ -332,7 +334,8 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert "metta/_runtime/lib/lib_crypto/support/crypto_native.c" in names
     assert "metta/_runtime/lib/_support/native_build.pl" in names
     assert "metta/_runtime/lib/lib_csv/support/csv_codec.pl" in names
-    assert "metta/_runtime/lib/_support/owned_resources.pl" in names
+    assert "metta/_runtime/engine/owned_resources.pl" in names
+    assert "metta/_runtime/engine/packages.pl" in names
     for name in provider_files:
         assert "metta/_runtime/" + name in names, name
     assert not any("/.native/" in name for name in names)

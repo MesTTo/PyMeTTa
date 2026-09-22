@@ -5,7 +5,7 @@ Assumes:
     keeping the declared ``StateMonad`` parameter; ``change-state!`` runs for
     its EFFECT and answers ``true``, the answer every operation of that family
     gives, so a write is not a way to obtain the cell [source:
-    lib/lib_builtin_types/pkg.metta, and PeTTa@ae66fa8
+    lib/lib_builtin_types/lib.metta, and PeTTa@ae66fa8
     src/metta.pl:265, `'change-state!'(Var, Value, true)`]
 Guarantees:
   - ``State.value`` reads and writes the same engine cell, and ``__metta__``
