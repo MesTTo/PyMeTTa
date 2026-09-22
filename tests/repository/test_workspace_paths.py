@@ -2,8 +2,11 @@
 may be published, and a reader's machine has no such user directory, so a
 citation spells its source repo-relative and anything that needs a checkout
 outside this repository derives it from this file's own position or takes it
-from an environment variable. There is no exemption: every tracked file is
-scanned.
+from an environment variable. Every tracked file is scanned but one: the
+reasoning record cites where a measurement was TAKEN, which is the provenance
+that makes the claim checkable rather than a path it sends a reader to, and
+it is tracked here by decision so it cannot stay out of the scan by staying
+out of git the way the tool's own default keeps it.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,6 +27,12 @@ _WORKSPACE_ROOT = "/" + "home/"
 # own fixtures was reported as a Windows path [measured 2026-09-19].
 _WINDOWS_ROOT = re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\\\/](?:Users|home|a)[\\\\/]")
 
+#: The one exemption, by file NAME so a component's own record is covered too.
+#: Scrubbing these would leave every measurement in the record without the box
+#: it was measured on, which is the half that makes it checkable. Nothing
+#: follows them: they are the source of a number, not a path to open.
+_RECORD = "agenticmind.json"
+
 
 def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     listing = subprocess.run(
@@ -41,6 +50,8 @@ def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D
     tracked = listing.stdout.splitlines()
     offenders = []
     for name in tracked:
+        if name.rpartition("/")[2] == _RECORD:
+            continue
         path = repo_root / name
         try:
             text = path.read_text()

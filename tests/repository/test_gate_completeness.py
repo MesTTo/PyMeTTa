@@ -106,7 +106,13 @@ RUFF_FAMILY_BURN_DOWN = {
     # he_types, the membership answer in functionhead3, and `string-count`'s
     # overlapping argument, which MeTTa takes positionally because MeTTa calls
     # have no keywords.
-    "FBT": 77,
+    # 77 -> 78 for metta/foreign/_persistent.py's os.set_inheritable(fd, False)
+    # on 2026-09-22. FBT003, a boolean POSITIONAL in a call, and the one kind
+    # this family cannot burn down: os.set_inheritable's second parameter is
+    # positional-only in CPython, so there is no keyword to move it to. The
+    # alternative was leaving the descriptor inheritable, which PEP 446 makes
+    # the wrong default to restore.
+    "FBT": 78,
     # 35 -> 37 with the compiled dict story: _x_Set and _x_DictComp join the
     # _x_<Node> translator-dispatch family, whose suffix mirrors ast class
     # names by contract.
