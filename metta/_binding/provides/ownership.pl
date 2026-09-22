@@ -120,8 +120,20 @@ seam:grounded_text(Obj, Text) :-
 
 provides_declaration(engine, user, grounded_class_type/2).
 
+%The class walk is the ELSE arm of metta_grounded_type/2, so it is reached
+%for every grounded value no bridge named a type for, this seat's or another's.
+%It had NO ownership guard at all, where every sibling above has one, and with
+%the C seat loaded a cmetta_object blob reached py_call and raised
+%`domain_error(py_term, <CAccount>)`. The engine takes no catch there on
+%purpose, so the throw travelled out instead of letting the NEXT clause of
+%this multifile seam, the C seat's own blob(Obj, cmetta_object) walk, answer.
+%Measured by tracing the raising goal rather than by guessing: the ownership
+%seam above was guarded first and changed nothing, because the throw was
+%always here.
 provides(engine, user, (
 seam:grounded_class_type(X, T) :-
+    python_object_blob(X),
+    py_is_object(X),
     metta_py_bridge,
     py_call('metta._binding.host':class_names(X), Names, [py_string_as(string)]),
     member(Name, Names),

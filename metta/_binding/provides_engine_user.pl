@@ -93,6 +93,8 @@ seam:grounded_text(Obj, Text) :-
     py_call('metta._binding.host':render(Obj), Text).
 
 seam:grounded_class_type(X, T) :-
+    python_object_blob(X),
+    py_is_object(X),
     metta_py_bridge,
     py_call('metta._binding.host':class_names(X), Names, [py_string_as(string)]),
     member(Name, Names),
