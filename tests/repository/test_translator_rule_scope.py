@@ -24,12 +24,12 @@ Assumes: one engine process per pytest session, which is what makes a rule
   registered by one space observable from another at all.
 Guarantees:
   - a rule registered in one space answers the same in a later unrelated space
-    [tested: this file; commit=WORKTREE]
+    [tested: this file; commit=8c73165887773c2e61d47981563dc75e6b3e7144]
   - the importing space is unaffected, so the fix is additive
-    [tested: this file; commit=WORKTREE]
+    [tested: this file; commit=8c73165887773c2e61d47981563dc75e6b3e7144]
   - `remove-translator-rule!` puts the compiler's own clause back, which the
     README's lib_derived entry and 08-derived_forms.metta both rely on
-    [tested: this file; commit=WORKTREE]
+    [tested: this file; commit=8c73165887773c2e61d47981563dc75e6b3e7144]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -17,11 +17,11 @@ Assumes: the corpus is at extensions/python/examples/language-feature-examples
 Guarantees:
   - every chapter in the tree has a row, and every row a chapter, so a new
     chapter cannot be silently undocumented
-    [tested: test_every_chapter_has_a_row_and_every_row_a_chapter; commit=WORKTREE]
+    [tested: test_every_chapter_has_a_row_and_every_row_a_chapter; commit=dce8c4a68a653c350c4fbde798b9f09d1b113550]
   - each row's count is the number of twins in that chapter
-    [tested: test_each_row_counts_its_chapter; commit=WORKTREE]
+    [tested: test_each_row_counts_its_chapter; commit=dce8c4a68a653c350c4fbde798b9f09d1b113550]
   - the stated total is the sum of the rows and the size of the corpus
-    [tested: test_the_total_is_the_corpus; commit=WORKTREE]
+    [tested: test_the_total_is_the_corpus; commit=dce8c4a68a653c350c4fbde798b9f09d1b113550]
 Open Obligations:
   To Do: None
   Hacks: None
