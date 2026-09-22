@@ -158,7 +158,8 @@ type Values = frozenset[Reference]
 # Python exposes these runtime species directly. Their identity is known even
 # when a reference carries its callable target instead of its type's name.
 # https://docs.python.org/3.14/library/types.html#standard-interpreter-types
-# policy-inventory-exempt: mechanism-internal; reason=these reference variants store callable targets rather than runtime type names; evidence=extensions/python/metta/doors/_analysis.py:Reference
+# These reference variants store callable targets rather than runtime type
+# names, which is why their identity is known without one.
 _CALLABLE_TYPES = {
     "function": types.FunctionType,
     "bound": types.MethodType,
