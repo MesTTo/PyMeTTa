@@ -9,6 +9,39 @@ Decides: examples use define for lowered equations and named effect decorators
 
 MeTTa in Python: build terms, query spaces, lower Python functions into equations, and let the engine call Python libraries.
 
+<!-- shared:what-is-metta -->
+## What MeTTa is
+
+MeTTa is a language for rewriting metagraphs. A program and its data are the
+same thing: atoms in a space, where an atom is a symbol, a number, a variable
+or an expression built from other atoms, and a space is the metagraph they
+form together.
+
+You write equations rather than statements, and the engine matches a pattern
+against the whole space at once. A query answers with every match rather than
+the first, so a rule that fits three ways yields three results and search is
+something you write down instead of something you implement.
+
+One space holds symbolic rules and grounded values side by side: a number, a
+matrix, a handle to a trained model. A rule can match on what a model produced
+and a model can be called from inside a rule, so the neurosymbolic case is
+ordinary here rather than an integration between two systems. Both halves are
+atoms in the same metagraph, read by the same matcher.
+<!-- /shared:what-is-metta -->
+
+## Why Python
+
+Python is where the numerical and machine-learning ecosystem already lives, and
+a grounded atom here is a Python object: an array, a dataframe, a handle to a
+trained model. Put one in a space and a rule can match on it, so a symbolic
+rule reasons over what a model produced without either side being wrapped in a
+protocol.
+
+It goes the other way too. A Python function can be LOWERED into an equation,
+which the engine reads, type-checks and matches on like any other rule rather
+than calling out to a host on every step, so the idiomatic spelling is also
+the one that stays inside the engine.
+
 ```python
 from metta import MeTTa, S, V
 
