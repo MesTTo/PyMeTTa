@@ -8,13 +8,21 @@ absent. Each metta block runs on a fresh space, and the corpus style it is drawn
 from asserts its own results through `!(test ...)`, so a drifted answer fails
 here rather than in a reader's terminal.
 
-The ts and c fences cannot run from this suite: one needs node and a WebAssembly
-boot, the other a compiler and libcmetta. They are checked the other way round,
-against the file their OWN gate builds and runs, which is the rule
-`test_every_run_fence_runs_the_corpus_file_it_names` already applies to the
-website. One rewrite is declared rather than tolerated: the TypeScript example
-imports `../src/index.ts` so the gate can run it in-tree, and a reader must
-import the published package instead.
+This page is the ENGINE's, so the only fences it may carry are the language's
+own and the engine's: `metta`, `prolog`, and the `bash` and `bibtex` that
+install and cite it. A `c`, `ts` or `python` fence means a component's page has
+been copied back in, and the copy then drifts from the original in silence --
+which had already happened, with the root page and `lib/README.md` giving
+`lib_crypto` two different descriptions. Each component documents itself in its
+own repository and is named once in the Architecture table.
+
+That replaces a mirrored-fence check. One `c` fence used to live here and was
+held to the text of `extensions/cmetta/examples/lower.c` by identity, since no
+compiler is available to this suite; when the CMeTTa section went, a check
+parametrised over an empty table would have passed without running, so the slot
+holds the rule that keeps the section from coming back instead. The same
+guarantee cannot simply move to `extensions/cmetta/README.md`, whose C fences
+are 8-line excerpts of an 82-line file rather than whole copies of it.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import re
@@ -31,11 +39,9 @@ _TEXT = README.read_text()
 _METTA = re.findall(r"```metta\n(.*?)```", _TEXT, re.DOTALL)
 assert _METTA, "the README lost its metta blocks"
 
-#: A fence that cannot run here, and the gate-run file whose text it must be.
-#: The value is that file plus the rewrites a reader needs, applied in order.
-_MIRRORED = {
-    "c": ("extensions/cmetta/examples/lower.c", ()),
-}
+#: Languages whose component documents itself elsewhere, so a fence in one here
+#: is a component's own page copied back onto the engine's.
+_COMPONENT_LANGUAGES = ("c", "cpp", "js", "jsx", "python", "rust", "ts", "tsx", "typescript")
 
 
 #: A fence runs on every machine that runs the suite, so it may not reach the
@@ -83,30 +89,49 @@ def test_readme_metta_block_runs(index, tmp_path, monkeypatch):
     space.run(source)
 
 
-@pytest.mark.parametrize("language", sorted(_MIRRORED), ids=sorted(_MIRRORED))
-def test_readme_mirrored_fence_is_the_file_its_gate_runs(language):
-    """The fence is that file's text, or the page has drifted from what runs.
-
-    Checked by identity rather than by execution because neither toolchain is
-    available to this suite, and an unrun fence is exactly the thing the python
-    blocks above exist to refuse. The node gate runs the TypeScript file through
-    `extensions/node/test/gallery.test.ts`; the C file is one of the Makefile's
-    EXAMPLES, which `make test` builds and runs.
-    """
-    path, rewrites = _MIRRORED[language]
-    fences = re.findall(rf"```{language}\n(.*?)```", _TEXT, re.DOTALL)
-    assert len(fences) == 1, (
-        f"the README holds {len(fences)} {language} fences; this check pairs "
-        f"exactly one with {path}"
+#: Every component this repository composes, read from .gitmodules rather than
+#: listed, so a submodule added tomorrow is covered without an edit here.
+_COMPONENTS = tuple(
+    sorted(
+        re.findall(r"url\s*=\s*\S+/([^/\s]+?)(?:\.git)?\s*$",
+                   (workspace() / ".gitmodules").read_text(), re.MULTILINE)
     )
-    wanted = (workspace() / path).read_text()
-    # The obligation header explains the file to a maintainer and would only be
-    # noise to a reader, so the fence starts after it.
-    if wanted.startswith("/*"):
-        wanted = wanted.split("*/\n", 1)[1].lstrip("\n")
-    for before, after in rewrites:
-        wanted = wanted.replace(before, after)
-    assert fences[0].strip() == wanted.strip(), (
-        f"the README's {language} fence is not the text of {path}, which is the "
-        f"copy its own gate builds and runs; paste that file back into the fence"
+)
+
+
+@pytest.mark.parametrize("component", _COMPONENTS)
+def test_readme_names_every_component_once(component):
+    """Each component has exactly one row, which is what makes it the index.
+
+    The fence rule above says a component is documented in its own repository
+    and named here; that is only true if naming here is total. Nothing checked
+    it, and Python and TypeScript were in fact absent from the table while
+    their own header sentence said they lived elsewhere -- a rule with a hole
+    exactly where nobody looks, because a missing row reads like a row nobody
+    wrote.
+    """
+    rows = [line for line in _TEXT.splitlines()
+            if line.startswith("|") and f"/{component})" in line]
+    assert len(rows) == 1, (
+        f"{component} is a submodule of this repository and has {len(rows)} rows in "
+        f"the Architecture table; every component is named there exactly once, so a "
+        f"reader finds it without the page carrying its documentation"
+    )
+
+
+@pytest.mark.parametrize("language", _COMPONENT_LANGUAGES)
+def test_readme_carries_no_component_language_fence(language):
+    """A component's page is not copied onto the engine's.
+
+    The whole content of a section written in one of these languages belongs to
+    the repository that ships it, and a copy here is a second description that
+    nothing reconciles with the first. Checked per language rather than by a
+    whitelist of the four allowed ones, so the failure names the component that
+    came back rather than saying a fence is unexpected.
+    """
+    fences = re.findall(rf"^```{language}$", _TEXT, re.MULTILINE)
+    assert not fences, (
+        f"the README carries {len(fences)} {language} fence(s); that component "
+        f"documents itself in its own repository and is named once in the "
+        f"Architecture table, so this page shows the engine and links to it"
     )
