@@ -1,5 +1,6 @@
 # Purpose: this component's own gate lanes, in the root gate's vocabulary.
-# Assumes: it is SOURCED by check.sh, not executed. That is what lets it use
+# Assumes: the workspace tools/check.sh supplies the runner when sourced.
+#   Direct execution selects this component through that same runner, which supplies
 #   `run`, `in_py`, `$PY`, `$PYDIR`, `$HERE` and the shared summary table, so
 #   one component's lanes cannot report their own status differently from
 #   another's, and a child's exit code cannot be lost on the way back up -- the
@@ -33,6 +34,11 @@
 #   To Do: None
 #   Hacks: None
 #   Future Enhancements: None
+
+if ! command -v run >/dev/null 2>&1; then
+    PYTHON_CHECK_HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+    exec sh "$PYTHON_CHECK_HERE/../../tools/check.sh" --component extensions/python "$@"
+fi
 
 # The Python host: the `metta` library, the test tree beside it, the benchmark
 # suite and its committed baselines, and the static analysis that reads all
@@ -649,3 +655,58 @@ report one; two hundred retained cursors went unnoticed" >&2
     return "$metta_memray_status"
 }
 run REPORT memray      check_memray
+
+# These lanes belong to this component even when their checkers live in tests/checks.
+# The door analysis's transfer functions take a value SET and are distributive over
+# it, so calling one per reference is correct and slow: nothing fails, and the fixed
+# cost of entering the function is paid again for every reference. It has happened
+# three times. Removing eight such sites took the analysis from 392.4s to 128.6s with
+# every published verdict unchanged. The pass derives the methods from their own
+# annotations rather than a list, so a new one is covered the day it is written.
+# Owner: extensions/python; this lane checks only this component.
+run GATE spread-calls "$PY" "$HERE/tests/checks/check_spread_calls.py"
+# Owner: extensions/python; this lane checks only this component.
+run GATE spread-calls-selftest "$PY" "$HERE/tests/checks/check_spread_calls_selftest.py"
+
+# `Path(__file__).resolve().parents[N]` writes the distance from one file to the
+# repository root as a literal. Move the file and the count still resolves, to the
+# wrong directory, so the failure arrives as a missing artifact somewhere else
+# rather than where the mistake is. 134 files carried one. `metta._roots` ascends
+# for a marker instead -- `seat()` for the package root, `workspace()` for the tree
+# holding engine/ and lib/ -- and this refuses a count that lands ON or ABOVE the
+# seat. A count staying inside the package is package-relative and stays.
+# Owner: extensions/python; this lane checks only this component.
+run GATE root-walks "$PY" "$HERE/tests/checks/check_root_walks.py"
+# Owner: extensions/python; this lane checks only this component.
+run GATE root-walks-selftest "$PY" "$HERE/tests/checks/check_root_walks_selftest.py"
+
+# The lanes below run the seat's generators as SCRIPTS, which puts tools/ on
+# sys.path and not the seat, so a tool importing `metta` at module level cannot
+# start. Deriving the roots instead of counting them did exactly that to ten of
+# the twenty-two tools this file runs, and the equivalence check that gated the
+# migration could not see it: it compared the PATH each site resolves to, with
+# the seat already importable, so it proved the value and never the import.
+# Owner: extensions/python; this lane checks only this component.
+run GATE tool-startup "$PY" "$HERE/tests/checks/check_tool_startup.py"
+# Owner: extensions/python; this lane checks only this component.
+run GATE tool-startup-selftest "$PY" "$HERE/tests/checks/check_tool_startup_selftest.py"
+
+# The closed-set census: every closed set in the
+# Python seat says which of three answers it stands on -- generated with its
+# sync lane, seam rows with their point, or a `Decides:` naming the policy and
+# the row it reads -- adjacent to the set. Before it, seventy-seven tables sat
+# in the seat with nothing saying which were the engine's rows restated;
+# eleven were, and one of those listed six members where the engine derived ten.
+# Owner: extensions/python; this lane checks only this component.
+run GATE closed-sets "$PY" "$HERE/tests/checks/check_closed_sets.py"
+# Owner: extensions/python; this lane checks only this component.
+run GATE closed-sets-selftest "$PY" "$HERE/tests/checks/check_closed_sets_selftest.py"
+
+# Owner: extensions/python; this lane checks only this component.
+run GATE extension-scaffold sh "$HERE/tests/shell/test_python_extension_scaffold.sh"
+
+# Owner: extensions/python; this lane checks only this component.
+run REPORT filesizes "$PY" "$HERE/extensions/python/tools/filesizes.py"
+
+# Owner: extensions/python; this lane checks only this component.
+run GATE filesizes-selftest env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" "$HERE/extensions/python/tests/repository/test_file_sizes.py"
