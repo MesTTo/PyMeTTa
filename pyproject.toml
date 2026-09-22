@@ -395,9 +395,16 @@ timeout = 900
 # thread ends the process with os._exit(1) after printing every thread's stack.
 # It therefore never unwinds a live crossing, which is what the signal method
 # does and what leaves the engine's next call answering for the wrong reason.
-# Under --dist loadfile each worker owns one engine, so the kill is contained,
-# and --max-worker-restart=0 turns it into a loud session failure rather than a
-# retried flake.
+# Under --dist loadfile each worker owns one engine, so the kill is contained.
+# The lane allows one restart per worker, --max-worker-restart=4 in
+# extensions/python/test.sh, and that is not a retry: xdist builds the crashed
+# test's report with outcome="failed" in handle_crashitem BEFORE deciding
+# whether to restart, so the test fails either way and nothing runs twice.
+# --max-worker-restart=0, which this comment used to name, called
+# triggershutdown() instead, so the queue the crashed worker had not reached
+# was never served: the lane reported on 4761 of 8129 collected tests and
+# three real failures sat in the ~3368 it never reached [measured 2026-09-22
+# against gate-ship3].
 timeout_method = "thread"
 
 # A warning is a failure unless this file says otherwise, and each exception
