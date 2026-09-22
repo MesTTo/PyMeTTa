@@ -29,7 +29,10 @@ import griffe
 # bootstrap files, and the marker is the workspace's, the tree holding engine/ and lib/.
 ROOT = next(parent for parent in pathlib.Path(__file__).resolve().parents
        if (parent / "engine").is_dir() and (parent / "lib").is_dir())
-PAGES = ROOT / "website" / "reference"
+# Repo-RELATIVE: every reader below takes its own `root`, so a path fixed to
+# ROOT could serve none of them and the directory had come to be spelled out
+# four times beside a constant nothing could use.
+PAGES = "website/reference"
 SOURCE = re.compile(r"^Source: `([^`]+)`\.$", re.MULTILINE)
 PREAMBLE = "The entries below reproduce the source signatures and docstrings."
 LINE_LENGTH = 100
@@ -212,7 +215,7 @@ class SourceGraph:
             allow_inspection=False,
         )
         self.loader.load("metta", try_relative_path=False)
-        for page in sorted((root / "website/reference").glob("metta*.md")):
+        for page in sorted((root / PAGES).glob("metta*.md")):
             match = SOURCE.search(page.read_text(encoding="utf-8"))
             # A path comparison, not a substring: the distributions are a
             # top-level component now, so their sources START with `ext/`
@@ -357,7 +360,7 @@ def page_for(module_path: str, title: str, *, graph: SourceGraph | None = None) 
 def sources(*, graph: SourceGraph | None = None) -> list[tuple[pathlib.Path, str, str]]:
     """Keep existing URLs and discover new public modules from the directory."""
     graph = graph or SourceGraph(ROOT)
-    pages = graph.root / "website/reference"
+    pages = graph.root / PAGES
     found = []
     covered = set()
     for page in sorted(pages.glob("metta*.md")):
@@ -390,7 +393,7 @@ def sources(*, graph: SourceGraph | None = None) -> list[tuple[pathlib.Path, str
 
 def page_titles(projections: dict[pathlib.Path, str], root: pathlib.Path = ROOT) -> dict[pathlib.Path, str]:
     """Read all reference pages, including independently generated catalogs."""
-    pages = {page: page.read_text(encoding="utf-8") for page in (root / "website/reference").glob("*.md")}
+    pages = {page: page.read_text(encoding="utf-8") for page in (root / PAGES).glob("*.md")}
     pages.update(projections)
     return {
         path: match[1].replace("`", "")
@@ -423,7 +426,7 @@ def projections(root: pathlib.Path = ROOT) -> dict[pathlib.Path, str]:
     graph = SourceGraph(root)
     out = {page: page_for(source, title, graph=graph) for page, source, title in sources(graph=graph)}
     titles = page_titles(out, root)
-    index = root / "website/reference/index.md"
+    index = root / PAGES / "index.md"
     begin, end = "<!-- begin generated reference index -->", "<!-- end generated reference index -->"
     current = index.read_text(encoding="utf-8") if index.exists() else begin + "\n" + end + "\n"
     table = (

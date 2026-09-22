@@ -25,10 +25,18 @@ from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
 ROOT = TOOLS.parents[2]
-CORE = ROOT / 'extensions/python/metta'
-SOURCE = CORE / '__init__.py'
-STUB = CORE / '__init__.pyi'
-TYPE_PROBE = ROOT / 'extensions/python/tests/typing/algebra_surface.py'
+# Repo-RELATIVE, because each of these four facts is needed twice over: once
+# here against this checkout, and once inside projections/2 against whatever
+# `root` it is handed, which is how the mutation lanes run it over a temporary
+# tree. Fixed to ROOT they cannot serve the second caller, which is why
+# `__init__.pyi` had come to be written out four times and the type probe's
+# path three, while the two ROOT-fixed names nothing could use read as dead.
+CORE_PATH = 'extensions/python/metta'
+SOURCE_NAME = '__init__.py'
+STUB_NAME = '__init__.pyi'
+PROBE_PATH = 'extensions/python/tests/typing/algebra_surface.py'
+CORE = ROOT / CORE_PATH
+SOURCE = CORE / SOURCE_NAME
 sys.path[:0] = [str(TOOLS), str(CORE.parent)]
 
 from artifacts import notice  # noqa: E402 -- the checkout path precedes tool imports
@@ -46,7 +54,7 @@ from vocabgen import member_name  # noqa: E402 -- the checkout path precedes too
 from metta import vocabularies  # noqa: E402 -- read the checkout's vocabulary
 
 PROBE_HEADER = ('"""Purpose: type-check root exports and callable algebra carriers.\n\n'
-                + textwrap.fill(notice('extensions/python/tests/typing/algebra_surface.py'), width=78)
+                + textwrap.fill(notice(PROBE_PATH), width=78)
                 + '\nCheck with `sh check.sh init-stub mypy`.\n"""\n')
 
 
@@ -177,8 +185,8 @@ def projections(rows=None, root: Path = ROOT) -> dict[Path, str]:
     """Derive the runtime, marked declarations and executable carrier consumer."""
     if rows is None:
         rows = all_rows(root)
-    core = root / 'extensions/python/metta'
-    declaration = (core / '__init__.pyi').read_text(encoding='utf-8')
+    core = root / CORE_PATH
+    declaration = (core / STUB_NAME).read_text(encoding='utf-8')
     carriers = _carrier_names([('semiring', [str(value) for value in vocabularies.Semiring])])
     imports, methods = module_tier(rows, root, stub=True)
     for start, end, content in (
@@ -187,11 +195,11 @@ def projections(rows=None, root: Path = ROOT) -> dict[Path, str]:
         ('# begin generated algebra declaration', '# end generated algebra declaration', _algebra_protocol(carriers)),
     ):
         declaration = replace_region(declaration, start, end, [start, *content.splitlines(), end])
-    declaration = clean_imports(declaration, core / '__init__.pyi')
+    declaration = clean_imports(declaration, core / STUB_NAME)
     names, imported = exports(declaration)
     table = '\n'.join(f'    {name!r}: {value!r},' for name, value in sorted(imported.items()))
     exported = '\n'.join(f'    {name!r},' for name in names)
-    runtime = header('root', 'extensions/python/metta/__init__.py')
+    runtime = header('root', f'{CORE_PATH}/{SOURCE_NAME}')
     runtime += 'from metta._lazy import package as _package\n'
     runtime += 'from metta._spaces.ambient import engine as engine\n\n'
     imports, methods = module_tier(rows, root)
@@ -206,9 +214,9 @@ def projections(rows=None, root: Path = ROOT) -> dict[Path, str]:
     runtime += '__getattr__, __dir__ = _package(__name__)\n\n'
     runtime += '# begin generated module tier\n' + methods + '# end generated module tier\n'
     return {
-        core / '__init__.pyi': declaration,
-        core / '__init__.py': clean_imports(runtime, core / '__init__.py'),
-        root / 'extensions/python/tests/typing/algebra_surface.py': probe_text(carriers, set(imported) & set(carriers)),
+        core / STUB_NAME: declaration,
+        core / SOURCE_NAME: clean_imports(runtime, core / SOURCE_NAME),
+        root / PROBE_PATH: probe_text(carriers, set(imported) & set(carriers)),
     }
 
 

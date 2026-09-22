@@ -40,8 +40,3 @@ MODULE_DOORS = tuple(
     (row.alias or row.python, row.python) for row in _rows
     if row.owner is Owner.space and Tier.module in row.tiers
 )
-CONTEXT_DUNDERS = tuple(
-    row.python for row in _rows
-    if row.owner is Owner.space and Tier.context in row.tiers and row.python.startswith("__")
-)
-INPLACE_DUNDERS = frozenset(row.python for row in _rows if row.context_inplace)

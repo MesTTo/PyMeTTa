@@ -168,12 +168,6 @@ def catalog_snapshot() -> tuple[list[str], dict[str, str]]:
     return unique_names, visibility
 
 
-def catalog_names() -> list[str]:
-    """Read a fresh runtime's complete function and special-form catalog."""
-    names, _ = catalog_snapshot()
-    return names
-
-
 def module_text(
     names: list[str], documentation: dict[str, str] | None = None,
     public_names: set[str] | None = None,

@@ -41,8 +41,6 @@ from metta.doors import Door, Owner, Signature, Tier  # noqa: E402
 from metta.doors._scan import core, is_mark, scan  # noqa: E402 -- the shared declaration reader
 from metta.doors._scan import signature as _signature  # noqa: E402 -- the shared declaration reader
 
-START = "    # begin generated doors: "
-END = "    # end generated doors: "
 SCHEMA_START = "# begin generated remote operations"
 SCHEMA_END = "# end generated remote operations"
 SHEET_START = "<!-- begin generated door contracts -->"
