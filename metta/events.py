@@ -94,6 +94,12 @@ Guarded by:
   - _FoldRegistry._lock protects fold state, the active runtime, delivery
     counts, and engine subscription snapshots [tested
     test_subscription_cancel_is_thread_safe]
+  - one write goes around it: an abandoned watch's finaliser clears
+    Fold._active without the lock, since a finaliser may take none. It only
+    ever clears it, and every delivery re-reads it under the lock, so the
+    store can stop a delivery and never start one [tested:
+    test_an_abandoned_watch_finaliser_neither_crosses_nor_locks;
+    commit=330e04d428324008105db628ca5e0a0bbdfb55df]
   - _SegmentClock._lock protects the generation counter, the watch list and
     the engine's announcement flag [tested:
     test_a_segment_watch_hears_one_boundary_per_commit; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
