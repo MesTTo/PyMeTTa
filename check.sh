@@ -361,27 +361,45 @@ run REPORT determinism check_determinism_coverage
 run GATE   ruff        in_py "$PY" -m ruff check metta tests tools examples/language-feature-examples bench.py conftest.py _workspace.py
 # The root stub hides its runtime implementation from package scans. Check
 # both separately, then ask real consumers about callable modules and doors.
+#
+# mypy_in CACHE ARGS...: mypy over this seat with the incremental cache CACHE
+# names under .mypy_cache/, one per lane. The lanes run at once, and when they
+# shared .mypy_cache they shared one SQLite database, since the python_version
+# is the only option the cache's path carries: the Linux, win32 and darwin
+# lanes read and wrote one database for three platforms [source:
+# mypy/build.py _cache_dir_prefix, mypy 2.3.0]. Ten cold rounds of the eight
+# lanes run together on it gave two INTERNAL ERRORs in one round, the failure
+# the gate had shown, and in another a false finding in the Linux lane,
+# `Module has no attribute "SIGKILL"`, which is typeshed's win32 view of
+# `signal` [measured 2026-09-23: sh extensions/python/check.sh naming the
+# eight mypy lanes, each round from an empty .mypy_cache; commit=WORKTREE]. A
+# cache one lane owns is written by one process under one set of options, so
+# neither can happen, and it stays warm between runs.
+mypy_in() {
+    cache=$1; shift
+    in_py "$PY" -m mypy --cache-dir ".mypy_cache/$cache" "$@"
+}
 check_python_types() {
-    in_py "$PY" -m mypy || return $?
-    in_py "$PY" -m mypy metta/__init__.py || return $?
-    in_py "$PY" -m mypy tests/typing/algebra_surface.py tests/typing/function_namespace.py tests/typing/class_door.py || return $?
-    in_py "$PY" -m mypy --python-version 3.14 tests/typing/template_surface.py
+    mypy_in mypy || return $?
+    mypy_in mypy metta/__init__.py || return $?
+    mypy_in mypy tests/typing/algebra_surface.py tests/typing/function_namespace.py tests/typing/class_door.py || return $?
+    mypy_in mypy --python-version 3.14 tests/typing/template_surface.py
 }
 run GATE   mypy        check_python_types
 # A colocated __init__.pyi is authoritative for package scans, so the general
 # lane above no longer reads __init__.py.  Keep the implementation itself in a
 # separate invocation: naming both files in one command is a duplicate module.
-run GATE   mypy-root-impl in_py "$PY" -m mypy metta/__init__.py
+run GATE   mypy-root-impl mypy_in mypy-root-impl metta/__init__.py
 # This is a consumer file on purpose.  It proves the package attribute is
 # callable, its two forms stay precise, and every catalog carrier is present.
-run GATE   mypy-algebra-surface in_py "$PY" -m mypy tests/typing/algebra_surface.py
+run GATE   mypy-algebra-surface mypy_in mypy-algebra-surface tests/typing/algebra_surface.py
 # The template protocols, asked at the one version that can answer. The library
 # floor is 3.12 so `metta` may never name string.templatelib.Template, and this
 # is the only configuration where "does the class the protocol describes
 # actually satisfy it" is a question typeshed can be asked. Planting a mutable
 # `conversion: str | None` in place of the read-only property made it 7 errors
 # [measured 2026-09-07].
-run GATE   mypy-template-surface in_py "$PY" -m mypy --python-version 3.14 tests/typing/template_surface.py
+run GATE   mypy-template-surface mypy_in mypy-template-surface --python-version 3.14 tests/typing/template_surface.py
 
 # The same files, type-checked AS IF on Windows and macOS. typeshed marks every
 # POSIX-only name with `sys.platform != "win32"`, so this asks whether a
@@ -400,15 +418,15 @@ run GATE   mypy-template-surface in_py "$PY" -m mypy --python-version 3.14 tests
 # --no-warn-unused-ignores because a `type: ignore` that is necessary on Linux
 # is unused on Windows, and that difference is about ignore hygiene rather than
 # about whether the code can run.
-run GATE   mypy-win32  in_py "$PY" -m mypy --platform win32 --no-warn-unused-ignores
-run GATE   mypy-darwin in_py "$PY" -m mypy --platform darwin --no-warn-unused-ignores
+run GATE   mypy-win32  mypy_in mypy-win32 --platform win32 --no-warn-unused-ignores
+run GATE   mypy-darwin mypy_in mypy-darwin --platform darwin --no-warn-unused-ignores
 # The other consumer file: `@metta.define` on an annotated class synthesises a
 # constructor at run time, and PEP 681 is how a checker is told so. The gate's
 # mypy reads `files = ["metta"]` and never opens the suite, so an assertion
 # about what a checker infers has to be a file a checker is pointed at. Its
 # `type: ignore`s are the assertions that mypy REFUSES the wrong-arity calls,
 # load-bearing under warn_unused_ignores.
-run GATE   mypy-class-door in_py "$PY" -m mypy tests/typing/class_door.py
+run GATE   mypy-class-door mypy_in mypy-class-door tests/typing/class_door.py
 # Whether the root declaration describes its generated runtime. Its build
 # settings are its own file: stubtest turns
 # positional-only special methods off before reading a config, which makes

@@ -23,6 +23,9 @@
 #   analyzing "nanoarrow.c_array_stream"` ended the build on the tree that
 #   merged the Arrow doors, and the lane reported "not checking stubs"].
 [tool.mypy]
+# Its own incremental cache, as every mypy lane in check.sh has one: stubtest
+# writes a cache even though it does not read one, and the lanes run at once.
+cache_dir = ".mypy_cache/stubtest"
 python_version = "3.12"
 explicit_package_bases = true
 mypy_path = "."
