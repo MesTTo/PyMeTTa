@@ -16,7 +16,7 @@ Guarantees:
     holds the cache's lock lets that thread go on; with the weakref callback
     the cache used to carry, the thread waited on its own lock until killed
     [tested: test_a_collection_inside_the_position_store_does_not_deadlock;
-    commit=WORKTREE]
+    commit=1ae276864217e62c9a061685d651ebf0be65b76f]
 Open Obligations:
   To Do: None
   Hacks: None

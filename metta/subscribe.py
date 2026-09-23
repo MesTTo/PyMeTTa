@@ -43,7 +43,7 @@ Guarantees:
     subscribe() or cancel() withdraws its registry entry, engine guard and
     reflection atom together [tested:
     test_an_abandoned_watch_finaliser_neither_crosses_nor_locks,
-    test_an_abandoned_watch_is_withdrawn_at_the_next_subscribe; commit=WORKTREE]
+    test_an_abandoned_watch_is_withdrawn_at_the_next_subscribe; commit=330e04d428324008105db628ca5e0a0bbdfb55df]
 Guarded by:
   - metta.events' fold registry lock protects queue state and the engine
     subscription snapshot [tested test_subscription_cancel_is_thread_safe]

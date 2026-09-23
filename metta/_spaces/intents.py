@@ -30,7 +30,7 @@ Guarantees:
     ``_POSITION_LOCK`` cannot stop the thread, since nothing the cache holds
     runs at collection time [tested:
     test_a_collection_inside_the_position_store_does_not_deadlock;
-    commit=WORKTREE]
+    commit=1ae276864217e62c9a061685d651ebf0be65b76f]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
   - ``_POSITION_LOCK`` serializes the bounded weak call-site cache, and no
@@ -322,8 +322,9 @@ def _position(frame: FrameType) -> tuple[str, int, int]:
     # on this thread; a callback taking this plain Lock there waited on itself
     # until killed [tested:
     # test_a_collection_inside_the_position_store_does_not_deadlock;
-    # commit=WORKTREE]. A dead entry needs no eager removal: the read above
-    # checks the referent, and the LRU bound evicts it.
+    # commit=1ae276864217e62c9a061685d651ebf0be65b76f]. A dead entry needs
+    # no eager removal: the read above checks the referent, and the LRU bound
+    # evicts it.
     reference = weakref.ref(code)
     with _POSITION_LOCK:
         _POSITION_CACHE[key] = (reference, result)

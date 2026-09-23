@@ -51,13 +51,13 @@ Guarantees:
     returning while another thread holds both subscription locks and making
     no engine crossing [tested:
     test_an_abandoned_watch_finaliser_neither_crosses_nor_locks;
-    commit=WORKTREE]
+    commit=330e04d428324008105db628ca5e0a0bbdfb55df]
   - every weakref.finalize callback in the package only hands its work over:
     to the engine's deferred queue, to its owner's queue after flagging its
     object spent, or as a ResourceWarning, so a new finaliser that crosses or
     locks fails here before it can fail at a collection [tested:
     test_every_finaliser_in_the_package_only_hands_its_work_over;
-    commit=WORKTREE]
+    commit=330e04d428324008105db628ca5e0a0bbdfb55df]
 """
 
 import ast

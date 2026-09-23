@@ -5,7 +5,7 @@ only stops an abandoned iterator's subscription delivering and hands the
 cancellation to the next subscribe() or cancel(), since a finaliser may only
 enqueue [source: extensions/python/metta/subscribe.py, Subscription._abandon;
 tested: test_an_abandoned_watch_finaliser_neither_crosses_nor_locks;
-commit=WORKTREE].
+commit=330e04d428324008105db628ca5e0a0bbdfb55df].
 """
 
 from __future__ import annotations
