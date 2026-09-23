@@ -10,6 +10,12 @@ Guarantees:
     commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - setup and teardown stay outside perf's controlled measurement interval
     [tested test_perf_workload_setup_and_teardown_stay_outside_control]
+  - Python's cyclic collector is disabled for the controlled interval, and
+    SWI's gc thread is stopped where the workload booted SWI, both restored
+    after it, so no collection whose timing a thread schedule or an unrelated
+    allocation decides can land inside it
+    [tested: test_the_controlled_window_holds_the_cyclic_collector_off,
+    test_the_controlled_window_holds_the_prolog_gc_thread_off]
   - sized memory/scale joins use that same controlled interval, so retired
     instructions see primitive memberchk/2 work that SWI's inference counter
     cannot [tested: test_instruction_join_workload_checks_both_projection_shapes;
@@ -29,6 +35,7 @@ Open Obligations:
 """
 
 import argparse
+import gc
 import os
 import select
 import sys
@@ -210,15 +217,70 @@ def _controlled(operation) -> int:
         raise RuntimeError("controlled perf descriptors are missing or invalid") from error
     for descriptor in close_descriptors:
         os.close(descriptor)
-    if os.write(control, b"enable\n") != len(b"enable\n"):
-        raise RuntimeError("perf control enable command was truncated")
-    _acknowledge(acknowledge)
+    # Python's cyclic collector runs when its allocation counters cross a
+    # threshold, so whether a pass lands inside this window depends on every
+    # allocation the process made before it rather than on the operation. A
+    # never-called function block of one commit's size moved save-load-metta
+    # from 3.451 to 3.757 G instructions with identical inference counts
+    # [measured 2026-09-15; docs/journal/2026-09-15-audit-acceptance-tests-and-repairs.md,
+    # "The instructions lane's save-load pins move with the seat's code size"],
+    # and on one tree at one moment sort-atom and alpha-unique read +2.88 and
+    # +3.07 percent of their pins with the collector left alone and -0.49 and
+    # +0.16 with it off. Off and nothing else, the way timeit and
+    # pytest-benchmark's --benchmark-disable-gc hold it, restored only if it was
+    # on: collecting before the window as well moved term-operators, which
+    # allocates in Python only, from +0.04 to +1.80 percent, because the pass
+    # it runs rearranges the free lists the operation then allocates from
+    # [measured 2026-09-23: benchmarks.check_instructions in three batteries
+    # snapshotted from one tree at engine digest 14758696c5273d21 and
+    # 2d3501c633adbec7; commit=c0badc47c0e741db4a3d7b53338ac1a7db41742c].
+    # This harness already pins PYTHONHASHSEED, the environment and ASLR.
+    collector_was_enabled = gc.isenabled()
+    gc.disable()
+    # SWI's atom and clause collector is the same hazard one level down: its
+    # own `gc` thread starts when garbage crosses a threshold and finishes
+    # inside the window or after it, and perf counts every thread. With
+    # set_prolog_gc_thread(false) the thread that finds the garbage collects
+    # it, so the work lands where the operation puts it: eight samples of
+    # save-load-metta spread 4047.9 to 4109.3 M instructions with the thread
+    # and 4100.2 to 4100.7 M without it, the Python collector held off in
+    # both [measured 2026-09-23; command=benchmarks.pure save-load-metta
+    # --controlled under measure_instructions, rounds=8; commit=864d2deb34cd0b2b805a94055da60905a4171106].
+    # This hides no cost, which is why the two refusals of the same flag on
+    # 2026-09-06 do not carry over: the boot row they protect counts
+    # inferences, which see one thread, so moving the collection onto it moved
+    # that row by 1,917; the parity driver times a whole process, where the
+    # collection races the process's exit and the flag would decide whether it
+    # runs at all [source: docs/journal/2026-09-06-boot-inference-determinism.md
+    # and docs/journal/2026-09-06-the-parity-floor.md]. Here the process lives
+    # on past the window, so the window's garbage is collected either way, and
+    # perf counts it on whichever thread collects it; the flag decides only
+    # whether that lands inside the window.
+    # A workload that never booted SWI has no such thread and is left alone,
+    # since importing janus_swi here would boot it.
+    prolog = sys.modules.get("janus_swi")
+    # janus hands the flag back as the atom's text, "true" or "false".
+    prolog_collector = (
+        prolog.query_once("current_prolog_flag(gc_thread, Mode)")["Mode"]
+        if prolog is not None else None
+    )
+    if prolog_collector == "true":
+        prolog.cmd("system", "set_prolog_gc_thread", "false")
     try:
-        return operation()
-    finally:
-        if os.write(control, b"disable\n") != len(b"disable\n"):
-            raise RuntimeError("perf control disable command was truncated")
+        if os.write(control, b"enable\n") != len(b"enable\n"):
+            raise RuntimeError("perf control enable command was truncated")
         _acknowledge(acknowledge)
+        try:
+            return operation()
+        finally:
+            if os.write(control, b"disable\n") != len(b"disable\n"):
+                raise RuntimeError("perf control disable command was truncated")
+            _acknowledge(acknowledge)
+    finally:
+        if prolog_collector == "true":
+            prolog.cmd("system", "set_prolog_gc_thread", "true")
+        if collector_was_enabled:
+            gc.enable()
 
 
 # Cases measured in STEADY STATE rather than cold, by running the operation
