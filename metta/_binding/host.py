@@ -2,10 +2,12 @@
     name, reading an attribute, building a container and calling a callable are
     each ONE crossing instead of a conversation.
 Assumes:
-  - janus is importing this module by name after extensions/python/metta/_binding/surface.pl adds this directory to
-    sys.path with py_add_lib_dir/1, so it must not import anything from the
-    `metta` package: the engine runs with janus alone and the package need not
-    be installed [tested:
+  - janus imports this module as metta._binding.host after
+    extensions/python/metta/_binding/surface.pl adds extensions/python to
+    sys.path with py_add_lib_dir/1, so the engine seat reaches it, and the
+    metta modules it imports, with janus alone and nothing installed [source:
+    extensions/python/metta/_binding/surface.pl, metta_py_dir/1 and
+    metta_py_bridge/0; tested:
     test_a_python_tuple_answers_the_same_through_both_doors, which runs
     examples/ch11-python-as-a-notation/04-py_surface.metta through the engine
     seat where janus is all there is]
@@ -96,7 +98,8 @@ Fails when:
     typo in a module path is not a value.
 Owns resources:
   - one weak registry entry per live weak-referenceable declaration, and one
-    weak cache entry per live non-weak-referenceable declaration carrier.
+    weak cache entry per live non-weak-referenceable declaration carrier; a
+    dead one's entry, holding nothing, until the table's next operation.
   - at most RESOLVE_CACHE_MAX weak prefix plans; plans never own their modules
     [tested: test_resolution_plans_do_not_own_temporary_modules,
     test_resolution_plan_cache_is_bounded;
@@ -107,6 +110,12 @@ Owns resources:
     commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
 Guarded by:
   - _DECLARATION_LOCK protects declaration records and carrier identity.
+  - the dead-entry queues _DEAD_DECLARATIONS, _DEAD_CARRIERS and _DEAD_REPLAYS
+    are appended by weakref callbacks without any lock, one deque append being
+    atomic, and popped only under their table's lock, so no callback the
+    collector runs waits on _DECLARATION_LOCK or _REPLAY_LOCK [tested:
+    test_a_weak_table_callback_takes_no_lock_and_its_owner_expunges;
+    commit=WORKTREE]
   - functools.lru_cache protects the bounded _resolve_plan cache during
     concurrent updates [source: Python 3.14.7 functools.lru_cache
     documentation; https://docs.python.org/3.14/library/functools.html#functools.lru_cache;
@@ -131,12 +140,14 @@ import operator
 import sys
 import threading
 import weakref
+from collections import deque
 from collections.abc import Callable, Iterator, Sequence, Sized
 from functools import lru_cache
 from types import ModuleType
 from typing import Any, Final, NamedTuple, Self
 
 from metta._atoms.factories import Symbol, _atom_from_wire
+from metta._atoms.model import _expunge, _WeakEntry
 from metta._catalog.call_values import pythonic, returned
 
 
@@ -364,33 +375,52 @@ class _DeclaredValue:
         return self
 
 
+# Each weak table maps an id to one model._WeakEntry and has its own queue of
+# dead entries: the table's callback only clears what the entry holds and
+# appends it there, and the table's next operation expunges the queue under
+# the table's lock (model._expunge says why no callback takes a lock). Each
+# queue's append is bound as a default argument because CPython clears module
+# globals at shutdown while callbacks still run [source:
+# extensions/python/metta/_binding/runtime.py, _defer_record_erase].
 _DECLARATION_LOCK = threading.RLock()
-_DECLARATIONS: dict[int, tuple[weakref.ReferenceType[Any], list[str]]] = {}
-_DECLARED_CARRIERS: dict[int, weakref.ReferenceType[_DeclaredValue]] = {}
+_DECLARATIONS: dict[int, _WeakEntry] = {}
+_DEAD_DECLARATIONS: deque[_WeakEntry] = deque()
+_DECLARED_CARRIERS: dict[int, _WeakEntry] = {}
+_DEAD_CARRIERS: deque[_WeakEntry] = deque()
 _REPLAY_LOCK = threading.RLock()
-_REPLAY_CARRIERS: dict[
-    int,
-    tuple[weakref.ReferenceType[Any], _ReplayableIterator],
-] = {}
+_REPLAY_CARRIERS: dict[int, _WeakEntry] = {}
+_DEAD_REPLAYS: deque[_WeakEntry] = deque()
+
+
+def _replay_died(entry: _WeakEntry, _enqueue: Callable[[_WeakEntry], None] = _DEAD_REPLAYS.append) -> None:
+    """An envelope's weakref callback: its replay cache and source go now."""
+    entry.held = None
+    _enqueue(entry)
+
+
+def _carrier_died(entry: _WeakEntry, _enqueue: Callable[[_WeakEntry], None] = _DEAD_CARRIERS.append) -> None:
+    """A declaration carrier's weakref callback."""
+    _enqueue(entry)
+
+
+def _declaration_died(
+    entry: _WeakEntry, _enqueue: Callable[[_WeakEntry], None] = _DEAD_DECLARATIONS.append
+) -> None:
+    """A declared value's weakref callback: its type texts go now."""
+    entry.held = None
+    _enqueue(entry)
 
 
 def _transport_replay(envelope: Any, source: Iterator[Any]) -> _ReplayableIterator:
     """The replay cache owned by one weak-referenceable transport envelope."""
     key = id(envelope)
     with _REPLAY_LOCK:
+        _expunge(_REPLAY_CARRIERS, _DEAD_REPLAYS)
         current = _REPLAY_CARRIERS.get(key)
-        if current is not None and current[0]() is envelope:
-            return current[1]
-
-        def _evict(reference: weakref.ReferenceType[Any], key: int = key) -> None:
-            with _REPLAY_LOCK:
-                found = _REPLAY_CARRIERS.get(key)
-                if found is not None and found[0] is reference:
-                    del _REPLAY_CARRIERS[key]
-
-        reference = weakref.ref(envelope, _evict)
+        if current is not None and current() is envelope:
+            return current.held
         carrier = _ReplayableIterator(source)
-        _REPLAY_CARRIERS[key] = (reference, carrier)
+        _REPLAY_CARRIERS[key] = _WeakEntry(envelope, _replay_died, key, carrier)
         return carrier
 
 
@@ -400,20 +430,14 @@ def _declared_carrier(value: Any) -> _DeclaredValue:
         return value
     key = id(value)
     with _DECLARATION_LOCK:
-        reference = _DECLARED_CARRIERS.get(key)
-        if reference is not None:
-            carrier = reference()
+        _expunge(_DECLARED_CARRIERS, _DEAD_CARRIERS)
+        entry = _DECLARED_CARRIERS.get(key)
+        if entry is not None:
+            carrier = entry()
             if carrier is not None and carrier.value is value:
                 return carrier
         carrier = _DeclaredValue(value)
-
-        def _evict(_: Any, key: int = key) -> None:
-            with _DECLARATION_LOCK:
-                current = _DECLARED_CARRIERS.get(key)
-                if current is not None and current() is None:
-                    del _DECLARED_CARRIERS[key]
-
-        _DECLARED_CARRIERS[key] = weakref.ref(carrier, _evict)
+        _DECLARED_CARRIERS[key] = _WeakEntry(carrier, _carrier_died, key)
         return carrier
 
 
@@ -427,27 +451,22 @@ def declare_type(value: Any, type_text: str) -> Any:
         return value
     # Keep replay ownership between a declaration envelope and the original.
     unwrapped = value if isinstance(value, _ReplayableIterator) else _unwrap(value)
+    key = id(unwrapped)
     try:
-        key = id(unwrapped)
-
-        def _evict(reference: weakref.ReferenceType[Any], key: int = key) -> None:
-            with _DECLARATION_LOCK:
-                current = _DECLARATIONS.get(key)
-                if current is not None and current[0] is reference:
-                    del _DECLARATIONS[key]
-
-        reference = weakref.ref(unwrapped, _evict)
+        entry = _WeakEntry(unwrapped, _declaration_died, key)
     except TypeError:
         carrier = _declared_carrier(unwrapped)
         carrier.declare(type_text)
         return carrier
     with _DECLARATION_LOCK:
+        _expunge(_DECLARATIONS, _DEAD_DECLARATIONS)
         current = _DECLARATIONS.get(key)
-        if current is None or current[0]() is not unwrapped:
+        if current is None or current() is not unwrapped:
             texts: list[str] = []
-            _DECLARATIONS[key] = (reference, texts)
+            entry.held = texts
+            _DECLARATIONS[key] = entry
         else:
-            texts = current[1]
+            texts = current.held
         if type_text not in texts:
             texts.append(type_text)
     return value
@@ -460,10 +479,11 @@ def declared_type_texts(value: Any) -> list[str]:
     unwrapped = _unwrap(value)
     key = id(unwrapped)
     with _DECLARATION_LOCK:
+        _expunge(_DECLARATIONS, _DEAD_DECLARATIONS)
         current = _DECLARATIONS.get(key)
-        if current is None or current[0]() is not unwrapped:
+        if current is None or current() is not unwrapped:
             return []
-        return list(current[1])
+        return list(current.held)
 
 
 def _wire_value(value: Any) -> tuple[bool, Any]:

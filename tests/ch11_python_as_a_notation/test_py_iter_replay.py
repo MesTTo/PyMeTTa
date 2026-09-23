@@ -105,23 +105,31 @@ def test_a_python_grounded_iterator_replays_through_the_engine():
 
 
 def test_a_grounded_iterator_cache_dies_with_its_box():
-    """The weak envelope index does not turn a consumed iterator into a leak."""
-    before = set(metta_py._REPLAY_CARRIERS)
+    """The weak envelope index does not turn a consumed iterator into a leak.
+
+    The box's death releases the source and the cache at once, and the index
+    drops the box's entry at its next registration: the entry's callback hands
+    it over rather than taking the index's lock, which a callback the collector
+    runs may not do.
+    """
     source = (value for value in range(3))
     source_ref = weakref.ref(source)
     atom = Grounded(source)
     box = atom.to_wire()[1]
     box_ref = weakref.ref(box)
-    key = id(box)
 
     assert list(metta_py.iterate(box)) == [0, 1, 2]
-    assert key in metta_py._REPLAY_CARRIERS
+    entry = metta_py._REPLAY_CARRIERS[id(box)]
 
     del atom, box, source
     gc.collect()
     assert box_ref() is None
     assert source_ref() is None
-    assert set(metta_py._REPLAY_CARRIERS) == before
+    assert entry.held is None
+
+    later = Grounded(iter([4]))
+    assert list(metta_py.iterate(later.to_wire()[1])) == [4]
+    assert all(held is not entry for held in metta_py._REPLAY_CARRIERS.values())
 
 
 def test_two_threads_replay_one_iterator_without_duplicate_pulls():

@@ -156,6 +156,11 @@ Guarantees:
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
+  - _DEAD_BOXES is appended by box weakref callbacks without any lock, one
+    deque append being atomic, and popped only under _STATE_LOCK by boxed(),
+    so no callback the collector runs waits on the lock [tested:
+    test_a_weak_table_callback_takes_no_lock_and_its_owner_expunges;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -298,7 +303,8 @@ class Box:
     in the same reference and unification by identity means identity. The
     intern table holds boxes weakly: a box lives exactly as long as
     something references it (an atom in a space does, through janus), and a
-    dropped object costs nothing forever after.
+    dropped object's entry goes at the next boxed() call, costing nothing
+    after.
     """
 
     __slots__ = {
@@ -345,31 +351,95 @@ def _unbox_wire_value(value: Any) -> Any:
     return value
 
 
+class _WeakEntry(weakref.ref[Any]):
+    """One entry of an id-keyed weak table: a weak reference to the referent
+    that also carries the key it sits under and whatever the table keeps for
+    the referent.
+
+    Carrying the key lets a table have one callback instead of a function per
+    entry, which is CPython's own weakref.KeyedRef [source: CPython 3.14.4
+    Lib/weakref.py:277-295, KeyedRef, "to avoid having to create a function
+    object for each key stored in the mapping"]; KeyedRef itself is outside
+    weakref.__all__, so this is its shape with the payload slot added. A
+    table's callback clears `held` when the referent dies, so what the table
+    kept for it goes at once, and hands the entry to the table's dead-entry
+    queue, which _expunge drains.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
+    __slots__ = ("held", "key")
+    key: int
+    held: Any
+
+    def __new__(cls, referent: Any, callback: Callable[[Self], None], key: int, held: Any = None) -> Self:
+        """The reference, with its key and payload set before anyone can read it."""
+        self = super().__new__(cls, referent, callback)
+        self.key = key
+        self.held = held
+        return self
+
+    def __init__(self, referent: Any, callback: Callable[[Self], None], key: int, held: Any = None) -> None:
+        """Nothing is left to do: __new__ set everything, and weakref.ref's own
+        __init__ only re-validates the two arguments __new__ already took, so
+        it is not handed the two it would refuse [source: CPython 3.14.4
+        Objects/weakrefobject.c, weakref___init__].
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        del referent, callback, key, held
+
+
+def _expunge(table: dict[int, _WeakEntry], dead: deque[_WeakEntry]) -> None:
+    """Drop the entries a weak table's callbacks handed over as dead.
+
+    The caller holds the table's lock, so it is the only one popping, while
+    callbacks append to `dead` on any thread and take no lock, one deque append
+    being atomic: the collector runs a callback on whichever thread allocates,
+    at any allocation, so one that took the lock could wait on a thread that
+    holds it while that thread waits on the collecting one
+    [docs/journal/2026-09-06-finalisers-must-not-call-prolog.md]. An entry goes
+    only while it is still the one that died, so one a later call put under the
+    same id stays. This is the owner draining its own reference queue at the
+    start of its own operations, as java.util.WeakHashMap does [source:
+    openjdk/jdk af9be9105dd22dbeb4b8e87ddda3a61defb8693e,
+    java/util/WeakHashMap.java:345-391, expungeStaleEntries called from
+    getTable(), size() and resize()].
+
+    Time: one popleft and one dict probe per dead entry, each handed over once.
+    """
+    while dead:
+        entry = dead.popleft()
+        if table.get(entry.key) is entry:
+            del table[entry.key]
+
+
 # WeakKeyDictionary is not suitable here: it follows user equality, while
 # arrays and atoms can return non-boolean values from equality. Keying by id
 # plus an identity re-check keeps object identity as the unification rule.
-# id(value) -> weakref to the box carrying it; see Box's docstring.
-_BOXES: dict[int, weakref.ref[Box]] = {}
+# id(value) -> weak entry for the box carrying it; see Box's docstring.
+_BOXES: dict[int, _WeakEntry] = {}
+_DEAD_BOXES: deque[_WeakEntry] = deque()
+
+
+def _box_died(entry: _WeakEntry, _enqueue: Callable[[_WeakEntry], None] = _DEAD_BOXES.append) -> None:
+    """A box's weakref callback: hand its entry to boxed(), which expunges it.
+
+    The queue's append is a default argument because CPython clears module
+    globals at shutdown while callbacks still run [source:
+    extensions/python/metta/_binding/runtime.py, _defer_record_erase].
+    """
+    _enqueue(entry)
 
 
 def boxed(value: Any) -> Box:
     """THE box for this object, stable while any reference to it lives."""
     key = id(value)
     with _STATE_LOCK:
-        reference = _BOXES.get(key)
-        if reference is not None:
-            box = reference()
+        _expunge(_BOXES, _DEAD_BOXES)
+        entry = _BOXES.get(key)
+        if entry is not None:
+            box = entry()
             if box is not None and box.value is value:
                 return box
         box = Box(value)
-
-        def _evict(_: Any, key: int = key) -> None:
-            with _STATE_LOCK:
-                current = _BOXES.get(key)
-                if current is not None and current() is None:
-                    del _BOXES[key]
-
-        _BOXES[key] = weakref.ref(box, _evict)
+        _BOXES[key] = _WeakEntry(box, _box_died, key)
         return box
 
 

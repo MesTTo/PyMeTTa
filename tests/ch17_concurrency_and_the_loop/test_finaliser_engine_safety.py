@@ -52,12 +52,19 @@ Guarantees:
     no engine crossing [tested:
     test_an_abandoned_watch_finaliser_neither_crosses_nor_locks;
     commit=330e04d428324008105db628ca5e0a0bbdfb55df]
-  - every weakref.finalize callback in the package only hands its work over:
+  - every callback the collector runs for the package, each weakref.finalize
+    callback and each weak reference's callback, only hands its work over:
     to the engine's deferred queue, to its owner's queue after flagging its
-    object spent, or as a ResourceWarning, so a new finaliser that crosses or
-    locks fails here before it can fail at a collection [tested:
-    test_every_finaliser_in_the_package_only_hands_its_work_over;
-    commit=330e04d428324008105db628ca5e0a0bbdfb55df]
+    object spent, or as a ResourceWarning, so a new one that crosses or locks
+    fails here before it can fail at a collection [tested:
+    test_every_collector_callback_in_the_package_only_hands_its_work_over;
+    commit=WORKTREE]
+  - the four id-keyed weak tables (the box interns, the replay carriers, the
+    type declarations and their carriers) evict a dead entry without taking
+    their lock: the weak reference's callback returns while another thread
+    holds the lock, and the table's next operation expunges the entry
+    [tested: test_a_weak_table_callback_takes_no_lock_and_its_owner_expunges;
+    commit=WORKTREE]
 """
 
 import ast
@@ -67,9 +74,14 @@ import os
 import subprocess
 import sys
 import threading
+from collections.abc import Callable
+from contextlib import AbstractContextManager
+from typing import Any, NamedTuple
 
 import pytest
 
+import metta._atoms.model as _model
+import metta._binding.host as _host
 import metta._binding.runtime as _engine
 from metta import S, V
 from metta._binding.runtime import bridge
@@ -523,13 +535,59 @@ def _body_without_docstring(function: ast.FunctionDef) -> list[ast.stmt]:
     return function.body[1:] if documented else function.body
 
 
-def test_every_finaliser_in_the_package_only_hands_its_work_over():
-    """Exhaustion over every weakref.finalize the package's source makes.
+#: The weakref constructors whose second argument is a callback the collector
+#: calls when the referent dies [source: Python 3.14 Library Reference,
+#: weakref: ref(object[, callback]), proxy(object[, callback]),
+#: WeakMethod(method[, callback])].
+_WEAK_CALLBACK_CONSTRUCTORS = frozenset({"ref", "proxy", "WeakMethod"})
 
-    The sites are read from the source rather than listed, so a new one is in
-    the census the moment it is written. Every `.finalize(` call must be
-    weakref's, and its callback must be defer_engine_call itself or a
-    function whose every definition in the package only hands its work over.
+
+def _weakref_member(node: ast.expr) -> str | None:
+    """The weakref attribute a node names, reading through a subscript."""
+    if isinstance(node, ast.Subscript):
+        node = node.value
+    match node:
+        case ast.Attribute(value=ast.Name(id="weakref" | "_weakref"), attr=attr):
+            return attr
+        case _:
+            return None
+
+
+def _weak_reference_classes(modules: dict[Any, ast.Module]) -> set[str]:
+    """Every class the package derives from weakref.ref, directly or through another."""
+    classes = [
+        (node.name, node.bases)
+        for tree in modules.values()
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef)
+    ]
+    found: set[str] = set()
+    while True:
+        grown = {
+            name
+            for name, bases in classes
+            if any(
+                _weakref_member(base) == "ref" or (isinstance(base, ast.Name) and base.id in found)
+                for base in bases
+            )
+        }
+        if grown == found:
+            return found
+        found = grown
+
+
+def test_every_collector_callback_in_the_package_only_hands_its_work_over():
+    """Exhaustion over every callback the collector runs for the package.
+
+    Those are each weakref.finalize's callback and each weak reference's
+    callback, made through weakref's constructors or through a class the
+    package derives from weakref.ref. Garbage collection runs either kind on
+    whichever thread allocates, at any allocation, so a callback that takes a
+    lock can wait on a thread that is waiting on the collecting one. The sites
+    are read from the source rather than listed, so a new one is in the census
+    the moment it is written. Every `.finalize(` call must be weakref's, and
+    every callback must be defer_engine_call itself or a function whose every
+    definition in the package only hands its work over.
     """
     package = workspace() / "extensions" / "python" / "metta"
     modules = {path: ast.parse(path.read_text(encoding="utf-8")) for path in package.rglob("*.py")}
@@ -538,19 +596,31 @@ def test_every_finaliser_in_the_package_only_hands_its_work_over():
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
                 definitions.setdefault(node.name, []).append(node)
-    sites = []
+    weak_classes = _weak_reference_classes(modules)
+    sites: dict[str, list[tuple[str, ast.expr]]] = {"weakref.finalize": [], "weak reference": []}
     for path, tree in modules.items():
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "finalize":
-                where = f"{path.relative_to(package)}:{node.lineno}"
-                receiver = node.func.value
-                assert isinstance(receiver, ast.Name) and receiver.id in {"weakref", "_weakref"}, (
+            if not isinstance(node, ast.Call):
+                continue
+            where = f"{path.relative_to(package)}:{node.lineno}"
+            if isinstance(node.func, ast.Attribute) and node.func.attr == "finalize":
+                assert _weakref_member(node.func) == "finalize", (
                     f"{where}: a .finalize( call on something other than weakref"
                 )
-                sites.append((where, node.args[1]))
-    assert sites, "the census found no weakref.finalize at all, so it is reading the wrong tree"
+                sites["weakref.finalize"].append((where, node.args[1]))
+                continue
+            weak = _weakref_member(node.func) in _WEAK_CALLBACK_CONSTRUCTORS or (
+                isinstance(node.func, ast.Name) and node.func.id in weak_classes
+            )
+            callback = node.args[1] if len(node.args) > 1 else next(
+                (keyword.value for keyword in node.keywords if keyword.arg == "callback"), None
+            )
+            if weak and callback is not None:
+                sites["weak reference"].append((where, callback))
+    for kind, found in sites.items():
+        assert found, f"the census found no {kind} callback at all, so it is reading the wrong tree"
     crossing = []
-    for where, callback in sites:
+    for where, callback in (site for found in sites.values() for site in found):
         if isinstance(callback, ast.Name) and callback.id == "defer_engine_call":
             continue
         name = callback.id if isinstance(callback, ast.Name) else getattr(callback, "attr", None)
@@ -560,7 +630,110 @@ def test_every_finaliser_in_the_package_only_hands_its_work_over():
         ):
             crossing.append(f"{where}: {ast.unparse(callback)}")
     assert not crossing, (
-        "these finalisers do more than hand their work over; a finaliser runs at "
-        "a point no caller chose, so move the work to the deferred queue "
+        "these collector callbacks do more than hand their work over; the "
+        "collector runs one at a point no caller chose, on any thread, so move "
+        "the work to the deferred queue or the owner's inbox "
         f"(docs/journal/2026-09-06-finalisers-must-not-call-prolog.md): {crossing}"
     )
+
+
+class _Weakling:
+    """A referent the weak tables can watch: weak-referenceable, and nothing else."""
+
+
+class _WeakTable(NamedTuple):
+    """One id-keyed weak table: its lock, how to plant an entry, and an owner call.
+
+    plant answers the referent whose death kills the entry, the entry's key,
+    and whatever must outlive the test so the key's id is not reused.
+    """
+
+    name: str
+    lock: AbstractContextManager[Any]
+    entries: Callable[[], dict[int, Any]]
+    plant: Callable[[], tuple[Any, int, Any]]
+    owner: Callable[[], object]
+
+
+def _plant_box() -> tuple[Any, int, Any]:
+    value = _Weakling()
+    return _model.boxed(value), id(value), value
+
+
+def _plant_replay() -> tuple[Any, int, Any]:
+    envelope = _Weakling()
+    _host._transport_replay(envelope, iter([1, 2]))
+    return envelope, id(envelope), None
+
+
+def _plant_declaration() -> tuple[Any, int, Any]:
+    value = _Weakling()
+    _host.declare_type(value, "Ephemeral")
+    return value, id(value), None
+
+
+def _plant_carrier() -> tuple[Any, int, Any]:
+    value: list[Any] = []  # a list cannot be weakly referenced, so it takes a carrier
+    return _host._declared_carrier(value), id(value), value
+
+
+_WEAK_TABLES = (
+    _WeakTable("boxes", _model._STATE_LOCK, lambda: _model._BOXES, _plant_box,
+               lambda: _model.boxed(_Weakling())),
+    _WeakTable("replay carriers", _host._REPLAY_LOCK, lambda: _host._REPLAY_CARRIERS, _plant_replay,
+               lambda: _host._transport_replay(_Weakling(), iter(()))),
+    _WeakTable("declarations", _host._DECLARATION_LOCK, lambda: _host._DECLARATIONS,
+               _plant_declaration, lambda: _host.declared_type_texts(_Weakling())),
+    _WeakTable("declared carriers", _host._DECLARATION_LOCK, lambda: _host._DECLARED_CARRIERS,
+               _plant_carrier, lambda: _host._declared_carrier([])),
+)
+
+
+@pytest.mark.parametrize("table", _WEAK_TABLES, ids=lambda table: table.name)
+def test_a_weak_table_callback_takes_no_lock_and_its_owner_expunges(table):
+    """A weak table's callback returns while another thread holds its lock.
+
+    The collector runs a weak reference's callback on whichever thread
+    allocates, so one that took its table's lock could wait on a thread holding
+    it, which may itself be waiting on the collecting thread. Another thread
+    holds the lock here while the referent dies on a collector thread; a
+    callback that took the lock would not return until release.set(). The
+    table's next operation, which does hold the lock, then drops the entry.
+    """
+    referent, key, keepalive = table.plant()
+    entry = table.entries()[key]
+    held = [referent]
+    del referent
+
+    locked, release = threading.Event(), threading.Event()
+
+    def hold_the_lock():
+        with table.lock:
+            locked.set()
+            release.wait()
+
+    def collect():
+        held.clear()
+        gc.collect()
+
+    holder = threading.Thread(target=hold_the_lock, name="lock-holder", daemon=True)
+    collector = threading.Thread(target=collect, name="collector", daemon=True)
+    holder.start()
+    locked.wait()
+    try:
+        collector.start()
+        # Far above an attribute store and an append; a callback waiting on the
+        # lock waits until release.set() below, whatever this bound.
+        collector.join(timeout=30)
+        waited_on_the_lock = collector.is_alive()
+    finally:
+        release.set()
+        holder.join()
+        collector.join()
+    assert not waited_on_the_lock, f"the {table.name} table's callback waited on its lock"
+    assert entry() is None, f"the {table.name} referent outlived the collection"
+    table.owner()
+    assert table.entries().get(key) is not entry, (
+        f"the {table.name} table's next operation left the dead entry in place"
+    )
+    del keepalive
