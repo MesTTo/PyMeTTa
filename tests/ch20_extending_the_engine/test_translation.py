@@ -7,11 +7,20 @@ Assumes:
   - `Atom` on an argument's declared type makes it arrive unevaluated, which
     is what lets a body reach a wrapper unevaluated
     [source: examples/ch20-extending-the-engine/20-01-translator-rules/05-translatorrule_for.metta]
+  - `metta.library.roster(root)` names each library with the files the
+    engine's discovery reads for it, so a library's MeTTa source is found
+    wherever its manifest puts it
+    [source: extensions/python/metta/_atoms/library.py:_library_source_files]
 Guarantees:
   - derived-form comparisons write only private source copies and preserve
     the tracked corpus's bytes and modification times
     [tested: test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus;
     commit=8ee8fcd4e43a932131909f7c58ad4fbe4dcf8d1d]
+  - every corpus file that writes a derived form is compared: the sites are
+    computed from examples/ and the library roster with the expander the
+    comparison uses, and only a library's runner is written by hand
+    [tested: test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus;
+    commit=WORKTREE]
   - `let*` under another name binds the body with the bindings the caller
     wrote, and refuses a value that is not bindings naming the form
     [tested: test_let_star_with_an_unarrived_bindings_list_does_not_drop_them]
@@ -31,6 +40,7 @@ Open Obligations:
 
 import pytest
 
+from metta import library
 from metta._errors.errors import EngineError
 
 
@@ -148,16 +158,16 @@ DERIVED_FORMS = {
     ),
 }
 
-# Every corpus file that writes one of those forms, and a file that RUNS it.
-# A library is not runnable on its own, so it is exercised through one of its
-# importers.
-DERIVED_FORM_SITES = [
-    ("examples/ch07-control-flow/07-01-if-and-booleans/10-and_then_or_else.metta", "examples/ch07-control-flow/07-01-if-and-booleans/10-and_then_or_else.metta"),
-    ("examples/ch06-many-answers/09-streamops.metta", "examples/ch06-many-answers/09-streamops.metta"),
-    ("lib/lib_roman/pkg.metta", "examples/ch08-data/08-01-atoms-lists-and-folds/15-roman.metta"),
-    ("lib/lib_pln/pkg.metta", "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/05-pln_direct.metta"),
-    ("lib/lib_nars/pkg.metta", "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/08-nars_direct.metta"),
-]
+# A library is not runnable on its own, so its source is exercised through an
+# importer that calls the heads writing the form. Which importer does that is
+# the one fact about a site that no file determines, so it is the only one
+# written by hand, and _derived_form_sites refuses a library that writes a form
+# without a row here as well as a row whose library writes none.
+LIBRARY_RUNNERS = {
+    "lib_nars": "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/08-nars_direct.metta",
+    "lib_pln": "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/05-pln_direct.metta",
+    "lib_roman": "examples/ch08-data/08-01-atoms-lists-and-folds/15-roman.metta",
+}
 
 
 def _tokens(text):
@@ -253,6 +263,35 @@ def _expand_source(text):
     return "\n".join(lines) + "\n", count
 
 
+def _derived_form_sites(root):
+    """Every corpus file that writes a derived form, with a file that RUNS it,
+    both relative to `root`. An example runs itself; a library's source runs
+    through its LIBRARY_RUNNERS row, its files being the ones the engine's own
+    discovery reads, `library.roster`. The writers are found with the expander
+    the comparison uses, so a file that starts writing a form is compared
+    without anyone listing it, and one that stops is dropped the same way.
+
+    Cost: one read and one expansion of every .metta file under examples/ and
+    lib/, O(corpus bytes), against two engine boots for every site found.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    def writes(path):
+        return _expand_source(path.read_text(encoding="utf-8"))[1] > 0
+
+    sites = [(path, path) for path in sorted((root / "examples").rglob("*.metta")) if writes(path)]
+    libraries = {
+        name: [path for path in files if path.suffix == ".metta" and writes(path)]
+        for name, files in library.roster(root).items()
+    }
+    writing = {name: paths for name, paths in libraries.items() if paths}
+    assert sorted(writing) == sorted(LIBRARY_RUNNERS), (
+        f"the libraries writing a derived form are {sorted(writing)}, and "
+        f"LIBRARY_RUNNERS names a runner for {sorted(LIBRARY_RUNNERS)}"
+    )
+    sites += [(path, root / LIBRARY_RUNNERS[name])
+              for name, paths in writing.items() for path in paths]
+    return [(source.relative_to(root), runner.relative_to(root)) for source, runner in sites]
+
+
 def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root, tmp_path):
     """Each derived form is an equation in the prelude where it used to be a
     clause of the compiler. Running a corpus file as written and running it
@@ -276,21 +315,23 @@ def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root, 
     capture = tmp_path / "tests" / "conformance" / "answer_groups.pl"
     capture.parent.mkdir(parents=True)
     shutil.copy2(repo_root / "tests" / "conformance" / "answer_groups.pl", capture)
+    sites = _derived_form_sites(repo_root)
     tracked = {
         repo_root / source: ((repo_root / source).read_bytes(),
                             (repo_root / source).stat().st_mtime_ns)
-        for source, _ in DERIVED_FORM_SITES
+        for source, _ in sites
     }
-    compared = 0
-    for source_name, runner_name in DERIVED_FORM_SITES:
+    for source_name, runner_name in sites:
         source = tmp_path / source_name
         runner = tmp_path / runner_name
         original = source.read_text()
-        expanded, replaced = _expand_source(original)
-        assert replaced > 0, f"{source_name} writes no derived form any more"
-        assert not any(
-            f"({name} " in expanded for name, _ in DERIVED_FORMS
-        ), f"{source_name} still names a derived form after expansion"
+        expanded, _ = _expand_source(original)
+        # A guarded form whose arguments miss the guard stays as written, as
+        # `(union foo bar)` does in the translator-rules guard example, so the
+        # check is that nothing expandable is left rather than no name.
+        assert _expand_source(expanded)[1] == 0, (
+            f"{source_name} still holds a derived form after expansion"
+        )
 
         as_written = example_parity.run_engine(runner, tmp_path)
         source.write_text(expanded)
@@ -302,8 +343,6 @@ def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root, 
         assert as_written.groups, f"{runner_name} answered nothing to compare"
         assert as_written.groups == as_expanded.groups, runner_name
         assert as_written.error == as_expanded.error, runner_name
-        compared += 1
 
-    assert compared == len(DERIVED_FORM_SITES)
     assert {source: (source.read_bytes(), source.stat().st_mtime_ns)
             for source in tracked} == tracked
