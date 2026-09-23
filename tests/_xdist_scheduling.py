@@ -117,7 +117,7 @@ class RestartSafe:
             break
         else:
             raise RuntimeError(  # noqa: TRY003  -- upstream's text, kept verbatim to diff cleanly
-                "Unable to identify crashitem on a workload with pending items"  # noqa: EM101
+                "Unable to identify crashitem on a workload with pending items"  # noqa: EM101  -- upstream's text, kept verbatim to diff cleanly
             )
 
         # Make uncompleted work units available again
@@ -157,7 +157,7 @@ class RestartSafe:
             # Raise since this is an internal error that may result in a hanging worker
             # See #1323
             raise RuntimeError(  # noqa: TRY003  -- upstream's text, kept verbatim to diff cleanly
-                "Trying to assign a work unit with no pending items to a node"  # noqa: EM101
+                "Trying to assign a work unit with no pending items to a node"  # noqa: EM101  -- upstream's text, kept verbatim to diff cleanly
             )
 
         node.send_runtest_some(nodeids_indexes)
