@@ -38,9 +38,19 @@ Guarantees:
   - a guard-rejected event does not advance the queue's arrival counter, so a
     blocked events() stream remains open for the next accepted event [tested:
     test_a_rejected_guard_event_does_not_end_a_blocking_stream; commit=438506a1688c78a383499973b6a89fa6bb559629]
+  - a watch collected without close() stops delivering when it is collected,
+    its finaliser taking no lock and making no engine crossing, and the next
+    subscribe() or cancel() withdraws its registry entry, engine guard and
+    reflection atom together [tested:
+    test_an_abandoned_watch_finaliser_neither_crosses_nor_locks,
+    test_an_abandoned_watch_is_withdrawn_at_the_next_subscribe; commit=WORKTREE]
 Guarded by:
   - metta.events' fold registry lock protects queue state and the engine
     subscription snapshot [tested test_subscription_cancel_is_thread_safe]
+  - _TRANSACTION_LOCK serialises publication, cancellation and the
+    withdrawal of abandoned subscriptions. _ABANDONED is appended by
+    finalisers without any lock, one deque append being a single bytecode,
+    and popped only under _TRANSACTION_LOCK.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -50,6 +60,7 @@ Open Obligations:
 from __future__ import annotations
 
 import threading
+from collections import deque
 from collections.abc import Callable, Mapping
 from typing import Any, Self
 
@@ -104,6 +115,22 @@ def _capacity(queue_max: Any) -> int:
         msg = f"queue_max must be positive, got {queue_max!r}"
         raise ValueError(msg)
     return queue_max
+
+
+# Subscriptions whose watch was collected without close(). The watch's
+# finaliser only appends here, since a finaliser runs at a point no caller
+# chose, possibly inside a crossing or under a lock, and so may only enqueue
+# [docs/journal/2026-09-06-finalisers-must-not-call-prolog.md]. subscribe()
+# and cancel() withdraw what it holds under _TRANSACTION_LOCK before their own
+# work: the owner's operations are its safe points, as java.util.WeakHashMap
+# expunges its reference queue at the start of its own
+# [source: openjdk/jdk af9be9105dd22dbeb4b8e87ddda3a61defb8693e,
+# java/util/WeakHashMap.java:345-391, expungeStaleEntries called from
+# getTable(), size() and resize()]. The engine's deferred queue cannot do
+# it: it drains at crossing entry, and _FoldRegistry crosses while it holds a
+# half-built fold list, so a withdrawal run there would be overwritten when
+# that list lands.
+_ABANDONED: deque[Subscription] = deque()
 
 
 class Subscription(Fold):
@@ -197,32 +224,76 @@ class Subscription(Fold):
     def cancel(self) -> None:
         """End the standing query and withdraw its reflection atom."""
         with _TRANSACTION_LOCK:
-            cancellation = _REGISTRY.cancel(self)
-            if cancellation is not None and self._fact is not None:
-                try:
-                    if not _has_fact(self._fact):
-                        _ensure_reflection_absent(cancellation.runtime, self._fact)
-                except BaseException as removal_error:
-                    rollback_errors: list[BaseException] = []
-                    try:
-                        _ensure_reflection_present(cancellation.runtime, self._fact)
-                    except (MettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
-                        rollback_errors.append(rollback_error)
-                    try:
-                        _REGISTRY.restore(cancellation, self)
-                    except (MettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
-                        rollback_errors.append(rollback_error)
-                    if rollback_errors:
-                        msg = "subscription cancellation and rollback both failed"
-                        raise BaseExceptionGroup(
-                            msg,
-                            [removal_error, *rollback_errors],
-                        ) from None
-                    raise
+            _withdraw_abandoned()
+            self._withdraw()
         _REGISTRY.wait_for_deliveries(self)
+
+    def _abandon(self, _enqueue: Callable[[Subscription], None] = _ABANDONED.append) -> None:
+        """The finalize backstop of a watch collected without close().
+
+        It stops delivery and hands the withdrawal over, and does nothing
+        else: clearing `_active` is one store, which the registry reads under
+        its lock at every delivery, and the append is one bytecode. The deque's
+        `append` is bound as a DEFAULT ARGUMENT because CPython clears module
+        globals at shutdown while finalisers still run
+        [source: extensions/python/metta/_binding/runtime.py, _defer_record_erase].
+        """
+        self._active = False
+        _enqueue(self)
+
+    def _withdraw(self) -> None:
+        """Unregister and withdraw the reflection atom, or restore both.
+
+        The part of cancel() that must hold _TRANSACTION_LOCK, which the caller
+        holds.
+        """
+        cancellation = _REGISTRY.cancel(self)
+        if cancellation is None or self._fact is None:
+            return
+        try:
+            if not _has_fact(self._fact):
+                _ensure_reflection_absent(cancellation.runtime, self._fact)
+        except BaseException as removal_error:
+            rollback_errors: list[BaseException] = []
+            try:
+                _ensure_reflection_present(cancellation.runtime, self._fact)
+            except (MettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
+                rollback_errors.append(rollback_error)
+            try:
+                _REGISTRY.restore(cancellation, self)
+            except (MettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
+                rollback_errors.append(rollback_error)
+            if rollback_errors:
+                msg = "subscription cancellation and rollback both failed"
+                raise BaseExceptionGroup(
+                    msg,
+                    [removal_error, *rollback_errors],
+                ) from None
+            raise
 
 
 _TRANSACTION_LOCK = threading.RLock()
+
+
+def _withdraw_abandoned() -> None:
+    """Withdraw every subscription whose watch was collected without close().
+
+    Under _TRANSACTION_LOCK, which the caller holds. It does not wait for
+    deliveries still in flight, since nothing reads an abandoned queue. One
+    whose withdrawal fails goes back to the front, still abandoned, and the
+    failure propagates: the registry disagrees with the engine, and the caller
+    is told before its own change rather than after it.
+    """
+    while True:
+        try:
+            subscription = _ABANDONED.popleft()
+        except IndexError:
+            return
+        try:
+            subscription._withdraw()
+        except BaseException:
+            _ABANDONED.appendleft(subscription)
+            raise
 
 
 def _has_fact(fact: Expression) -> bool:
@@ -282,6 +353,7 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
     # subscriptions arrive, never its own birth.
     subscription._fact = Expression([Symbol("subscription"), Symbol(space), pattern, Symbol(on)])
     with _TRANSACTION_LOCK:
+        _withdraw_abandoned()
         try:
             _ensure_reflection_present(runtime, subscription._fact)
             _REGISTRY.add(runtime, subscription)

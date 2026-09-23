@@ -327,6 +327,7 @@ class _Cancellation:
     runtime: Any
     order: tuple[Fold, ...]
     index: int
+    active: bool
 
 
 class _FoldRegistry:
@@ -365,10 +366,15 @@ class _FoldRegistry:
             self._indexes.setdefault(fold.space, MatchIndex()).add(fold.pattern, fold)
 
     def cancel(self, fold: Fold) -> _Cancellation | None:
-        """Withdraw a fold; an already-cancelled one answers None."""
+        """Withdraw a fold; one no longer registered answers None.
+
+        Registered and deliverable are separate states. An abandoned
+        subscription's finaliser clears `_active` without this lock, so the
+        fold stops delivering at once, and it stays registered until the next
+        subscribe() or cancel() withdraws it here
+        [source: extensions/python/metta/subscribe.py, Subscription._abandon].
+        """
         with self._lock:
-            if not fold._active:
-                return None
             index = next(
                 (
                     position
@@ -378,8 +384,10 @@ class _FoldRegistry:
                 None,
             )
             if index is None:
-                msg = "an active subscription is missing from the registry"
-                raise RuntimeError(msg)
+                if fold._active:
+                    msg = "an active subscription is missing from the registry"
+                    raise RuntimeError(msg)
+                return None
             if self.runtime is None:
                 msg = "the subscription registry has no engine runtime"
                 raise RuntimeError(msg)
@@ -388,15 +396,20 @@ class _FoldRegistry:
             candidate.pop(index)
             self._publish_locked(self.runtime, candidate)
             self._folds = candidate
+            active = fold._active
             fold._active = False
             tree = self._indexes.get(fold.space)
             if tree is not None:
                 tree.remove(fold.pattern, fold)
             self._arrived.notify_all()  # blocking takes end at cancel
-            return _Cancellation(self.runtime, order, index)
+            return _Cancellation(self.runtime, order, index, active)
 
     def restore(self, cancellation: _Cancellation, fold: Fold) -> None:
-        """Put a cancelled fold back where it was, for a failed rollback."""
+        """Put a cancelled fold back where it was, for a failed rollback.
+
+        Back as deliverable as it was, so an abandoned fold whose withdrawal
+        failed is registered again without delivering again.
+        """
         with self._lock:
             if fold._active or any(current is fold for current in self._folds):
                 msg = "cannot restore an active subscription"
@@ -408,7 +421,7 @@ class _FoldRegistry:
             candidate.insert(self._restoration_index(cancellation), fold)
             self._publish_locked(cancellation.runtime, candidate)
             self._folds = candidate
-            fold._active = True
+            fold._active = cancellation.active
             # Restoration puts a fold back where it WAS, so appending to the
             # tree would file it last. Rebuilding the one space's tree from
             # the restored order is the only spelling that keeps delivery

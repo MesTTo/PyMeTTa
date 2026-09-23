@@ -1,13 +1,15 @@
 """Purpose: expose standing queries and iterators of space changes.
 
-Owns resources: _WatchIterator.close cancels its subscription, and its
-finalizer cancels an abandoned iterator
-[source: extensions/python/metta/_spaces/subscriptions.py:59; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Owns resources: _WatchIterator.close cancels its subscription. Its finaliser
+only stops an abandoned iterator's subscription delivering and hands the
+cancellation to the next subscribe() or cancel(), since a finaliser may only
+enqueue [source: extensions/python/metta/subscribe.py, Subscription._abandon;
+tested: test_an_abandoned_watch_finaliser_neither_crosses_nor_locks;
+commit=WORKTREE].
 """
 
 from __future__ import annotations
 
-import contextlib
 import weakref
 from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Any, Self
@@ -23,11 +25,6 @@ if TYPE_CHECKING:
     from metta.subscribe import Subscription
 
 
-def _cancel_abandoned_subscription(subscription: Subscription) -> None:
-    """The finalize backstop: best-effort, late-shutdown-safe."""
-    with contextlib.suppress(Exception):
-        subscription.cancel()
-
 class _WatchIterator:
     """Own one eager subscription and cancel it whenever the iterator closes.
 
@@ -42,9 +39,7 @@ class _WatchIterator:
         self._subscription: Subscription | None = subscription
         self._deadline = deadline
         self._events: Iterator[Any] = subscription.events(deadline)
-        self._finalizer = weakref.finalize(
-            self, _cancel_abandoned_subscription, subscription
-        )
+        self._finalizer = weakref.finalize(self, subscription._abandon)
 
     def __iter__(self) -> Self:
         return self

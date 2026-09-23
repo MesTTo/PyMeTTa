@@ -47,13 +47,26 @@ Guarantees:
     test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind,
     test_the_engine_snapshot_allows_retirement_but_detects_a_replacement;
     commit=c6e1198c490a824b96f6fc6e1c0622a542917024]
+  - a watch collected without close() stops its subscription and enqueues it,
+    returning while another thread holds both subscription locks and making
+    no engine crossing [tested:
+    test_an_abandoned_watch_finaliser_neither_crosses_nor_locks;
+    commit=WORKTREE]
+  - every weakref.finalize callback in the package only hands its work over:
+    to the engine's deferred queue, to its owner's queue after flagging its
+    object spent, or as a ResourceWarning, so a new finaliser that crosses or
+    locks fails here before it can fail at a collection [tested:
+    test_every_finaliser_in_the_package_only_hands_its_work_over;
+    commit=WORKTREE]
 """
 
+import ast
 import gc
 import itertools
 import os
 import subprocess
 import sys
+import threading
 
 import pytest
 
@@ -310,6 +323,67 @@ def test_a_dropped_cursor_defers_its_close_instead_of_crossing(metta):
     assert _live_engines(metta) == baseline, "the deferred close never ran"
 
 
+def test_an_abandoned_watch_finaliser_neither_crosses_nor_locks(metta, monkeypatch):
+    """The watch's finaliser stops delivery and enqueues, and nothing else.
+
+    It used to call Subscription.cancel() from the collector: _TRANSACTION_LOCK,
+    the registry's lock, a crossing to republish the engine's guard, two more
+    for the reflection atom, and a wait on other threads' deliveries. Another
+    thread holds both locks here, so a finaliser taking either would not
+    return, and every crossing consults Runtime._thread_lock first, so one that
+    crossed would be counted on the collecting thread.
+    """
+    import metta.subscribe as _subscribe
+    from metta.events import _REGISTRY
+
+    watch = metta.watch(S["abandoned-tick"](V.n))
+    subscription = watch._subscription
+    held = [watch]
+    del watch
+
+    locked, release = threading.Event(), threading.Event()
+    crossed: list[str] = []
+    runtime_type = type(metta.runtime)
+    thread_lock = runtime_type._thread_lock
+
+    def counted(runtime):
+        crossed.append(threading.current_thread().name)
+        return thread_lock(runtime)
+
+    def hold_both_locks():
+        with _subscribe._TRANSACTION_LOCK, _REGISTRY._lock:
+            locked.set()
+            release.wait()
+
+    def collect():
+        held.clear()
+        gc.collect()
+
+    holder = threading.Thread(target=hold_both_locks, name="lock-holder", daemon=True)
+    collector = threading.Thread(target=collect, name="collector", daemon=True)
+    monkeypatch.setattr(runtime_type, "_thread_lock", counted)
+    holder.start()
+    locked.wait()
+    try:
+        collector.start()
+        # Far above a flag store and an append; a finaliser waiting on either
+        # lock waits until release.set() below, whatever this bound.
+        collector.join(timeout=30)
+        waited_on_a_lock = collector.is_alive()
+    finally:
+        release.set()
+        holder.join()
+        collector.join()
+        monkeypatch.undo()
+    assert not waited_on_a_lock, "the watch's finaliser waited on a lock another thread held"
+    assert "collector" not in crossed, "the watch's finaliser crossed into the engine"
+    assert not subscription._active, "the abandoned subscription still delivers"
+    assert subscription in _subscribe._ABANDONED
+    # The next cancel(), this one's own, withdraws everything the queue holds.
+    subscription.cancel()
+    assert subscription not in _subscribe._ABANDONED
+
+
 def test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind(metta):
     """The cycle at volume, checked by engine identity.
 
@@ -409,3 +483,84 @@ def test_a_finaliser_at_interpreter_shutdown_prints_nothing(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert "probe done" in result.stdout, result.stdout
     assert "Exception ignored" not in result.stderr, result.stderr
+
+
+# What a finaliser may do, as statement shapes: hand a call to the engine's
+# deferred queue (defer_engine_call, or the `_enqueue` its default argument
+# binds), flag its object spent with a constant, or report a ResourceWarning,
+# which CPython's own finalisers raise for an abandoned resource
+# [source: python/cpython c554143aa15132c413b231f2c6e41f3b98de7846,
+# Lib/subprocess.py:1132 Popen.__del__ and Modules/_io/fileio.c:107]. A guard
+# may choose between them so long as it calls nothing.
+_ENQUEUES = frozenset({"defer_engine_call", "_enqueue"})
+
+
+def _hands_over(statement: ast.stmt) -> bool:
+    match statement:
+        case ast.Expr(value=ast.Call(func=ast.Name(id=name))) if name in _ENQUEUES:
+            return True
+        case ast.Assign(targets=[ast.Attribute()], value=ast.Constant()):
+            return True
+        case ast.Delete() | ast.Import(names=[ast.alias(name="warnings")]):
+            return True
+        case ast.Expr(
+            value=ast.Call(
+                func=ast.Attribute(value=ast.Name(id="warnings"), attr="warn"),
+                args=[_, ast.Name(id="ResourceWarning"), *_],
+            )
+        ):
+            return True
+        case ast.If(test=test, body=body, orelse=orelse):
+            calls = any(isinstance(node, ast.Call) for node in ast.walk(test))
+            return not calls and all(map(_hands_over, [*body, *orelse]))
+        case _:
+            return False
+
+
+def _body_without_docstring(function: ast.FunctionDef) -> list[ast.stmt]:
+    first = function.body[0]
+    documented = isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+    return function.body[1:] if documented else function.body
+
+
+def test_every_finaliser_in_the_package_only_hands_its_work_over():
+    """Exhaustion over every weakref.finalize the package's source makes.
+
+    The sites are read from the source rather than listed, so a new one is in
+    the census the moment it is written. Every `.finalize(` call must be
+    weakref's, and its callback must be defer_engine_call itself or a
+    function whose every definition in the package only hands its work over.
+    """
+    package = workspace() / "extensions" / "python" / "metta"
+    modules = {path: ast.parse(path.read_text(encoding="utf-8")) for path in package.rglob("*.py")}
+    definitions: dict[str, list[ast.FunctionDef]] = {}
+    for tree in modules.values():
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                definitions.setdefault(node.name, []).append(node)
+    sites = []
+    for path, tree in modules.items():
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "finalize":
+                where = f"{path.relative_to(package)}:{node.lineno}"
+                receiver = node.func.value
+                assert isinstance(receiver, ast.Name) and receiver.id in {"weakref", "_weakref"}, (
+                    f"{where}: a .finalize( call on something other than weakref"
+                )
+                sites.append((where, node.args[1]))
+    assert sites, "the census found no weakref.finalize at all, so it is reading the wrong tree"
+    crossing = []
+    for where, callback in sites:
+        if isinstance(callback, ast.Name) and callback.id == "defer_engine_call":
+            continue
+        name = callback.id if isinstance(callback, ast.Name) else getattr(callback, "attr", None)
+        bodies = definitions.get(name, [])
+        if not bodies or not all(
+            all(map(_hands_over, _body_without_docstring(body))) for body in bodies
+        ):
+            crossing.append(f"{where}: {ast.unparse(callback)}")
+    assert not crossing, (
+        "these finalisers do more than hand their work over; a finaliser runs at "
+        "a point no caller chose, so move the work to the deferred queue "
+        f"(docs/journal/2026-09-06-finalisers-must-not-call-prolog.md): {crossing}"
+    )

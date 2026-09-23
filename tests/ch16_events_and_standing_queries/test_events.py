@@ -446,6 +446,35 @@ def test_an_abandoned_watch_cancels_itself(scratch_space):  # noqa: D103  -- pyt
     assert len(_subscribe._subscriptions_for(space._space)) == before
 
 
+def test_an_abandoned_watch_is_withdrawn_at_the_next_subscribe(scratch_space):
+    """Collection stops the watch at once; the next subscribe() withdraws it.
+
+    The watch's finaliser may only enqueue, so it stops delivery and leaves
+    the rest, the registry entry and the reflection atom, to the next
+    subscribe() or cancel(). A queue it kept filling would refuse the space's
+    writes once full, which is what queue_max=2 and three writes check.
+    """
+    import gc
+
+    from metta import S, V
+
+    space = scratch_space
+    reflection = space._at("&metta")
+    on_this_space = S.subscription(S[space.name], V.pattern, V.on)
+    watch = space.watch(S.tock(V.n), queue_max=2)
+    assert len(reflection.match(on_this_space)) == 1
+    del watch
+    gc.collect()
+    space.add(S.tock(1), S.tock(2), S.tock(3))
+    fresh = space.subscribe(S.other(V.x))
+    try:
+        assert not reflection.match(S.subscription(S[space.name], S.tock(V.n), V.on))
+        assert len(reflection.match(on_this_space)) == 1
+    finally:
+        fresh.cancel()
+    assert not reflection.match(on_this_space)
+
+
 def test_a_standing_query_takes_matchs_guard(metta):
     """match() has guarded since it existed; a subscription could not.
 
