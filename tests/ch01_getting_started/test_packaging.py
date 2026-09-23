@@ -248,6 +248,45 @@ def test_every_extra_installs_packages_and_never_a_library():
     assert not set(extras["checks"]) & set(extras["test"])
 
 
+def test_the_engine_extra_is_the_complement_of_the_vendored_wheels():
+    """janus-swi installs exactly where no pymetta wheel carries the patched host.
+
+    tools/pymetta-host/assemble.sh builds one manylinux x86_64 wheel per CPython
+    the classifiers name, each carrying the patched SWI and its own bridge in
+    metta/_host. The engine extra must add janus-swi everywhere else and
+    nowhere there: missing it strands the py3-none-any install with no bridge,
+    and adding it beside a vendored bridge is the pairing metta._host refuses.
+    The marker's version bound is a fact about the classifiers, so it is
+    derived from them here rather than trusted.
+    """
+    from packaging.markers import default_environment  # noqa: PLC0415
+
+    manifest = _manifest()["project"]
+    prefix = "Programming Language :: Python :: 3."
+    vendored = {f"3.{c[len(prefix):]}" for c in manifest["classifiers"] if c.startswith(prefix)}
+    [janus] = [Requirement(r) for r in manifest["optional-dependencies"]["engine"]]
+    assert janus.name == "janus-swi"
+    newest = max(vendored, key=lambda v: int(v.split(".")[1]))
+    beyond = f"3.{int(newest.split('.')[1]) + 1}"
+    for platform in ("linux", "darwin", "win32"):
+        for machine in ("x86_64", "aarch64", "arm64", "AMD64"):
+            for implementation in ("CPython", "PyPy"):
+                for version in (*sorted(vendored), beyond):
+                    env = {
+                        **default_environment(),
+                        "sys_platform": platform,
+                        "platform_machine": machine,
+                        "platform_python_implementation": implementation,
+                        "python_version": version,
+                        "extra": "engine",
+                    }
+                    carries_host = (
+                        platform == "linux" and machine == "x86_64"
+                        and implementation == "CPython" and version in vendored
+                    )
+                    assert janus.marker.evaluate(env) is not carries_host, env
+
+
 def test_the_minimal_version_matrix_installs_no_optional_integration():
     """The floor matrix proves the suite skips cleanly without the extras.
 

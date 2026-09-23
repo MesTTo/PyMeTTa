@@ -24,6 +24,7 @@ from typing import Literal
 # closed-set: decides; policy=which packages each package may import, its foundations, from which layergen derives the import-linter contract, the lazy-import direction and the published layer orders; reads=none, it is the source
 BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "_layers": (),
+    "_host": (),
     "_lazy": (),
     # Stdlib only, so it is a foundation: it derives the seat and the workspace
     # from a file's own position and imports nothing of this package's.
@@ -35,7 +36,7 @@ BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "vocabularies": ("_atoms",),
     "_catalog": ("vocabularies", "_atoms", "_errors", "seam"),
     "doors": ("_catalog", "vocabularies", "_atoms", "_layers"),
-    "_binding": ("_roots", "_catalog", "_atoms", "_errors", "seam"),
+    "_binding": ("_host", "_roots", "_catalog", "_atoms", "_errors", "seam"),
     "_compile": ("_catalog", "_atoms", "_errors", "vocabularies"),
     "_spaces": ("_binding", "doors", "_catalog", "_atoms", "_errors", "seam", "_version"),
     "_declare": ("_roots", "_spaces", "_compile", "doors", "_catalog", "_atoms", "_errors", "seam"),

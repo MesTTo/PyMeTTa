@@ -449,13 +449,3 @@ collecting
 # outside Vulture's paths, and by its controls in tests/repository.
 _.defect_open
 
-# pymetta-host is a separately published wheel, so its consumers are outside
-# this repository by construction and Vulture cannot see them. Its own
-# README.md:24-26 is the contract: `import pymetta_host; pymetta_host.activate()`
-# points a process at the bundled host. SWIPL is the launcher path, read by
-# tools/pymetta-host/{canonicalise.py,build-swipl.sh,build-janus.sh}.
-activate
-SWIPL
-# setuptools calls this one, which the class says in its own comment:
-# `def has_ext_modules(self) -> bool:  # setuptools' own hook name`.
-_.has_ext_modules

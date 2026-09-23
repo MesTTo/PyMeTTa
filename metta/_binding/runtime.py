@@ -148,6 +148,7 @@ from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, Protocol, cast
 
+from metta._host import activate as activate_bundled_host
 from metta._lazy import lazy
 
 if TYPE_CHECKING:
@@ -499,14 +500,24 @@ def booted() -> bool:
     return _SHIM_LOADED.is_set()
 
 
-#: How each platform's package manager installs SWI-Prolog, so the refusal
-#: below can name a command rather than a requirement. Keyed by sys.platform.
-# closed-set: decides; policy=how each platform's package manager installs SWI-Prolog, so a refusal names a command; reads=none, it is the source
-_SWI_INSTALL = {
-    "linux": "sudo apt install swi-prolog   (or your distribution's equivalent)",
-    "darwin": "brew install swi-prolog",
-    "win32": "winget install SWI-Prolog.SWI-Prolog",
-}
+def _wheel_would_carry_host() -> bool:
+    """Whether a pymetta manylinux wheel exists for this interpreter and platform.
+
+    Read from the installed distribution's classifiers, the same facts
+    tools/pymetta-host/run.sh derives its build matrix from, so the answer
+    cannot drift from what was built. A checkout has no installed metadata,
+    and answers False.
+    """
+    import importlib.metadata  # noqa: PLC0415  -- the failure path pays this
+    import platform  # noqa: PLC0415
+
+    if (sys.platform, platform.machine(), sys.implementation.name) != ("linux", "x86_64", "cpython"):
+        return False
+    try:
+        classifiers = importlib.metadata.metadata("pymetta").get_all("Classifier") or []
+    except importlib.metadata.PackageNotFoundError:
+        return False
+    return f"Programming Language :: Python :: {sys.version_info[0]}.{sys.version_info[1]}" in classifiers
 
 
 def _no_engine(exc: ImportError) -> NoReturn:
@@ -519,8 +530,8 @@ def _no_engine(exc: ImportError) -> NoReturn:
     neither SWI-Prolog nor anything to do about it.
 
     The two cases need different answers and the difference is observable:
-    with no `swipl` on PATH the engine is absent, and with one there it is
-    present and janus was built against a DIFFERENT one. That second case is
+    janus is absent, or janus is present and was built against a DIFFERENT
+    SWI than the one it finds. That second case is
     reachable by upgrading SWI after installing, because pip caches the wheel
     it built for you and reuses it [measured 2026-08-29: a clean venv on a box
     carrying SWI 10 installed a cached janus built against SWI 9 and failed on
@@ -529,27 +540,42 @@ def _no_engine(exc: ImportError) -> NoReturn:
     import shutil  # noqa: PLC0415  -- the failure path pays this, not the import
 
     swipl = shutil.which("swipl")
-    install = _SWI_INSTALL.get(sys.platform, "install SWI-Prolog 9.3 or later")
     absent = isinstance(exc, ModuleNotFoundError) and exc.name == "janus_swi"
-    if absent and swipl is None:
-        # Nothing is in place: name both steps, in the order they must happen,
-        # because the second cannot build without the first.
-        msg = (
-            f"MeTTa runs on SWI-Prolog, which is a program rather than a "
-            f"Python package, so pip cannot install it and there is no "
-            f"`swipl` on your PATH. Two steps, in this order:\n\n"
-            f"    {install}\n"
-            f"    pip install 'pymetta[engine]'\n"
+    if absent:
+        # A manylinux wheel carries the patched host and its bridge
+        # (metta._host), so reaching here means this install came from the
+        # py3-none-any wheel, the sdist or a checkout. A stock SWI is no answer:
+        # the engine refuses to boot on one (engine/host_check.pl), so the
+        # remedy names the patched host rather than a package manager.
+        where = (
+            f"There is a SWI-Prolog at {swipl}, and no Python bridge to it. "
+            if swipl else ""
         )
-    elif absent:
-        # The engine is here and only the bridge is missing, which is what a
-        # plain `pip install pymetta` leaves on a machine that has SWI.
-        msg = (
-            f"SWI-Prolog is installed at {swipl}, and the Python bridge to it "
-            f"is not. It is an extra, so that installing this package cannot "
-            f"fail inside its build:\n\n"
-            f"    pip install 'pymetta[engine]'\n"
+        build = (
+            "build the patched SWI-Prolog as docs/patched-host.md describes "
+            "(https://github.com/MesTTo/MeTTa/blob/main/docs/patched-host.md), "
+            "then install the bridge against it"
         )
+        if _wheel_would_carry_host():
+            # The engine extra adds nothing here, because the marker cannot
+            # see that pip took the sdist or pure wheel instead of the one
+            # carrying the host; so this names the bridge itself.
+            msg = (
+                f"{where}The MeTTa engine runs only on a PATCHED SWI-Prolog, and "
+                f"pymetta's manylinux wheel for this platform carries one, but this "
+                f"install came from the source distribution or the pure wheel. "
+                f"Reinstall from the wheel:\n\n"
+                f"    pip install --force-reinstall --only-binary=pymetta pymetta\n\n"
+                f"On a musl system such as Alpine no wheel applies: {build}:\n\n"
+                f"    pip install janus-swi\n"
+            )
+        else:
+            msg = (
+                f"{where}The MeTTa engine runs only on a PATCHED SWI-Prolog. "
+                f"pymetta's manylinux x86_64 wheels carry one, so on Linux "
+                f"`pip install pymetta` is the whole install. Here, {build}:\n\n"
+                f"    pip install 'pymetta[engine]'\n"
+            )
     else:
         # janus is installed and cannot load: it was built against a different
         # SWI than the one on this machine.
@@ -881,6 +907,9 @@ def bridge() -> JanusBridge:
     with _LOCK:
         if _STATE.janus is None:
             try:
+                # First, because activation only steers an import that has not
+                # happened yet (metta._host explains why).
+                activate_bundled_host()
                 module = importlib.import_module("janus_swi")
             except ImportError as exc:
                 _no_engine(exc)
@@ -1173,7 +1202,14 @@ class Runtime:
                 msg
             )
         janus.consult(str(main_file))
-        janus.query_once("metta_qlf_boot:qlf_load_engine")
+        try:
+            janus.query_once("metta_qlf_boot:qlf_load_engine")
+        except janus.PrologError as exc:
+            # The engine refused before it loaded, as it does on a host without
+            # the patches it needs (engine/host_check.pl). Nothing is loaded that
+            # could classify the ball, so its own words are the error, raised as
+            # the type every other no-engine refusal here raises.
+            raise EngineError(_clean_message(exc)) from exc
         if helper_file.is_file():
             janus.consult(str(helper_file))
         logger.debug("consulted the MeTTa engine")

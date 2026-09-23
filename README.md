@@ -59,13 +59,15 @@ The engine supplies MeTTa semantics; Python supplies values, functions, storage 
 
 ## Installation
 
-Install the distribution into a Python environment with a matching SWI-Prolog and Janus installation.
+On Linux x86_64 with CPython 3.12, 3.13 or 3.14, the wheel carries the patched SWI-Prolog the engine runs on, with its bridge, so this is the whole install:
 
 ```sh
 pip install PyMeTTa
 python -m metta --version
 python -m metta llms
 ```
+
+Anywhere else, build the patched host as [docs/patched-host.md](https://github.com/MesTTo/MeTTa/blob/main/docs/patched-host.md) describes and install `pip install 'PyMeTTa[engine]'` for the bridge. The engine refuses to boot on a stock SWI-Prolog and names the patches it lacks.
 
 A checkout can select its engine through `METTA_PATH`, while the installed distribution carries its runtime.
 

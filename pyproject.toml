@@ -104,22 +104,21 @@ metta = "metta._pygments:MettaLexer"
 metta = "metta.cli:main"
 
 [project.optional-dependencies]
-#: The engine's host. `pip install pymetta[engine]` is one command whether or
-#: not the reader already has SWI, while a plain install stays the one that
-#: cannot fail before this package can speak for itself.
+#: The engine's bridge, for the installs whose wheel carries no host.
 #:
-#: Two rows because there is one dimension: whether a pymetta-host wheel exists
-#: for this platform. Where it does, it carries the PATCHED SWI the engine
-#: needs, so nothing has to be installed or built by hand; where it does not,
-#: janus-swi binds whatever SWI the reader supplies. The rows must PARTITION
-#: rather than overlap: pymetta-host vendors its bridge under `_vendor` and
-#: refuses to run beside a foreign `janus_swi`, so installing both is the split
-#: that refusal exists to catch. PEP 508's marker grammar has no `not`, so the
-#: complement of `linux and x86_64` is spelled out as the `or` of the negated
-#: halves [source: https://peps.python.org/pep-0508/#grammar].
+#: The engine runs only on a PATCHED SWI (docs/host-workarounds.md), and the
+#: Linux x86_64 wheels for the CPython versions the classifiers name carry one
+#: in metta/_host with the janus bridge built against it, so there nothing is
+#: added and `pip install pymetta` is the whole install. Everywhere else the
+#: py3-none-any wheel installs, the reader supplies a patched SWI, and this row
+#: supplies janus to bind it; the engine refuses a stock one at boot
+#: (engine/host_check.pl). The marker is the complement of that wheel matrix,
+#: spelled as an `or` of negated halves because PEP 508's grammar has no `not`
+#: [source: https://peps.python.org/pep-0508/#grammar], and
+#: test_the_engine_extra_is_the_complement_of_the_vendored_wheels holds its
+#: python_version bound to the classifiers.
 engine = [
-    "pymetta-host>=0.9.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
-    "janus-swi>=1.5.2; sys_platform != 'linux' or platform_machine != 'x86_64'",
+    "janus-swi>=1.5.2; sys_platform != 'linux' or platform_machine != 'x86_64' or platform_python_implementation != 'CPython' or python_version >= '3.15'",
 ]
 #: EVERY extra below installs PACKAGES, never libraries. pymetta ships zero
 #: integrations (the ruling of 2026-09-07): each library the Python seat can be
@@ -855,7 +854,7 @@ layers = [
     "_atoms",
     "_errors",
     "seam",
-    "_layers | _lazy | _roots | _version",
+    "_host | _layers | _lazy | _roots | _version",
 ]
 # end generated package layers
 
