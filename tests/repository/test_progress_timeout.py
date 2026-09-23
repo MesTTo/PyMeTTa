@@ -10,10 +10,10 @@ Guarantees:
     process so that it takes about twice that in wall time, passes a 3s
     budget, and the same item under pytest-timeout's own wall-clock timer does
     not [tested: test_a_contended_item_is_timed_by_its_progress;
-    commit=WORKTREE]
+    commit=51660d49c0291583453328617e311fad6ff028f0]
   - an item that sleeps is stopped once its budget has passed, with
     pytest-timeout's own Timeout report [tested:
-    test_a_blocked_item_is_still_stopped; commit=WORKTREE]
+    test_a_blocked_item_is_still_stopped; commit=51660d49c0291583453328617e311fad6ff028f0]
 Open Obligations:
   To Do: None
   Hacks: None

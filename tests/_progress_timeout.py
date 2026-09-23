@@ -32,7 +32,7 @@ Guarantees:
   - a CPU-bound item that a competing process holds to half a CPU is timed
     by the work it did, and an item that blocks is still stopped after its
     budget [tested: test_a_contended_item_is_timed_by_its_progress,
-    test_a_blocked_item_is_still_stopped; commit=WORKTREE]
+    test_a_blocked_item_is_still_stopped; commit=51660d49c0291583453328617e311fad6ff028f0]
 Fails when:
   - the item's work runs on OTHER threads while its own thread waits for
     them: their contention is not subtracted, so the bound tightens back

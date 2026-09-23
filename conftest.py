@@ -14,7 +14,7 @@ Guarantees:
     ext/metta-pandas/tests/test_pandas.py; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - every run under this rootdir loads `tests._xdist_scheduling` and
     `tests._progress_timeout` [tested: test_the_suite_loads_the_restart_scheduler,
-    test_the_suite_times_items_by_progress; commit=WORKTREE]
+    test_the_suite_times_items_by_progress; commit=51660d49c0291583453328617e311fad6ff028f0]
 Open Obligations:
   To Do: None
   Hacks: None
