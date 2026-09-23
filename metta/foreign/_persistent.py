@@ -45,7 +45,7 @@ Guarantees:
   - an argument that is a handle (a space, a native blob, a carried engine
     term) is refused in words before anything is journalled
     [tested: test_a_persistent_space_refuses_a_carried_term_by_name;
-    commit=WORKTREE]
+    commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad]
   - every supported mutation crosses this engine's hooks, so subscriptions
     receive each committed write once in order while rolled-back provider
     transactions remain unjournaled and unannounced

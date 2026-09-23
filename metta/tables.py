@@ -57,7 +57,7 @@ Guarantees:
   - a cell holding a native blob or a carried engine term is refused before
     anything is written, each naming what it is [tested:
     test_table_storage_refuses_native_handles_before_writing,
-    test_a_table_bridge_refuses_a_carried_term_by_name; commit=WORKTREE]
+    test_a_table_bridge_refuses_a_carried_term_by_name; commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad]
   - a database row becomes an atom from its typed cell values; plain text is
     always a symbol, NULL is Grounded(None), and a structured value is one tagged
     TEXT cell carrying the atom wire rather than the source parser [tested:

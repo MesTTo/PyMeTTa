@@ -89,7 +89,7 @@ Guarantees:
     the engine's own term, so what a provider stores and hands back is what a
     native space would hand back, a partial application included [tested:
     tests/ch19_spaces_backed_by_anything/test_provider_carry.py;
-    commit=WORKTREE]
+    commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad]
 Owns resources:
   Native provider occurrences retain registered objects. Transaction captures
   retain their original bound methods until completion; no Python registry

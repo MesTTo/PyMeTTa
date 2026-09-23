@@ -38,7 +38,7 @@ Guarantees:
     the atom's own, so two crossings of one term are one key, as alpha_eq
     calls them one atom [tested:
     test_two_crossings_of_one_carried_term_are_one_atom_up_to_renaming;
-    commit=WORKTREE]
+    commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad]
   - LiveView holds exactly what the space holds for its pattern, through
     adds and through removals whose event cannot say which occurrence left
     [tested test_liveview_mirrors_the_space]

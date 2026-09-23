@@ -15,7 +15,7 @@
 % Guarantees: every term a provider door hands Python crosses through
 %   metta_py_encode_carried/4, so a provider gives back what a native space
 %   gives back and a rational tree is refused as assertz refuses it [tested:
-%   tests/ch19_spaces_backed_by_anything/test_provider_carry.py; commit=WORKTREE].
+%   tests/ch19_spaces_backed_by_anything/test_provider_carry.py; commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad].
 % Guarantees: grounded_length/2 reads tuple arity or Python's Sized protocol
 %   without enumerating elements [tested:
 %   test_host_length_refinements_do_not_read_elements; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].

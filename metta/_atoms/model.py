@@ -149,7 +149,7 @@ Guarantees:
     test_removing_a_carried_term_removes_exactly_that_term,
     test_two_crossings_of_one_carried_term_are_one_atom_up_to_renaming,
     test_a_dropped_carried_term_hands_its_record_to_the_next_crossing;
-    commit=WORKTREE]
+    commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad]
   - a symbol answers the ambient space's origins for the head it names, and
     the empty tuple where nothing compiled under it [tested:
     test_a_symbol_answers_the_ambient_spaces_origins; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]

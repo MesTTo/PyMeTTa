@@ -6,12 +6,12 @@
 % Guarantees: a world's image reads back through the provider door's carried
 %   reading, so a commit hands a provider only what the world changed
 %   [tested: test_a_world_over_a_provider_commits_only_what_changed;
-%   commit=WORKTREE].
+%   commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad].
 % Guarantees: metta_py_world_rebase/4 replaces the origin's name and &self at
 %   every depth of a term, inside a carried compound as inside a list, so a
 %   stored partial applied in a world writes to the world [tested:
 %   test_a_stored_partial_applied_in_a_world_writes_to_the_world;
-%   commit=WORKTREE].
+%   commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad].
 
 %Plan the same direct or translated goal metta_py_eval/3 will call. Translation
 %may populate its ordinary invalidated template cache, but this seam creates no

@@ -31,7 +31,7 @@ Guarantees:
     [record, key, names] reference into a carried engine term, and refuses
     any other reference [tested:
     test_the_provider_meets_a_handle_exactly_where_the_grammar_would_change_the_term;
-    commit=WORKTREE]
+    commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad]
   - the tag alone decides the species: an s payload is a Symbol however it is
     spelled, because the engine's encoder asks metta_space_operand/1, the same
     test get-type asks before answering SpaceType, and writes p for every atom
