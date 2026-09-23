@@ -384,8 +384,10 @@ def test_a_rational_tree_is_refused_as_a_native_space_refuses_it(carry):
     """(let $x (a $x) ...) is refused by name, and the provider holds nothing.
 
     Before the door refused it, the encoder followed the cycle until the
-    engine's 7.5Gb stack limit, where a native space's assertz refuses at once
-    [measured 2026-09-24: the exploration in ai-tmp/ai-pc/explore.py].
+    engine's stack limit, where a native space's assertz refuses at once
+    [measured 2026-09-24: StackLimitError at the 7.5Gb limit, this test's
+    program against the door at
+    commit=5563480af32ac9e00708654acfe1ad8d9a8150fc, the carried door's parent].
     """
     store = _Store()
     with carry._new_space() as native, make_space(backing=store) as backed:
