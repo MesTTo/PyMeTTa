@@ -11,7 +11,7 @@ governed source from its artifact while an ungoverned nested source loads from
 source and gains no artifact; and two later processes read the same inference
 count [tested: test_the_first_import_compiles_each_half_once_in_a_child,
 test_a_later_process_loads_every_governed_source_from_its_artifact,
-test_two_later_processes_read_the_same_inference_count; commit=WORKTREE].
+test_two_later_processes_read_the_same_inference_count; commit=0a81c782fd6ba00984c36e58e228f73bca810dee].
 Assumes: the copied engine/ and lib/ boot on the host running this suite, and a
 `false` executable exists to stand in for a foreign swipl [assumed 2026-09-24].
 Owns resources: pytest owns the copied tree and the decoy; every subprocess is
