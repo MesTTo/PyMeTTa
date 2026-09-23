@@ -18,6 +18,11 @@ on install and a broken sibling on uninstall, and a rename is not the escape:
 janus names `janus_swi` in its Prolog half too, and its extension exports
 `PyInit__swipl`, so the name is part of the ABI rather than a label.
 
+This module never spells that name. What `_vendor/` holds is read from the
+directory itself, so the one site naming the bridge stays
+`metta._binding.runtime`, which imports it, and a vendored module added by
+assemble.sh is guarded without an edit here.
+
 Assumes: when `swipl/` is present, it and `_vendor/` were grafted by
     tools/pymetta-host/assemble.sh from ONE build, so the bridge links the
     libswipl this home belongs to.
@@ -27,6 +32,11 @@ Guarantees:
     a bundled bridge on a foreign home is the same ABI mismatch as a foreign
     bridge on this one [tested: extensions/python/tests/ch01_getting_started/test_host_activation.py;
     commit=WORKTREE]
+  - it refuses exactly the modules `_vendor/` holds that were already
+    imported from anywhere else, a module with no `__file__` included, and
+    no module `_vendor/` does not hold; a home whose `_vendor/` holds
+    nothing is refused as a damaged install
+    [tested: extensions/python/tests/ch01_getting_started/test_host_activation.py; commit=WORKTREE]
   - it is idempotent, and it refuses BEFORE any import, because `sys.path`
     cannot undo one: `sys.modules` is consulted first, so a path inserted
     after janus loaded changes nothing
@@ -40,6 +50,7 @@ Open Obligations:
 from __future__ import annotations
 
 import os
+import pkgutil
 import sys
 from pathlib import Path
 
@@ -55,16 +66,28 @@ def activate() -> Path | None:
     """Point this process at the bundled host and answer its home, or None when there is none."""
     if HOME is None:
         return None
-    loaded = sys.modules.get("janus_swi")
-    if loaded is not None:
-        where = Path(getattr(loaded, "__file__", "") or "").resolve()
-        if _VENDOR not in where.parents:
+    # pkgutil answers what a directory can be imported as, packages and
+    # single modules alike, which is the question a sys.path entry poses.
+    vendored = [module.name for module in pkgutil.iter_modules([str(_VENDOR)])]
+    if not vendored:
+        msg = (
+            f"this pymetta carries a SWI home at {HOME} and no bridge under {_VENDOR}, "
+            f"so the install is damaged and any janus found elsewhere would drive this home "
+            f"with another build's ABI. Reinstall pymetta."
+        )
+        raise RuntimeError(msg)
+    loaded = [sys.modules[name] for name in vendored if name in sys.modules]
+    for module in loaded:
+        file = getattr(module, "__file__", None)
+        where = Path(file).resolve() if file else None
+        if where is None or _VENDOR not in where.parents:
+            name = module.__name__
             msg = (
-                f"janus_swi was already imported from {where or 'an unknown location'}, "
-                f"and it is not the bridge this pymetta carries at {_VENDOR}. Driving the "
+                f"{name} was already imported from {where or 'an unknown location'}, "
+                f"and it is not the copy this pymetta carries at {_VENDOR}. Driving the "
                 f"bundled SWI home with another build's bridge is an ABI mismatch that "
                 f"crashes later and elsewhere, so it is refused here. Import metta before "
-                f"anything imports janus_swi, or uninstall janus_swi and let pymetta supply it."
+                f"anything imports {name}, or uninstall {name} and let pymetta supply it."
             )
             raise RuntimeError(msg)
     # Checked whether or not janus has loaded: a vendored bridge that loaded
@@ -78,7 +101,7 @@ def activate() -> Path | None:
             f"SWI_HOME_DIR to use the bundled host."
         )
         raise RuntimeError(msg)
-    if loaded is None:
+    if not loaded:
         os.environ["SWI_HOME_DIR"] = str(HOME)
         vendor = str(_VENDOR)
         if vendor not in sys.path:
