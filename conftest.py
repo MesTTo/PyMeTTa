@@ -12,7 +12,7 @@ Guarantees:
   - `import metta_<name>` works anywhere in this suite [tested:
     ext/metta-pandas/tests/test_pandas.py; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - every run under this rootdir loads `tests._xdist_scheduling`
-    [tested: test_the_suite_loads_the_restart_scheduler; commit=WORKTREE]
+    [tested: test_the_suite_loads_the_restart_scheduler; commit=8442aabdd634cb561d5eca2e55b58d69d4698a8a]
 Open Obligations:
   To Do: None
   Hacks: None

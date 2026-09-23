@@ -9,11 +9,11 @@ needed, which is its removal condition written as a test.
 Guarantees:
   - every scope scheduler xdist ships passes the restart scenarios with
     RestartSafe ahead of it [tested: test_the_restart_scheduler_passes_every_scenario;
-    commit=WORKTREE]
+    commit=8442aabdd634cb561d5eca2e55b58d69d4698a8a]
   - a worker that dies under --dist loadfile is replaced, the rest of its file
     runs on the replacement, and the test it died on is reported once
     [tested: test_a_crashed_worker_is_replaced_without_wedging_or_rerunning;
-    commit=WORKTREE]
+    commit=8442aabdd634cb561d5eca2e55b58d69d4698a8a]
 Open Obligations:
   To Do: None
   Hacks: None

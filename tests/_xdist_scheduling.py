@@ -35,7 +35,7 @@ Guarantees:
     none, and the test a worker died on is not run again
     [tested: test_the_restart_scheduler_passes_every_scenario,
     test_a_crashed_worker_is_replaced_without_wedging_or_rerunning;
-    commit=WORKTREE]
+    commit=8442aabdd634cb561d5eca2e55b58d69d4698a8a]
 Fails when:
   - the installed xdist's own class passes every scenario in `defects`. The
     override then stands aside and
