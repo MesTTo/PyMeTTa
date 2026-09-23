@@ -2,11 +2,15 @@
 may be published, and a reader's machine has no such user directory, so a
 citation spells its source repo-relative and anything that needs a checkout
 outside this repository derives it from this file's own position or takes it
-from an environment variable. Every tracked file is scanned but one: the
-reasoning record cites where a measurement was TAKEN, which is the provenance
-that makes the claim checkable rather than a path it sends a reader to, and
-it is tracked here by decision so it cannot stay out of the scan by staying
-out of git the way the tool's own default keeps it.
+from an environment variable. Every tracked file is scanned but two kinds.
+The reasoning record cites where a measurement was TAKEN, which is the
+provenance that makes the claim checkable rather than a path it sends a reader
+to, and it is tracked here by decision so it cannot stay out of the scan by
+staying out of git the way the tool's own default keeps it. And a file its
+repository marks `linguist-vendored` or `linguist-generated` in .gitattributes
+is third-party or generated output nobody here wrote: the WebAssembly host's
+loader creates the virtual home directory Emscripten gives every program,
+which names no machine.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,6 +38,22 @@ _WINDOWS_ROOT = re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\\\/](?:Users|home|a)[\\\\/
 _RECORD = "agenticmind.json"
 
 
+def _marked_foreign(repo_root, names):
+    """The names git marks vendored or generated, read in one check-attr call.
+
+    Each component's own .gitattributes decides for its files, and git reads it
+    through the submodule boundary, so the marking lives beside what it marks.
+    """
+    ran = subprocess.run(
+        ["git", "check-attr", "-z", "--stdin", "linguist-vendored", "linguist-generated"],
+        cwd=repo_root, input="\0".join(names), capture_output=True, text=True,
+        timeout=60, check=True,
+    )
+    fields = ran.stdout.split("\0")
+    return {path for path, _, value in zip(fields[0::3], fields[1::3], fields[2::3], strict=False)
+            if value in {"set", "true"}}
+
+
 def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     listing = subprocess.run(
         # Components are submodules, so a plain listing stops at each gitlink and this
@@ -48,9 +68,10 @@ def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D
         # thing and hides whatever the run was meant to catch.
         pytest.skip(f"git ls-files is unavailable here: {listing.stderr.strip()[:200]}")
     tracked = listing.stdout.splitlines()
+    exempt = _marked_foreign(repo_root, tracked)
     offenders = []
     for name in tracked:
-        if name.rpartition("/")[2] == _RECORD:
+        if name.rpartition("/")[2] == _RECORD or name in exempt:
             continue
         path = repo_root / name
         try:
