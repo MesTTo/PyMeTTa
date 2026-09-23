@@ -32,7 +32,7 @@ the terminal writer, which is the worker's stdout, and execnet points a
 worker's stdout at /dev/null [source: execnet 2.1.2 gateway_base.py
 init_popen_io], so the lane read a timed-out worker as a crashed one and kept
 no stack [tested: test_a_timeout_in_a_worker_is_reported_in_the_run's
-control; commit=WORKTREE]. A worker's stderr is the controller's own, so in a
+control; commit=4af48475dca72577e5f482c7a757bde3b49db6bb]. A worker's stderr is the controller's own, so in a
 worker stdout becomes a copy of stderr just before the report. Nothing else
 the worker writes changes route, since the process ends straight after.
 Assumes:
@@ -48,7 +48,7 @@ Guarantees:
   - an item timed out inside an xdist worker leaves pytest-timeout's banner,
     the line naming its progress and wall time, and every thread's stack in
     the run's output [tested: test_a_timeout_in_a_worker_is_reported_in_the_run;
-    commit=WORKTREE]
+    commit=4af48475dca72577e5f482c7a757bde3b49db6bb]
 Fails when:
   - the item's work runs on OTHER threads while its own thread waits for
     them: their contention is not subtracted, so the bound tightens back

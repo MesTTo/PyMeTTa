@@ -18,7 +18,7 @@ Guarantees:
     the line naming its progress and wall time, and its own frame in the run's
     output, where pytest-timeout's own timer in the same kind of worker leaves
     no banner [tested: test_a_timeout_in_a_worker_is_reported_in_the_run;
-    commit=WORKTREE]
+    commit=4af48475dca72577e5f482c7a757bde3b49db6bb]
 Open Obligations:
   To Do: None
   Hacks: None
