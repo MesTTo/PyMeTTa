@@ -372,11 +372,43 @@ _ROWS = 2_000
 # print(t._automatic_tabling_observations())" from extensions/python;
 # fixture=the merged tree with the governed set purged and warmed;
 # commit=8e6968ecb5b8725a67ac85995dbf71750011b04d].
+# Re-pinned 2026-09-23: plain +42 at every size and automatic +3262, +3366,
+# +3494 and +3574 at n = 12, 15, 18 and 20, the red this test carried from
+# 2026-09-19. Figures below are n=12, plain then automatic, and each step is
+# charged to one commit where the ladder split it to one and to a bracket of
+# the first-parent line where it did not. 8e6968ecb, the commit the old pins
+# name, reads -13 and -26 against them today, on this host and these C
+# objects. Then: 2398951d3 (compiled constructor checks) +32 and +60;
+# 613c9c7e2 (scoped contexts restored on inference cancellation) +5 and +70;
+# 560aaa42b (aborted assertions retired after nested SWI retractions) +252 and
+# +1162; 592dd1ea2 (reconciliation after native completion) +15 and +160;
+# f698c42e7 (indexed rows selected before their payloads) -78 and -130;
+# +2 and -8 in three small brackets up to e4fdf699f; +90 and +258 in
+# e4fdf699f..37d417bd0; +36 and +68 in f9ef614a0..bde3d2979; +5 and +5 in
+# ca783ee2a..079de6d64; 7ead07e09 (the host ledger's
+# swi-nested-retract-loses-outer-assert patched, the workaround 560aaa42b
+# added retired) -222 and -842; -33 and -71 in 79e25f591..8c35e7455; -86 and
+# -209 in bf5f10059..f93a46803; +50 and +100 in 79b1c62c4..f7f5b94ec; -5 and
+# -14 in 03e0e200c..09f49e46e; -13 and -26 in 09f49e46e..276b22a37, the
+# engine's absorption; nothing from there to 7af4035f0; then 814b99468
+# (self-call dependencies retained through native overload recompilation) +5
+# and +2705, the memoised definition's own recompilation. The steps sum
+# exactly to what HEAD reads at every size. The automatic arm's slope rose
+# from 377.5 to 416.5 inferences per unit of n: +52 at 560aaa42b, -32 at
+# 7ead07e09, +4, +10 and +6 at 613c9c7e2, 592dd1ea2 and e4fdf699f..37d417bd0,
+# and -1 at 814b99468. The class checks below still hold
+# [measured 2026-09-23: min of three observations per size and mode at
+# every first-parent point the ladder took, each tree rewound whole (the
+# engine, lib, ext and all four seats at that commit) with the governed set purged and warmed, and the
+# pinned values identical at engine digests 7f99385fb4990534, 115131d02243be68
+# and e3b0c44298fc1c14; command=python -c "import benchmarks.test_benchmarks
+# as t; print(t._automatic_tabling_observations())" from extensions/python;
+# commit=864d2deb34cd0b2b805a94055da60905a4171106].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_184, "automatic": 14_666},
-    15: {"plain": 953_672, "automatic": 15_796},
-    18: {"plain": 7_605_576, "automatic": 16_930},
-    20: {"plain": 30_412_104, "automatic": 17_686},
+    12: {"plain": 122_226, "automatic": 17_928},
+    15: {"plain": 953_714, "automatic": 19_162},
+    18: {"plain": 7_605_618, "automatic": 20_424},
+    20: {"plain": 30_412_146, "automatic": 21_260},
 }
 
 
