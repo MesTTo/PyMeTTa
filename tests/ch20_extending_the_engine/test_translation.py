@@ -20,7 +20,7 @@ Guarantees:
     computed from examples/ and the library roster with the expander the
     comparison uses, and only a library's runner is written by hand
     [tested: test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus;
-    commit=WORKTREE]
+    commit=94dfe46c7880fdfc44d388eca3b356018a0b5305]
   - `let*` under another name binds the body with the bindings the caller
     wrote, and refuses a value that is not bindings naming the form
     [tested: test_let_star_with_an_unarrived_bindings_list_does_not_drop_them]
