@@ -39,8 +39,10 @@ def _release_abandoned_world(home: str) -> None:
     Enqueued rather than called, because a finaliser may only enqueue: it runs
     at a point no caller chooses, on any thread, possibly inside a crossing
     already [docs/journal/2026-09-06-finalisers-must-not-call-prolog.md]. This
-    one was the last `rt.must` left in a weakref callback, with its failure
-    swallowed by `contextlib.suppress` rather than deferred.
+    one was an `rt.must` in a weakref callback, with its failure swallowed by
+    `contextlib.suppress` rather than deferred, and it was not the last: the
+    Channel and Debugger backstops crossed the same way until they were moved
+    onto the queue too.
 
     And it DROPS rather than releases, so an abandoned world's name is retired
     instead of returning to the anonymous pool. The pool is a queue served

@@ -99,10 +99,11 @@ Guarantees:
     test_future_iteration_does_not_resnapshot_per_quiet_wait,
     test_future_iteration_watermark_separates_snapshot_from_later_events;
     commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
-  - an abandoned Channel destroys its SWI message queue from whichever thread
-    collects the Python handle [tested:
-    test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;
-    commit=8909645dc7b390e4c6e7af77bfc75791c4f0aea1]
+  - an abandoned Channel's SWI message queue is destroyed by the first engine
+    crossing after the Python handle is collected, on whichever thread; the
+    collecting thread only enqueues the release [tested:
+    test_channels_abandoned_on_another_thread_release_their_swi_queues;
+    commit=WORKTREE]
 Fails when:
   - the work is not engine-bound. A pool costs one thread and one engine per
     worker, so fanning out calls that are already fast buys queueing overhead
@@ -116,7 +117,7 @@ Owns:
     worker, from the first submit until shutdown(), plus the SimpleQueue
     carrying those workers' boot timings.
   - a Channel's foreign space, released by drop(), close(), context exit or a
-    finalizer retaining its runtime and name; a scope retains owned channels
+    finalizer that hands its name to the deferred engine queue; a scope retains owned channels
     through its library resource rows [tested:
     test_body_failure_cancels_a_pending_timer_and_releases_its_channel;
     commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
@@ -176,7 +177,7 @@ from metta._atoms.factories import (
     _atom_from_wire,
     _to_atom,
 )
-from metta._binding.runtime import Runtime, engine_thread, forked, runtime
+from metta._binding.runtime import Runtime, defer_engine_call, engine_thread, forked, runtime
 from metta._catalog.call_values import is_parametric_space
 from metta._errors.errors import EngineError, MettaError, Timeout
 from metta._faces.metta import MeTTa
@@ -1432,31 +1433,24 @@ class Channel(Space):
     def __init__(self, owner: Space, handle: Any) -> None:  # noqa: D107 -- channel() is the public constructor and documents this state
         super().__init__(handle, _runtime=owner.runtime)
         self._owner = owner
-        # weakref.finalize keeps the callback alive without keeping this
-        # Channel alive. A static callback is load-bearing: a bound method
-        # would retain self and therefore prevent the collection it awaits.
-        # https://docs.python.org/3.14/library/weakref.html#weakref.finalize
+        # The abandonment backstop hands the release over rather than making
+        # it: a finaliser runs at a point no caller chose, on any thread,
+        # possibly inside a crossing, so it may only enqueue
+        # [source: docs/journal/2026-09-06-finalisers-must-not-call-prolog.md].
+        # The next crossing releases the space, which is what close() reaches
+        # through drop(), and lib_thread's seam:space_released/1 destroys the
+        # SWI queue with it, finding nothing to do for a channel its scope
+        # released first [source: lib/lib_thread/lib_thread.pl:seam:space_released/1].
+        # The callback is a module function, never a bound method, which
+        # would retain self and so prevent the collection it waits for
+        # [source: https://docs.python.org/3.14/library/weakref.html#weakref.finalize].
         self._finalizer = _weakref.finalize(
-            self, Channel._reap, self._owner.runtime, self._name
+            self, defer_engine_call, "metta_py_drop_space", self._name
         )
 
     @property
     def _handle(self) -> str:
         return str(self._space)
-
-    @staticmethod
-    def _reap(rt: Runtime, handle: Any) -> None:
-        try:
-            # A finalizer can run on an arbitrary bare Python thread. Use the
-            # eager bridge crossing used by Cursor._reap: opening a lazy
-            # Answers cursor here leaves a Janus query object's destructor on
-            # that foreign thread, which can unregister atoms after its
-            # temporary SWI engine has detached.
-            rt.apply_must("channel_close", handle)
-        except MettaError:
-            # Closed already, released by its scope, or the engine is gone:
-            # each is a channel that needs no reaping.
-            logger.debug("channel finalization found the channel gone", exc_info=True)
 
     def send(self, term: Any) -> bool:
         """Block until capacity admits one copied term."""

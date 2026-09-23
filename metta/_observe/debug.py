@@ -20,8 +20,9 @@ Guarantees:
     test_breakpoints_can_be_changed_while_the_program_is_suspended;
     commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f]
   - the session's wrappers come off at close, so a later trace or run is
-    untouched, and a dropped Debugger is reaped by its finalizer [tested:
-    test_a_debug_session_leaves_the_engine_as_it_found_it; commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f]
+    untouched, and a dropped Debugger is reaped by the first engine crossing
+    after its collection, its finalizer only enqueuing the close [tested:
+    test_a_debug_session_leaves_the_engine_as_it_found_it; commit=WORKTREE]
   - inferences bound the WHOLE session cumulatively, so a resume that would
     never reach another breakpoint stops [tested:
     test_an_inference_bound_stops_a_resume_that_would_never_return;
@@ -38,7 +39,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-import logging
 import weakref
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -46,14 +46,13 @@ from typing import TYPE_CHECKING, Any
 import metta._spaces.lifetime as _scope
 import metta.doors as _doors
 from metta._atoms.factories import Atom, _atom_from_wire
+from metta._binding.runtime import defer_engine_call
 from metta._errors.errors import EngineError, MettaError
 from metta._lazy import lazy
 from metta._observe.trace import _as_source, _selected_names
 from metta._spaces.execution import _controlled_run
 
 __all__ = ["Debugger", "Stop", "debug"]
-
-logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Stop:
@@ -142,22 +141,18 @@ class Debugger:
         )
         # The last guard, not the contract: a Debugger dropped without
         # closing would leave the tracer's wrappers on every compiled
-        # function and refuse the next session, so the engine is reaped from
-        # whichever thread collection runs on.
-        self._finalizer = weakref.finalize(self, self._reap, self._rt, self._handle)
+        # function and refuse the next session, so its collection hands the
+        # close to the next crossing. A finaliser only enqueues: it runs at a
+        # point no caller chose, on any thread, possibly inside a crossing
+        # [source: docs/journal/2026-09-06-finalisers-must-not-call-prolog.md].
+        self._finalizer = weakref.finalize(
+            self, defer_engine_call, "metta_py_debug_close", self._handle
+        )
         try:
             _scope.own("cleanup", self.close)
         except BaseException:
             self.close()
             raise
-
-    @staticmethod
-    def _reap(runtime, handle) -> None:
-        try:
-            runtime.do("metta_py_debug_close", handle)
-        except EngineError:
-            # A finalizer has no caller; close() still reports failures.
-            logger.debug("debugger finalization found an unavailable engine", exc_info=True)
 
     def __iter__(self):
         return self

@@ -16,10 +16,10 @@ Guarantees:
     complete before the blocker is released [tested:
     test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
     commit=c6e1198c490a824b96f6fc6e1c0622a542917024]
-  - an abandoned Channel destroys its SWI message queue from whichever thread
-    collects it [tested:
-    test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;
-    commit=8909645dc7b390e4c6e7af77bfc75791c4f0aea1]
+  - an abandoned Channel's SWI message queue is destroyed by the first engine
+    crossing after another thread collects it [tested:
+    test_channels_abandoned_on_another_thread_release_their_swi_queues;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -49,8 +49,11 @@ def _live_channels() -> int:
     )["N"]
 
 
-def test_abandoned_channels_destroy_their_swi_queues_from_collector_thread():
-    """Collection is the backstop when explicit close was omitted."""
+def test_channels_abandoned_on_another_thread_release_their_swi_queues():
+    """Collection is the backstop when explicit close was omitted. The thread
+    that collects only enqueues each release, so the count read afterwards,
+    itself a crossing, sees every queue already gone.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     with channel(max=1):
         pass  # load lib_thread before taking the baseline
     baseline = _live_channels()
