@@ -19,7 +19,7 @@ Guarantees:
   - an abandoned Channel's SWI message queue is destroyed by the first engine
     crossing after another thread collects it [tested:
     test_channels_abandoned_on_another_thread_release_their_swi_queues;
-    commit=WORKTREE]
+    commit=44e52aae19d86b9ba42342c012492089514048bb]
 Open Obligations:
   To Do: None
   Hacks: None

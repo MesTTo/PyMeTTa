@@ -103,7 +103,7 @@ Guarantees:
     crossing after the Python handle is collected, on whichever thread; the
     collecting thread only enqueues the release [tested:
     test_channels_abandoned_on_another_thread_release_their_swi_queues;
-    commit=WORKTREE]
+    commit=44e52aae19d86b9ba42342c012492089514048bb]
 Fails when:
   - the work is not engine-bound. A pool costs one thread and one engine per
     worker, so fanning out calls that are already fast buys queueing overhead

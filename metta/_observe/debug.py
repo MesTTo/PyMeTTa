@@ -22,7 +22,7 @@ Guarantees:
   - the session's wrappers come off at close, so a later trace or run is
     untouched, and a dropped Debugger is reaped by the first engine crossing
     after its collection, its finalizer only enqueuing the close [tested:
-    test_a_debug_session_leaves_the_engine_as_it_found_it; commit=WORKTREE]
+    test_a_debug_session_leaves_the_engine_as_it_found_it; commit=44e52aae19d86b9ba42342c012492089514048bb]
   - inferences bound the WHOLE session cumulatively, so a resume that would
     never reach another breakpoint stops [tested:
     test_an_inference_bound_stops_a_resume_that_would_never_return;
