@@ -71,7 +71,12 @@ PROVIDERS = {
 
 @pytest.fixture(params=PROVIDERS)
 def native_library(tmp_path, request):
-    """Copy each owner's inputs and the shared helper, excluding built objects."""
+    """Copy each owner's inputs and the shared helpers, excluding built objects.
+
+    Two helpers: native_build.pl builds a library's object and native_install.pl
+    loads it, or on a host that links foreign code statically activates the half
+    it was built with; every support/native.pl imports both.
+    """
     name = request.param
     source, loader, probe, remedy = PROVIDERS[name]
     library = tmp_path / "lib" / f"lib_{name}"
@@ -80,9 +85,10 @@ def native_library(tmp_path, request):
         inputs = origin / directory
         if inputs.is_dir():
             shutil.copytree(inputs, library / directory, ignore=shutil.ignore_patterns("*.qlf"))
-    shared = library.parent / "_support/native_build.pl"
-    shared.parent.mkdir(parents=True)
-    shutil.copy2(ROOT / "lib/_support/native_build.pl", shared)
+    shared = library.parent / "_support"
+    shared.mkdir(parents=True)
+    for helper in ("native_build.pl", "native_install.pl"):
+        shutil.copy2(ROOT / "lib/_support" / helper, shared / helper)
     return NativeLibrary(library, name, library / source,
                          f"use_module('{loader}'), {probe}", remedy)
 
@@ -301,6 +307,7 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert any(name.endswith("/lib/lib_regex/vendor/pcre4pl.c") for name in source_names)
     assert any(name.endswith("/lib/lib_crypto/support/crypto_native.c") for name in source_names)
     assert any(name.endswith("/lib/_support/native_build.pl") for name in source_names)
+    assert any(name.endswith("/lib/_support/native_install.pl") for name in source_names)
     assert any(name.endswith("/lib/lib_csv/support/csv_codec.pl") for name in source_names)
     assert any(name.endswith("/engine/owned_resources.pl") for name in source_names)
     assert any(name.endswith("/engine/packages.pl") for name in source_names)
@@ -333,6 +340,7 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert "metta/_runtime/lib/lib_regex/support/native_build.pl" in names
     assert "metta/_runtime/lib/lib_crypto/support/crypto_native.c" in names
     assert "metta/_runtime/lib/_support/native_build.pl" in names
+    assert "metta/_runtime/lib/_support/native_install.pl" in names
     assert "metta/_runtime/lib/lib_csv/support/csv_codec.pl" in names
     assert "metta/_runtime/engine/owned_resources.pl" in names
     assert "metta/_runtime/engine/packages.pl" in names
