@@ -1204,11 +1204,21 @@ class Runtime:
         janus.consult(str(main_file))
         try:
             janus.query_once("metta_qlf_boot:qlf_load_engine")
+            # The patches to janus are this bridge's to require, not the
+            # engine's, because no other host loads janus. They are generated
+            # beside this file by `declare-host.sh require packages/swipy` and
+            # held to the same declaration by the engine's own check.
+            janus.consult(str(Path(__file__).with_name("host_patches.pl")))
+            janus.query_once(
+                "findall(_F-_S, metta_host_patches_packages_swipy:host_patch(_F, _S), _R), "
+                "metta_host_check:metta_require_host_patches('PyMeTTa''s janus bridge', _R)"
+            )
         except janus.PrologError as exc:
             # The engine refused before it loaded, as it does on a host without
-            # the patches it needs (engine/host_check.pl). Nothing is loaded that
-            # could classify the ball, so its own words are the error, raised as
-            # the type every other no-engine refusal here raises.
+            # the patches it needs (engine/host_check.pl), or this bridge refused
+            # for its own. Nothing is loaded that could classify the ball, so its
+            # own words are the error, raised as the type every other no-engine
+            # refusal here raises.
             raise EngineError(_clean_message(exc)) from exc
         if helper_file.is_file():
             janus.consult(str(helper_file))
