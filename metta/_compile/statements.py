@@ -2000,8 +2000,17 @@ def _generator_bound_names(node: ast.AST) -> set[str]:
 def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> set[str]:
     """Backward liveness: a write kills its previous value; branch inputs join.
 
-    Lambdas and comprehensions bind their own parameters. A raising path has
-    no successor, and an unmatched case keeps the ordinary fallthrough edge.
+    Lambdas and comprehensions bind their own parameters. A raising or
+    returning path has no successor, and an unmatched case keeps the ordinary
+    fallthrough edge. A loop is live at its head in its test or iterable, in
+    what its else block and the code after it read, and in what its body reads
+    before writing, taken with nothing live after the body. That is the whole
+    back-edge fixpoint and not a first step of it: liveness is gen/kill, so
+    the body's live-in over the head's live set adds only names already in it,
+    and a body leaves only through its head because break and continue do not
+    compile. Visiting a while as one statement read every name in it and
+    killed none, so `j = 0` before `while j < n` in a later loop still left a
+    finished for's `j` live.
     """
     live = following.copy()
     for node in reversed(statements):
@@ -2037,9 +2046,12 @@ def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> se
             reader.visit(node.subject)
         elif isinstance(node, ast.For):
             body = _generator_live_names(node.body, set())
-            live.update(body - _generator_bound_names(node.target))
+            live = _generator_live_names(node.orelse, live) | (body - _generator_bound_names(node.target))
             reader.visit(node.iter)
-        elif isinstance(node, ast.Raise):
+        elif isinstance(node, ast.While):
+            live = _generator_live_names(node.orelse, live) | _generator_live_names(node.body, set())
+            reader.visit(node.test)
+        elif isinstance(node, (ast.Raise, ast.Return)):
             live = set()
             reader.visit(node)
         else:

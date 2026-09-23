@@ -26,6 +26,14 @@ Guarantees:
     target gets the same refusal as an existing target and a later write
     replaces either [tested: test_loop_variable_read_after_for_is_refused,
     test_a_rebinding_after_for_does_not_read_the_loop_target; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+  - that liveness follows a later loop's test, body order and else block, and
+    stops at a return: a write inside a later while replaces the target, a
+    read in a later while test or for-else is refused, and a return ends what
+    an enclosing loop's state could read [tested:
+    test_a_rebinding_inside_a_later_while_does_not_read_the_loop_target,
+    test_a_later_while_test_reading_the_loop_target_is_refused,
+    test_a_return_ends_what_the_loop_target_reaches,
+    test_a_read_in_a_later_for_else_is_refused; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None

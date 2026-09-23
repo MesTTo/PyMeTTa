@@ -691,6 +691,73 @@ def test_a_rebinding_after_for_does_not_read_the_loop_target(m, values):
     assert list(rebound(99, values)) == [7]
 
 
+@pytest.mark.parametrize("values", [[], [1, 2]])
+def test_a_rebinding_inside_a_later_while_does_not_read_the_loop_target(m, values):
+    """A write in a later loop's body, before that loop reads the name, kills the target too.
+
+    The fuzzer's shape: a finished for's target reused as a later loop's
+    counter. Visiting the while as one statement counted every read in it.
+    """
+    @m.define
+    def recount(xs):
+        total = 0
+        for j in xs:
+            total = total + j
+        i = 0
+        while i < 1:
+            j = 0
+            while j < 2:
+                j += 1
+            total = total + j
+            i += 1
+        return total
+
+    assert list(recount(values)) == [sum(values) + 2]
+
+
+def test_a_later_while_test_reading_the_loop_target_is_refused(m):
+    """A while's test runs before its body, so reading the target there reads its last element."""
+    with pytest.raises(CompileError, match="after the loop"):
+
+        @m.define
+        def peek(xs):
+            for j in xs:  # noqa: B007 -- the target is read by the while below, which is what is refused
+                pass
+            while j < 0:
+                j += 1
+            return 0
+
+
+def test_a_return_ends_what_the_loop_target_reaches(m):
+    """Nothing runs after a return, so the enclosing loop's use of the name is no read of the target."""
+    @m.define
+    def first_round(xs):
+        j = 0
+        while j < 3:
+            for j in xs:  # noqa: B007 -- the enclosing loop's name, rebound on purpose
+                pass
+            return 0
+        return j
+
+    assert list(first_round([5])) == [0]
+    assert list(first_round([])) == [0]
+
+
+def test_a_read_in_a_later_for_else_is_refused(m):
+    """A later for's else block runs after its loop, so reading the target there reads its last element."""
+    with pytest.raises(CompileError, match="after the loop"):
+
+        @m.define
+        def trailing(xs, ys):
+            for j in xs:  # noqa: B007 -- the target is read in the else block below, which is what is refused
+                pass
+            for _k in ys:
+                pass
+            else:
+                last = j
+            return last
+
+
 def test_annotations_declare_types_for_defines(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dtyped(x: int) -> int:
