@@ -113,9 +113,13 @@ def test_reference_except_and_compiled_exception_dispatch_coexist(metta):
 
 def test_a_card_reads_the_loaded_library_home(tmp_path, metta):
     """Card visibility and source origins come from the home's live claims."""
+    # A library is its manifest beside the lib.metta that is the library,
+    # which is what the roster reads since ad21ad93d; a lone lib_claims.metta
+    # is a layout it no longer sees, and the card refused an empty roster.
     folder = tmp_path / "lib" / "lib_claims"
     folder.mkdir(parents=True)
-    source = folder / "lib_claims.metta"
+    (folder / "pkg.metta").write_text('(= (package requires) "lib.metta")\n', encoding="utf-8")
+    source = folder / "lib.metta"
     source.write_text(
         '(internal claims-hidden)\n'
         '(@doc claims-visible (@desc "visible documentation"))\n'

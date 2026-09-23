@@ -262,9 +262,12 @@ def test_a_package_declared_library_imports_by_its_declared_name(space, tmp_path
     (metadata / "entry_points.txt").write_text(
         f"[metta.libraries]\n{name} = {package}:sources\n", encoding="utf-8"
     )
+    # The directory is entered through its manifest, pkg.metta, never through
+    # a file named for the directory: 89268f5d5 moved the finder there, so a
+    # planted <name>/<name>.metta tested a layout nothing reads any more.
     shipped = site / package / "metta" / name
     shipped.mkdir(parents=True)
-    (shipped / f"{name}.metta").write_text(
+    (shipped / "pkg.metta").write_text(
         f'(@doc {name} (@desc "rules a package ships"))\n(= (shipped) 42)\n',
         encoding="utf-8",
     )
@@ -274,7 +277,7 @@ def test_a_package_declared_library_imports_by_its_declared_name(space, tmp_path
     with importing.install(space, path=[]):
         try:
             module = importlib.import_module(name)
-            assert module.__file__ == str(shipped / f"{name}.metta")
+            assert module.__file__ == str(shipped / "pkg.metta")
             assert module.__doc__ == f"{name}: rules a package ships"
             assert space.eval(module.shipped()) == [metta_module.ground(42)]
         finally:
@@ -320,14 +323,14 @@ def test_a_compressed_source_and_a_library_directory_are_both_found(space, tmp_p
 
     `.metta`, the `.metta.gz` the CLI and `import!` already read under the
     same name, and the library layout where a directory named for the
-    library holds its surface.
+    library is entered through its manifest, `pkg.metta`.
     """
     zipped = fresh("zipped")
     with gzip.open(tmp_path / f"{zipped}.metta.gz", "wt", encoding="utf-8") as handle:
         handle.write("(= (compressed) 1)\n")
     nested = fresh("nested")
     (tmp_path / nested).mkdir()
-    (tmp_path / nested / f"{nested}.metta").write_text("(= (inside) 2)\n", encoding="utf-8")
+    (tmp_path / nested / "pkg.metta").write_text("(= (inside) 2)\n", encoding="utf-8")
 
     with importing.install(space, path=tmp_path):
         compressed = importlib.import_module(zipped)
@@ -335,7 +338,7 @@ def test_a_compressed_source_and_a_library_directory_are_both_found(space, tmp_p
         assert space.eval(compressed.compressed()) == [metta_module.ground(1)]
 
         directory = importlib.import_module(nested)
-        assert directory.__file__ == str(tmp_path / nested / f"{nested}.metta")
+        assert directory.__file__ == str(tmp_path / nested / "pkg.metta")
         assert space.eval(directory.inside()) == [metta_module.ground(2)]
 
 
