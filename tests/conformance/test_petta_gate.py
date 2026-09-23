@@ -49,10 +49,16 @@ def _pin(tmp_path: Path, entries: dict[str, tuple[str, str, str]]) -> Path:
 
 
 def _gate(pin: Path) -> subprocess.CompletedProcess:
+    # The runner starts `swipl` from PATH, and this interpreter exports the
+    # SWI_HOME_DIR its environment is bound to, so PATH names that
+    # environment's own bin first, the rule tools/select-python.sh applies to
+    # every gate. /usr/bin:/bin alone paired a stock swipl with the patched
+    # home, which engine/host_check.pl refuses by design.
     return subprocess.run(
         [sys.executable, str(RUNNER), "--gate", "--timeout", "90"],
         cwd=ROOT, capture_output=True, text=True,
-        env={"PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "PETTA_PIN": str(pin)},
+        env={"PATH": f"{Path(sys.executable).parent}:/usr/bin:/bin",
+             "HOME": str(Path.home()), "PETTA_PIN": str(pin)},
         check=False,
     )
 
