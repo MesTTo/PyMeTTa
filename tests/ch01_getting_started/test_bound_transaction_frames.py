@@ -37,7 +37,7 @@ sys.path.insert(0, str(next(
     if (ancestor / "pyproject.toml").exists() or (ancestor / ".git").exists()
 )))
 
-from metta._roots import workspace  # noqa: E402,I001 -- the line above is what makes this importable in a spawned child, so sorting it into the block above is not allowed
+from metta._roots import workspace  # noqa: I001 -- the line above is what makes this importable in a spawned child, so sorting it into the block above is not allowed
 
 ROOT = workspace()
 
