@@ -125,7 +125,7 @@ from metta_benchmarking import measure_instructions, measured_main
 from benchmarks import atomic_json, collect_worker, curves
 from benchmarks.configuration import counter_configuration
 from metta import S, Space, V, engine
-from metta._roots import seat
+from metta._roots import seat, workspace
 
 SCHEMA_VERSION = 1
 DEFAULT_REPETITIONS = 3
@@ -821,14 +821,14 @@ def selfcheck() -> list[str]:
         finally:
             workload.space.drop()
 
-    reader = "c" if (_BINDING_ROOT.parents[1] / "engine" / "reader.so").exists() else "prolog"
+    reader = "c" if (workspace() / "engine" / "reader.so").exists() else "prolog"
     #mork-write asked the same question as parse-forms and then ignored the
     #answer: it expected 'foreign' whether or not the backend was built. A tree
     #without libmork_ffi.so routes the write to the engine's own store, which
     #is the correct behaviour there, so the check reported the unbuilt
     #configuration as a defect.
     mork_artefact = (
-        _BINDING_ROOT.parents[1]
+        workspace()
         / "extensions" / "mork" / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
     )
     mork = "foreign" if mork_artefact.exists() else "native"

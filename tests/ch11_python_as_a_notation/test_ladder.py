@@ -45,7 +45,7 @@ import metta
 import metta.aio as _aio_surface
 from metta import MettaError, S, V
 from metta._errors.errors import InferenceLimitError
-from metta._roots import seat
+from metta._roots import seat, workspace
 from metta._spaces.scope import _apply_limited, _limits
 
 
@@ -152,7 +152,7 @@ def test_module_tier_speculate_discards_default_space_writes() -> None:
 
 def test_module_tier_verbs_are_inert_until_called() -> None:
     """Naming every PEP 562-era root verb does not start the default engine."""
-    root = Path(__file__).parents[4]
+    root = workspace()
     source = (
         'import metta._binding.runtime as _engine\n'
         "import metta\n"
@@ -164,7 +164,7 @@ def test_module_tier_verbs_are_inert_until_called() -> None:
     subprocess.run(
         [sys.executable, "-c", source],
         cwd=root,
-        env=os.environ | {"PYTHONPATH": str(root / "extensions" / "python")},
+        env=os.environ | {"PYTHONPATH": str(seat())},
         check=True,
     )
 

@@ -19,9 +19,9 @@ Open Obligations:
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 from metta import MeTTa, S
+from metta._roots import seat, workspace
 
 
 def _documentation(metta: MeTTa, name: str) -> str:
@@ -146,11 +146,10 @@ def test_generated_fn_help_is_offline() -> None:
         "print(json.dumps([_engine.started(), fn.car_atom.__doc__, "
         "_engine.started()]))\n"
     )
-    root = Path(__file__).parents[4]
     completed = subprocess.run(
         [sys.executable, "-c", source],
-        cwd=root,
-        env=os.environ | {"PYTHONPATH": str(root / "extensions" / "python")},
+        cwd=workspace(),
+        env=os.environ | {"PYTHONPATH": str(seat())},
         capture_output=True,
         text=True,
         check=True,
@@ -159,7 +158,7 @@ def test_generated_fn_help_is_offline() -> None:
     assert "head" in completed.stdout.lower()
     assert completed.stdout.rstrip().endswith("false]")
 
-    declaration = Path(__file__).parents[2] / "metta/_catalog/fn.py"
+    declaration = seat() / "metta/_catalog/fn.py"
     text = declaration.read_text(encoding="utf-8")
     marker = "        car_atom: Symbol\n"
     assert marker in text

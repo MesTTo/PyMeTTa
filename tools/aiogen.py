@@ -13,7 +13,8 @@ import sys
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
-ROOT = TOOLS.parents[2]
+ROOT = next(parent for parent in TOOLS.parents
+            if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 sys.path[:0] = [str(TOOLS), str(ROOT / 'extensions/python')]
 
 from doorfaces import (  # noqa: E402 -- tool imports follow the checkout search path

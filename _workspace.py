@@ -40,19 +40,22 @@ from collections.abc import Iterator
 from importlib import metadata
 from pathlib import Path
 
-#: The one level count in the tree. A count is silent when it is wrong -- the
-#: glob matches nothing and every member stops being importable with no error
-#: naming the cause -- so it is made once here and named everywhere else, and
-#: `tests/checks/check_layering.py` compares EXT against the workspace roster
-#: so a layout change fails a lane instead of a member's imports
+#: The workspace, DERIVED as metta._roots.workspace() derives it: the nearest
+#: ancestor holding both `engine/` and `lib/`. A level count is silent when it
+#: is wrong -- the glob matches nothing and every member stops being importable
+#: with no error naming the cause -- and this was the last one in the seat
 #: [measured 2026-09-19: the move to a top-level `ext/` left five files
 #: counting to the old depth, costing 22 collection errors and 12 setup
-#: errors before the count became one].
+#: errors]. It is written inline because importing metta here would run its
+#: package before on_path() has made the members discoverable, and
+#: `tests/checks/check_layering.py` compares EXT against the workspace roster
+#: so a layout change fails a lane instead of a member's imports.
 #: The distributions are a sibling of `extensions/`, not of this file: they
 #: are a separate component so that deleting `ext/` leaves the seat whole,
 #: which it cannot be while they sit inside it.
 SEAT = Path(__file__).resolve().parent
-ROOT = SEAT.parents[1]
+ROOT = next(parent for parent in SEAT.parents
+            if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 EXT = ROOT / "ext"
 
 

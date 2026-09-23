@@ -24,7 +24,8 @@ from importlib.util import resolve_name
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
-ROOT = TOOLS.parents[2]
+ROOT = next(parent for parent in TOOLS.parents
+            if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 # Repo-RELATIVE, because each of these four facts is needed twice over: once
 # here against this checkout, and once inside projections/2 against whatever
 # `root` it is handed, which is how the mutation lanes run it over a temporary
@@ -37,7 +38,7 @@ STUB_NAME = '__init__.pyi'
 PROBE_PATH = 'extensions/python/tests/typing/algebra_surface.py'
 CORE = ROOT / CORE_PATH
 SOURCE = CORE / SOURCE_NAME
-sys.path[:0] = [str(TOOLS), str(CORE.parent)]
+sys.path[:0] = [str(TOOLS), str(ROOT / 'extensions/python')]
 
 from artifacts import notice  # noqa: E402 -- the checkout path precedes tool imports
 from doorfaces import (  # noqa: E402 -- the checkout path precedes tool imports

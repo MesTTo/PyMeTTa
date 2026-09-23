@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from metta._roots import seat
+from metta._roots import seat, workspace
 
 EXAMPLES_ROOT = seat() / "examples"
 
@@ -52,7 +52,7 @@ def _example_path() -> str:
 
 @pytest.mark.parametrize("example", EXAMPLES, ids=_example_id)
 def test_example_runs_and_verifies_itself(example):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    repo = EXAMPLES_ROOT.parents[2]
+    repo = workspace()
     result = subprocess.run(
         [sys.executable, str(example)],
         capture_output=True,
@@ -89,7 +89,7 @@ def _run_example_source(tmp_path, source: str, *flags: str):
         cwd=str(tmp_path),
         env={
             **os.environ,
-            "METTA_PATH": str(EXAMPLES_ROOT.parents[2]),
+            "METTA_PATH": str(workspace()),
             "PYTHONPATH": _example_path(),
         },
     )

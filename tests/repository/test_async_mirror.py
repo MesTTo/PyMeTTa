@@ -20,7 +20,8 @@ import pytest
 from metta.doors import Owner, Tier
 
 REPO = next(parent for parent in Path(__file__).resolve().parents if (parent / 'engine').is_dir() and (parent / 'lib').is_dir())
-CORE = REPO / "extensions/python/metta"
+SEAT = REPO / "extensions/python"
+CORE = SEAT / "metta"
 WORKER = CORE / "aio/_worker.py"
 MIRROR = CORE / "aio/_mirror.py"
 SPACE = CORE / "_faces/space.py"
@@ -71,7 +72,7 @@ def _resolved(node, source):
     imports = {}
     tree = ast.parse(source.read_text())
     module = (
-        ".".join(source.relative_to(CORE.parent).with_suffix("").parts).removesuffix(".__init__")
+        ".".join(source.relative_to(SEAT).with_suffix("").parts).removesuffix(".__init__")
         if CORE in source.parents else source.stem
     )
     for statement in tree.body:

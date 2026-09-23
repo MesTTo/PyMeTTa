@@ -39,11 +39,11 @@ import os
 import subprocess
 import sys
 from collections.abc import Callable
-from pathlib import Path
 
 from metta_benchmarking import measure_instructions
 
 from metta import MeTTa, S, Space
+from metta._roots import seat
 
 # Enough crossings that the difference dominates process-to-process variation,
 # and few enough that one case stays well inside the measurement timeout.
@@ -181,12 +181,12 @@ def _measure(name: str) -> tuple[int, int]:
     return min(measure_instructions(command, rounds=ROUNDS)), inferences_of(name)
 
 
-#: The directory holding the `benchmarks` package, so the child process finds
+#: The seat, which holds the `benchmarks` package, so the child process finds
 #: it wherever the parent was started from. `-m benchmarks.axes` used to be
 #: spawned with no cwd and no PYTHONPATH, so it resolved only while pytest
 #: happened to run from here: from the repository root the three cases below
 #: failed with a ModuleNotFoundError that read as a benchmark regression.
-_BINDING_ROOT = Path(__file__).resolve().parent.parent
+_BINDING_ROOT = seat()
 
 
 def inferences_of(name: str) -> int:

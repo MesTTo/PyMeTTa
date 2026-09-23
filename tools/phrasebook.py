@@ -126,7 +126,8 @@ from typing import Any
 import alpha
 
 TOOLS = Path(__file__).resolve().parent
-REPO = TOOLS.parents[2]
+REPO = next(parent for parent in TOOLS.parents
+            if (parent / "engine").is_dir() and (parent / "lib").is_dir())
 PAGE = REPO / "website" / "reference" / "stdlib-phrasebook.md"
 ANSWERS = TOOLS / "phrasebook_answers.json"
 sys.path.insert(0, str(TOOLS))

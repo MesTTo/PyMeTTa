@@ -58,10 +58,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from metta._roots import seat
+from metta._roots import seat, workspace
 
 BINDING_ROOT = seat()
-REPOSITORY_ROOT = BINDING_ROOT.parents[1]
+REPOSITORY_ROOT = workspace()
 
 #: The named workloads. `bench` is the repository's own larger MeTTa programs
 #: and the memoisation chapter beside them, which is where a cache decision is
