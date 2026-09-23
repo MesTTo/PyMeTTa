@@ -12,6 +12,11 @@ Guarantees:
   - cached position metadata does not keep generated code alive [tested:
     test_answer_position_cache_does_not_own_generated_code;
     commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
+  - a collection that frees a cached code object while the storing thread
+    holds the cache's lock lets that thread go on; with the weakref callback
+    the cache used to carry, the thread waited on its own lock until killed
+    [tested: test_a_collection_inside_the_position_store_does_not_deadlock;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,6 +25,9 @@ Open Obligations:
 
 import ast
 import gc
+import os
+import subprocess
+import sys
 import weakref
 from typing import ClassVar
 
@@ -27,7 +35,38 @@ import pytest
 
 import metta._spaces.intents as _lint_events
 from benchmarks.answer_iteration_cost import driver
+from metta._roots import workspace
 from metta._spaces.results import Answers
+
+# A collection forced at the cache's locked store, which is what a collection
+# an allocation there starts does, while the only thing keeping a cached code
+# object alive is a function and its globals referencing each other. The
+# collecting cache goes in first: building it from the old one would call its
+# __setitem__ per copied item and collect before any lock is held.
+_COLLECTION_INSIDE_THE_STORE = '''
+import gc
+import sys
+from collections import OrderedDict
+
+import metta._spaces.intents as intents
+
+gc.disable()
+
+
+class CollectingCache(OrderedDict):
+    def __setitem__(self, key, value):
+        gc.collect()
+        super().__setitem__(key, value)
+
+
+intents._POSITION_CACHE = CollectingCache()
+namespace = {}
+exec(compile("import sys\\ndef where():\\n    return sys._getframe()\\n", "<abandoned>", "exec"), namespace)
+intents._position(namespace["where"]())
+del namespace
+intents._position(sys._getframe())
+print("returned")
+'''
 
 
 def test_answer_iteration_derives_each_call_site_once(monkeypatch):
@@ -104,3 +143,35 @@ def test_answer_position_cache_does_not_own_generated_code():
     gc.collect()
 
     assert reference() is None
+
+
+def test_a_collection_inside_the_position_store_does_not_deadlock(tmp_path):
+    """Nothing the position cache holds runs at collection time.
+
+    A weakref callback runs inside whichever collection frees its referent,
+    on that collection's thread. The cache's used to take the cache's plain
+    Lock, so a collection started by an allocation inside the locked store
+    froze the storing thread for good. A child process, because a thread
+    waiting on its own Lock cannot be interrupted from inside.
+    """
+    repository = workspace()
+    try:
+        run = subprocess.run(
+            [sys.executable, "-c", _COLLECTION_INSIDE_THE_STORE],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+            env={
+                **os.environ,
+                "METTA_PATH": str(repository),
+                "PYTHONPATH": str(repository / "extensions" / "python"),
+            },
+            # The child imports metta and stores two positions; a minute is far
+            # above that, and a wait on its own lock never ends at all.
+            timeout=60,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("storing a position waited on the cache's own lock inside a collection")
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert "returned" in run.stdout, run.stdout + run.stderr

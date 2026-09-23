@@ -26,9 +26,15 @@ Guarantees:
     test_answer_iteration_derives_each_call_site_once,
     test_answer_position_cache_does_not_own_generated_code;
     commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
+  - a collection that frees a cached code object while this thread holds
+    ``_POSITION_LOCK`` cannot stop the thread, since nothing the cache holds
+    runs at collection time [tested:
+    test_a_collection_inside_the_position_store_does_not_deadlock;
+    commit=WORKTREE]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
-  - ``_POSITION_LOCK`` serializes the bounded weak call-site cache
+  - ``_POSITION_LOCK`` serializes the bounded weak call-site cache, and no
+    weakref callback takes it
 """
 
 from __future__ import annotations
@@ -311,13 +317,14 @@ def _position(frame: FrameType) -> tuple[str, int, int]:
     )
     result = (path, frame.f_lineno, column)
 
-    def retire(reference: weakref.ReferenceType[CodeType]) -> None:
-        with _POSITION_LOCK:
-            current = _POSITION_CACHE.get(key)
-            if current is not None and current[0] is reference:
-                del _POSITION_CACHE[key]
-
-    reference = weakref.ref(code, retire)
+    # No callback. A weakref callback runs inside whatever collection frees
+    # its referent, and an allocation in the locked block below can start one
+    # on this thread; a callback taking this plain Lock there waited on itself
+    # until killed [tested:
+    # test_a_collection_inside_the_position_store_does_not_deadlock;
+    # commit=WORKTREE]. A dead entry needs no eager removal: the read above
+    # checks the referent, and the LRU bound evicts it.
+    reference = weakref.ref(code)
     with _POSITION_LOCK:
         _POSITION_CACHE[key] = (reference, result)
         _POSITION_CACHE.move_to_end(key)
