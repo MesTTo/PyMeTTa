@@ -59,10 +59,10 @@ fi
 # were 62 of that run's 120 minutes. `--cov-report=` collects without printing,
 # leaving the combined data file the coverage REPORT renders in about two
 # seconds, so the suite is measured once and read twice.
-run GATE pytest       env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" --cov --cov-report=
+run_solo GATE pytest       env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" --cov --cov-report=
 run GATE gallery      sh -c "cd '$PYDIR' && '$PY' -m pytest tests/repository/test_executable_docs.py tests/repository/test_gallery.py tests/repository/test_twin_coverage.py::test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity -q --rootdir=. -c pyproject.toml"
 run GATE benchmarks   in_py "$PY" bench.py --counter-only --keep-going
-run GATE instructions in_py "$PY" -m benchmarks.check_instructions
+run_solo GATE instructions in_py "$PY" -m benchmarks.check_instructions
 
 # The complexity CLASS, which every other pin here is structurally unable to
 # see: 32 of the 36 rows in baseline.json are one number at one input size. Each
@@ -137,8 +137,17 @@ memory_scale_gate() {
     fi
 }
 
-run REPORT memory-scale      memory_scale_report
-run GATE   memory-scale-gate memory_scale_gate
+run_solo REPORT memory-scale      memory_scale_report
+# memory-scale-gate READS the two files memory-scale WRITES, so it is one of
+# the lanes that cannot start until the lane above it has finished. Lanes run
+# concurrently now, and the general rule is in tools/check.sh beside
+# lane_barrier: a lane that consumes what an earlier lane produces is preceded
+# by a barrier, because declaration order alone no longer orders execution.
+# Without it both lanes launch the same fresh-process min-of-three instrument
+# at once, racing on one pair of files and measuring a box running two copies
+# of the measurement.
+lane_barrier
+run_solo GATE   memory-scale-gate memory_scale_gate
 
 run GATE packaged sh -c "cd '$HERE' && sh tests/shell/test_packaged_cli.sh"
 
