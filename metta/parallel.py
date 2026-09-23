@@ -117,8 +117,8 @@ Owns:
     worker, from the first submit until shutdown(), plus the SimpleQueue
     carrying those workers' boot timings.
   - a Channel's foreign space, released by drop(), close(), context exit or a
-    finalizer that hands its name to the deferred engine queue; a scope retains owned channels
-    through its library resource rows [tested:
+    finalizer that hands its name to the deferred engine queue; a scope
+    retains owned channels through its library resource rows [tested:
     test_body_failure_cancels_a_pending_timer_and_releases_its_channel;
     commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 Guarded by:
