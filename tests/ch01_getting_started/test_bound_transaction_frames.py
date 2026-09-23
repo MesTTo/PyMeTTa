@@ -18,7 +18,26 @@ from pathlib import Path
 
 import pytest
 
-from metta._roots import workspace
+# This file RUNS ITSELF in a subprocess, and a child does not inherit the
+# sys.path entry pytest injects for the seat -- only the environment, which
+# does not carry it. Without this line `from metta._roots import workspace`
+# below raises ModuleNotFoundError in that child and all thirteen parameter
+# cases fail on a harness fault rather than on anything they test [measured
+# 2026-09-23: 13 failed under the lane, 13 passed with the seat on PYTHONPATH].
+#
+# The derivation `metta._roots.seat()` makes, written inline because THIS is
+# the line that makes `metta` importable, so nothing from it can be imported
+# yet. A component is the nearest ancestor holding a `pyproject.toml` or a
+# `.git`; counting directory levels instead is what the root-walks lane
+# refuses, and rightly, because a layout change moves the count while leaving
+# the marker where it is. tests/ch18_performance/test_heartbeat_accounting.py
+# carries the same four lines for the same reason.
+sys.path.insert(0, str(next(
+    ancestor for ancestor in Path(__file__).resolve().parents
+    if (ancestor / "pyproject.toml").exists() or (ancestor / ".git").exists()
+)))
+
+from metta._roots import workspace  # noqa: E402,I001 -- the line above is what makes this importable in a spawned child, so sorting it into the block above is not allowed
 
 ROOT = workspace()
 
