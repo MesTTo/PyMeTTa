@@ -115,7 +115,7 @@ Guarded by:
     atomic, and popped only under their table's lock, so no callback the
     collector runs waits on _DECLARATION_LOCK or _REPLAY_LOCK [tested:
     test_a_weak_table_callback_takes_no_lock_and_its_owner_expunges;
-    commit=WORKTREE]
+    commit=874fed30ee5d909920c30c322c3b425ed0c62c5b]
   - functools.lru_cache protects the bounded _resolve_plan cache during
     concurrent updates [source: Python 3.14.7 functools.lru_cache
     documentation; https://docs.python.org/3.14/library/functools.html#functools.lru_cache;

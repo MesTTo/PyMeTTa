@@ -58,13 +58,13 @@ Guarantees:
     object spent, or as a ResourceWarning, so a new one that crosses or locks
     fails here before it can fail at a collection [tested:
     test_every_collector_callback_in_the_package_only_hands_its_work_over;
-    commit=WORKTREE]
+    commit=874fed30ee5d909920c30c322c3b425ed0c62c5b]
   - the four id-keyed weak tables (the box interns, the replay carriers, the
     type declarations and their carriers) evict a dead entry without taking
     their lock: the weak reference's callback returns while another thread
     holds the lock, and the table's next operation expunges the entry
     [tested: test_a_weak_table_callback_takes_no_lock_and_its_owner_expunges;
-    commit=WORKTREE]
+    commit=874fed30ee5d909920c30c322c3b425ed0c62c5b]
 """
 
 import ast

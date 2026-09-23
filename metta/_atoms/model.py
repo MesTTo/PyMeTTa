@@ -160,7 +160,7 @@ Guarded by:
     deque append being atomic, and popped only under _STATE_LOCK by boxed(),
     so no callback the collector runs waits on the lock [tested:
     test_a_weak_table_callback_takes_no_lock_and_its_owner_expunges;
-    commit=WORKTREE]
+    commit=874fed30ee5d909920c30c322c3b425ed0c62c5b]
 Open Obligations:
   To Do: None
   Hacks: None
