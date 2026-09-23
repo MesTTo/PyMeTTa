@@ -47,6 +47,7 @@ def bundled(tmp_path, monkeypatch):
 
 
 def test_a_checkout_carries_no_host(monkeypatch):
+    """With no bundled home, activate() answers None and changes nothing."""
     monkeypatch.setattr(_host, "HOME", None)
     monkeypatch.setenv("SWI_HOME_DIR", "/untouched")
     before = list(sys.path)
@@ -56,6 +57,7 @@ def test_a_checkout_carries_no_host(monkeypatch):
 
 
 def test_the_bundled_host_is_selected_once(bundled):
+    """A bundled home becomes SWI_HOME_DIR and its vendor directory leads sys.path, once."""
     home, vendor = bundled
     assert _host.activate() == home
     assert _host.activate() == home
@@ -64,13 +66,17 @@ def test_the_bundled_host_is_selected_once(bundled):
     assert sys.path.count(str(vendor)) == 1
 
 
-def test_a_foreign_home_is_refused(bundled, monkeypatch):
+@pytest.mark.usefixtures("bundled")
+def test_a_foreign_home_is_refused(monkeypatch):
+    """An SWI_HOME_DIR naming another home is refused, not overridden."""
     monkeypatch.setenv("SWI_HOME_DIR", "/usr/lib/swi-prolog")
     with pytest.raises(RuntimeError, match="Unset SWI_HOME_DIR"):
         _host.activate()
 
 
-def test_a_foreign_bridge_is_refused(bundled, monkeypatch):
+@pytest.mark.usefixtures("bundled")
+def test_a_foreign_bridge_is_refused(monkeypatch):
+    """A janus_swi already imported from elsewhere is refused."""
     foreign = types.ModuleType("janus_swi")
     foreign.__file__ = "/usr/lib/python3/dist-packages/janus_swi/__init__.py"
     monkeypatch.setitem(sys.modules, "janus_swi", foreign)
@@ -79,6 +85,7 @@ def test_a_foreign_bridge_is_refused(bundled, monkeypatch):
 
 
 def test_the_vendored_bridge_on_a_foreign_home_is_refused(bundled, monkeypatch):
+    """The vendored janus_swi is still refused when SWI_HOME_DIR names another home."""
     home, vendor = bundled
     ours = types.ModuleType("janus_swi")
     ours.__file__ = str(Path(vendor) / "janus_swi" / "__init__.py")
@@ -89,6 +96,7 @@ def test_the_vendored_bridge_on_a_foreign_home_is_refused(bundled, monkeypatch):
 
 
 def test_the_vendored_bridge_already_loaded_is_accepted(bundled, monkeypatch):
+    """The vendored janus_swi, already imported, is accepted with the bundled home."""
     home, vendor = bundled
     ours = types.ModuleType("janus_swi")
     ours.__file__ = str(Path(vendor) / "janus_swi" / "__init__.py")
