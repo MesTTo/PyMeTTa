@@ -73,6 +73,9 @@ from metta._spaces.intents import _LINT_CATALOGUE
 from _workspace import normalised
 
 ROOT = workspace()
+sys.path.insert(0, str(ROOT / "tests" / "checks"))
+
+from gate_layout import LANE_PREFIX  # noqa: E402  -- ROOT/tests/checks must be on the path first
 
 
 def _manifest() -> dict:
@@ -259,7 +262,7 @@ def test_the_engine_extra_is_the_complement_of_the_vendored_wheels():
     The marker's version bound is a fact about the classifiers, so it is
     derived from them here rather than trusted.
     """
-    from packaging.markers import default_environment  # noqa: PLC0415
+    from packaging.markers import default_environment
 
     manifest = _manifest()["project"]
     prefix = "Programming Language :: Python :: 3."
@@ -357,8 +360,13 @@ def test_the_pytest_lane_is_deterministic_under_load_protocol():
     Pinning only the lane let the policy walk out of the gate's reach the moment
     the command moved.
     """
+    # Opened with gate_layout's LANE_PREFIX, the one statement of how a lane
+    # registration is spelled: f0d38c267 moved this lane from `run` to
+    # `run_solo` to keep its footprint off its neighbours, and a pin spelled
+    # on `run` read that as the lane having vanished.
     lane = next(
-        line for line in _gate_text().splitlines() if line.startswith("run GATE pytest")
+        line for line in _gate_text().splitlines()
+        if re.match(LANE_PREFIX + r"GATE\s+pytest\s", line)
     )
     entry = "extensions/python/test.sh"
     assert entry in lane, f"the pytest lane no longer delegates to {entry}: {lane}"
