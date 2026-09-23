@@ -10,8 +10,10 @@ grammar, and a codec can satisfy the grammar while disagreeing with the engine
 beside it.
 
 Assumes:
-  - node and extensions/node/node_modules/swipl-wasm are present, the same
-    optional-toolchain shape test_typescript_space.py already has
+  - node and every runtime dependency extensions/node/package.json names are
+    present, the same optional-toolchain shape test_typescript_space.py
+    already has; the WebAssembly SWI-Prolog the binding boots is the one the
+    seat vendors in extensions/node/_host/
 Guarantees:
   - the Node binding answers the golden corpus with no complaints, over
     every leg a whole binding has
@@ -268,8 +270,14 @@ def node_driver():  # noqa: D103  -- pytest discovers or injects this callable; 
 def _need_node() -> None:
     if shutil.which("node") is None:
         pytest.skip("node is not installed")
-    if not (_BINDING / "node_modules" / "swipl-wasm").is_dir():
-        pytest.skip("run npm ci in extensions/node to fetch swipl-wasm")
+    # The runtime dependencies are read from the seat's own manifest. The
+    # SWI-Prolog it boots is not among them: it is vendored in _host/, and
+    # swipl-wasm is a devDependency that `npm ci --omit=dev` never fetches.
+    manifest = json.loads((_BINDING / "package.json").read_text(encoding="utf-8"))
+    missing = [name for name in manifest.get("dependencies", {})
+               if not (_BINDING / "node_modules" / name).is_dir()]
+    if missing:
+        pytest.skip(f"run npm ci in extensions/node to fetch {', '.join(missing)}")
     if not (_BINDING / "build" / "kit" / "run.js").is_file():
         # The binding is TypeScript, and this lane runs its BUILD rather than
         # its sources: a distro Node may be compiled without type stripping
