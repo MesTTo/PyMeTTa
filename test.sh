@@ -38,8 +38,11 @@ METTA_ROOT="$HERE/../.."
 #
 # A crashed worker is REPLACED, and that is not a retry. xdist builds the
 # crashed test's report with outcome="failed" in `handle_crashitem` BEFORE it
-# decides whether to restart, so the test fails either way and nothing is run
-# a second time; `--reruns`, which would, is separately refused below and by
+# decides whether to restart, so the test fails either way, and
+# tests/_xdist_scheduling.py, which conftest.py loads, keeps the
+# replacement from running it again or wedging on the rest of its file, both
+# of which pytest-xdist 3.8.0 does; `--reruns`, which would retry, is
+# separately refused below and by
 # test_the_pytest_lane_is_deterministic_under_load_protocol. What
 # `--max-worker-restart=0` actually did was `triggershutdown()`, so the queue
 # the crashed worker had not reached was never served: this lane reported on
