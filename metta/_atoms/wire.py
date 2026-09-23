@@ -27,6 +27,11 @@ Guarantees:
   - p decodes a canonical space name into the executable Space handle for
     the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - h decodes a registry id into a native handle and a provider door's
+    [record, key, names] reference into a carried engine term, and refuses
+    any other reference [tested:
+    test_the_provider_meets_a_handle_exactly_where_the_grammar_would_change_the_term;
+    commit=WORKTREE]
   - the tag alone decides the species: an s payload is a Symbol however it is
     spelled, because the engine's encoder asks metta_space_operand/1, the same
     test get-type asks before answering SpaceType, and writes p for every atom
@@ -65,6 +70,7 @@ from metta._atoms.model import (
     Atom,
     Expression,
     Grounded,
+    _CarriedTerm,
     _NativeHandle,
     _NativeRational,
     _new_expression,
@@ -113,10 +119,30 @@ def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
 
 
 def _handle_from_wire(ident: Any, text: Any) -> Atom:
-    if isinstance(ident, bool) or not isinstance(ident, int):
-        msg = f"wire handle id must be an integer, got {ident!r}"
-        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-    return _NativeHandle(ident, _text_payload(text, "handle", "a string"))
+    text = _text_payload(text, "handle", "a string")
+    if type(ident) is int:
+        return _NativeHandle(ident, text)
+    # A provider door's carried term, [record, key, names]: see
+    # metta_py_encode_carried/4 in metta/_binding/wire.pl.
+    if isinstance(ident, list) and len(ident) == 3:
+        record, key, names = ident
+        if (
+            type(record) is _janus_term()
+            and isinstance(key, str)
+            and isinstance(names, list)
+            and all(isinstance(name, str) for name in names)
+        ):
+            return _CarriedTerm(record, key, tuple(names), text)
+    msg = (
+        f"wire handle id must be an integer registry id or a carried term's "
+        f"[record, key, names], got {ident!r}"
+    )
+    raise ValueError(msg)
+
+
+def _janus_term() -> type | None:
+    """The class janus makes a record into, which a carried term holds."""
+    return getattr(lazy('metta._binding.runtime').bridge(), "Term", None)
 
 
 def _text_payload(payload: Any, kind: str, expected: str = "text") -> str:

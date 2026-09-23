@@ -121,7 +121,7 @@ seam:foreign_refuse(Space, Capability) :-
 seam:foreign_erring(Space, Pattern, Licensed, Mode, Item) :-
     metta_py_foreign(Space),
     ( memberchk(limit(Limit), Licensed) -> true ; Limit = @(none) ),
-    metta_py_encode(Pattern, [], Table, W),
+    metta_py_encode_carried(Pattern, [], Table, W),
     atom_string(Space, SpaceStr),
     atom_string(Mode, ModeStr),
     py_iter(metta_ops:foreign_match(SpaceStr, W, Limit, ModeStr), CW),
@@ -146,7 +146,7 @@ seam:foreign_participant(Space, Identity, Capture) :-
 seam:foreign_match(Space, Pattern, Options) :-
     metta_py_foreign(Space),
     ( memberchk(limit(Limit), Options) -> true ; Limit = @(none) ),
-    metta_py_encode(Pattern, [], Table, W),
+    metta_py_encode_carried(Pattern, [], Table, W),
     atom_string(Space, SpaceStr),
     py_iter(metta_ops:foreign_match(SpaceStr, W, Limit), CW),
     metta_py_stream_item(CW),
@@ -154,14 +154,14 @@ seam:foreign_match(Space, Pattern, Options) :-
 
 seam:foreign_pushdown(Space, Pattern, Class) :-
     metta_py_foreign(Space),
-    metta_py_encode(Pattern, W),
+    metta_py_encode_carried(Pattern, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_pushdown(SpaceStr, W), ClassStr),
     atom_string(Class, ClassStr).
 
 seam:foreign_add_token(Space, Term, Token) :-
     metta_py_foreign(Space),
-    metta_py_encode(Term, W),
+    metta_py_encode_carried(Term, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_add_token(SpaceStr, W), Wire),
     metta_py_decode_shared(Wire, Decoded, _),
@@ -186,7 +186,7 @@ seam:foreign_atoms(Space, Atom) :-
 seam:foreign_token(Space, Pattern, Token) :-
     metta_py_foreign(Space),
     atom_string(Space, SpaceStr),
-    metta_py_encode(Pattern, Wire),
+    metta_py_encode_carried(Pattern, Wire),
     py_iter(metta_ops:foreign_tokens(SpaceStr, Wire), CW),
     metta_py_stream_item(CW),
     metta_py_decode_shared(CW, Pair, _),
@@ -197,7 +197,7 @@ seam:foreign_token(Space, Pattern, Token) :-
 
 seam:foreign_add(Space, Term) :-
     metta_py_foreign(Space),
-    metta_py_encode(Term, W),
+    metta_py_encode_carried(Term, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_add(SpaceStr, W), _).
 
@@ -205,7 +205,7 @@ seam:foreign_plan(Space, Patterns, Claimed, Rest,
                   metta_py_plan_rows(Claimed, Rows, Table)) :-
     metta_py_foreign(Space),
     metta_py_capability(Space, plan),
-    metta_py_encode_arguments(Patterns, PatternWs, Table),
+    metta_py_encode_carried_arguments(Patterns, PatternWs, Table),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_plan(SpaceStr, PatternWs), Answer),
     Answer \== @(none),
@@ -228,13 +228,13 @@ seam:foreign_plan(Space, Patterns, Claimed, Rest,
 seam:foreign_add_many(Space, Terms) :-
     metta_py_foreign(Space),
     metta_py_capability(Space, 'add-many'),
-    maplist(metta_py_encode, Terms, Ws),
+    maplist(metta_py_encode_carried, Terms, Ws),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_add_many(SpaceStr, Ws), _).
 
 seam:foreign_remove(Space, Term, Removed) :-
     metta_py_foreign(Space),
-    metta_py_encode(Term, W),
+    metta_py_encode_carried(Term, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_remove(SpaceStr, W), R0),
     metta_py_bool(R0, Removed).

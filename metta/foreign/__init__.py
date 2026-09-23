@@ -84,6 +84,12 @@ Guarantees:
     test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
     test_a_bound_the_provider_set_itself_crosses_as_that_bound;
     commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
+  - a term the wire grammar would give back changed (a non-list compound, a
+    dict, an improper or partial list) reaches a provider as a handle holding
+    the engine's own term, so what a provider stores and hands back is what a
+    native space would hand back, a partial application included [tested:
+    tests/ch19_spaces_backed_by_anything/test_provider_carry.py;
+    commit=WORKTREE]
 Owns resources:
   Native provider occurrences retain registered objects. Transaction captures
   retain their original bound methods until completion; no Python registry
@@ -396,6 +402,15 @@ class SpaceProvider:
     defect, the native path does the same, but a provider that PERSISTS atoms
     persists the renamed form, and a rule editor, a serializer or a diff built
     on this will meet it. If you need the source spelling, keep it yourself.
+
+    A term the engine holds that no atom spells arrives as a handle: a
+    partial application such as the one `(id (+ 1))` makes, any other Prolog
+    compound, a dict, an improper or partial list. Read as an expression it
+    would come back changed, `(partial + (1))` no longer applies, so the
+    provider is handed the engine's own term by reference instead. It prints
+    as the engine writes it, equals the same term crossing again, renames
+    under alpha_eq with the atom around it, and gives the engine back that
+    term; it does not pickle, because the reference is this process's.
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract

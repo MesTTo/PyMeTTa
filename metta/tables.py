@@ -54,6 +54,10 @@ Guarantees:
   - tagged atom cells preserve explicit s and p species instead of applying
     process-local engine provenance [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - a cell holding a native blob or a carried engine term is refused before
+    anything is written, each naming what it is [tested:
+    test_table_storage_refuses_native_handles_before_writing,
+    test_a_table_bridge_refuses_a_carried_term_by_name; commit=WORKTREE]
   - a database row becomes an atom from its typed cell values; plain text is
     always a symbol, NULL is Grounded(None), and a structured value is one tagged
     TEXT cell carrying the atom wire rather than the source parser [tested:
@@ -312,18 +316,18 @@ def _row_batches(data: Any) -> Iterator[Iterator[Iterable[Any]]]:
         _raise_exit_errors("table ingestion and input cleanup failed", body, failures)
 
 
-def _contains_native_handle(wire: Any) -> bool:
-    """Whether one well-formed atom wire contains an h-tagged reference."""
+def _held_reference(wire: Any) -> list | tuple | None:
+    """The first h-tagged reference one well-formed atom wire contains, if any."""
     pending = [wire]
     while pending:
         term = pending.pop()
         if not isinstance(term, (list, tuple)) or not term:
             continue
         if term[0] == "h":
-            return True
+            return term
         if term[0] == "e" and len(term) == 2 and isinstance(term[1], (list, tuple)):
             pending.extend(term[1])
-    return False
+    return None
 
 
 def _encoded_cell(atom: Atom) -> str:
@@ -332,11 +336,22 @@ def _encoded_cell(atom: Atom) -> str:
     # Capability protocols require an explicit persistent token before a live
     # reference may be saved; a registry id alone is not such a token:
     # https://github.com/capnproto/capnproto/blob/3a82de9b39736a2625f03c93b2b7c50642dd5b25/doc/rpc.md#L219-L225
-    if _contains_native_handle(wire):
-        msg = (
-            "a native handle has process-local identity; store a stable value "
-            "read through the extension's accessors instead"
-        )
+    held = _held_reference(wire)
+    if held is not None:
+        # An integer id names a native blob; a [record, key, names] reference
+        # is an engine term the provider door carried, a partial application
+        # say, which no atom spells.
+        if len(held) == 3 and isinstance(held[1], list):
+            msg = (
+                f"{held[2]} is an engine term held by reference, with "
+                "process-local identity and no atom spelling; store what it "
+                "computes, or keep it in a native space"
+            )
+        else:
+            msg = (
+                "a native handle has process-local identity; store a stable value "
+                "read through the extension's accessors instead"
+            )
         raise ValueError(msg)
     try:
         payload = json.dumps(

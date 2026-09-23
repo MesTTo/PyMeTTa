@@ -42,6 +42,10 @@ Guarantees:
     engine State cell before any persistent updater can append its handle
     [tested: test_a_live_state_cell_never_enters_the_persistent_journal;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - an argument that is a handle (a space, a native blob, a carried engine
+    term) is refused in words before anything is journalled
+    [tested: test_a_persistent_space_refuses_a_carried_term_by_name;
+    commit=WORKTREE]
   - every supported mutation crosses this engine's hooks, so subscriptions
     receive each committed write once in order while rolled-back provider
     transactions remain unjournaled and unannounced
@@ -88,7 +92,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from metta._atoms.factories import Atom, Expression, Grounded, Symbol, _atom_from_wire, _is_ground
+from metta._atoms.factories import (
+    Atom,
+    Expression,
+    Grounded,
+    Handle,
+    Symbol,
+    _atom_from_wire,
+    _is_ground,
+)
 from metta._binding.runtime import Runtime, runtime
 from metta._errors.errors import EngineError, MettaError
 from metta.foreign import SpaceProvider
@@ -810,6 +822,16 @@ def _persistent_argument_wire(
         raise MettaError(msg)
     if isinstance(argument, Symbol):
         return argument.to_wire()
+    if isinstance(argument, Handle):
+        # A handle carries identity and no payload, so its value slot is
+        # unset: a space, a native blob, or an engine term the provider door
+        # carried. None of them outlives this process.
+        msg = (
+            f"cannot {verb} {atom}: argument {index} ({argument}) is a live "
+            "engine value held by reference; persistent facts accept only "
+            "numbers, symbols, strings, and booleans"
+        )
+        raise MettaError(msg)
     if isinstance(argument, Grounded):
         value = argument.value
         if type(value) in (bool, int, float, str):

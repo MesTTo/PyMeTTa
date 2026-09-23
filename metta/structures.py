@@ -34,6 +34,11 @@ Guarantees:
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - AlphaSet membership is alpha_eq membership [tested
     test_alphaset_is_alpha_membership]
+  - the canonical form renames a carried engine term's variable names with
+    the atom's own, so two crossings of one term are one key, as alpha_eq
+    calls them one atom [tested:
+    test_two_crossings_of_one_carried_term_are_one_atom_up_to_renaming;
+    commit=WORKTREE]
   - LiveView holds exactly what the space holds for its pattern, through
     adds and through removals whose event cannot say which occurrence left
     [tested test_liveview_mirrors_the_space]
@@ -69,9 +74,8 @@ from metta._atoms.factories import (
     _encode,
     _is_ground,
     _match,
-    _variables,
-    substitute,
 )
+from metta._atoms.model import _CarriedTerm
 from metta._errors.errors import MettaError
 from metta._lazy import lazy
 from metta._spaces import evaluate as _space_evaluate
@@ -112,17 +116,53 @@ def _as_atom(value: Any) -> Atom:
     return _encode(value)
 
 
+def _alpha_variables(atom: Atom) -> list[str]:
+    """The names alpha-equivalence renames, first appearance first: every
+    Variable's, and every carried engine term's, which are the atom's own
+    variables held inside the handle. vars answers the first kind only,
+    because subs and unify cannot reach inside the handle; and this is a walk
+    of its own rather than a keyword on _variables, which every atom
+    operation takes and which a keyword there cost term-operators 0.23% of
+    its instructions [measured 2026-09-24: 1020116938 with the keyword
+    against 1017436759 without it, min of three instructions:u samples each
+    in one battery].
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    out: list[str] = []
+    stack: list[Atom] = [atom]
+    while stack:
+        a = stack.pop()
+        if isinstance(a, Variable):
+            if a.name not in out:
+                out.append(a.name)
+        elif isinstance(a, Expression):
+            stack.extend(reversed(a.children))
+        elif isinstance(a, _CarriedTerm):
+            for name in a.names:
+                if name not in out:
+                    out.append(name)
+    return out
+
+
 def _canonical(atom: Atom) -> Atom:
     """The atom with variables renamed to their first-appearance index,
     so two alpha-equivalent atoms canonicalize identically and ordinary
-    hashing becomes alpha-invariant hashing.
+    hashing becomes alpha-invariant hashing. A carried engine term's
+    variables take their index in the same order, as alpha_eq renames them,
+    so the canonical form and alpha_eq agree on every atom.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    names = _variables(atom)
+    names = _alpha_variables(atom)
     if not names:
         return atom
-    return substitute(
-        atom, {name: Variable(f"_alpha{index}") for index, name in enumerate(names)}
-    )
+    renaming = {name: f"_alpha{index}" for index, name in enumerate(names)}
+
+    def renamed(item: Atom) -> Atom:
+        if isinstance(item, Variable):
+            return Variable(renaming[item.name])
+        if isinstance(item, _CarriedTerm):
+            return item.renamed(tuple(renaming[name] for name in item.names))
+        return item
+
+    return atom.map(renamed)
 
 
 class PatternMap(MutableMapping):

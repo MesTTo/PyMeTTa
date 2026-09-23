@@ -95,6 +95,7 @@ from metta._atoms.model import (
     Handle,
     Symbol,
     Variable,
+    _CarriedTerm,
     _NativeRational,
     hold,
     register_object_repr,
@@ -525,17 +526,29 @@ def _alpha(a: Atom, b: Atom, ab: dict, ba: dict) -> bool:
     while stack:
         x, y = stack.pop()
         if isinstance(x, Variable) and isinstance(y, Variable):
-            if ab.setdefault(x.name, y.name) != y.name:
-                return False
-            if ba.setdefault(y.name, x.name) != x.name:
+            if not _alpha_names(x.name, y.name, ab, ba):
                 return False
         elif isinstance(x, Expression) and isinstance(y, Expression):
             if len(x.children) != len(y.children):
                 return False
             stack.extend(zip(x.children, y.children, strict=True))
+        elif isinstance(x, _CarriedTerm) and isinstance(y, _CarriedTerm):
+            # A carried term names the atom's own variables, so its names
+            # rename under the same map; the key already says the terms are
+            # variants, position for position.
+            if x.key != y.key or len(x.names) != len(y.names) or not all(
+                _alpha_names(mine, theirs, ab, ba)
+                for mine, theirs in zip(x.names, y.names, strict=True)
+            ):
+                return False
         elif x != y:
             return False
     return True
+
+
+def _alpha_names(mine: str, theirs: str, ab: dict, ba: dict) -> bool:
+    """Whether two variable names can stand for each other under the renaming."""
+    return ab.setdefault(mine, theirs) == theirs and ba.setdefault(theirs, mine) == mine
 
 
 def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:

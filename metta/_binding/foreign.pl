@@ -123,10 +123,17 @@ metta_py_plan_selection_([W|Ws], Keys, Patterns, [P|Ps]) :-
 
 %A wire crossing to Python and back is the same structure with janus's own
 %text convention applied, so the comparison normalizes every leaf to an
-%atom rather than demanding string-for-string identity.
+%atom rather than demanding string-for-string identity. A carried term is
+%keyed by its key and names: its record leaves as prolog(Copy) and comes back
+%as a fresh copy, which no leaf comparison can recognise.
 metta_py_wire_key(W, Key) :-
     (   is_list(W)
-    ->  maplist(metta_py_wire_key, W, Key)
+    ->  (   W = [Tag, [_, Carried, Names], _],
+            metta_py_tag(Tag, h),
+            is_list(Names)
+        ->  maplist(metta_py_wire_key, [h, Carried|Names], Key)
+        ;   maplist(metta_py_wire_key, W, Key)
+        )
     ;   string(W)
     ->  atom_string(Key, W)
     ;   Key = W

@@ -3,6 +3,15 @@
 % Owns resources: saga wrappers and the receipt sink until metta_py_saga_capture_end/1 releases them
 % [source: extensions/python/metta/_binding/worlds.pl:230; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 % Guarded by: $metta_saga_wrappers serializes temporary predicate wrapping.
+% Guarantees: a world's image reads back through the provider door's carried
+%   reading, so a commit hands a provider only what the world changed
+%   [tested: test_a_world_over_a_provider_commits_only_what_changed;
+%   commit=WORKTREE].
+% Guarantees: metta_py_world_rebase/4 replaces the origin's name and &self at
+%   every depth of a term, inside a carried compound as inside a list, so a
+%   stored partial applied in a world writes to the world [tested:
+%   test_a_stored_partial_applied_in_a_world_writes_to_the_world;
+%   commit=WORKTREE].
 
 %Plan the same direct or translated goal metta_py_eval/3 will call. Translation
 %may populate its ordinary invalidated template cache, but this seam creates no
@@ -47,13 +56,18 @@ metta_py_world_prepare(Space, Origin, AtomWires) :-
 %The raw image is immutable world data, but materialising its equations may run
 %translator rules. Compute that compilation-only join against the module whose
 %complete compiled image supplied the atoms. The walk itself never translates.
-metta_py_world_image_effect_plan(Space, Origin, AtomWires,
-                                 [Operations, Effect, Coverage]) :-
-    metta_py_module(Space, Module),
-    findall(Row,
+metta_py_world_image_effect_plan(Space, Origin, AtomWires, Plan) :-
+    findall(Term,
             ( member(Wire, AtomWires),
               metta_py_decode_shared(Wire, Term0, _),
-              metta_py_world_rebase(Term0, Origin, Space, Term),
+              metta_py_world_rebase(Term0, Origin, Space, Term) ),
+            Image),
+    metta_py_world_image_plan(Space, Origin, Image, Plan).
+
+metta_py_world_image_plan(Space, Origin, Image, [Operations, Effect, Coverage]) :-
+    metta_py_module(Space, Module),
+    findall(Row,
+            ( member(Term, Image),
               metta_host_source_compile_effect_plan(
                   Module, Term, TermOperations, _),
               member(Row, TermOperations) ),
@@ -254,10 +268,8 @@ metta_py_world_eval(Space, Origin, AtomWires, Target,
                   metta_py_target_term(Space, Target, Term0),
                   metta_py_world_rebase(Term0, Origin, Space, Term),
                   metta_py_world_eval_answers(Space, Term, Answers),
-                  metta_py_world_atoms(Space, Origin, Stored),
-                  metta_py_world_image_effect_plan(
-                      Space, Origin, Stored,
-                      [ImageOperations, ImageEffect, _]),
+                  metta_py_world_image(Space, Origin, Stored,
+                                       [ImageOperations, ImageEffect, _]),
                   Result = [admitted, Answers, Stored,
                             ImageOperations, ImageEffect] )),
             seam:observation_discard)
@@ -272,12 +284,24 @@ metta_py_world_add(Origin, Space, Wire) :-
 metta_py_world_eval_answers(Space, Term, Answers) :-
     metta_py_evaluate([form(term)], Space, Term, Answers).
 
-metta_py_world_atoms(Space, Origin, Encoded) :-
-    findall(Wire,
+%A world's image goes back to Python through the provider door's carried
+%reading rather than the answer grammar, because it is a store read: commit
+%diffs it against the origin's reified base and writes the difference back, and
+%a provider origin's base holds each compound as the handle the provider
+%stored. Read through the grammar, every such term diffed as removed and
+%re-added, and commit handed the provider the grammar's spelling in its place.
+%The plan reads the terms, since a carried wire built here still holds
+%prolog(Copy) until it crosses janus, and reads them in Space's frame rebased
+%back from the origin's, as metta_py_world_image_effect_plan/4 reads a wire
+%list, so an atom naming the origin or &self plans exactly as before.
+metta_py_world_image(Space, Origin, Stored, Plan) :-
+    findall(Atom,
             ( 'get-atoms'(Space, Atom0),
-              metta_py_world_rebase(Atom0, Space, Origin, Atom),
-              metta_py_encode(Atom, Wire) ),
-            Encoded).
+              metta_py_world_rebase(Atom0, Space, Origin, Atom) ),
+            Image),
+    maplist(metta_py_world_rebase_(Origin, Space), Image, Frame),
+    metta_py_world_image_plan(Space, Origin, Frame, Plan),
+    maplist(metta_py_encode_carried, Image, Stored).
 
 %A provider-owned world commit has already landed and journaled its durable
 %delta. Decode the complete report before opening an observation frame, then
@@ -298,6 +322,14 @@ metta_py_decode_world_atom(Wire, Atom) :-
 metta_py_world_observe(Action, Space, Atom) :-
     seam:observe(Action, Space, Atom).
 
+%Replace the origin's name and &self with the receiving space's wherever the
+%term holds them. A proper list walks through maplist/3, which keeps the stack
+%flat on a long one; a dict rebases its values and keeps its keys, which must
+%stay in the dict's own order; any other compound rebases its arguments. That
+%last case is what a carried term brings: the provider door hands a partial
+%application back as partial(Head, Args), and a walk that stopped at it left
+%the origin's name live inside the world, where applying the partial wrote to
+%the origin before any commit.
 metta_py_world_rebase(Term0, From, To, Term) :-
     (   Term0 == From
     ->  Term = To
@@ -309,8 +341,17 @@ metta_py_world_rebase(Term0, From, To, Term) :-
     ->  Term = Term0
     ;   is_list(Term0)
     ->  maplist(metta_py_world_rebase_(From, To), Term0, Term)
-    ;   Term = Term0
+    ;   is_dict(Term0)
+    ->  dict_pairs(Term0, Tag, Pairs0),
+        maplist(metta_py_world_rebase_value(From, To), Pairs0, Pairs),
+        dict_pairs(Term, Tag, Pairs)
+    ;   compound_name_arguments(Term0, Name, Arguments0),
+        maplist(metta_py_world_rebase_(From, To), Arguments0, Arguments),
+        compound_name_arguments(Term, Name, Arguments)
     ).
 
 metta_py_world_rebase_(From, To, Term0, Term) :-
     metta_py_world_rebase(Term0, From, To, Term).
+
+metta_py_world_rebase_value(From, To, Key-Value0, Key-Value) :-
+    metta_py_world_rebase(Value0, From, To, Value).

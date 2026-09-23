@@ -12,6 +12,10 @@
 % Guarantees: optional add-token and remove-token callbacks preserve exact
 %   provider identities [tested: test_token_mutation_receives_and_withdraws_a_reference;
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+% Guarantees: every term a provider door hands Python crosses through
+%   metta_py_encode_carried/4, so a provider gives back what a native space
+%   gives back and a rational tree is refused as assertz refuses it [tested:
+%   tests/ch19_spaces_backed_by_anything/test_provider_carry.py; commit=WORKTREE].
 % Guarantees: grounded_length/2 reads tuple arity or Python's Sized protocol
 %   without enumerating elements [tested:
 %   test_host_length_refinements_do_not_read_elements; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
@@ -390,6 +394,12 @@ provides_declaration(host, user, foreign_refuse/2).
 %Each clause guards on the python registry: the foreign hooks are
 %multifile, and an engine-side foreign space (a Redis space, say) must
 %fall through to its own contribution instead of being claimed here.
+%
+%Every term a provider is handed crosses through metta_py_encode_carried/4,
+%not the answer grammar: a provider is a store, so a term the grammar would
+%give back changed (a partial application, any other compound, a dict, an
+%improper or partial list) crosses as a handle that decodes to that term.
+%wire.pl's carried reading says how.
 %seam:foreign_clear/1 is declared with the other five in engine/ext_points.pl
 %now, so it is part of the seam a library author reads rather than something
 %only this file knew about.
@@ -418,7 +428,7 @@ provides(host, user, (
 seam:foreign_erring(Space, Pattern, Licensed, Mode, Item) :-
     metta_py_foreign(Space),
     ( memberchk(limit(Limit), Licensed) -> true ; Limit = @(none) ),
-    metta_py_encode(Pattern, [], Table, W),
+    metta_py_encode_carried(Pattern, [], Table, W),
     atom_string(Space, SpaceStr),
     atom_string(Mode, ModeStr),
     py_iter(metta_ops:foreign_match(SpaceStr, W, Limit, ModeStr), CW),
@@ -466,7 +476,7 @@ provides(host, user, (
 seam:foreign_match(Space, Pattern, Options) :-
     metta_py_foreign(Space),
     ( memberchk(limit(Limit), Options) -> true ; Limit = @(none) ),
-    metta_py_encode(Pattern, [], Table, W),
+    metta_py_encode_carried(Pattern, [], Table, W),
     atom_string(Space, SpaceStr),
     py_iter(metta_ops:foreign_match(SpaceStr, W, Limit), CW),
     metta_py_stream_item(CW),
@@ -480,7 +490,7 @@ seam:foreign_match(Space, Pattern, Options) :-
 provides(host, user, (
 seam:foreign_pushdown(Space, Pattern, Class) :-
     metta_py_foreign(Space),
-    metta_py_encode(Pattern, W),
+    metta_py_encode_carried(Pattern, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_pushdown(SpaceStr, W), ClassStr),
     atom_string(Class, ClassStr)
@@ -492,7 +502,7 @@ seam:foreign_pushdown(Space, Pattern, Class) :-
 provides(host, user, (
 seam:foreign_add_token(Space, Term, Token) :-
     metta_py_foreign(Space),
-    metta_py_encode(Term, W),
+    metta_py_encode_carried(Term, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_add_token(SpaceStr, W), Wire),
     metta_py_decode_shared(Wire, Decoded, _),
@@ -523,7 +533,7 @@ provides(host, user, (
 seam:foreign_token(Space, Pattern, Token) :-
     metta_py_foreign(Space),
     atom_string(Space, SpaceStr),
-    metta_py_encode(Pattern, Wire),
+    metta_py_encode_carried(Pattern, Wire),
     py_iter(metta_ops:foreign_tokens(SpaceStr, Wire), CW),
     metta_py_stream_item(CW),
     metta_py_decode_shared(CW, Pair, _),
@@ -536,7 +546,7 @@ seam:foreign_token(Space, Pattern, Token) :-
 provides(host, user, (
 seam:foreign_add(Space, Term) :-
     metta_py_foreign(Space),
-    metta_py_encode(Term, W),
+    metta_py_encode_carried(Term, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_add(SpaceStr, W), _)
 )).
@@ -555,7 +565,7 @@ seam:foreign_plan(Space, Patterns, Claimed, Rest,
                   metta_py_plan_rows(Claimed, Rows, Table)) :-
     metta_py_foreign(Space),
     metta_py_capability(Space, plan),
-    metta_py_encode_arguments(Patterns, PatternWs, Table),
+    metta_py_encode_carried_arguments(Patterns, PatternWs, Table),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_plan(SpaceStr, PatternWs), Answer),
     Answer \== @(none),
@@ -582,7 +592,7 @@ provides(host, user, (
 seam:foreign_add_many(Space, Terms) :-
     metta_py_foreign(Space),
     metta_py_capability(Space, 'add-many'),
-    maplist(metta_py_encode, Terms, Ws),
+    maplist(metta_py_encode_carried, Terms, Ws),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_add_many(SpaceStr, Ws), _)
 )).
@@ -590,7 +600,7 @@ seam:foreign_add_many(Space, Terms) :-
 provides(host, user, (
 seam:foreign_remove(Space, Term, Removed) :-
     metta_py_foreign(Space),
-    metta_py_encode(Term, W),
+    metta_py_encode_carried(Term, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_remove(SpaceStr, W), R0),
     metta_py_bool(R0, Removed)

@@ -199,6 +199,128 @@ metta_py_encode_arguments(Arguments, Encoded, Names) :-
 metta_py_var_name([N-V|_], T, N) :- V == T, !.
 metta_py_var_name([_|Pairs], T, N) :- metta_py_var_name(Pairs, T, N).
 
+%%%%%%%%%% The provider door's carried reading %%%%%%%%%%
+%
+%A provider is a store, so it has to give the engine back the term the engine
+%gave it. The grammar above reads a non-list compound as an expression, an
+%improper or partial list as a (cons Head Tail) chain and a dict as its text,
+%which is right for an answer and wrong for a store: a partial application
+%stored through a Python provider answered ((partial + (1)) 2) where a native
+%space applies it and answers 3 [measured 2026-09-24:
+%CMeTTa-Examples/ai-tmp/probe/providerpy.py]. The provider door therefore
+%encodes with metta_py_encode_carried/4, which reads a proper list and every
+%leaf exactly as metta_py_encode/4 does, and holds every other term as a native
+%handle, the h tag, whose reference is [Record, Key, Names] instead of a
+%registry id:
+%  - Record is a janus Term of the term's attribute-free copy, which janus
+%    reads back as a copy of the term, and which is erased when Python drops
+%    it (metta._binding.runtime defers that erase to the next crossing);
+%  - Key spells the copy with each variable named by its first-occurrence
+%    position, so two keys are equal exactly when the terms are variants;
+%  - Names are the wire names this crossing gave those variables, first
+%    occurrence first, so a variable the term shares with the rest of its atom
+%    is one variable again when the handle is decoded;
+%  - the text is the written form under those names, for printing.
+%No atom is stored with its attributes (assertz drops them), so none is
+%carried with them either. Which terms are carried is the C seat's carries(),
+%and the C seat holds them the same way [source: extensions/cmetta/cmetta.c,
+%carries(), carried() and decode_carried();
+%commit=256a3a6aa4248e89c7b007edacc6832d62eb4594]. The general encoder is
+%untouched: an answer still reads the grammar, which lib_weighted_subset's
+%opaque ids rely on [source: superproject 63be9ba6f, the reverted translator
+%refusal].
+%
+%A rational tree is refused before the walk, with the error assertz/1 gives a
+%native space for the same atom: no store holds one, and the walk would only
+%end at the stack limit [measured 2026-09-24: !(let $x (a $x) (add-atom ...
+%(cyc $x))) raised "Cannot represent due to `cyclic_term`" on a native space
+%and exhausted a 7.5Gb stack through a Python provider].
+%
+%The dispatch is written at the root and again in the element loop, rather
+%than in a predicate both call, so the door pays no inference the grammar's
+%encoder did not: acyclic_term/1 at the root takes the place of the
+%py_is_object/1 probe metta_py_encode/4 makes of every compound, and an
+%element costs one call either way. A shared dispatcher cost one inference
+%per crossing and one per element more.
+metta_py_encode_carried(Term, Wire) :- metta_py_encode_carried(Term, [], _, Wire).
+
+metta_py_encode_carried(T, N0, N, W) :-
+    (   acyclic_term(T)
+    ->  true
+    ;   throw(error(representation_error(cyclic_term),
+                    context(metta_py_encode_carried/4,
+                            'a provider stores atoms, and a rational tree is \c
+                             not one')))
+    ),
+    (   compound(T)
+    ->  (   is_list(T)
+        ->  W = ["e", Es],
+            metta_py_encode_carried_each(T, N0, N, Es)
+        ;   metta_py_carry(T, N0, N, W)
+        )
+    ;   metta_py_encode(T, N0, N, W)
+    ).
+
+metta_py_encode_carried_each([], N, N, []).
+metta_py_encode_carried_each([T|Ts], N0, N, [E|Es]) :-
+    (   compound(T)
+    ->  (   is_list(T)
+        ->  E = ["e", Fs],
+            metta_py_encode_carried_each(T, N0, N1, Fs)
+        ;   metta_py_carry(T, N0, N1, E)
+        )
+    ;   metta_py_encode(T, N0, N1, E)
+    ),
+    metta_py_encode_carried_each(Ts, N1, N, Es).
+
+%Every argument of one provider call under one map, as
+%metta_py_encode_arguments/3 does for the grammar's reading.
+metta_py_encode_carried_arguments(Arguments, Encoded, Names) :-
+    metta_py_encode_carried(Arguments, [], Names, ["e", Encoded]).
+
+%Time: one copy and two writes of T, plus metta_py_wire_name/4's scan per
+%variable of T. Space: the copy, once in the record janus makes of it.
+metta_py_carry(T, N0, N, ["h", [prolog(Copy), Key, Names], Text]) :-
+    copy_term_nat(T, Copy),
+    term_variables(T, Variables),
+    term_variables(Copy, Copied),
+    foldl(metta_py_carried_name, Variables, Names, N0, N),
+    metta_py_carried_spelling(Copied, 0, Positions),
+    format(string(Key), "~W", [Copy, [quoted(true), numbervars(false),
+                                      variable_names(Positions)]]),
+    (   Copied == []
+    ->  Text = Key
+    ;   maplist(metta_py_carried_binding, Names, Copied, Bindings),
+        format(string(Text), "~W", [Copy, [quoted(true), numbervars(false),
+                                           variable_names(Bindings)]])
+    ).
+
+metta_py_carried_name(Variable, Name, N0, N) :-
+    metta_py_wire_name(Variable, N0, N, Name).
+
+%A variable name the writer takes as one, `_0` upward: a variable prints
+%unquoted and an atom spelled alike prints quoted, so no leaf of the term can
+%spell a position.
+metta_py_carried_spelling([], _, []).
+metta_py_carried_spelling([V|Vs], I, [Name=V|Ps]) :-
+    format(atom(Name), "_~d", [I]),
+    J is I + 1,
+    metta_py_carried_spelling(Vs, J, Ps).
+
+metta_py_carried_binding(Name0, V, Name=V) :- atom_string(Name, Name0).
+
+%A carried reference as it arrives back is [Term, Key, Names]: the record
+%janus read back as a copy of the term, its key, and the wire names of the
+%copy's variables, which have to name every one of them. The decode clauses
+%match that shape in their HEADS, so a native handle's integer id fails them
+%before any call and the registry path pays no inference for this one
+%[measured 2026-09-24: with the check as a called predicate, handle-round-trip
+%read 1728007 inferences against its 1724007 pin, two per native decode].
+metta_py_carried_variables(Term, Key, Names, Variables) :-
+    ( string(Key) ; atom(Key) ), !,
+    term_variables(Term, Variables),
+    same_length(Variables, Names).
+
 %A tag arrives back as an atom or a string depending on the sender; accept both:
 metta_py_tag(T, T) :- atom(T), !.
 metta_py_tag(T, A) :- string(T), atom_string(A, T).
@@ -242,6 +364,10 @@ metta_py_decode([T0|Rest], Term) :-
     metta_py_decode_(T, Rest, Term).
 
 metta_py_decode_(o, [Obj], Obj).
+%A carried reference is the term itself, janus having read its record back
+%as a copy. The plain decode shares no variable, so the copy keeps its own.
+metta_py_decode_(h, [[Term, Key, Names]|_], Term) :-
+    metta_py_carried_variables(Term, Key, Names, _), !.
 %A handle reference resolves to the registered blob itself. A stale id
 %is an existence error naming it, never a fresh or empty value: the
 %handle's release is explicit on the Python side, so reaching a released
@@ -351,8 +477,19 @@ metta_py_decode_shared_tagged(v, [Name0], Var, Table, B) :- !,
     ; B = [Name-Var|Table] ).
 metta_py_decode_shared_tagged(e, [Es], Term, B0, B) :- !,
     foldl_decode(Es, Term, B0, B).
+%A carried term's variables are named like the atom's own, so each one is
+%decoded as a v tag of its name would be, and a variable the term shares with
+%the rest of the atom is one variable again. The names are taken in
+%term_variables/2 order, which is the order they were written in, before any
+%of them is bound.
+metta_py_decode_shared_tagged(h, [[Term, Key, Names]|_], Term, B0, B) :-
+    metta_py_carried_variables(Term, Key, Names, Variables), !,
+    foldl(metta_py_carried_variable, Names, Variables, B0, B).
 metta_py_decode_shared_tagged(T, Rest, Term, B, B) :-
     metta_py_decode_(T, Rest, Term).
+
+metta_py_carried_variable(Name, Variable, B0, B) :-
+    metta_py_decode_shared_tagged(v, [Name], Variable, B0, B).
 
 % The existing pair answers a singleton lookup without an index allocation.
 % On the second distinct name, move that first binding into the index once.

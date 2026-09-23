@@ -141,6 +141,15 @@ Guarantees:
     public wire codec and Python container repr [tested:
     test_native_handles_round_trip_through_the_public_wire_codec;
     commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0]
+  - a carried engine term is equal to the same term crossing again exactly
+    when its key and variable names agree, re-sends its own record, renames
+    with the atom around it under alpha-equivalence, releases its record
+    through the deferred erase, and refuses pickle [tested:
+    test_the_provider_meets_a_handle_exactly_where_the_grammar_would_change_the_term,
+    test_removing_a_carried_term_removes_exactly_that_term,
+    test_two_crossings_of_one_carried_term_are_one_atom_up_to_renaming,
+    test_a_dropped_carried_term_hands_its_record_to_the_next_crossing;
+    commit=WORKTREE]
   - a symbol answers the ambient space's origins for the head it names, and
     the empty tuple where nothing compiled under it [tested:
     test_a_symbol_answers_the_ambient_spaces_origins; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
@@ -1392,6 +1401,94 @@ class _NativeHandle(Handle):
         # path.
         with contextlib.suppress(Exception):
             self.release()
+
+
+class _CarriedTerm(Handle):
+    """An engine term a provider door holds rather than reads, so a store can
+    hand the engine back the term the engine gave it.
+
+    The wire grammar reads a non-list compound as an expression, an improper
+    or partial list as a ``(cons Head Tail)`` chain and a dict as text. That
+    is right for an answer and wrong for a store: a partial application kept
+    by a provider came back as the expression ``(partial + (1))``, which no
+    longer applies. At the provider door such a term crosses as this handle
+    instead, the same species the C seat carries it as.
+
+    ``record`` is a janus Term of the engine's copy, which the engine reads
+    back as the term itself. ``key`` spells that copy with each variable named
+    by its first-occurrence position and ``names`` lists the wire names the
+    variables have in the atom around it, so two handles are equal exactly
+    when their terms are variants naming the same variables, and the engine
+    shares a variable between the term and the rest of its atom again when
+    the handle goes back. ``text`` is the engine's written form under those
+    names.
+
+    Alpha-equivalence sees the names: alpha_eq renames them under the atom's
+    own map and the canonical form renames them through renamed(). vars, subs
+    and unify treat the handle as a leaf, as the C seat's mt_unify and
+    mt_substitute do, since nothing from Python can reach inside the record.
+
+    Nothing is released by hand: the record goes with the last reference to
+    it, through the deferred erase metta._binding.runtime gives janus's
+    Term.__del__, so a provider may keep the handle as long as it keeps the
+    atom. The record is process-local, so the handle does not pickle.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
+    __slots__ = {
+        "key": "the copy's written form with variables named by first occurrence",
+        "names": "the wire names of the copy's variables, first occurrence first",
+        "record": "the janus Term the engine reads back as the term",
+        "text": "the written form under the wire names, for printing",
+    }
+    __match_args__ = ("text",)
+    key: str
+    names: tuple[str, ...]
+    record: Any
+    text: str
+
+    def __init__(self, record: Any, key: str, names: tuple[str, ...], text: str) -> None:
+        super().__init__()
+        object.__setattr__(self, "record", record)
+        object.__setattr__(self, "key", key)
+        object.__setattr__(self, "names", names)
+        object.__setattr__(self, "text", text)
+
+    def __str__(self) -> str:
+        return self.text
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.text!r})"
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, _CarriedTerm)
+            and other.key == self.key
+            and other.names == self.names
+        )
+
+    def __hash__(self) -> int:
+        return hash(("carried", self.key, self.names))
+
+    def __reduce__(self):
+        msg = (
+            "a carried engine term has process-local identity and cannot be "
+            "pickled; store what the provider needs from it instead"
+        )
+        raise TypeError(msg)
+
+    def to_wire(self) -> list:
+        return ["h", [self.record, self.key, list(self.names)], self.text]
+
+    def renamed(self, names: tuple[str, ...]) -> _CarriedTerm:
+        """This term under other names for its variables, as the canonical
+        form renames them. The record and key do not change, since the names
+        belong to the crossing rather than to the term. Without the engine to
+        write the term again, the text becomes the key followed by the names,
+        which is exact where the engine's own spelling could not be kept.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if names == self.names:
+            return self
+        return _CarriedTerm(self.record, self.key, names, f"{self.key}{{{' '.join(names)}}}")
 
 
 class Expression(Atom):
