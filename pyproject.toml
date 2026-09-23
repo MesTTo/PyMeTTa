@@ -368,12 +368,19 @@ markers = [
 # so ordinary load variation on a box that idles at 25-35 cannot reach it.
 faulthandler_timeout = 180
 
-# The bound that ends a stuck item. Three properties decide the number:
+# The bound that ends a stuck item, counted in PROGRESS seconds: the wall time
+# less the time the item's thread spent waiting for a CPU, which
+# tests/_progress_timeout.py measures through pytest-timeout's own timer hook,
+# so the box's load cannot spend it and a blocked item still does. Three
+# properties decide the number:
 #   - above every bound a test enforces on its own children, the largest being
 #     600s in tests/ch01_getting_started/test_packaging.py::_build_ext, so the
 #     test's own TimeoutExpired -- which prints the child's output -- always
 #     wins the race and this only ever fires on something genuinely stuck;
-#   - ten times the slowest test measured (89.78s at loadavg 43);
+#   - well above the slowest item measured, 154.64s for
+#     test_door_rows.py::test_door_sync_detects_a_planted_change_in_each_projection
+#     at a load of about 15 on 32 cores [measured 2026-09-24, battery 76], where
+#     the slowest on 2026-09-06 was 89.78s at loadavg 43;
 #   - a quarter of bounded.sh's 3600s ceiling, so a stuck item is NAMED, with
 #     every thread's stack, long before the anonymous session kill.
 timeout = 900
