@@ -331,9 +331,9 @@ def test_the_pytest_lane_is_deterministic_under_load_protocol():
     )
     assert protocol is not None, f"{entry} no longer states the worker protocol"
     assert protocol.groupdict() == {
-        "workers": "4",
+        "workers": "16",
         "dist": "loadfile",
-        "restarts": "4",
+        "restarts": "16",
     }
     # A retry would make a flaky test pass by repetition, and it would now be
     # added where the command is rather than where the lane is. Replacing a

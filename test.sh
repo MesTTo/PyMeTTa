@@ -53,6 +53,17 @@ METTA_ROOT="$HERE/../.."
 # suite is still worth finishing, while more than that is systematic and
 # stopping is the honest answer. xdist prints "replacing crashed worker" and
 # the run still fails, which is what was wanted.
+#
+# SIXTEEN, measured rather than assumed, and the old four was not a ceiling on
+# this box but a cost: the whole suite runs in 392.91s at sixteen where four
+# was killed by the lane's own 3600s bound having reached 98 per cent. A lane
+# that is killed reports NOTHING, and the 27 failures this tree actually has
+# went unnamed for that reason; thirteen of them reproduce with `-p no:xdist`,
+# so they are the suite's own and not an artefact of splitting it
+# [measured 2026-09-23, 32 cores, `--durations=40`: the makespan floor is one
+# test, test_statistics_geometric_mean_precision_and_bounds at 244.44s, which
+# is 62 per cent of the run, so workers past sixteen buy nothing until that
+# test does].
 # The benchmark plugin is disabled because it refuses parallel timing; the
 # dedicated benchmark lanes own those measurements. Four workers is the fixed
 # load-tested ceiling rather than a machine-size-dependent `auto` expansion
@@ -93,4 +104,4 @@ export PYTHONFAULTHANDLER
 # command disables [measured 2026-09-06]. pytest is the one that can tell a path
 # argument from a flag, so the default belongs in its configuration.
 exec sh "$HERE/../../tools/bounded.sh" \
-    "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=4 "$@"
+    "$PY" -m pytest -q -p no:benchmark -n 16 --dist loadfile --max-worker-restart=16 "$@"
