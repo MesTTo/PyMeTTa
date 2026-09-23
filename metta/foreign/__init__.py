@@ -408,9 +408,11 @@ class SpaceProvider:
     compound, a dict, an improper or partial list. Read as an expression it
     would come back changed, `(partial + (1))` no longer applies, so the
     provider is handed the engine's own term by reference instead. It prints
-    as the engine writes it, equals the same term crossing again, renames
-    under alpha_eq with the atom around it, and gives the engine back that
-    term; it does not pickle, because the reference is this process's.
+    as the engine writes it and gives the engine back that term. A ground
+    one equals itself crossing again; one with variables crosses under new
+    names each time, as a plain variable does, so two crossings are alpha_eq
+    rather than equal. It does not pickle, because the reference is this
+    process's.
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
