@@ -767,7 +767,7 @@ def test_a_retired_module_import_is_a_finding(tmp_path):
 #: commit=5c67147566907276a95a5fbf059cf8f98b6685f1]. `drop` is the handle's own
 #: release, `space.drop()`, while the root's verdict builder of that name became
 #: `Drop()` [tested: test_a_lowercase_verdict_builder_is_a_retired_name;
-#: commit=WORKTREE].
+#: commit=3d8b3bf6d56541692ac8c045e4652aeaf4a50bfa].
 RELOCATED = frozenset({"alpha_eq", "atom_from_wire", "drop"})
 
 

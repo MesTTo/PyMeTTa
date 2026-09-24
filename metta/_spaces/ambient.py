@@ -213,7 +213,7 @@ def superpose(*alternatives: _Any):
 # The verdicts keep MeTTa's own capitalized names. A lowercase head is an
 # application wherever a library defines a function of that name, so
 # (drop) beside lib_functional's two-input drop was a call, not a verdict
-# [tested: test_pre_add_compiles_the_four_verdict_judge; commit=WORKTREE].
+# [tested: test_pre_add_compiles_the_four_verdict_judge; commit=3d8b3bf6d56541692ac8c045e4652aeaf4a50bfa].
 def Accept(atom: _Any = _OMITTED) -> Expression:  # noqa: N802  -- MeTTa's constructor name, kept as the name
     """Build a hook verdict that keeps, or with an atom replaces, the atom."""
     return S.Accept() if atom is _OMITTED else S.Accept(atom)

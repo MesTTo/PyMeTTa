@@ -732,7 +732,7 @@ RETIRED_ROOT = {
     # The verdict builders took the constructors' own capitalized names: a
     # lowercase head is a call wherever a library defines a function of that
     # name, as lib_functional's two-input drop made a judge's (drop) one
-    # [tested: test_a_lowercase_verdict_builder_is_a_retired_name; commit=WORKTREE].
+    # [tested: test_a_lowercase_verdict_builder_is_a_retired_name; commit=3d8b3bf6d56541692ac8c045e4652aeaf4a50bfa].
     "accept": "Accept() or Accept(atom)",
     "drop": "Drop()",
     "refuse": "Refuse(words)",
