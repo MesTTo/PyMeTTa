@@ -130,6 +130,11 @@ Guarantees:
     BUDGET already pins the exact count inside its allowance; a declaration
     the twin no longer needs is itself a finding [tested:
     test_a_declared_overrun_widens_one_twins_ceiling_only; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
+  - each pricing declaration is written once: a twin assigning BUDGET, RUNG,
+    ALLOWANCE, DIVERGENCE or OVERRUN a second time is a finding naming both
+    lines, because every reader here stops at the first and Python binds the
+    last [tested: test_a_twin_declaring_a_constant_twice_is_a_finding;
+    commit=WORKTREE]
 Decides:
   - twins live under `extensions/python/examples/language-feature-examples/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
@@ -1971,6 +1976,14 @@ def layout(twin: Path) -> list[str]:
     and their narrative belong at the END, each still directly under the `#:`
     run that documents it, so a reader meets the example first and the next
     re-pin lands where the last one did rather than back on top.
+
+    Each declaration is also written once. Python binds the last of two
+    statements and every reader here stops at the first, so a second one is a
+    second answer to one question: the split RFC 8259 section 4 records for a
+    JSON object whose names repeat, and the reason TOML refuses a key defined
+    twice. The petta merge 327abf1b left two OVERRUN statements in each of two
+    twins, so the lane priced one number while the file ended on another
+    [source: https://www.rfc-editor.org/rfc/rfc8259#section-4].
     """
     tree = _parse(twin)
     if tree is None:
@@ -1986,15 +1999,32 @@ def layout(twin: Path) -> list[str]:
     ]
     if not declared:
         return []
+    findings = []
+    first_line: dict[str, int] = {}
+    for node in declared:
+        names = {
+            target.id
+            for target in node.targets
+            if isinstance(target, ast.Name) and target.id in DECLARATION_NAMES
+        }
+        for name in sorted(names):
+            if name in first_line:
+                findings.append(
+                    f"line {node.lineno}: {name} is declared again, first at "
+                    f"line {first_line[name]}; Python binds the last statement "
+                    f"and the lane reads the first, so keep one"
+                )
+            else:
+                first_line[name] = node.lineno
     first = tree.body.index(declared[0])
     above = [node for node in tree.body[first + 1 :] if node not in declared]
-    if not above:
-        return []
-    return [
-        f"line {above[0].lineno}: the twin's own code follows its declaration "
-        f"at line {declared[0].lineno}; the pricing block and its `#:` re-pin "
-        f"chain belong at the END of the file, so the example is what opens it"
-    ]
+    if above:
+        findings.append(
+            f"line {above[0].lineno}: the twin's own code follows its declaration "
+            f"at line {declared[0].lineno}; the pricing block and its `#:` re-pin "
+            f"chain belong at the END of the file, so the example is what opens it"
+        )
+    return findings
 
 
 #: The measurement tag a `--repin` writes into the twin it prices. Its opening

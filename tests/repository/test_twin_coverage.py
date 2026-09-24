@@ -1210,6 +1210,35 @@ def test_a_twin_declaring_above_its_code_is_a_finding(tmp_path):
     assert coverage.layout(tidy) == []
 
 
+def test_a_twin_declaring_a_constant_twice_is_a_finding(tmp_path):
+    """Two OVERRUN statements, the shape the petta merge 327abf1b left.
+
+    The reader answers the first and Python the last, which is the
+    disagreement the finding exists for; one statement reads clean.
+    """
+    pricing = (
+        '"""Purpose: a planted twin."""\n'
+        "def twin(m):\n"
+        "    assert m\n"
+        "\n"
+        "\n"
+        "BUDGET = 100\n"
+        "OVERRUN = 20\n"
+        f'DIVERGENCE = "{"0" * 64}"\n'
+    )
+    twice = tmp_path / "twice.py"
+    twice.write_text(pricing + "OVERRUN = 30\n", encoding="utf-8")
+    assert coverage.layout(twice) == [
+        "line 9: OVERRUN is declared again, first at line 7; Python binds the "
+        "last statement and the lane reads the first, so keep one"
+    ]
+    assert coverage.overrun_of(twice) == 20
+
+    once = tmp_path / "once.py"
+    once.write_text(pricing, encoding="utf-8")
+    assert coverage.layout(once) == []
+
+
 def test_the_layout_check_passes_the_shipped_twins():
     """The rule has to be one a real twin can follow, or it is not a rule."""
     for example in coverage.written():
