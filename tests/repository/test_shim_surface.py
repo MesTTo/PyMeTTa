@@ -21,6 +21,11 @@ Guarantees:
   - metta_platform_absent/1 classifies the shim's existing platform census
     query as a host service [tested:
     test_the_host_service_scoreboard_matches_the_tree; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]
+  - metta_capability_door/2, the census's map from a declared door to its
+    capability, is a host service, which extensions/node's lint joins with
+    the census to name the capability a refusing door lacks
+    [tested 2026-09-25T03:31:22+10:00: test_the_host_service_scoreboard_matches_the_tree,
+    test_the_shim_surface_shrank_to_the_transport_floor]
   - carrier membership and nonnumeric operations use engine-owned doors
     [tested: test_the_host_service_scoreboard_matches_the_tree; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - the manifest and the tree hold the same host_service set, compared as
@@ -307,6 +312,12 @@ HOST_SERVICES = {
     # The shim already asks which declared capability is absent when refusing
     # an unavailable spelling. Exporting the core makes that dependency explicit.
     "metta_platform_absent/1",
+    # Which declared capability a door belongs to, read from the standard
+    # library's (capability ...) rows at boot: the census's own map, beside the
+    # census that says whether the capability is there. extensions/node's lint
+    # joins the two to name what a refusing py-* door lacks; without it a host
+    # would read the library's rows itself.
+    "metta_capability_door/2",
     # The recursion charge the translator writes in front of every recursive
     # equation's body, recognised in a clause body a host is WALKING rather
     # than running. It is engine-side for the shrink's own reason: every
@@ -554,6 +565,7 @@ FLOOR_REASONS = {
     "metta_live_state_cell/1": "door",
     "metta_platform/4": "census",
     "metta_platform_absent/1": "census",
+    "metta_capability_door/2": "census",
     "sread_with_names/3": "codec",
     "swrite_with_names/3": "codec",
     "translate_cached_expr/3": "codec",
