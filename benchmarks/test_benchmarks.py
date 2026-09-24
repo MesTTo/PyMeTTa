@@ -404,11 +404,27 @@ _ROWS = 2_000
 # and e3b0c44298fc1c14; command=python -c "import benchmarks.test_benchmarks
 # as t; print(t._automatic_tabling_observations())" from extensions/python;
 # commit=864d2deb34cd0b2b805a94055da60905a4171106].
+# Re-pinned 2026-09-24: automatic -199, -179, -187 and -187 at n = 12, 15,
+# 18 and 20, plain unchanged, for superproject d4a365c16, whose support
+# graph's invalidation walk and reference refresh's sets of spaces hold their
+# members in SWI tries instead of library(nb_set): the automatic arm's memo
+# analysis invalidates
+# through the support graph, and a trie checks membership in one foreign
+# call where nb_set probed its hash table in Prolog, four inferences a step
+# past a taken slot. The automatic slope moves from 416.5 to 418.0
+# inferences per unit of n, and the class checks below still hold. The move
+# is d4a365c16's alone: 5d78325cf's committed tree reads every pin above
+# [measured 2026-09-24: min of three observations per size and mode, and
+# sh tools/check.sh benchmarks passing on 5d78325cf with only this test
+# failing with the change; command=python -c "import benchmarks.test_benchmarks
+# as t; print(t._automatic_tabling_observations())" from extensions/python;
+# fixture=the committed tree (BATTERY_KEEP=''), the governed set purged and
+# warmed; commit=d4a365c16bdf1801f9839597e56ecfcc8c2b7a0c].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_226, "automatic": 17_928},
-    15: {"plain": 953_714, "automatic": 19_162},
-    18: {"plain": 7_605_618, "automatic": 20_424},
-    20: {"plain": 30_412_146, "automatic": 21_260},
+    12: {"plain": 122_226, "automatic": 17_729},
+    15: {"plain": 953_714, "automatic": 18_983},
+    18: {"plain": 7_605_618, "automatic": 20_237},
+    20: {"plain": 30_412_146, "automatic": 21_073},
 }
 
 
