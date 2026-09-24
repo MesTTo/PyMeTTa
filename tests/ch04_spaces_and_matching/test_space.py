@@ -22,8 +22,8 @@ Guarantees:
   - a write into one space never removes atoms from another [tested
     test_adding_in_one_space_never_removes_atoms_from_another]
   - copy() answers a space that holds what its source holds and answers what
-    its source answers, generated specializations included [tested
-    test_a_copy_reproduces_the_space_it_copied]
+    its source answers, specializations over named functions included [tested
+    2026-09-25T04:49:09+10:00: test_a_copy_reproduces_the_space_it_copied]
   - run() preserves a runnable variable's source spelling through collection
     and the public wire [tested test_variable_names_survive_to_the_printer]
   - removing an equation from a named space removes its compiled answer as
@@ -61,7 +61,9 @@ Guarantees:
     test_guard_sequences_conjoin_without_changing_positional_patterns;
     commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
 Open Obligations:
-  To Do: None
+  To Do: i-copy-compile-cross-space - a copy of compiled code that passes a
+    |-> lambda holds specializations its source does not, pinned by the strict
+    xfail test_a_copy_of_compiled_lambda_code_equals_its_source
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
@@ -86,6 +88,7 @@ from metta import (
     current_space,
     engine,
     ground,
+    lib,
     parse,
     tables,
     unify,
@@ -1842,6 +1845,37 @@ def test_a_copy_reproduces_the_space_it_copied(metta):
             assert len(clone) == len(source)
             assert clone.digest() == source.digest()
             assert clone.run("!(cp-use 1)") == source.run("!(cp-use 1)")
+        finally:
+            clone.drop()
+
+
+# TODO: i-copy-compile-cross-space - drop this marker in the commit that makes
+# a copy name its specializations as its source did.
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason="i-copy-compile-cross-space: every compile names a |-> lambda afresh "
+           "and a specialization after its lambda, so the copy's compiles publish "
+           "rows its source never held",
+)
+def test_a_copy_of_compiled_lambda_code_equals_its_source():
+    """A copy of an &self holding compiled lambda-bearing code holds its source's rows.
+
+    lib_functional's zip calls unfold through a |-> lambda, so one call of zip
+    compiles it and stores unfold specializations named after that lambda in
+    &self. The copy compiles the same equations again, lifts the lambda under a
+    fresh name, and stores specializations nothing adopts [measured
+    2026-09-24T23:47:14+10:00: the copy held 8 rows its source lacked and the
+    source 6 the copy lacked].
+    """
+    with MeTTa() as m:
+        m += lib.functional
+        answers = [str(answer) for answer in m.self.fn.zip((1, 2), (3, 4))]
+        if answers != ["((1 3) (2 4))"]:
+            pytest.fail(f"zip answered {answers}, so the copy below proves nothing")
+        clone = m.self.copy()
+        try:
+            assert _atom_multiset(clone) == _atom_multiset(m.self)
         finally:
             clone.drop()
 
