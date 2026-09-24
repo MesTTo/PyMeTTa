@@ -77,12 +77,20 @@ _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-
 # the file told them apart. The engine declares its platform capabilities now,
 # so the host reads them: one row per capability, named for what a program
 # loses rather than for which directive failed, and the two files needing
-# subprocess are one capability because the cost is the same.
+# subprocess are one capability because the cost is the same. Every row is
+# decided when first read, so the capabilities nothing loads at boot, the
+# environment listing, HTTP, HTTPS and sockets, are named here too.
 _EXPECTED_REFUSALS = [
     ("concurrency", "library(thread)"),
     ("crypto", "library(crypto)"),
     ("deadlines", "library(time)"),
+    ("environment-listing", "library(unix)"),
+    ("http", "[library(http/http_open),library(http/thread_httpd),"
+             "library(http/http_client),library(http/http_header),"
+             "library(socket),library(uri),library(thread_pool)]"),
+    ("https", "[library(http/http_ssl_plugin),library(ssl),library(crypto)]"),
     ("redis", "library(redis)"),
+    ("socket", "library(socket)"),
     ("subprocess", "library(process)"),
 ]
 
