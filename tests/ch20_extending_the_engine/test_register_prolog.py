@@ -111,6 +111,11 @@ def test_a_missing_file_is_named(space):  # noqa: D103  -- pytest discovers or i
         space.register_prolog(path="/nonexistent/metta/none.pl", names=["rp-x"])
     with pytest.raises(MettaError):
         space.register_prolog(path="/nonexistent/metta/none.pl", names=["rp-x"])
+    # Without names too. The declarations of a file that is not there were
+    # read first and answered that it declared nothing, so the refusal asked
+    # for a metta_export the caller could not add to a missing file.
+    with pytest.raises(SourceNotFound, match="no Prolog source"):
+        space.register_prolog(path="/nonexistent/metta/none.pl")
 
 
 def test_a_non_string_name_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

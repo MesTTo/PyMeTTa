@@ -43,6 +43,7 @@ import pytest
 import metta.integrate as pi
 from metta import Expression, MeTTa, MettaError, S, Symbol, V, convert, ground
 from metta._declare import declarations as _space_declarations
+from metta._errors.errors import SourceNotFound
 from metta.convert import CastError
 
 
@@ -613,10 +614,10 @@ def test_a_failed_prolog_integration_names_its_possible_source_residue(
     module.__file__ = str(package / "__init__.py")
     module.METTA_PROLOG = ["first-residue.pl", "second-residue.pl"]
 
+    # second-residue.pl is never written, so its registration fails after the
+    # first file has been consulted: that failure is what unwinds.
     with metta._new_space() as space:
-        with pytest.raises(
-            ValueError, match="register_prolog needs one of three things"
-        ) as caught:
+        with pytest.raises(SourceNotFound, match="no Prolog source") as caught:
             pi.integrate(space, module)
 
         notes = getattr(caught.value, "__notes__", ())

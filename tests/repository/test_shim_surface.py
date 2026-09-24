@@ -31,6 +31,10 @@ Guarantees:
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor;
     commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+  - Prolog registration is classified as engine-side host orchestration,
+    the one sequence every binding crosses once [tested:
+    test_the_host_service_scoreboard_matches_the_tree,
+    test_the_shim_surface_shrank_to_the_transport_floor; commit=WORKTREE]
   - the host query door uses the engine's published pattern-modifier walk
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]
@@ -354,6 +358,11 @@ HOST_SERVICES = {
     # retain translate_expr/3, so compile-once loading pays no cache tax.
     "translate_cached_expr/3",
     "translate_expr/3",
+    # Registering Prolog is one engine-side sequence every binding crosses
+    # once, where this seat ran it across six crossings of its own; a
+    # release answers with the members the extension installed.
+    "metta_register_prolog/3",
+    "metta_extension_members/2",
     "unregister_metta_extension/1",
     "with_metta_module/2",
     # A completion the host schedules from inside a crossing and the engine
@@ -549,6 +558,8 @@ FLOOR_REASONS = {
     "swrite_with_names/3": "codec",
     "translate_cached_expr/3": "codec",
     "translate_expr/3": "codec",
+    "metta_register_prolog/3": "host-orchestration",
+    "metta_extension_members/2": "door",
     "unregister_metta_extension/1": "door",
     "with_metta_module/2": "door",
 }

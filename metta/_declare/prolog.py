@@ -16,7 +16,7 @@ import metta._declare.functions as _declare_functions_module
 import metta.doors as _doors
 from metta._errors.errors import refuse
 from metta._lazy import lazy
-from metta._spaces.handle import _inline_module_name, _require_name, _source_identity
+from metta._spaces.handle import _require_name
 from metta.vocabularies import RefusalKind
 
 
@@ -27,7 +27,7 @@ from metta.vocabularies import RefusalKind
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
     evidence=('extensions/python/tests/ch20_extending_the_engine/test_register_prolog.py::test_a_builtin_name_is_refused_and_the_builtin_still_works', 'extensions/python/tests/ch20_extending_the_engine/test_register_prolog.py::test_a_declaration_without_an_extension_still_reports_its_names', 'extensions/python/tests/ch20_extending_the_engine/test_register_prolog.py::test_a_declared_det_function_answers_normally'),
-    binding=_doors.Binding('import_prolog_functions', _doors.Wire.goal),
+    binding=_doors.Binding('metta_py_register_prolog', _doors.Wire.goal),
     refuses=(_doors.Refusal(_doors.RefusalKind.value, 'extensions/python/tests/repository/test_door_refusals.py::test_door_value_refusals[space:register-prolog]'),),
 )
 def register_prolog(
@@ -74,10 +74,11 @@ def register_prolog(
     raises instead: a name with no predicate behind it is refused before
     it can do that.
 
-    The refusals are the engine's, through check_prolog_function_names/3
-    and import_prolog_functions/2, so this and the MeTTa spelling enforce
-    one rule rather than two copies of it. Three names are refused: one
-    with no predicate behind it, a builtin, and a special form.
+    The whole sequence is the engine's, metta_register_prolog/3, which
+    tsmetta's registerProlog crosses too, so the hosts and the MeTTa
+    spelling enforce one rule rather than copies of it. Three names are
+    refused: one with no predicate behind it, a builtin, and a special
+    form.
 
     Nothing is registered unless every name can be, so a typo in the list
     changes nothing. The consulted SOURCE does stay loaded on failure,
@@ -113,164 +114,31 @@ def register_prolog(
     """
     if (source is None) == (path is None):
         msg = "register_prolog takes exactly one of source or path"
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)
     if isinstance(names, _abc.Mapping):
-        registered = _register_renamed(space, path, names)
-        _declare_functions_module._invalidate_builtins_cache(space._rt)
-        return registered
-    for name in names:
+        # The engine refuses a rename from text too; this says it with the
+        # keyword the caller wrote, which only this seat can name.
+        if path is None:
+            msg = (
+                "renaming imports a Prolog MODULE, which SWI's import list "
+                "names as a file, so it needs path= rather than source="
+            )
+            raise ValueError(msg)
+        wanted: list[Any] = [[exported, to] for exported, to in names.items()]
+        given = [name for pair in wanted for name in pair]
+    else:
+        wanted = given = list(names)
+    for name in given:
         _require_name(name, "register_prolog")
-    wanted = [str(name) for name in names]
-
-    # Before the source loads, not after. Consulting a file that defines a
-    # builtin's name has already replaced the engine's static predicate by
-    # the time a per-name refusal could fire, so refusing afterwards left
-    # (+ 1 2) answering the library's answer while this call reported the
-    # registration as refused.
-    if wanted:
-        space._rt.must(
-            "check_prolog_function_names(Names, Source, _)",
-            Names=wanted,
-            Source=_source_identity(source, path),
-        )
-
-    declares = "exports" if wanted else _require_a_declaration(space, source, path)
-
-    origin = _load_prolog_source(space, source, path)
-
-    # A source carrying its own :- metta_export/1 has already registered
-    # by now, through the load, so a caller who declared in the file
-    # passes no names at all.
-    if not wanted:
-        # An extension that exports nothing registers nothing, and that is
-        # the shape of a provider: it contributes implementation clauses.
-        if declares == "extension":
-            _declare_functions_module._invalidate_builtins_cache(space._rt)
-            return ()
-        registered = _declared_exports(space, origin)
-        _declare_functions_module._invalidate_builtins_cache(space._rt)
-        return registered
-
-    # One goal, so the engine validates every name before it registers any:
-    # a typo in the third name used to leave the first two registered and
-    # callable, with the list of what had taken dying inside the exception.
-    # The rule lives there rather than here, so this and the MeTTa spelling
-    # cannot drift apart.
-    space._rt.must("import_prolog_functions(Names, _)", Names=wanted)
-    _declare_functions_module._invalidate_builtins_cache(space._rt)
-    return tuple(wanted)
-
-def _require_a_declaration(space: _root.Space, source: str | None, path: Any) -> str:
-    """What this source declares, read BEFORE it loads.
-
-    It used to be consulted first and checked after, so a provider file
-    with no declaration raised and installed the provider anyway: catching
-    the error made everything work, which is the one outcome that teaches
-    an author to ignore an error.
-
-    All three routes are named, because pointing only at `metta_export` is
-    a dead end for a provider author, who has no functions to export.
-    """
-    goal, inputs = (
-        ("metta_py_source_declares(Source, Declares)", {"Source": os.fspath(path)})
-        if path is not None
-        else ("metta_py_string_declares(Text, Declares)", {"Text": str(source)})
-    )
-    declares = str(space._rt.must(goal, **inputs)["Declares"])
-    if declares == "nothing":
-        msg = (
-            "register_prolog needs one of three things: the names to "
-            'register, a :- metta_export("...") declaration for a '
-            "source that defines functions, or a "
-            ":- metta_extension(name, []) declaration for one that "
-            "contributes clauses to an extension point and exports "
-            "nothing, such as a space provider. Discovering the names would "
-            "silently register whatever else the source defines"
-        )
-        raise ValueError(
-            msg
-        )
-    return declares
-
-def _register_renamed(
-    space: _root.Space, path: Any, renames: _abc.Mapping[Any, Any]
-) -> tuple[str, ...]:
-    """Import a Prolog module's exports under names of your choosing.
-
-    The one collision a name refusal cannot fix is two libraries that both
-    export `norm/2`: neither is wrong and neither can be asked to change.
-    SWI has resolved it for thirty years with a renaming import list, and
-    this is that, so the second library arrives as `libb-norm` and neither
-    is rebound. Without it SWI refuses the second import, prints "No
-    permission to import ... (already imported from ...)" and continues,
-    leaving the newcomer silently bound to the incumbent's code.
-
-    The arity comes from the module's own export list, so a rename names
-    only the two names, and a name the module does not export is refused
-    with the list of what it does export.
-    """
-    if path is None:
-        msg = (
-            "renaming imports a Prolog MODULE, which SWI's import list "
-            "names as a file, so it needs path= rather than source="
-        )
-        raise ValueError(
-            msg
-        )
-    pairs = []
-    for exported, metta_name in renames.items():
-        _require_name(exported, "register_prolog")
-        _require_name(metta_name, "register_prolog")
-        pairs.append([str(exported), str(metta_name)])
-    wanted = [pair[1] for pair in pairs]
-    # Before the load, for the reason the unrenamed path documents.
-    space._rt.must(
-        "check_prolog_function_names(Names, Source, _)",
+    kind, origin = ("file", os.fspath(path)) if path is not None else ("text", str(source))
+    registered = space._rt.must(
+        "metta_py_register_prolog(Kind, Source, Names, Registered)",
+        Kind=kind,
+        Source=origin,
         Names=wanted,
-        Source=os.fspath(path),
-    )
-    space._rt.must(
-        "use_module_global(File, Renames)",
-        File=os.fspath(path),
-        Renames=pairs,
-    )
-    space._rt.must("import_prolog_functions(Names, _)", Names=wanted)
-    return tuple(wanted)
-
-def _load_prolog_source(space: _root.Space, source: str | None, path: Any) -> str:
-    """Load the source and answer the name the engine knows it by."""
-    if path is not None:
-        source_path = os.fspath(path)
-        if not Path(source_path).is_file():
-            msg = f"no Prolog source at {source_path!r}"
-            raise refuse(RefusalKind.source, msg, source=source_path)
-        space._rt.consult(source_path)
-        return source_path
-    # The name the load runs under, not a constant. A declaration inside
-    # the source records itself under prolog_load_context/2's answer, which
-    # for a stream load is this module name, so asking under any other name
-    # found nothing and a source declaring its own exports inline was told
-    # it had declared none.
-    module = _inline_module_name(str(source))
-    space._rt.consult(module, data=str(source))
-    return module
-
-def _declared_exports(space: _root.Space, origin: str) -> tuple[str, ...]:
-    row = space._rt.must("metta_py_declared_exports(Source, Names)", Source=origin)
-    declared = tuple(str(name) for name in row.get("Names", []))
-    if not declared:
-        msg = (
-            "register_prolog needs the names to register, or a "
-            ':- metta_export("...") declaration in the source. '
-            "Discovering them would silently register whatever else "
-            "the source defines"
-        )
-        raise ValueError(
-            msg
-        )
-    return declared
+    )["Registered"]
+    _declare_functions_module._invalidate_builtins_cache(space._rt)
+    return tuple(registered)
 
 @_doors.door(
     kind=_doors.Kind.provider,

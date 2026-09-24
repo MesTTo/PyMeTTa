@@ -2430,10 +2430,11 @@ class Space(SpaceHandle):
         raises instead: a name with no predicate behind it is refused before
         it can do that.
 
-        The refusals are the engine's, through check_prolog_function_names/3
-        and import_prolog_functions/2, so this and the MeTTa spelling enforce
-        one rule rather than two copies of it. Three names are refused: one
-        with no predicate behind it, a builtin, and a special form.
+        The whole sequence is the engine's, metta_register_prolog/3, which
+        tsmetta's registerProlog crosses too, so the hosts and the MeTTa
+        spelling enforce one rule rather than copies of it. Three names are
+        refused: one with no predicate behind it, a builtin, and a special
+        form.
 
         Nothing is registered unless every name can be, so a typo in the list
         changes nothing. The consulted SOURCE does stay loaded on failure,

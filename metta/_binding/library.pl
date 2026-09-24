@@ -12,10 +12,10 @@
 %%%%%%%%%% What a library says about itself %%%%%%%%%%
 %
 %Everything one Prolog source declares, as [kind, value] pairs rather than the
-%coarse verdict metta_py_source_declares/2 answers: the caller here is building
-%a description of a library, and "exports" does not say WHICH names, which
-%capability the file needs, or what version it states. One scan either way,
-%and the source is read and never consulted
+%coarse verdict metta_register_prolog/3 reads before it loads anything: the
+%caller here is building a description of a library, and "exports" does not
+%say WHICH names, which capability the file needs, or what version it states.
+%One scan either way, and the source is read and never consulted
 %[source: engine/metta/interop.pl, metta_source_declarations/2].
 metta_py_source_declarations(Source0, Rows) :-
     ( atom(Source0) -> Source = Source0 ; atom_string(Source, Source0) ),
@@ -90,10 +90,36 @@ metta_py_git_pins(Rows) :-
     ).
 
 %The names one extension installed, asked before releasing them so the caller
-%can be told what went.
+%can be told what went. The membership is the engine's answer; this side puts
+%each name on the wire as a string, so a member such as `none` is not read
+%back as Python's own constant [source: engine/metta/interop.pl,
+%metta_extension_members/2].
 metta_py_extension_members(Name0, Names) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    findall(S, ( metta_extension_member(Name, Member), atom_string(Member, S) ), Names).
+    metta_extension_members(Name, Members),
+    maplist(atom_string, Members, Names).
+
+%Registering Prolog as MeTTa functions, in one crossing. The sequence is the
+%engine's, the one every binding runs [source: engine/metta/interop.pl,
+%metta_register_prolog/3]; this side reads the wire: the origin as its kind
+%beside its text, a name as a string, a rename as a [From, To] pair of
+%strings, and the names registered back as strings.
+metta_py_register_prolog(Kind0, Source, Names0, Registered) :-
+    atom_string(Kind, Kind0),
+    metta_py_prolog_origin(Kind, Source, Origin),
+    maplist(metta_py_prolog_name, Names0, Names),
+    metta_register_prolog(Origin, Names, Registered0),
+    maplist(atom_string, Registered0, Registered).
+
+metta_py_prolog_origin(file, Path, file(Path)).
+metta_py_prolog_origin(text, Text, text(Text)).
+
+metta_py_prolog_name([From0, To0], [From, To]) :-
+    !,
+    atom_string(From, From0),
+    atom_string(To, To0).
+metta_py_prolog_name(Name0, Name) :-
+    atom_string(Name, Name0).
 
 %Everything one extension installed, released together.
 metta_py_unregister_extension(Name0) :-

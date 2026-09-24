@@ -42,8 +42,6 @@ test_a_failed_close_retried_leaves_nothing_behind; commit=3aa8268da73cbbf54d3824
 
 from __future__ import annotations
 
-import hashlib
-import os
 from collections import abc as _abc
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -200,43 +198,6 @@ def _checked_new_space_request(
         msg = "a space cannot be both inherited and restricted"
         raise ValueError(msg)
     return requested_grants
-
-def _source_identity(source: str | None, path: Any) -> str:
-    """What the engine will record this registration's source as.
-
-    The pre-load check needs it, because "a name another Prolog source owns"
-    has to distinguish another source from THIS one re-registering. Both
-    routes know it before the load: a file is its path, and inline source is
-    the module name it loads under, which is what the engine reads back off
-    the clauses afterwards.
-    """
-    if path is not None:
-        return os.fspath(path)
-    return _inline_module_name(str(source))
-
-def _inline_module_name(source: str) -> str:
-    """The name SWI loads inline Prolog source under.
-
-    SWI removes every clause loaded under a name when that name is loaded
-    again, so this name decides which library's clauses a later registration
-    erases. It was `id(source)`, an address CPython hands to the next object
-    of the same size the moment the string is freed, and a library generating
-    Prolog therefore lost every predicate but the last: the reuse struck on
-    the SECOND registration, not after four hundred, and the failure surfaced
-    later as `findall_loop/4: Unknown procedure`.
-
-    A content hash fixes every axis at once. It is deterministic, so two
-    different sources cannot collide; it is idempotent, so registering the
-    same source twice reloads it rather than accumulating clauses; and it
-    means something in a stack trace.
-
-    persistent.py hashes the journal PATH and appends a counter, because two
-    providers on one journal need distinct modules. Here the requirement is
-    the opposite, that the same source reuse one name, so the two do not
-    share a helper.
-    """
-    digest = hashlib.blake2s(source.encode("utf-8"), digest_size=8).hexdigest()
-    return f"metta_inline_{digest}"
 
 class _HashableSpaceTerm(list[Any]):
     """An exact Janus term list keyed by its immutable expression identity."""
