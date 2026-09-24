@@ -364,7 +364,6 @@ class EvaluationOptions:
     form: EvaluationInput = field(default=EvaluationInput.wire, metadata={"means": "Wire/text target or an already decoded term."})
     using: tuple[tuple[str, str], ...] = field(default=(), metadata={"means": "Named substitutions applied to the decoded term."})
     answers: EvaluationCollection = field(default=EvaluationCollection.all, metadata={"means": "One solution, eager bag, cursor, count, retained count, or status rows."})
-    fuel: bool = field(default=True, metadata={"means": "Reuse or open the engine fuel scope."})
     inferences: int = field(default=-1, metadata={"means": "Cumulative engine-step quota; negative means unbounded.", "bound": True})
     seconds: float = field(default=-1.0, metadata={"means": "Engine time quota in seconds; negative means unbounded.", "bound": True})
     under: tuple[str, int, str] | None = field(default=None, metadata={"means": "Evaluation algebra, demand limit and direction, or no override."})
@@ -373,7 +372,6 @@ class EvaluationOptions:
     columns: tuple[str, ...] = field(default=(), metadata={"means": "Caller variable names projected beside each cursor answer."})
     accounting: bool = field(default=False, metadata={"means": "Return the work measured inside this evaluation."})
     batch: bool = field(default=False, metadata={"means": "Return one result group per target, in input order."})
-    unmatched: bool = field(default=True, metadata={"means": "Preserve an unreduced original after an empty eager bag."})
 
 
 @dataclass(frozen=True, slots=True)

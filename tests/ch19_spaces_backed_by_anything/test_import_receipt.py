@@ -441,7 +441,7 @@ def test_saved_goal_runs_after_public_reimport_repairs_its_source() -> None:
         result = target.runtime.once(
             "user:c2_receipt_saved(_Module, _Source, _Goals, _Out), "
             f"_Source = ['take-atom', {quote(target.name)}, [job, _State], 2.0], "
-            "user:metta_py_call_goals(_Module, _Goals), R = _Out"
+            "metta_engine:call_goals_in_(_Module, _Goals), R = _Out"
         )
         assert result is not None
     finally:

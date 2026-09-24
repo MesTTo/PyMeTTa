@@ -9,7 +9,6 @@ class EvaluationRecord(NamedTuple):
     form: str
     using: list[Any]
     answers: str
-    fuel: str
     inferences: int | str
     seconds: float | str
     under: list[Any] | str
@@ -18,7 +17,6 @@ class EvaluationRecord(NamedTuple):
     columns: list[Any]
     accounting: str
     batch: str
-    unmatched: str
 
     def with_options(self, **options: Any) -> "EvaluationRecord":
         """Project Python flags and unbounded quotas to native Prolog atoms."""
@@ -33,7 +31,7 @@ class EvaluationRecord(NamedTuple):
 
 # closed-set: generated; by=extensions/python/tools/doorgen.py; lane=door-sync
 EVALUATIONS = {
-    'space:eval': ('metta_py_evaluate', EvaluationRecord(form='wire', using=[], answers='all', fuel='true', inferences='none', seconds='none', under='none', policy='none', repeatable='false', columns=[], accounting='false', batch='false', unmatched='true'), 0),
-    'space:answers': ('metta_py_evaluate', EvaluationRecord(form='wire', using=[], answers='cursor', fuel='true', inferences='none', seconds='none', under='none', policy='none', repeatable='false', columns=[], accounting='false', batch='false', unmatched='true'), 1),
-    'space:eval-status': ('metta_py_evaluate', EvaluationRecord(form='wire', using=[], answers='status', fuel='true', inferences='none', seconds='none', under='none', policy='none', repeatable='false', columns=[], accounting='false', batch='false', unmatched='true'), 2),
+    'space:eval': ('metta_py_evaluate', EvaluationRecord(form='wire', using=[], answers='all', inferences='none', seconds='none', under='none', policy='none', repeatable='false', columns=[], accounting='false', batch='false'), 0),
+    'space:answers': ('metta_py_evaluate', EvaluationRecord(form='wire', using=[], answers='cursor', inferences='none', seconds='none', under='none', policy='none', repeatable='false', columns=[], accounting='false', batch='false'), 1),
+    'space:eval-status': ('metta_py_evaluate', EvaluationRecord(form='wire', using=[], answers='status', inferences='none', seconds='none', under='none', policy='none', repeatable='false', columns=[], accounting='false', batch='false'), 2),
 }

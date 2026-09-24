@@ -343,6 +343,9 @@ def test_function_calls_suspend_endless_producers() -> None:
         yield n
         yield from defined_count_up(n + 1)
 
+    # Warm the defined function too, for the handle's reason: its first call
+    # translates the call once, a one-time cost this test does not measure.
+    assert list(defined_count_up(0)[:1]) == [G(0)]
     with target.stats() as defined_cost:
         defined_actual = list(defined_count_up(0)[:4])
 

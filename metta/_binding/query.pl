@@ -135,12 +135,7 @@ metta_py_query_repeatable(Space, PatternsTagged, GuardTagged) :-
             Modifiers == [],
             (   GuardTagged == []
             ->  true
-            ;   metta_py_module(Space, Module),
-                metta_py_in_module(
-                    Module,
-                    ( translate_expr(Guard, Goals, _),
-                      goals_list_to_conj(Goals, Body) )),
-                metta_host_goal_repeatable(Module, Body)
+            ;   metta_host_evaluation_repeatable(Space, Guard)
             )
         ),
         fail).
@@ -287,11 +282,14 @@ metta_py_render_origin(refused(Refusing), Text) :-
 %scope as the patterns, so $age in both is one variable; after the match
 %joins, the guard evaluates in the space's module and must answer true.
 %Limit 0 means every answer.
-%The guard translates ONCE, before the match enumerates: its variables are
-%the same Prolog variables the patterns bind, so each answer runs the
-%already-compiled goals against its own bindings, and backtracking retracts
-%them. Translating inside the enumeration would recompile per candidate
-%row, which measured at ~500ms per 2000-row guarded query.
+%The match is the evaluation door's GENERATOR: the door translates the guard
+%ONCE, before the match enumerates, and runs its goals against each row's
+%bindings inside one fuel scope, so backtracking retracts them and a
+%stack-depth pragma bounds the guard. Translating inside the enumeration
+%would recompile per candidate row, which measured at ~500ms per 2000-row
+%guarded query. A row stands only when its guard answers true, so a branch
+%the scope stopped, which answers its error after the rows that finished and
+%with their bindings undone, drops as any guard answering (Error ...) does.
 metta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
     metta_py_wide_projection(VarNames),
     !,
@@ -299,13 +297,8 @@ metta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
                             [Guard | Patterns], Bindings),
     metta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
     metta_py_match_goal(Segments, Space, PlainPatterns, Goal),
-    metta_py_module(Space, Module),
-    metta_py_in_module(Module, translate_expr(Guard, Goals, Out)),
-    (   Modifiers == []
-    ->  call(Goal)
-    ;   call(Goal), metta_py_call_modifiers(Modifiers)
-    ),
-    metta_py_call_goals(Module, Goals),
+    metta_host_evaluate(Space, metta_py_query_matched(Goal, Modifiers),
+                        Guard, Out, _),
     Out == true,
     metta_py_row(VarNames, Bindings, Row).
 
@@ -317,14 +310,18 @@ metta_py_query_guarded_match(Space, PatternsTagged, GuardTagged, Bindings) :-
     metta_py_decode_shared(["e", [GuardTagged | PatternsTagged]], [Guard | Patterns], Bindings),
     metta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
     metta_py_match_goal(Segments, Space, PlainPatterns, Goal),
-    metta_py_module(Space, Module),
-    metta_py_in_module(Module, translate_expr(Guard, Goals, Out)),
-    (   Modifiers == []
-    ->  call(Goal)
-    ;   call(Goal), metta_py_call_modifiers(Modifiers)
-    ),
-    metta_py_call_goals(Module, Goals),
+    metta_host_evaluate(Space, metta_py_query_matched(Goal, Modifiers),
+                        Guard, Out, _),
     Out == true.
+
+%One row of a guarded query's match, its path modifiers applied: the
+%generator the evaluation door runs the guard under.
+metta_py_query_matched(Goal, []) :-
+    !,
+    call(Goal).
+metta_py_query_matched(Goal, Modifiers) :-
+    call(Goal),
+    metta_py_call_modifiers(Modifiers).
 
 metta_py_query_guarded_all(Space, PatternsTagged, GuardTagged, VarNames, Limit, Rows) :-
     Query = metta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row),

@@ -531,7 +531,7 @@ def evaluate_many(
     pairs = [] if not using else [[name, _encode(value).to_wire()] for name, value in using.items()]
     groups = _controlled_run(
         rt, "space:eval", [space, encoded], _spaces_scope_module._limits(timeout, inferences),
-        evaluation_options={"using": pairs, "batch": True, "fuel": bool(using), "unmatched": bool(using)},
+        evaluation_options={"using": pairs, "batch": True},
     )
     return [[_from_wire(wire) for wire in group] for group in groups]
 

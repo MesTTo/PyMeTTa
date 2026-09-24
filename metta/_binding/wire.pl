@@ -629,11 +629,17 @@ metta_py_answer_kappa_value(K0, Ctx, K) :-
 %This residue is only the part a provider did not discharge. Constraint goals
 %remain language-internal through residual-goals/2, and a WFS answer carries
 %its delay condition; neither creates a second Python return shape.
+%It evaluates through the engine's host door in the space the enclosing
+%evaluation runs in, so inside one it spends that evaluation's fuel, and
+%outside one it opens a scope of its own. The door answers the symbol Empty as
+%data, and Empty here is no closure, as the language prunes it.
 metta_py_answer_close('@'(true), _) :- !.
 metta_py_answer_close(ResidueW, Table) :-
     metta_py_decode_shared_(ResidueW, Residue, Table, _),
-    eval(Residue, Out),
-    Out \== false.
+    current_metta_space(Space),
+    metta_host_evaluate(Space, true, Residue, Out, _),
+    Out \== false,
+    Out \== 'Empty'.
 
 %A conditional answer under a pushed bound under-answers: the provider
 %truncated at the caller's k, and a residue can still drop answers after

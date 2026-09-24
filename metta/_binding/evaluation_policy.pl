@@ -37,12 +37,11 @@ system:term_expansion(binding_evaluation, Clauses) :-
 evaluation_clause(metta_py_evaluate(Options, Space, Target, Result), Goal) :-
     metta_py_options(Options, [answers(Collection), seconds(Time), inferences(Inf)]),
     evaluation_clause(metta_py_evaluation_accounted(Options, Space, Target, Result), Accounted),
-    Goal = ( metta_py_settle_definitions,
-             ( (Collection == cursor ; Time == none, Inf == none)
+    Goal = ( (Collection == cursor ; Time == none, Inf == none)
              -> Accounted
              ; metta_py_option_limits(Time, Inf, Seconds, Inferences),
                metta_py_guarded(Seconds, Inferences,
-                   metta_py_evaluation_accounted(Options, Space, Target, Result)) )).
+                   metta_py_evaluation_accounted(Options, Space, Target, Result)) ).
 
 evaluation_clause(metta_py_evaluation_accounted(Options, Space, Target, Result), Goal) :-
     metta_py_options(Options, [answers(Collection), accounting(Accounting), under(Under)]),
@@ -57,42 +56,34 @@ evaluation_clause(metta_py_evaluation_accounted(Options, Space, Target, Result),
                Used is After - Before, Result = [Values, Used]
             ; Scoped, Result = Values).
 
-evaluation_clause(metta_py_collect(one, Options, Space, Term, _, Encoded), Goal) :-
-    metta_py_options(Options, [fuel(Fuel)]),
-    Goal = metta_py_produce(wire, Fuel, Space, Term, Encoded).
-evaluation_clause(metta_py_collect(all, Options, Space, Term, _, Encoded), Goal) :-
-    metta_py_options(Options, [fuel(Fuel), unmatched(Unmatched)]),
-    Goal = (findall(E, metta_py_produce(wire, Fuel, Space, Term, E), Answers),
-            (Answers == [], Unmatched == true, metta_py_preserve_unmatched(Space, Term, Original)
-             -> Encoded = [Original] ; Encoded = Answers)).
+evaluation_clause(metta_py_collect(one, _, Space, Term, _, Encoded), Goal) :-
+    Goal = metta_py_produce(wire, Space, Term, Encoded).
+evaluation_clause(metta_py_collect(all, _, Space, Term, _, Encoded), Goal) :-
+    Goal = findall(E, metta_py_produce(wire, Space, Term, E), Encoded).
 evaluation_clause(metta_py_collect(count, Options, Space, Term, _, Answer), Goal) :-
-    metta_py_options(Options, [fuel(Fuel), repeatable(Repeatable)]),
-    Goal = (Repeatable == true, \+ metta_py_repeatable(Space, Term)
+    metta_py_options(Options, [repeatable(Repeatable)]),
+    Goal = (Repeatable == true, \+ metta_host_evaluation_repeatable(Space, Term)
             -> Answer = []
-            ; aggregate_all(count, metta_py_produce(raw, Fuel, Space, Term, _), Count),
+            ; aggregate_all(count, metta_py_produce(raw, Space, Term, _), Count),
               (Repeatable == true -> Answer = [Count] ; Answer = Count)).
 evaluation_clause(metta_py_collect(retained, Options, Space, Term, Bindings,
                                   [Count, prolog(Engine)]), Goal) :-
-    metta_py_options(Options, [fuel(Fuel), columns(VarNames)]),
+    metta_py_options(Options, [columns(VarNames)]),
     Replay = (statistics(inferences, Before), member(Value-HeldRow, Bag),
               metta_py_retained_encoded(Value, Encoded),
               statistics(inferences, Now), Used is Now - Before),
-    Goal = (findall(Held-Row, (metta_py_produce(raw, Fuel, Space, Term, Held),
+    Goal = (findall(Held-Row, (metta_py_produce(raw, Space, Term, Held),
                              metta_py_row(VarNames, Bindings, Row)), Bag),
             length(Bag, Count), metta_host_hold([Encoded, HeldRow, Used], Replay, Engine)).
-evaluation_clause(metta_py_collect(status, Options, Space, Term, _, Results), Goal) :-
-    metta_py_options(Options, [fuel(Fuel)]),
-    Goal = (metta_py_module(Space, Module), metta_py_classify(Module, Term, Status),
-            findall([Status, E], metta_py_produce(wire, Fuel, Space, Term, E), Answers),
-            (Answers == []
-             -> (Status == 'not-reducible', metta_py_preserve_unmatched(Space, Term, Original)
-                 -> Results = [[Status, Original]] ; Results = [[empty, none]])
-             ; Results = Answers)).
+evaluation_clause(metta_py_collect(status, _, Space, Term, _, Results), Goal) :-
+    Goal = (metta_py_classify(Space, Term, Status),
+            findall([Status, E], metta_py_produce(wire, Space, Term, E), Answers),
+            (Answers == [] -> Results = [[empty, none]] ; Results = Answers)).
 evaluation_clause(metta_py_collect(cursor, Options, Space, Term, Bindings, prolog(Engine)), Goal) :-
     metta_py_options(Options,
-        [fuel(Fuel), columns(VarNames), seconds(Time), inferences(Quota),
+        [columns(VarNames), seconds(Time), inferences(Quota),
          under(Under), policy(Policy)]),
-    Values = (metta_py_produce(wire, Fuel, Space, Term, Encoded),
+    Values = (metta_py_produce(wire, Space, Term, Encoded),
               metta_py_row(VarNames, Bindings, Row)),
     Goal = (metta_py_option_limits(Time, Quota, TimeS, Inf),
             (Under == none

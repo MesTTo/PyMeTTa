@@ -200,13 +200,32 @@ HOST_SERVICES = {
     # engine-side door replaces both copies and the engine stops depending on
     # a binding's internals.
     "metta_host_set_silent/1",
-    # list() asks for a length hint before it pulls. The engine's shared
-    # effect classifier decides whether that second evaluation is safe; the
-    # host must not reconstruct its private queue protocol.
-    "metta_host_goal_repeatable/2",
-    # World admission asks the engine to walk the compiled target and compose
-    # its canonical effect rows; reproducing that walk in a host is unsound.
-    "metta_host_goal_effect_plan/4",
+    # Every evaluation is the engine's one door, which runs the term inside
+    # the fuel scope, so a stack-depth pragma bounds what a host asks; the
+    # seats had each wrapped the scope by hand and two of three had not.
+    "metta_host_evaluate/5",
+    # The questions a host asks about an evaluation without running it, each
+    # built engine-side from the plan the door would run, so no host holds a
+    # translated goal: whether a second evaluation for a length hint repeats
+    # an effect, the plan a world admits, the translation a saga warms, and
+    # whether a call is one its equations do not match.
+    "metta_host_evaluation_repeatable/2",
+    "metta_host_evaluation_effect_plan/4",
+    "metta_host_evaluation_prepare/2",
+    "metta_host_unmatched/2",
+    # A door that reads definitions settles a batch open around it; a host
+    # batches its own definitions, forces a deferred function before it reads
+    # its clauses, reads the arities a module stores a function at, asks
+    # whether a recycled space name was ever used, reads a relation's rows and
+    # walks a parsed form's source origins. Each was already called, qualified
+    # into a subsystem module the host-binding walk could not see into.
+    "metta_settle_definitions/0",
+    "with_definition_batch/1",
+    "metta_ensure_compiled/1",
+    "metta_arity_ascending/3",
+    "space_parent_child_used/1",
+    "metta_match_atoms/2",
+    "source_children/3",
     # The same walk asked of a retained source term: what the target would do
     # before it is translated, what replaying a frozen image compiles, and
     # which operations one saga step can execute.
@@ -258,13 +277,6 @@ HOST_SERVICES = {
     "metta_declare_restricted_space/2",
     "metta_declare_space_parent/2",
     "metta_reducible_head/2",
-    # The direct-call door's ownership question: a declared or translator-
-    # rule-owned head declines the raw fast path (P14.32). Engine-owned as
-    # one door rather than the two raw reads the shim briefly carried
-    # (type_declaration_in/3 + the rule registry), the same shape
-    # metta_host_dispatch_proof_step/6 took, so the walk and the registry
-    # stay free to move.
-    "metta_typed_dispatch_applies/2",
     "metta_source_declarations/2",
     "metta_space_names/1",
     "metta_space_operand/1",
@@ -365,10 +377,6 @@ HOST_SERVICES = {
     "metta_host_function_callable_from/2",
     "sread_with_names/3",
     "swrite_with_names/3",
-    # Eval crosses through a cached translation template while source forms
-    # retain translate_expr/3, so compile-once loading pays no cache tax.
-    "translate_cached_expr/3",
-    "translate_expr/3",
     # Registering Prolog is one engine-side sequence every binding crosses
     # once, where this seat ran it across six crossings of its own; a
     # release answers with the members the extension installed.
@@ -511,8 +519,18 @@ FLOOR_REASONS = {
     "metta_host_inference_budget/3": "host-orchestration",
     "metta_host_function_generation/1": "host-orchestration",
     "metta_host_set_silent/1": "door",
-    "metta_host_goal_repeatable/2": "host-orchestration",
-    "metta_host_goal_effect_plan/4": "host-orchestration",
+    "metta_host_evaluate/5": "door",
+    "metta_host_evaluation_repeatable/2": "host-orchestration",
+    "metta_host_evaluation_effect_plan/4": "host-orchestration",
+    "metta_host_evaluation_prepare/2": "host-orchestration",
+    "metta_host_unmatched/2": "door",
+    "metta_settle_definitions/0": "door",
+    "with_definition_batch/1": "door",
+    "metta_ensure_compiled/1": "door",
+    "metta_arity_ascending/3": "door",
+    "space_parent_child_used/1": "door",
+    "metta_match_atoms/2": "door",
+    "source_children/3": "codec",
     "metta_host_source_effect_plan/4": "host-orchestration",
     "metta_host_source_compile_effect_plan/4": "host-orchestration",
     "metta_host_source_runtime_effect_plan/4": "host-orchestration",
@@ -529,7 +547,6 @@ FLOOR_REASONS = {
     "metta_host_unregister_reader_token/1": "door",
     "metta_reducible_head/2": "door",
     "metta_release_space/1": "door",
-    "metta_typed_dispatch_applies/2": "door",
     "metta_source_declarations/2": "codec",
     "metta_space_names/1": "door",
     # The species decision behind the wire's p tag: an encoder asks what
@@ -568,8 +585,6 @@ FLOOR_REASONS = {
     "metta_capability_door/2": "census",
     "sread_with_names/3": "codec",
     "swrite_with_names/3": "codec",
-    "translate_cached_expr/3": "codec",
-    "translate_expr/3": "codec",
     "metta_register_prolog/3": "host-orchestration",
     "metta_extension_members/2": "door",
     "unregister_metta_extension/1": "door",

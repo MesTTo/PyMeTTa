@@ -4,25 +4,23 @@
 :- use_module(library(lists), [member/2, numlist/3]).
 :- use_module(library(apply), [maplist/2]).
 
-evaluation_arity(13).
+evaluation_arity(11).
 evaluation_field(form, 1, 'wire').
 evaluation_field(using, 2, []).
 evaluation_field(answers, 3, 'all').
-evaluation_field(fuel, 4, 'true').
-evaluation_field(inferences, 5, 'none').
-evaluation_field(seconds, 6, 'none').
-evaluation_field(under, 7, 'none').
-evaluation_field(policy, 8, 'none').
-evaluation_field(repeatable, 9, 'false').
-evaluation_field(columns, 10, []).
-evaluation_field(accounting, 11, 'false').
-evaluation_field(batch, 12, 'false').
-evaluation_field(unmatched, 13, 'true').
+evaluation_field(inferences, 4, 'none').
+evaluation_field(seconds, 5, 'none').
+evaluation_field(under, 6, 'none').
+evaluation_field(policy, 7, 'none').
+evaluation_field(repeatable, 8, 'false').
+evaluation_field(columns, 9, []).
+evaluation_field(accounting, 10, 'false').
+evaluation_field(batch, 11, 'false').
 evaluation_bound(inferences).
 evaluation_bound(seconds).
-evaluation_preset(0, '-'('wire', [], 'all', 'true', 'none', 'none', 'none', 'none', 'false', [], 'false', 'false', 'true')).
-evaluation_preset(1, '-'('wire', [], 'cursor', 'true', 'none', 'none', 'none', 'none', 'false', [], 'false', 'false', 'true')).
-evaluation_preset(2, '-'('wire', [], 'status', 'true', 'none', 'none', 'none', 'none', 'false', [], 'false', 'false', 'true')).
+evaluation_preset(0, '-'('wire', [], 'all', 'none', 'none', 'none', 'none', 'false', [], 'false', 'false')).
+evaluation_preset(1, '-'('wire', [], 'cursor', 'none', 'none', 'none', 'none', 'false', [], 'false', 'false')).
+evaluation_preset(2, '-'('wire', [], 'status', 'none', 'none', 'none', 'none', 'false', [], 'false', 'false')).
 binding_options_expansion(metta_py_options(Record, Fields), Record = Shape) :-
     is_list(Fields),
     evaluation_shape(Fields, Shape).

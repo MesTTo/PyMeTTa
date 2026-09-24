@@ -13,14 +13,15 @@
 %   test_a_stored_partial_applied_in_a_world_writes_to_the_world;
 %   commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad].
 
-%Plan the same direct or translated goal metta_py_eval/3 will call. Translation
-%may populate its ordinary invalidated template cache, but this seam creates no
-%space and executes no target goal; ReifiedWorld.eval calls it before allocating
-%the discarded receiver. Coverage remains catalog data keyed by the originating
-%world context.
+%Plan what the evaluation door will run for the target, which the engine
+%builds from the same plan the door runs (metta_host_evaluation_effect_plan/4).
+%Planning may populate the ordinary invalidated translation cache, but this seam
+%creates no space and executes no target goal; ReifiedWorld.eval calls it
+%before allocating the discarded receiver. Coverage remains catalog data keyed
+%by the originating world context.
 metta_py_world_effect_plan(Space, Origin, Target,
                            [Operations, Effect, Coverage]) :-
-    metta_py_settle_definitions,
+    metta_settle_definitions,
     metta_py_target_term(Space, Target, Term0),
     metta_py_world_rebase(Term0, Origin, Space, Term),
     metta_py_module(Space, Module),
@@ -28,15 +29,7 @@ metta_py_world_effect_plan(Space, Origin, Target,
     metta_host_source_effect_plan(
         Module, Term, SourceOperations, SourceEffect),
     (   metta_effect_covered(SourceEffect, Coverage)
-    ->  (   metta_py_direct_goal(Module, Term, Goal, _)
-        ->  Body0 = Goal
-        ;   metta_py_in_module(
-                Module,
-                ( translator:translate_cached_expr(Term, Goals, _),
-                  translator:goals_list_to_conj(Goals, Body0) ))
-        ),
-        Body = (metta_effect_source_term(Term), Body0),
-        metta_host_goal_effect_plan(Module, Body, Operations, Effect)
+    ->  metta_host_evaluation_effect_plan(Space, Term, Operations, Effect)
     ;   Operations = SourceOperations,
         Effect = SourceEffect
     ).
@@ -46,7 +39,7 @@ metta_py_world_effect_plan(Space, Origin, Target,
 %world evaluation, but the stored clauses remain so every later admission
 %question is asked of the frozen program rather than the mutable origin.
 metta_py_world_prepare(Space, Origin, AtomWires) :-
-    metta_py_settle_definitions,
+    metta_settle_definitions,
     setup_call_cleanup(
         seam:observation_begin,
         metta_with_state_write_fence(
@@ -151,11 +144,7 @@ metta_py_saga_prepare_target(Space, Tagged,
               Rank >= Threshold ),
             HostNames),
     sort(HostNames, HostOperations),
-    (   metta_py_direct_goal(Module, Term, _, _, _)
-    ->  true
-    ;   metta_py_in_module(Module,
-                           translate_cached_expr(Term, _, _))
-    ).
+    metta_host_evaluation_prepare(Space, Term).
 
 :- multifile prolog:error_message//1.
 prolog:error_message(metta_saga_dynamic_operation(Term)) -->

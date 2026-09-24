@@ -1,9 +1,10 @@
 """Purpose: pin independent evaluation and dispatch axes at the binding.
 
-Guarantees: batch fuel policy, deferred compilation costs, cumulative tagged
-guards, inverse cardinality, context lifetime and wide projection preserve
-their boundary contracts; releasing the compilation observer retains every
-earlier call-graph listener [tested: this file; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
+Guarantees: every batch evaluates in the fuel scope, and deferred compilation
+costs, cumulative tagged guards, inverse cardinality, context lifetime and
+wide projection preserve their boundary contracts; releasing the compilation
+observer retains every earlier call-graph listener
+[tested 2026-09-25T05:55:56+10:00: this file].
 Owns resources: registered operations, retained contexts and the compilation
 observer are released; each changed pragma is restored.
 """
@@ -59,8 +60,15 @@ def test_evaluation_compiler_preserves_data_and_never_runs_effects(metta):
     )["truth"]
 
 
-def test_evaluation_batch_preserves_its_existing_unmatched_and_fuel_policy(metta):
-    """Plain and using batches retain the cut's distinct empty and fuel rules."""
+def test_every_evaluation_batch_runs_in_the_fuel_scope(metta):
+    """A single eval, a plain batch and a using batch evaluate through one door.
+
+    The door is the engine's metta_host_evaluate/5, which runs every term in
+    the fuel scope and answers a call no equation head accepts by the dispatch
+    policy. The plain batch ran outside the scope until every evaluation went
+    through it, so a stack-depth pragma bounded a single eval and a using batch
+    while a plain batch recursed until its inference quota raised.
+    """
     metta.run("(= (binding-only 0) yes)")
     missing, present = S["binding-only"](1), S["binding-only"](0)
     assert metta.eval(missing) == []
@@ -70,12 +78,13 @@ def test_evaluation_batch_preserves_its_existing_unmatched_and_fuel_policy(metta
     prior = metta.runtime.must("(metta_pragma('max-stack-depth',Value)->true;Value=0)")["Value"]
     try:
         metta.run("!(pragma! max-stack-depth 20)\n(= (binding-spin $n) (binding-spin (+ $n 1)))")
-        # Prepare the function before comparing execution policies: first
-        # compilation also reconciles lib_memo's existing recursive graph.
-        metta.runtime.must("spaces:metta_ensure_compiled('binding-spin')")
-        assert "Error" in str(metta.eval(S["binding-spin"](0), inferences=10000))
-        with pytest.raises(InferenceLimitError):
-            metta.eval(S["binding-spin"](0), present, inferences=10000)
+        # Prepare the function before comparing the doors: first compilation
+        # also reconciles lib_memo's existing recursive graph.
+        metta.runtime.must("metta_ensure_compiled('binding-spin')")
+        assert "StackOverflow" in str(metta.eval(S["binding-spin"](0), inferences=10000))
+        groups = metta.eval(S["binding-spin"](0), present, inferences=10000)
+        assert "StackOverflow" in str(groups[0])
+        assert groups[1] == [S.yes]
         with metta.bind({"binding-arg": 0}):
             groups = metta.eval(S["binding-spin"](S["binding-arg"]), present, inferences=10000)
             assert "StackOverflow" in str(groups[0])
