@@ -832,7 +832,18 @@ def test_aio_structural_surface_behaves():
             assert len(await route.solve(given=[S.edge(S.c, S.d)])) == 3
             assert "stored atoms: engine unification" in await route.explain()
 
-            cloned = await am.copy()
+            # The copy is of the space this test built, not of the process's
+            # &self. &self holds whatever earlier tests in this worker left
+            # there, and a library one of them imported made the comparison
+            # depend on test order: copying adds the rows through the
+            # one-equation door, which translates every space's still-deferred
+            # equations of each name it adds and names a lambda-bearing
+            # specialization after a fresh gensym'd lambda, so the clone and
+            # &self each gained rows the other lacked [measured 2026-09-24T23:12:13+10:00:
+            # test_statistics_lib's modes test then this one failed every
+            # time on 47ae64253 and this one alone passed; a copy of an &self
+            # holding lib_statistics took &self from 6 generated rows to 42].
+            cloned = await m.copy()
             # This assertion has flaked through three distinct causes, each
             # fixed where it lived. First the module-blind invalidation
             # wrapper let a clone's write strip &self's spec atoms (fixed by
@@ -860,12 +871,12 @@ def test_aio_structural_surface_behaves():
                 return str(atom.map(rename))
 
             clone_atoms = Counter(_canonical(a) for a in await cloned.atoms())
-            self_atoms = Counter(_canonical(a) for a in await am.atoms())
-            extra = sorted((clone_atoms - self_atoms).elements())
-            missing = sorted((self_atoms - clone_atoms).elements())
+            own_atoms = Counter(_canonical(a) for a in await m.atoms())
+            extra = sorted((clone_atoms - own_atoms).elements())
+            missing = sorted((own_atoms - clone_atoms).elements())
             assert not extra and not missing, (
-                f"&self moved between copy and count: the clone holds "
-                f"{extra} that &self does not, and &self holds "
+                f"the space moved between copy and count: the clone holds "
+                f"{extra} that the space does not, and the space holds "
                 f"{missing} the clone never saw"
             )
             await cloned.drop()
