@@ -16,8 +16,9 @@ Guarantees:
     commit=e3787593132a7ece2d300397045f7415709847c9]
   - a reference-face refresh that finds the same roots announces no change,
     so a table filled by a live call survives the first use of a deferred
-    library function in a space holding a `from` row [tested:
-    test_a_reference_refresh_that_changes_nothing_keeps_the_table; commit=689745c3bb9ef9a36b5427bb3e7289a69da9b71b]
+    library function in a space holding `from` rows, a class definition's
+    among them, whatever ran before it in the process [tested:
+    test_a_reference_refresh_that_changes_nothing_keeps_the_table; commit=WORKTREE]
   - a function change drops the tables that can have read it and no other:
     the changed function's own, those of the functions whose compiled bodies
     reach it through the support graph, and those whose reach is unbounded
@@ -27,6 +28,8 @@ Open Obligations:
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+
+from dataclasses import dataclass
 
 import pytest
 
@@ -197,10 +200,28 @@ def test_a_reference_refresh_that_changes_nothing_keeps_the_table(m, metta):
     abolished before table-stats, itself a deferred library function on its
     first use, can read it. A class definition is one way a `from` row
     arrives, which is how the shared-table test above went red behind one.
+
+    The class is defined here, in this space, rather than left to the test
+    order: while one flag held every head's last bind, a space whose face
+    held more than one head rebound all but the latest on each refresh and
+    announced them, and this test read (answers 0) only in a worker where
+    test_define_absorbs_class_declaration_and_frees_space_type had put its
+    class's `from` row into the shared &self first. The second, data-only
+    `from` row refreshes the face after the table is filled whatever the
+    process has already translated, since table-stats is deferred only on
+    its first use in the process.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with metta._new_space() as origin:
+    with metta._new_space() as origin, metta._new_space() as later:
         origin.add(S.origin_row(1))
+        later.add(S.later_row(1))
         m.from_(origin)
+
+        @m.define
+        @dataclass
+        class RefreshedPoint:
+            x: int
+
+        assert m.type(RefreshedPoint(3)) == S.RefreshedPoint
         m.add(S.live_route_edge(S.a, S.b))
 
         @m.define(name="refreshed-route-reach")
@@ -211,6 +232,7 @@ def test_a_reference_refresh_that_changes_nothing_keeps_the_table(m, metta):
         assert m.eval(S.tabled(call)) == [True]
         try:
             assert list(iter(refreshed_route_reach(S.a, V.y))) == [S.b]
+            m.from_(later)
             [counted] = m.fn.table_stats(call)
             assert S.answers(1) in list(counted)
             assert S.tables(1) in list(counted)
