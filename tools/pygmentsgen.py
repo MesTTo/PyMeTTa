@@ -54,13 +54,10 @@ Guarantees:
 Decides: `re.MULTILINE` alone, not `re.ASCII`. Measured against the grammar's
   own tokeniser, Oniguruma's `\s` and `\d` here are Unicode-aware, and the one
   place the two still disagree is `\s`, which `translate` below spells out.
-Decides: the evidence pins in HEADER below are written as the literal
-  placeholder. `tests/checks/pin_provenance.py` DECLINES a placeholder in a
-  Python string that is not a docstring ("this code emits or matches pins"),
-  so the provenance commit rewrites the generated module and reports this file
-  instead of rewriting it; edit the placeholder here to the same object ID by
-  hand and rerun with --write, or the `pygments-sync` lane goes red on the
-  difference.
+Decides: the generated module's evidence tags are written in HEADER below
+  and --write carries them into it, so a tag is stamped here with the
+  `date -Iseconds` time its evidence ran and never edited in the module; the
+  `pygments-sync` lane goes red on any difference between the two.
 Open Obligations:
   To Do: None
   Hacks: None
