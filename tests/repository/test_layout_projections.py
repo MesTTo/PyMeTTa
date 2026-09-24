@@ -26,9 +26,11 @@ import layergen  # noqa: E402 -- test the checkout's generation commands
     (boundsgen, "extensions/python/metta/_catalog/bounds.py", boundsgen.END),
     (boundsgen, "DEVELOPING.md", boundsgen.DOC_END),
     (boundsgen, "extensions/cmetta/settings.h", boundsgen.C_TAIL),
+    (boundsgen, "tools/settings.sh", boundsgen.SH_HEADER),
     (layergen, "pyproject.toml", layergen.END),
     (layergen, "DEVELOPING.md", layergen.DOC_END),
-], ids=["boundsgen-config", "boundsgen-guide", "boundsgen-c-settings", "layergen-imports", "layergen-guide"])
+], ids=["boundsgen-config", "boundsgen-guide", "boundsgen-c-settings", "boundsgen-shell-settings",
+        "layergen-imports", "layergen-guide"])
 def test_each_declaration_projection_refuses_an_independent_edit(
     monkeypatch, generator, relative, marker,
 ):

@@ -173,15 +173,18 @@ ARTIFACTS = (
     Artifact(
         "bounds-sync", (SEAT + "_catalog/bounds.py",), tool("boundsgen", "--write"),
         (Output(SEAT + "_catalog/bounds.py", ("    # begin generated configure", "    # end generated configure")),
-         Output("DEVELOPING.md", ("<!-- begin generated settings", "<!-- end generated settings -->"))),
+         Output("DEVELOPING.md", ("<!-- begin generated settings", "<!-- end generated settings -->")),
+         Output("extensions/cmetta/settings.h"), Output("tools/settings.sh")),
         tool("boundsgen"), (suite("tests/repository/test_layout_projections.py", "-k", "boundsgen"),
                             suite("tests/ch01_getting_started/test_config.py"),
-                            suite("tests/repository/test_artifact_projections.py", "-k", "setting_configuration")),
+                            suite("tests/repository/test_artifact_projections.py", "-k", "setting_configuration"),
+                            ("sh", "@root/tests/shell/test_run_stack_limit.sh")),
         requires=("engine for live setting witnesses",),
     ),
     Artifact(
         "vocab-sync", ("engine/**/*.pl", "lib/*/*.metta"), tool("vocabgen", "--write"),
-        (Output(SEAT + "vocabularies.py"), Output("extensions/node/src/vocabularies.ts")),
+        (Output(SEAT + "vocabularies.py"), Output("extensions/node/src/vocabularies.ts"),
+         Output("extensions/cmetta/vocabularies.h")),
         tool("vocabgen"), (suite("tests/repository/test_artifact_projections.py", "-k", "vocabulary"),),
         requires=("engine",),
     ),
@@ -516,6 +519,9 @@ def projections(root: Path = ROOT, records: tuple[Artifact, ...] = ARTIFACTS) ->
         path = root / output.path
         text = projected[path] if path in projected else path.read_text(encoding="utf-8")
         body = selection(rows) if output.region == (BEGIN, END) else lanes(tuple(row for row in rows if gate(row) == output.path))
+        if output.region is None:
+            message = f"shell output {output.path} names no region to own"
+            raise ValueError(message)
         projected[path] = region(text, *output.region, body)
     return projected
 
@@ -527,7 +533,7 @@ def findings(root: Path = ROOT, records: tuple[Artifact, ...] = ARTIFACTS) -> li
         expected = projections(root, records)
     except (ValueError, OSError) as error:
         return [str(error)]
-    problems = []
+    problems: list[str] = []
     ownership: dict[Path, list[tuple[int, int, str]]] = {}
     for row in rows:
         problems.extend(f"{row.name}: missing input: {pattern}" for pattern in row.inputs if not any(root.glob(pattern)))

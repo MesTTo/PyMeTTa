@@ -38,9 +38,10 @@ Guarantees:
   - invalid METTA_* environment values stop package import with a named error
     [tested test_configuration_reads_and_validates_environment]
   - a setting naming the SWI flag it sets is a startup setting, and reaches
-    the C seat's generated settings.h with its default and environment input,
-    where a setting naming none does not [tested:
-    test_setting_declaration_reaches_every_projection; commit=76ee5c5ff673eeb48916f4a68309d8113415480c]
+    the C seat's generated settings.h and the launcher's tools/settings.sh
+    with its default and environment input, where a setting naming none does
+    not [tested: test_setting_declaration_reaches_every_projection;
+    commit=WORKTREE]
   - every row-backed setting is a `(limit ...)` row once an engine runs, a
     program that rewrites the row changes what the seat reads, and the two
     startup settings are absent from the rows [tested:
@@ -151,7 +152,8 @@ class Setting:
     ``flag`` names the SWI flag a startup setting sets, which makes it a
     setting every host embedding the engine applies before the engine loads
     rather than one only this seat reads: the C seat reads each such setting's
-    default and environment input from the extensions/cmetta/settings.h that
+    default and environment input from the extensions/cmetta/settings.h, and
+    the launcher tools/run.sh from the tools/settings.sh, that
     tools/boundsgen.py writes from these declarations.
 
     Python calls __set_name__ when the owning class is built. Descriptor

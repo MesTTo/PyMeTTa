@@ -88,9 +88,10 @@ def test_setting_declaration_reaches_every_projection(metta, monkeypatch):
     assert FixtureConfig.layout_fixture.__doc__ == "A bound declared by this fixture."
     assert "METTA_LAYOUT_FIXTURE" in boundsgen.documentation(FixtureConfig)
     assert "layout_fixture" in boundsgen.documentation(FixtureConfig)
-    # Only a setting naming the SWI flag it sets reaches the C seat, and it
-    # carries its environment input and default there.
+    # Only a setting naming the SWI flag it sets reaches the C seat and the
+    # launcher, and it carries its environment input and default to both.
     assert "LAYOUT_FIXTURE" not in boundsgen.c_header(FixtureConfig)
+    assert "LAYOUT_FIXTURE" not in boundsgen.shell_fragment(FixtureConfig)
 
     class FlaggedConfig(bounds.Config):
         layout_flag = bounds.Setting(
@@ -103,6 +104,10 @@ def test_setting_declaration_reaches_every_projection(metta, monkeypatch):
     assert '#define MT_LAYOUT_FLAG_ENVIRONMENT "METTA_LAYOUT_FLAG"' in header
     assert "#define MT_LAYOUT_FLAG_DEFAULT 5ULL" in header
     assert '#define MT_STACK_LIMIT_FLAG "stack_limit"' in header
+    fragment = boundsgen.shell_fragment(FlaggedConfig)
+    assert "MT_LAYOUT_FLAG_FLAG=layout_flag\n" in fragment
+    assert "MT_LAYOUT_FLAG_ENVIRONMENT=METTA_LAYOUT_FLAG\n" in fragment
+    assert "MT_LAYOUT_FLAG_DEFAULT=5\n" in fragment
     with pytest.raises(TypeError, match=r"layout_live.*startup setting"):
         bounds.Setting(5, "A live row cannot set a flag.", flag="layout_live")
     original = configured.as_dict()
