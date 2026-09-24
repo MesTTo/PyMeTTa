@@ -34,7 +34,7 @@ Guarantees:
   - Prolog registration is classified as engine-side host orchestration,
     the one sequence every binding crosses once [tested:
     test_the_host_service_scoreboard_matches_the_tree,
-    test_the_shim_surface_shrank_to_the_transport_floor; commit=WORKTREE]
+    test_the_shim_surface_shrank_to_the_transport_floor; commit=4003462febcd21fb3677aaa838d201d700b9045d]
   - the host query door uses the engine's published pattern-modifier walk
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]
