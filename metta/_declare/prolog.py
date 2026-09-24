@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from collections import abc as _abc
+from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -125,7 +126,7 @@ def register_prolog(
             )
             raise ValueError(msg)
         wanted: list[Any] = [[exported, to] for exported, to in names.items()]
-        given = [name for pair in wanted for name in pair]
+        given = list(chain.from_iterable(wanted))
     else:
         wanted = given = list(names)
     for name in given:
