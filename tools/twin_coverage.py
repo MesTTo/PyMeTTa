@@ -134,7 +134,7 @@ Guarantees:
     ALLOWANCE, DIVERGENCE or OVERRUN a second time is a finding naming both
     lines, because every reader here stops at the first and Python binds the
     last [tested: test_a_twin_declaring_a_constant_twice_is_a_finding;
-    commit=WORKTREE]
+    commit=293495c3c9d7456b6259cce061c3a348f3205b7d]
 Decides:
   - twins live under `extensions/python/examples/language-feature-examples/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
