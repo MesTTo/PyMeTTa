@@ -283,17 +283,18 @@ def _term_legs(tag):
 
 
 def test_the_node_term_table_and_codec_legs_follow_the_catalog():
-    """Node preserves the declared term payloads and refuses native handles."""
+    """Node carries every declared term payload in process, and its portable transport refuses a native handle."""
     source = (REPO / "extensions/node/src/wire.ts").read_text()
     node_tags = set(re.findall(r'"([a-z])"', re.search(r"export type Tag = ([^;]+);", source)[1]))
     terms = {tag for tag, row in WIRE_TAGS.items() if row.kind is WireClass.term}
-    assert node_tags == terms - {"h"}
-    # Node keeps its documented process-local handle refusal. All its other
-    # term tags exercise the native-token leg, including live object identity.
+    assert node_tags == terms
+    # Every term tag crosses Node's native-token leg, a live object and a
+    # native engine value by identity. The portable transport refuses a native
+    # handle, which only this process's own engine can name.
     program = r'''
         import assert from 'node:assert/strict';
         import {G, space} from './extensions/node/src/atom.ts';
-        import {HostValues, atomFromWire, decodeEngine, encodeEngine,
+        import {HostValues, NativeHandles, atomFromWire, decodeEngine, encodeEngine,
                 fromTransport, toTransport, wireFromAtom} from './extensions/node/src/wire.ts';
         import {WireClass, WirePayload} from './extensions/node/src/vocabularies.ts';
         const rows=JSON.parse(process.argv[2]);
@@ -301,14 +302,14 @@ def test_the_node_term_table_and_codec_legs_follow_the_catalog():
         assert.deepEqual(Object.values(WirePayload).sort(), [...new Set(rows.map(r=>r[2]))].sort());
         const values = {s:['s','item'],v:['v','x'],n:['n',7n],g:['g','λ'],
                         b:['b',true],e:['e',[['v','x'],['v','x']]],p:['p',space('&self')]};
-        const hosts=new HostValues();
+        const context={hostValues:new HostValues(),handles:new NativeHandles()};
         const marker={identity:1};
         for (const [tag] of rows.filter(r=>r[1]==='term')) {
-            if (tag==='h') {assert.throws(()=>fromTransport(['h',1,'display']));continue;}
-            const atom=tag==='o'?G(marker):atomFromWire(values[tag]);
-            const restored=decodeEngine(encodeEngine(atom,{hostValues:hosts}),{hostValues:hosts});
+            const atom=tag==='o'?G(marker):tag==='h'?context.handles.atom(1,[],'display'):atomFromWire(values[tag]);
+            const restored=decodeEngine(encodeEngine(atom,context),context);
             assert.deepEqual(wireFromAtom(restored),wireFromAtom(atom));
-            if(tag!=='o')assert.deepEqual(fromTransport(toTransport(values[tag])),values[tag]);
+            if(tag==='h'){assert.equal(restored,atom);assert.throws(()=>fromTransport(['h','1|0|display']));}
+            else if(tag!=='o')assert.deepEqual(fromTransport(toTransport(values[tag])),values[tag]);
         }
     '''
     rows = [[tag, row.kind.value, row.payload.value] for tag, row in WIRE_TAGS.items()]
