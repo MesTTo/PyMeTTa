@@ -158,19 +158,34 @@ metta_py_query_count_under(Space, PatternsTagged, GuardTagged, VarNames,
 %without returning any tree or row to Python [tested:
 %test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
 %commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
+%
+%Whether a tagged fact or rule can conclude the query asks each tagged shape by
+%key, not every stored atom until the first conclusion. That walk cost the
+%atoms it met first, and while get-atoms took a space's storage arities in the
+%procedure table's functor-hash order that count moved with every functor the
+%process allocated first: 66 inferences against 44 for one program after three
+%functors planted at boot and after five [measured 2026-09-24: child processes
+%on commit=4f3349d2d04d49628fcb2896090592410ef39781]. A whole shape builds its
+%one storage head, which reads through the first argument's index in insertion
+%order, so the cost follows the program alone [tested:
+%test_the_tagged_program_check_costs_the_same_wherever_its_functors_land;
+%commit=WORKTREE]. The conclusion is a copy without attributes and the probe
+%sits under double negation, so, as unifiable/3 did, it binds nothing and
+%wakes no constraint.
 metta_py_has_tagged_program(Space, Target, Has) :-
     metta_py_target_term_bindings(Space, Target, Query, _),
-    (   once(( 'get-atoms'(Space, Atom),
-               copy_term(Atom, Stored),
-               metta_py_tagged_conclusion(Stored, Conclusion),
-               unifiable(Query, Conclusion, _) ))
+    copy_term_nat(Query, Conclusion),
+    (   metta_py_tagged_shape(Conclusion, Shape),
+        \+ \+ 'get-atoms'(Space, Shape)
     ->  Has = true
     ;   Has = false
     ).
 
-metta_py_tagged_conclusion([fact, _Tag, Proposition], Proposition).
-metta_py_tagged_conclusion([rule, _Tag, Head, [premises|_]], Head).
-metta_py_tagged_conclusion([rule, _Tag, Head, [premises|_], [where, _]], Head).
+%The three tagged shapes by what they conclude: a fact's proposition, a rule's
+%head, and a guarded rule's head.
+metta_py_tagged_shape(Conclusion, [fact, _Tag, Conclusion]).
+metta_py_tagged_shape(Conclusion, [rule, _Tag, Conclusion, [premises|_]]).
+metta_py_tagged_shape(Conclusion, [rule, _Tag, Conclusion, [premises|_], [where, _]]).
 
 % A guarded rule's instances depend on the premise tags, which the
 % proof-tree counter below never computes, so a program with one takes

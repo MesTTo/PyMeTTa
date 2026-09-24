@@ -185,7 +185,7 @@ metta_py_function_visible(Space0, Name0) :-
     %undefined-predicate net never fires for.
     spaces:metta_ensure_compiled(Name),
     metta_py_module(Space, Module),
-    catch_recover(( current_predicate(Module:Name/Arity),
+    catch_recover(( spaces:metta_arity_ascending(Module, Name, Arity),
                     functor(Head, Name, Arity),
                     clause(Module:Head, _, _) ),
                   fail), !.

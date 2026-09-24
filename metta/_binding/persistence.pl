@@ -26,7 +26,7 @@ metta_py_program_source(Space, Result) :-
 %bridge contributes that clause). Results: object(Atom) and symbol(Atom)
 %name a refusing offender; saved(Count), digest(Hash) and program(Term) land.
 
-%The first atom in a space with no round-trip text spelling, so a host
+%The least offender in a space with no round-trip text spelling, so a host
 %validating a save asks the grammar instead of keeping a second copy of its
 %rules, which is how the host's copy came to miss three classes.
 %
@@ -38,10 +38,22 @@ metta_py_program_source(Space, Result) :-
 %grammar's own answer about a whole atom, one of the four text services in
 %engine/ext_points.pl, and it is the same question metta_py_fast_save/3 and
 %metta_py_digest/2 below already ask.
+%
+%The refusal names the least unwritable symbol in the standard order of terms,
+%not the first one the read meets, so which of several it names follows the
+%program alone. While get-atoms took the storage arities in the procedure
+%table's functor-hash order, the first one met moved with every functor the
+%process allocated first [tested:
+%test_a_refused_save_names_the_same_symbol_wherever_its_functors_land;
+%commit=WORKTREE]. A save that succeeds reads every atom either way, so only a
+%refused one reads more.
 metta_py_unwritable_atom(Space, Bad) :-
-    'get-atoms'(Space, Atom),
-    metta_unwritable_symbol(Atom, Unwritable), !,
-    metta_py_encode(Unwritable, Bad).
+    findall(Unwritable,
+            ( 'get-atoms'(Space, Atom),
+              metta_unwritable_symbol(Atom, Unwritable) ),
+            Unwritables),
+    msort(Unwritables, [Least|_]),
+    metta_py_encode(Least, Bad).
 
 %One boolean crossing for consumers that must validate a name before they
 %mutate host state. The parser remains the authority, including reader token

@@ -826,7 +826,7 @@ metta_py_unregister_op(Name0, Arity) :-
 metta_py_name_still_defined(Name) :-
     spaces:metta_ensure_compiled(Name),
     ( metta_py_module('&self', Module) ; Module = user ),
-    current_predicate(Module:Name/A),
+    spaces:metta_arity_ascending(Module, Name, A),
     functor(Head, Name, A),
     \+ predicate_property(Module:Head, built_in),
     clause(Module:Head, _, _),
