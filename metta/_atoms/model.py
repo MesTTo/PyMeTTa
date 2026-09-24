@@ -372,6 +372,17 @@ class _WeakEntry(weakref.ref[Any]):
 
     def __new__(cls, referent: Any, callback: Callable[[Self], None], key: int, held: Any = None) -> Self:
         """The reference, with its key and payload set before anyone can read it."""
+        # Reason above rather than beside the pragma, which pylint parses as a
+        # bare message list: astroid cannot infer weakref.ref, because it
+        # builds _weakref.ref, whose __module__ is weakref, as an import from
+        # weakref, which imports it from _weakref. The class's MRO then ends at
+        # object and pylint checks this call against object.__new__(cls), so it
+        # reports two arguments too many whatever the arity; mypy and ty check
+        # it against typeshed's ReferenceType.__new__(cls, o, callback=None, /)
+        # and refuse a third [measured 2026-09-24: on a probe, mypy --strict
+        # passes this call and refuses one passing key as well, while pylint
+        # 4.0.7 on astroid 4.0.4 reports E1121 on both].
+        # pylint: disable-next=too-many-function-args
         self = super().__new__(cls, referent, callback)
         self.key = key
         self.held = held
