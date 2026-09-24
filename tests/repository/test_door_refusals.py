@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from metta import G, MeTTa, S, V, lib
-from metta._errors.errors import EngineError, SourceNotFound
+from metta._errors.errors import EngineError, RegistrationError, SourceNotFound
 from metta._spaces.results import Answers, Rows
 
 
@@ -63,7 +63,6 @@ def test_answer_rows_refuses_an_answer_without_bindings():
 @pytest.mark.parametrize("invoke", [
     pytest.param(lambda m: m.self.profile_extension("!(+ 1 2)"), id="space:profile-extension"),
     pytest.param(lambda m: m.self.solve(1, 2), id="space:solve"),
-    pytest.param(lambda m: m.self.register_prolog(), id="space:register-prolog"),
     pytest.param(lambda m: m.self.agenda("user"), id="space:agenda"),
     pytest.param(lambda m: m.self.capacity(0), id="space:capacity"),
     pytest.param(lambda _m: Rows(("x",), ((G(1),),)).why(), id="rows:why"),
@@ -73,6 +72,21 @@ def test_door_value_refusals(context, invoke):
     """An invalid value raises the refusal table's host value class."""
     with pytest.raises(ValueError):
         invoke(context)
+
+
+@pytest.mark.parametrize("invoke", [
+    pytest.param(lambda m: m.self.register_prolog(), id="space:register-prolog"),
+])
+def test_door_registration_refusals(context, invoke):
+    """A registration its contract refuses raises the registration class.
+
+    It is a ValueError too, so a caller who wrote `except ValueError` for a bad
+    argument still catches it, and it names what the registration lacks.
+    """
+    with pytest.raises(RegistrationError) as caught:
+        invoke(context)
+    assert isinstance(caught.value, ValueError)
+    assert caught.value.requires
 
 
 def test_bind_refuses_the_reserved_template_namespace(context):

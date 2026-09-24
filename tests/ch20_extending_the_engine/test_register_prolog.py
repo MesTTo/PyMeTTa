@@ -26,6 +26,11 @@ Guarantees:
     test_a_typo_in_the_list_registers_nothing]
   - a syntax error in the source raises a MettaError naming the line, where
     SWI would only have printed it [tested test_a_syntax_error_names_the_line]
+  - every registration the contract refuses, refused here or by the engine,
+    raises RegistrationError, a ValueError, whose message says what was
+    missing and whose `requires`, remedy and ground are the registration
+    row's, never the JSON crossing's [tested 2026-09-25T05:48:07+10:00:
+    test_every_registration_refusal_says_what_to_supply]
   - one name has one owning tier, refused in both directions and leaving the
     incumbent usable [tested test_a_python_operation_is_not_silently_replaced,
     test_a_prolog_registration_is_not_silently_replaced]
@@ -46,7 +51,7 @@ import sys
 import pytest
 
 from metta import MettaError
-from metta._errors.errors import EngineError, SourceNotFound
+from metta._errors.errors import EngineError, RegistrationError, SourceNotFound
 from metta._roots import workspace
 from metta._spaces import evaluate as _space_evaluate
 
@@ -85,10 +90,10 @@ def test_a_name_with_no_predicate_is_refused(space):  # noqa: D103  -- pytest di
 def test_names_must_be_given(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # All three routes named, because pointing only at metta_export is a dead
     # end for a provider author, who has no functions to export.
-    with pytest.raises(ValueError, match="metta_export") as caught:
+    with pytest.raises(RegistrationError) as caught:
         space.register_prolog("'rp-unnamed'(X, X).")
-    assert "metta_extension" in str(caught.value)
-    assert "the names to register" in str(caught.value)
+    for route in ("the names to register", "metta_export", "metta_extension"):
+        assert route in caught.value.requires
 
 
 def test_source_and_path_are_exclusive(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -453,8 +458,9 @@ def test_an_unloaded_extension_does_not_leave_its_names_behind(space, declared):
 
 
 def test_a_source_with_neither_names_nor_a_declaration_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(ValueError, match="metta_export"):
+    with pytest.raises(ValueError, match="declares neither a function nor an extension") as caught:
         space.register_prolog("'rp-undeclared'(X, X).")
+    assert "metta_export" in caught.value.requires
 
 
 def test_a_provider_only_file_registers_no_functions_and_is_accepted(space, tmp_path):
@@ -500,8 +506,9 @@ def test_a_file_that_declares_nothing_does_not_load_either(space, tmp_path):
         "seam:foreign_space('&rp-silent-demo').\n"
         "seam:foreign_atoms('&rp-silent-demo', [fact, a]).\n"
     )
-    with pytest.raises(ValueError, match="metta_extension"):
+    with pytest.raises(ValueError) as caught:
         space.register_prolog(path=source)
+    assert "metta_extension" in caught.value.requires
     # Nothing of it loaded, so catching the error cannot make it work.
     assert str(_space_evaluate.one(space, "(collapse (get-atoms &rp-silent-demo))")) == "()"
 
@@ -547,8 +554,62 @@ def test_a_rename_of_something_not_exported_is_refused(space, rival_modules):  #
 
 
 def test_renaming_needs_a_module_file(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(ValueError, match="needs path="):
+    with pytest.raises(ValueError, match="cannot come from source=") as caught:
         space.register_prolog(source="'x'(1).", names={"x": "rp-x"})
+    assert caught.value.requires.startswith("path=")
+
+
+# Every way a registration is refused for what it lacks, whichever side says
+# so: this seat names the keywords its caller wrote, the engine judges what a
+# source declares. Each reaches the caller as one class with the registration
+# row's ground and remedy, the remedy filled with what to supply. Until
+# 2026-09-24 the engine's refusals crossed as the value kind, whose ground is
+# the JSON crossing and whose remedy asks for "a value JSON can carry", and a
+# seat showing the engine's own text read "Unknown error term".
+_REGISTRATION_REFUSALS = [
+    pytest.param(lambda space, _dir: space.register_prolog(),
+                 "register_prolog takes exactly one of source or path",
+                 "exactly one of source= or path=",
+                 id="neither-source-nor-path"),
+    pytest.param(lambda space, _dir: space.register_prolog(source="'x'(1).",
+                                                          names={"x": "rp-x"}),
+                 "renaming imports a Prolog MODULE",
+                 "path= naming the module file",
+                 id="rename-from-source"),
+    pytest.param(lambda space, _dir: space.register_prolog("'rp-mute'(X, X)."),
+                 "the source declares neither a function nor an extension",
+                 "the names to register, a :- metta_export",
+                 id="text-declares-nothing"),
+    pytest.param(lambda space, directory: space.register_prolog(
+                     path=_written(directory / "rp_mute.pl", "'rp-mute-file'(X, X).\n")),
+                 "the source declares neither a function nor an extension",
+                 "the names to register, a :- metta_export",
+                 id="file-declares-nothing"),
+]
+
+
+def _written(path, text):
+    path.write_text(text)
+    return path
+
+
+@pytest.mark.parametrize(("register", "says", "supply"), _REGISTRATION_REFUSALS)
+def test_every_registration_refusal_says_what_to_supply(space, tmp_path, register, says, supply):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    with pytest.raises(RegistrationError) as caught:
+        register(space, tmp_path)
+    refused = caught.value
+    assert isinstance(refused, ValueError)
+    message = str(refused)
+    assert message.startswith(says)
+    assert "Unknown" not in message
+    assert "metta_control_signal" not in message
+    assert refused.requires.startswith(supply)
+    assert refused.remedy.title == f"give the registration {refused.requires}"
+    assert refused.remedy.applicability == "prose"
+    assert refused.ground.citation.startswith(
+        "HostLaws: engine/metta/interop.pl metta_register_prolog/3"
+    )
+    assert "JSON" not in f"{refused.remedy.title} {refused.ground.citation}"
 
 
 def test_renaming_a_plain_file_says_it_is_not_a_module(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

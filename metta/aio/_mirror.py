@@ -1400,7 +1400,10 @@ class AsyncMeTTa(AsyncMeTTaBase):
         tsmetta's registerProlog crosses too, so the hosts and the MeTTa
         spelling enforce one rule rather than copies of it. Three names are
         refused: one with no predicate behind it, a builtin, and a special
-        form.
+        form. A registration missing what its contract needs, a source
+        registered without names that declares nothing, a rename from
+        `source=`, or neither `source=` nor `path=`, raises RegistrationError,
+        a ValueError too, whose `requires` and remedy say what to supply.
 
         Nothing is registered unless every name can be, so a typo in the list
         changes nothing. The consulted SOURCE does stay loaded on failure,

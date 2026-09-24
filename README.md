@@ -1645,6 +1645,7 @@ with MeTTa() as m:
 | `CompileError` | Python lowering refusal with a source location |
 | `CastError` | A value failed its requested type |
 | `SourceNotFound` | Missing program source |
+| `RegistrationError` | A Prolog registration missing what its contract needs, named in `requires` |
 | `MettaResultError` | An error-valued answer raised into Python |
 | `AssertionFailure` | A false program assertion with actual and expected values |
 | `SpaceCapabilityError` | A space lacks a required operation |

@@ -105,6 +105,7 @@ __all__ = [
     "MettaSyntaxError",
     "NotReducible",
     "PlatformCapabilityError",
+    "RegistrationError",
     "Remedy",
     "ResourceLimitError",
     "RestraintError",
@@ -705,6 +706,31 @@ class SourceNotFound(MettaError, FileNotFoundError):  # noqa: N818  -- the excep
     ):
         super().__init__(*args, **fields)
         self.source = source
+
+
+class RegistrationError(MettaError, ValueError):
+    """A registration of Prolog as MeTTa functions that its contract refuses.
+
+    Both bases on purpose, as SourceNotFound has two. A caller who passed
+    register_prolog something it cannot use writes `except ValueError`, which
+    is Python's word for an argument of the right type and the wrong value, and
+    a caller wrapping a whole registration writes `except MettaError`.
+
+    `requires` is what the registration lacks: the names to register, a
+    declaration in the source saying what it defines, or a file origin for a
+    rename. It is the field the `registration` refusal row declares and the one
+    its remedy names, so a caller reads what to supply rather than parsing the
+    sentence.
+    """
+
+    def __init__(
+        self,
+        *args: object,
+        requires: str | None = None,
+        **fields: Any,
+    ):
+        super().__init__(*args, **fields)
+        self.requires = requires
 
 
 class EngineError(MettaError):

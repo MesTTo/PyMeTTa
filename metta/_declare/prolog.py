@@ -29,7 +29,7 @@ from metta.vocabularies import RefusalKind
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
     evidence=('extensions/python/tests/ch20_extending_the_engine/test_register_prolog.py::test_a_builtin_name_is_refused_and_the_builtin_still_works', 'extensions/python/tests/ch20_extending_the_engine/test_register_prolog.py::test_a_declaration_without_an_extension_still_reports_its_names', 'extensions/python/tests/ch20_extending_the_engine/test_register_prolog.py::test_a_declared_det_function_answers_normally'),
     binding=_doors.Binding('metta_py_register_prolog', _doors.Wire.goal),
-    refuses=(_doors.Refusal(_doors.RefusalKind.value, 'extensions/python/tests/repository/test_door_refusals.py::test_door_value_refusals[space:register-prolog]'),),
+    refuses=(_doors.Refusal(_doors.RefusalKind.registration, 'extensions/python/tests/repository/test_door_refusals.py::test_door_registration_refusals[space:register-prolog]'),),
 )
 def register_prolog(
     space: _root.Space,
@@ -79,7 +79,10 @@ def register_prolog(
     tsmetta's registerProlog crosses too, so the hosts and the MeTTa
     spelling enforce one rule rather than copies of it. Three names are
     refused: one with no predicate behind it, a builtin, and a special
-    form.
+    form. A registration missing what its contract needs, a source
+    registered without names that declares nothing, a rename from
+    `source=`, or neither `source=` nor `path=`, raises RegistrationError,
+    a ValueError too, whose `requires` and remedy say what to supply.
 
     Nothing is registered unless every name can be, so a typo in the list
     changes nothing. The consulted SOURCE does stay loaded on failure,
@@ -113,18 +116,25 @@ def register_prolog(
     while the declaration is absent keeps evaluating the argument even
     after it lands.
     """
+    # Both refusals are the engine's registration kind, so the class, the
+    # ground and the remedy are the ones the engine's own refusals carry; they
+    # are said here because only this seat can name the keywords the caller
+    # wrote, and the engine refuses a rename from text the same way.
     if (source is None) == (path is None):
         msg = "register_prolog takes exactly one of source or path"
-        raise ValueError(msg)
+        raise refuse(RefusalKind.registration, msg,
+                     requires="exactly one of source= or path=")
     if isinstance(names, _abc.Mapping):
-        # The engine refuses a rename from text too; this says it with the
-        # keyword the caller wrote, which only this seat can name.
         if path is None:
             msg = (
                 "renaming imports a Prolog MODULE, which SWI's import list "
-                "names as a file, so it needs path= rather than source="
+                "names as a file, so a rename cannot come from source="
             )
-            raise ValueError(msg)
+            raise refuse(
+                RefusalKind.registration, msg,
+                requires="path= naming the module file whose exports the "
+                "renames name",
+            )
         wanted: list[Any] = [[exported, to] for exported, to in names.items()]
         given = list(chain.from_iterable(wanted))
     else:
