@@ -206,8 +206,8 @@ metta_py_var_name([_|Pairs], T, N) :- metta_py_var_name(Pairs, T, N).
 %improper or partial list as a (cons Head Tail) chain and a dict as its text,
 %which is right for an answer and wrong for a store: a partial application
 %stored through a Python provider answered ((partial + (1)) 2) where a native
-%space applies it and answers 3 [measured 2026-09-24:
-%CMeTTa-Examples/ai-tmp/probe/providerpy.py]. The provider door therefore
+%space applies it and answers 3 [measured 2026-09-24 on that reading: ch19's
+%test_a_stored_partial_application_still_applies]. The provider door therefore
 %encodes with metta_py_encode_carried/4, which reads a proper list and every
 %leaf exactly as metta_py_encode/4 does, and holds every other term as a native
 %handle, the h tag, whose reference is [Record, Key, Names] instead of a
