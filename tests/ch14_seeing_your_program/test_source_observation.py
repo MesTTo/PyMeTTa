@@ -141,6 +141,22 @@ def _settled_cost(metta, call, answer):
 def test_observation_restores_the_cost_of_ordinary_successful_execution():
     """An observation leaves no counter or wrapper in an ordinary hot path."""
     with MeTTa() as metta:
+        # The observer's library and what it requires load BEFORE the
+        # baseline, so the comparison times the observation alone. lib_observe
+        # requires lib_import, whose seam:foreign_space/1 clause has a variable
+        # head: once loaded, every ask enters it for the rest of the process,
+        # and this evaluation asks twice. A baseline taken before the first load
+        # in a process read 3154 and 3158 after it, so this test failed exactly
+        # when it ran first. That is the library's load-time cost, not the
+        # observation's; the observation restores the cost exactly
+        # [measured 2026-09-24T23:39:20+10:00: in one fresh process the settled
+        # (sum-down 500 0) read 3154, 3158 after importing lib_observe, 3158
+        # after the observation, 3158 after a second one; measured
+        # 2026-09-24T23:40:29+10:00: importing lib_import alone gives the same
+        # +4, and loading the observer itself nothing; measured
+        # 2026-09-24T23:42:52+10:00: one seam:foreign_space('&self') ask costs
+        # 7 inferences before lib_import and 9 after].
+        metta.run("!(import! &self (library lib_observe))")
         metta.run("(= (sum-down $n $a) (if (== $n 0) $a (sum-down (- $n 1) (+ $a $n))))")
         call = S["sum-down"](500, 0)
         assert list(metta.eval(call)) == [125250]
