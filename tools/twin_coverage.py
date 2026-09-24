@@ -157,6 +157,12 @@ Decides:
     test_a_twin_declaring_above_its_code_is_a_finding,
     test_the_layout_check_passes_the_shipped_twins;
     commit=845d851b7241ccea3b6a13f532172945bf6d8d9e]
+  - a re-pin's tag carries the time its measurement started, as
+    `date -Iseconds` prints it, and no commit pin, since the first commit
+    carrying the stamp is the tree it measured; a time that is not a whole
+    stamp is refused before anything is written
+    [tested 2026-09-25T00:40:16+10:00: test_a_repin_appends_below_the_code_and_rewrites_the_number,
+    test_a_repin_refuses_a_time_that_is_not_a_stamp]
   - an integer BUDGET is a point claim; a mapping BUDGET is an empirical
     envelope with exactly minimum, maximum, observations, and protocol, so a
     reviewer can falsify both its bounds and the conditions that produced it
@@ -2042,16 +2048,12 @@ def layout(twin: Path) -> list[str]:
 #: reach while the twin it writes carries a complete tag [source:
 #: tests/checks/check_evidence_tags.py SOURCES and measured_problems;
 #: commit=845d851b7241ccea3b6a13f532172945bf6d8d9e].
-#: The in-progress commit spelling a fresh re-pin carries, which the
-#: provenance pass resolves to the object ID of the tree that measured it.
-#: tests/checks/check_evidence_tags.py:PLACEHOLDER is the authority for the
-#: word, and test_the_repin_tag_uses_the_gates_own_placeholder holds the two
-#: equal, because a tool writing a spelling the gate does not recognise
-#: writes a pin that no release check can find.
-_PLACEHOLDER = "WORKTREE"
+#: The tag carries the time the measurement started, as `date -Iseconds`
+#: prints it, and no commit pin: the first commit carrying the stamp is the
+#: tree it measured, where a pin could only name that tree from a second
+#: commit (CONTRIBUTING.md, "Obligation headers and evidence tags").
 _REPIN_TAG = (
-    "[{kind} {date}: min-of-{rounds} serial fresh processes; "
-    f"command={{command}}; commit={_PLACEHOLDER}]"
+    "[{kind} {stamp}: min-of-{rounds} serial fresh processes; command={command}]"
 )
 _REPIN_COMMAND = "python extensions/python/tools/twin_coverage.py --repin"
 
@@ -2059,13 +2061,33 @@ _REPIN_COMMAND = "python extensions/python/tools/twin_coverage.py --repin"
 #: each, in fresh processes, and their surplus is what it is. So the tag says
 #: what was compared instead of borrowing the point pin's min-of-N wording.
 _DIVERGE_TAG = (
-    "[{kind} {date}: the two stored-atom surpluses, one fresh process per "
-    f"side; command={{command}}; commit={_PLACEHOLDER}]"
+    "[{kind} {stamp}: the two stored-atom surpluses, one fresh process per "
+    "side; command={command}]"
 )
+
+#: The whole of what `date -Iseconds` prints, the only time a tag may carry,
+#: which tests/checks/check_evidence_tags.py:STAMP reads the same way.
+_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}")
+
+
+def _stamped(stamp: str) -> str:
+    """The stamp, refused unless it is the whole time `date -Iseconds` prints."""
+    if not _STAMP.fullmatch(stamp):
+        msg = (
+            "a re-pin is stamped with the time its measurement started, as "
+            f"date -Iseconds prints it, not {stamp!r}"
+        )
+        raise ValueError(msg)
+    return stamp
+
+
+def _now() -> str:
+    """This moment as `date -Iseconds` prints it: local time, to the second, with its offset."""
+    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def repinned(
-    source: str, measured: int, reason: str, *, today: str, rounds: int = 3
+    source: str, measured: int, reason: str, *, stamp: str, rounds: int = 3
 ) -> str:
     """One twin's source with its point budget re-pinned and the move recorded.
 
@@ -2077,9 +2099,10 @@ def repinned(
     envelope, and refuses a silent move, since a re-pin without its mechanism
     is the thing the whole chain exists to prevent.
 
-    The evidence tag it writes carries the in-progress spelling, the lawful
-    in-progress spelling, so `RELEASE=1 tests/checks/check_evidence_tags.py` refuses
-    a tree that ships one before the provenance pin.
+    The evidence tag it writes carries `stamp`, the time the measurement
+    started as `date -Iseconds` prints it, so the first commit carrying the
+    stamp is the tree it measured, and a time that is not a whole stamp is
+    refused.
     """
     tree = ast.parse(source)
     lines = source.splitlines()
@@ -2116,10 +2139,10 @@ def repinned(
 
     delta = measured - current
     tag = _REPIN_TAG.format(
-        kind="measured", date=today, rounds=rounds, command=_REPIN_COMMAND
+        kind="measured", stamp=_stamped(stamp), rounds=rounds, command=_REPIN_COMMAND
     )
     paragraph = (
-        f"RE-PINNED {today}, {current} to {measured} ({delta:+d}), "
+        f"RE-PINNED {stamp[:10]}, {current} to {measured} ({delta:+d}), "
         f"{reason.strip().rstrip('.')} {tag}."
     )
     return _declared(lines, node, "BUDGET", repr(measured), paragraph)
@@ -2169,7 +2192,7 @@ def _comment_run_start(lines: list[str], lineno: int) -> int:
 
 
 def rediverged(
-    source: str, digest: str | None, reason: str, census: str, *, today: str
+    source: str, digest: str | None, reason: str, census: str, *, stamp: str
 ) -> str:
     """One twin's source with its stored-content divergence settled.
 
@@ -2192,9 +2215,9 @@ def rediverged(
     if not reason.strip():
         msg = "a divergence states why the two spaces differ"
         raise ValueError(msg)
-    tag = _DIVERGE_TAG.format(kind="measured", date=today, command=_REPIN_COMMAND)
+    tag = _DIVERGE_TAG.format(kind="measured", stamp=_stamped(stamp), command=_REPIN_COMMAND)
     paragraph = (
-        f"DIVERGED {today}, {census}: {reason.strip().rstrip('.')} {tag}."
+        f"DIVERGED {stamp[:10]}, {census}: {reason.strip().rstrip('.')} {tag}."
     )
     return _declared(lines, node, DIVERGENCE_NAME, json.dumps(digest), paragraph)
 
@@ -3174,7 +3197,7 @@ def _observe(examples: list[Path], entries: list[dict], rounds: int) -> None:
 
 
 def _settle_divergence(
-    example: Path, twin: Path, right: Run, reason: str, today: str
+    example: Path, twin: Path, right: Run, reason: str, stamp: str
 ) -> str | None:
     """Write, move or drop one twin's DIVERGENCE, and say what happened.
 
@@ -3192,7 +3215,7 @@ def _settle_divergence(
             return None
         twin.write_text(
             rediverged(
-                twin.read_text(encoding="utf-8"), None, reason, "", today=today
+                twin.read_text(encoding="utf-8"), None, reason, "", stamp=stamp
             ),
             encoding="utf-8",
         )
@@ -3217,7 +3240,7 @@ def _settle_divergence(
         )
     twin.write_text(
         rediverged(
-            twin.read_text(encoding="utf-8"), observed, reason, census, today=today
+            twin.read_text(encoding="utf-8"), observed, reason, census, stamp=stamp
         ),
         encoding="utf-8",
     )
@@ -3271,12 +3294,14 @@ def main() -> int:
         return 0
 
     if arguments.repin:
-        today = datetime.date.today().isoformat()
         moved = 0
         diverged = 0
         unmeasured: list[str] = []
         for example in examples:
             twin = twin_for(example)
+            # The time this twin's measurement starts, which every tag the
+            # pass writes for it carries.
+            stamp = _now()
             # A crashed twin answers cost=None, and `or 0` used to collide
             # that failure with the integer 0 and WRITE it as a price: one
             # partial corpus pass pinned a healthy twin to 0 that way. A
@@ -3302,7 +3327,7 @@ def main() -> int:
                 twin,
                 runs[-1],
                 arguments.divergence_reason or arguments.reason,
-                today,
+                stamp,
             )
             if settled is not None:
                 print(f"{twin.relative_to(REPO)}: {settled}")
@@ -3338,7 +3363,7 @@ def main() -> int:
                         source,
                         cost,
                         arguments.reason,
-                        today=today,
+                        stamp=stamp,
                         rounds=arguments.rounds,
                     ),
                     encoding="utf-8",

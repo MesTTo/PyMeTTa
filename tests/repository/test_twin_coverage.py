@@ -1017,7 +1017,7 @@ def test_a_space_over_the_cap_pins_its_difference_as_the_two_digests(tmp_path):
         coverage.content_divergence(["a" * 64], ["b" * 64]),
         "a planted divergence",
         "the two spaces are too large to name",
-        today="2026-09-07",
+        stamp="2026-09-07T10:11:12+10:00",
     )
     twin.write_text(settled, encoding="utf-8")
     assert coverage._stored("x.metta", twin, left, right) == []
@@ -1293,7 +1293,7 @@ def test_a_repin_appends_below_the_code_and_rewrites_the_number(tmp_path):
     twin = tmp_path / "tidy.py"
     twin.write_text(
         coverage.repinned(
-            _TIDY_TWIN, 142, "the planted mechanism", today="2026-08-27"
+            _TIDY_TWIN, 142, "the planted mechanism", stamp="2026-08-27T10:11:12+10:00"
         ),
         encoding="utf-8",
     )
@@ -1310,13 +1310,15 @@ def test_a_repin_appends_below_the_code_and_rewrites_the_number(tmp_path):
     # The paragraph is wrapped, so the tag is read as prose rather than lines.
     written = " ".join(" ".join(chain).replace("#:", " ").split())
     assert "the planted mechanism" in written
-    # The tag the twin carries is a complete one: a date, so it can go stale,
-    # the command that produced it, and the in-progress commit spelling.
+    # The tag the twin carries is a complete one: the time its measurement
+    # started, so it can go stale and the first commit carrying it is the tree
+    # it measured, and the command that produced it. No commit pin, which the
+    # commit carrying the tag could not contain.
     assert (
-        "[measured 2026-08-27: min-of-3 serial fresh processes; "
-        "command=python extensions/python/tools/twin_coverage.py --repin; "
-        f"commit={coverage._PLACEHOLDER}]" in written
+        "[measured 2026-08-27T10:11:12+10:00: min-of-3 serial fresh processes; "
+        "command=python extensions/python/tools/twin_coverage.py --repin]" in written
     )
+    assert "commit=" not in written
     assert body[-1] == "BUDGET = 142"
     assert max(len(line) for line in chain) <= 79
 
@@ -1342,7 +1344,26 @@ def test_a_repin_appends_below_the_code_and_rewrites_the_number(tmp_path):
 def test_a_repin_refuses_the_four_ways_it_could_be_wrong(source, reason, complaint):
     """Each refusal names what to do instead, which is the point of refusing."""
     with pytest.raises(ValueError, match=complaint):
-        coverage.repinned(source, 5, reason, today="2026-08-27")
+        coverage.repinned(source, 5, reason, stamp="2026-08-27T10:11:12+10:00")
+
+
+@pytest.mark.parametrize(
+    "stamp",
+    ["2026-08-27", "2026-08-27T10:11", "2026-08-27T10:11:12", "2026-08-27T10:11:12Z"],
+)
+def test_a_repin_refuses_a_time_that_is_not_a_stamp(stamp):
+    """A re-pin and a divergence carry the whole time `date -Iseconds` prints.
+
+    A date alone is what a tag carried before the obligation-header rule of
+    2026-09-24T23:27:42+10:00, and a time without its seconds or its offset,
+    or in Z, is not what date -Iseconds prints, so none of them can be read
+    back as the moment the measurement ran. The pass's own clock gives one.
+    """
+    with pytest.raises(ValueError, match="date -Iseconds"):
+        coverage.repinned(_TIDY_TWIN, 142, "a mechanism", stamp=stamp)
+    with pytest.raises(ValueError, match="date -Iseconds"):
+        coverage.rediverged(_TIDY_TWIN, "a" * 64, "a divergence", "a census", stamp=stamp)
+    assert coverage._STAMP.fullmatch(coverage._now())
 
 
 def test_every_shipped_twin_states_a_budget():
