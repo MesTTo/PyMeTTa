@@ -8,7 +8,7 @@ extensions/cmetta/settings.h with its default and environment input, where no
 other Setting does [tested: test_setting_declaration_reaches_every_projection;
 commit=76ee5c5ff673eeb48916f4a68309d8113415480c], and in tools/settings.sh,
 which tools/run.sh sources, with the same three definitions [tested:
-test_setting_declaration_reaches_every_projection; commit=WORKTREE].
+test_setting_declaration_reaches_every_projection; commit=13d61d9b4b803c45609bd6ddc17ec5ba5048b216].
 """
 
 from __future__ import annotations
@@ -76,12 +76,12 @@ SH_HEADER = """# Purpose: the settings a host embedding the engine applies befor
 #     declaration and rerun the tool with --write, never this file, and the
 #     tool's check fails on any drift [tested:
 #     test_each_declaration_projection_refuses_an_independent_edit;
-#     commit=WORKTREE]
+#     commit=13d61d9b4b803c45609bd6ddc17ec5ba5048b216]
 #   - for a setting <name>, MT_<NAME>_FLAG is the SWI flag it sets,
 #     MT_<NAME>_ENVIRONMENT the environment variable whose value replaces its
 #     default, present when the declaration names one, and MT_<NAME>_DEFAULT
 #     the default in the flag's own unit, the C header's three names [tested:
-#     test_setting_declaration_reaches_every_projection; commit=WORKTREE]
+#     test_setting_declaration_reaches_every_projection; commit=13d61d9b4b803c45609bd6ddc17ec5ba5048b216]
 # Open Obligations: None.
 """
 

@@ -41,7 +41,7 @@ Guarantees:
     the C seat's generated settings.h and the launcher's tools/settings.sh
     with its default and environment input, where a setting naming none does
     not [tested: test_setting_declaration_reaches_every_projection;
-    commit=WORKTREE]
+    commit=13d61d9b4b803c45609bd6ddc17ec5ba5048b216]
   - every row-backed setting is a `(limit ...)` row once an engine runs, a
     program that rewrites the row changes what the seat reads, and the two
     startup settings are absent from the rows [tested:
