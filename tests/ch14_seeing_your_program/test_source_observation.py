@@ -45,6 +45,10 @@ def test_error_frames_point_to_the_failing_subterm_and_its_caller():
         atoms = _observe(metta, source, "division.metta")
     errors = _rows(atoms, "source-error")
     assert any(str(row[1]) == "(Error (/ 1 0) DivisionByZero)" for row in errors)
+    # The native exception is recorded as text too, a function of the exception
+    # alone: its unbound context variable prints as _, whatever ran before.
+    native = "error(evaluation_error(zero_divisor),context((/)/2,_))"
+    assert any(row[1] == native for row in errors)
     frames = _rows(atoms, "source-frame")
     assert any(
         row[2:] == (S.divide, "division.metta", 2, 8, 2, 16, S.exact)
