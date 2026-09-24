@@ -331,13 +331,86 @@ def test_lexer_source_changes_reach_real_tokens_and_reject_drift(tmp_path, monke
     assert pygmentsgen.main([]) == 0
 
 
+def _origins_clone(path: Path, files: dict[str, str]) -> str:
+    """A git repository at `path` whose one new commit holds `files`, answering that commit."""
+    path.mkdir(parents=True, exist_ok=True)
+    git = ["git", "-C", str(path), "-c", "user.name=Fixture Author", "-c", "user.email=fixture@example.invalid"]
+    subprocess.run([*git, "init", "--quiet"], check=True)
+    for name, text in files.items():
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
+        (path / name).write_text(text, encoding="utf-8")
+    subprocess.run([*git, "add", *files], check=True)
+    subprocess.run([*git, "commit", "--quiet", "-m", "fixture"], check=True)
+    return subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True,
+                          text=True).stdout.strip()
+
+
+def _origins_checkout(root: Path, monkeypatch, files: dict[str, str]) -> Path:
+    """A checkout whose examples hold `files`, with example_origins pointed at it."""
+    for name, text in files.items():
+        (root / "examples" / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / "examples" / name).write_text(text, encoding="utf-8")
+    manifest = root / "examples/ORIGINS.tsv"
+    readme = (example_origins.REPO / "examples/README.md").read_text(encoding="utf-8")
+    (root / "examples/README.md").write_text(
+        example_origins.readme_counts(readme, derived_count=1, total=len(files), credited=1,
+                                      runnable=1),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(example_origins, "REPO", root)
+    monkeypatch.setattr(example_origins, "MANIFEST", manifest)
+    return manifest
+
+
+def test_example_origins_reads_the_pinned_commit_from_any_clone(tmp_path, monkeypatch):
+    """METTA_UPSTREAM names a clone, never a revision: rows come from the pinned commit.
+
+    The clone's HEAD is past the pin, and its working tree carries an untracked
+    source too. Neither is credited: the parity lane exports this variable for
+    a newer upstream whose untracked ai_fz_progs/ turned this lane red.
+    """
+    upstream = tmp_path / "upstream"
+    pinned = _origins_clone(upstream, {"examples/fixture.metta": "!(+ 1 2)\n"})
+    _origins_clone(upstream, {"examples/later.metta": "!(* 3 4)\n"})
+    (upstream / "examples/untracked.metta").write_text("!(- 9 5)\n", encoding="utf-8")
+    _origins_checkout(tmp_path / "checkout", monkeypatch, {
+        "fixture.metta": "!(+ 1 2)\n", "later.metta": "!(* 3 4)\n", "untracked.metta": "!(- 9 5)\n",
+    })
+    monkeypatch.setattr(example_origins, "UPSTREAM_COMMIT", pinned)
+    monkeypatch.setenv("METTA_UPSTREAM", str(upstream))
+    assert example_origins.upstream_root() == upstream
+    assert example_origins.derived(upstream) == [
+        ("examples/fixture.metta", "examples/fixture.metta", 1.0, "Fixture Author"),
+    ]
+
+
+def test_example_origins_refuses_a_clone_without_its_commit(tmp_path, monkeypatch, capsys):
+    """A clone that lacks the pinned commit is refused, and the refusal names the commit."""
+    upstream = tmp_path / "upstream"
+    _origins_clone(upstream, {"examples/fixture.metta": "!(+ 1 2)\n"})
+    _origins_checkout(tmp_path / "checkout", monkeypatch, {"fixture.metta": "!(+ 1 2)\n"})
+    missing = "0123456789abcdef0123456789abcdef01234567"
+    monkeypatch.setattr(example_origins, "UPSTREAM_COMMIT", missing)
+    monkeypatch.setenv("METTA_UPSTREAM", str(upstream))
+    assert example_origins.main([]) == 1
+    assert missing in capsys.readouterr().err
+
+
+def test_example_origins_measures_nothing_without_a_clone(monkeypatch, capsys):
+    """With no clone to read the lane exits 125, the gate's word for a run that compared nothing."""
+    monkeypatch.setattr(example_origins, "upstream_root", lambda: None)
+    assert example_origins.main([]) == 125
+    assert "nothing was compared" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize("defect", ("orphan", "duplicate-owner"))
 def test_example_origins_rejects_orphan_and_duplicate_owner(tmp_path, monkeypatch, defect):
     """Actual source comparison refuses a removed file or a second attribution."""
     root, upstream = tmp_path / "checkout", tmp_path / "upstream"
-    for directory in (root / "examples", upstream / "examples"):
-        directory.mkdir(parents=True)
-        (directory / "fixture.metta").write_text("!(+ 1 2)\n", encoding="utf-8")
+    monkeypatch.setattr(example_origins, "UPSTREAM_COMMIT",
+                        _origins_clone(upstream, {"examples/fixture.metta": "!(+ 1 2)\n"}))
+    (root / "examples").mkdir(parents=True)
+    (root / "examples/fixture.metta").write_text("!(+ 1 2)\n", encoding="utf-8")
     manifest = root / "examples/ORIGINS.tsv"
     readme = (example_origins.REPO / "examples/README.md").read_text(encoding="utf-8")
     (root / "examples/README.md").write_text(

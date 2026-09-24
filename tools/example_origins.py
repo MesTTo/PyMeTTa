@@ -14,10 +14,20 @@ that survives whole scores 1.0; anything at or above THRESHOLD is recorded as
 derived, with its score, so a reader can see how much is the original author's.
 
 Assumes:
-  - the upstream checkout is beside this repository, or named by
-    METTA_UPSTREAM; without it the check skips rather than failing, since a
-    contributor's tree need not carry it
+  - a clone of the upstream holding UPSTREAM_COMMIT is beside this repository
+    or beside its main checkout, or is named by METTA_UPSTREAM; without any
+    clone the check skips rather than failing, since a contributor's tree need
+    not carry one
 Guarantees:
+  - the attribution is read at UPSTREAM_COMMIT out of the clone's object
+    store, so METTA_UPSTREAM names a clone and never a revision: a clone's
+    working tree, its later history and its untracked files never reach the
+    rows, and a clone that lacks the commit is refused by the commit's name
+    [tested 2026-09-25T04:49:10+10:00: test_example_origins_reads_the_pinned_commit_from_any_clone,
+    test_example_origins_refuses_a_clone_without_its_commit]
+  - with no clone found the lane exits 125, which the gate reports as
+    skipped under MEASURED NOTHING rather than as a pass
+    [tested 2026-09-25T04:58:12+10:00: test_example_origins_measures_nothing_without_a_clone]
   - --write rewrites examples/ORIGINS.tsv, and a plain run answers nonzero when
     the committed file no longer describes the tree
     [tested: test_the_manifest_still_describes_the_tree]
@@ -38,7 +48,7 @@ import os
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from example_parity import corpus
 
@@ -58,6 +68,14 @@ MANIFEST = REPO / "examples" / "ORIGINS.tsv"
 UPSTREAM_SOURCE = "https://github.com/patham9/PeTTa"
 UPSTREAM_COMMIT = "43705f5d9ff8958ffe7f0aa6777fb8477f2401f2"
 UPSTREAM_DATE = "2026-07-24"
+#: Where a clone is looked for when METTA_UPSTREAM names none, in order: the
+#: attribution's own upstream, then the parity lane's newer one, whose history
+#: holds UPSTREAM_COMMIT as well.
+CLONES = ("PeTTa-base", "PeTTa-upstream")
+
+
+class MissingCommitError(Exception):
+    """A clone was found and none of the clones holds the commit the attribution is read at."""
 
 
 def readme_counts(text: str, *, derived_count: int, total: int,
@@ -82,43 +100,103 @@ def readme_counts(text: str, *, derived_count: int, total: int,
 
 
 def upstream_root() -> Path | None:
-    """The upstream checkout, or None when this tree does not carry one.
+    """The clone the attribution is read from, or None when this tree has no clone.
 
-    A WORKTREE's parent is not the checkout's parent, and every gate runs in
-    one: from ai-tmp/wt-merge, `REPO.parent` is .../PeTTa/ai-tmp and the
-    sibling is two levels above that, so this lane answered "no upstream
-    checkout" and exited 0 in exactly the runs that matter. It checked only
-    when somebody ran it by hand in the main checkout, which is how the README
-    came to say 143 of 365 against a corpus of 386 [measured 2026-09-22].
+    METTA_UPSTREAM names a CLONE and never a revision. The rows are read at
+    UPSTREAM_COMMIT out of the clone's object store, whatever its working tree
+    holds, because the parity lane exports the same variable for its own,
+    newer upstream: read from that clone's working tree, its later history
+    and its untracked ai_fz_progs/ were credited as sources and this lane went
+    red whenever the variable was set [measured 2026-09-24T23:21:26+10:00: unset or naming
+    PeTTa-base the lane passed with 143 derived, naming PeTTa-upstream it
+    failed on ai_fz_progs rows]. Both upstreams hold UPSTREAM_COMMIT, so
+    either clone serves.
 
-    `--git-common-dir` names the MAIN .git whatever tree asks, so its
-    checkout's own parent is where the siblings are. Derived rather than
-    counted, for the reason metta/_roots.py gives: a count is silent when it
-    is wrong, and this one was.
+    Named, the one clone is the only candidate, since an operator who says
+    where it is outranks anything inferred. Otherwise each of CLONES beside
+    this tree, then beside the main checkout: a worktree's parent is not the
+    checkout's parent, and every gate runs in one, so `--git-common-dir`, which
+    names the MAIN .git from any tree, is where the siblings are found
+    [measured 2026-09-25T04:48:15+10:00: from a linked worktree inside the main
+    checkout, git rev-parse --git-common-dir answered the checkout's own .git
+    while the worktree's parent was a directory inside that checkout].
     """
     named = os.environ.get("METTA_UPSTREAM")
-    candidates = [Path(named)] if named else []
-    candidates.append(REPO.parent / "PeTTa-base")
-    common = subprocess.run(
-        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],  # noqa: S607  -- git from PATH
-        cwd=REPO, capture_output=True, text=True, check=False,
+    if named:
+        candidates = [Path(named)]
+    else:
+        parents = [REPO.parent]
+        common = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],  # noqa: S607  -- git from PATH
+            cwd=REPO, capture_output=True, text=True, check=False,
+        )
+        if common.returncode == 0 and common.stdout.strip():
+            parents.append(Path(common.stdout.strip()).parent.parent)
+        candidates = [parent / name for parent in parents for name in CLONES]
+    clones = [path for path in candidates if _git(path, "rev-parse", "--git-dir").returncode == 0]
+    if not clones:
+        return None
+    for clone in clones:
+        if _git(clone, "cat-file", "-e", f"{UPSTREAM_COMMIT}^{{commit}}").returncode == 0:
+            return clone
+    message = (
+        f"no upstream clone holds {UPSTREAM_COMMIT}, the commit the attribution is read at: "
+        f"looked in {', '.join(str(clone) for clone in clones)}; fetch {UPSTREAM_SOURCE} "
+        f"into one of them, or name a clone that holds it with METTA_UPSTREAM"
     )
-    if common.returncode == 0 and common.stdout.strip():
-        candidates.append(Path(common.stdout.strip()).parent.parent / "PeTTa-base")
-    return next((p for p in candidates if (p / "examples").is_dir()), None)
+    raise MissingCommitError(message)
+
+
+def _git(root: Path, *arguments: str, **options) -> subprocess.CompletedProcess:
+    """Run git on one repository, with nothing inherited from the caller's position."""
+    return subprocess.run(  # noqa: S603  -- git, on a path this tool derived or was named
+        ["git", "-C", str(root), *arguments],  # noqa: S607  -- git from PATH, not this box's copy of it
+        capture_output=True, check=False, **options,
+    )
+
+
+def upstream_sources(root: Path) -> list[tuple[str, str]]:
+    """Every .metta file UPSTREAM_COMMIT holds, as (path, text), in path order.
+
+    One ls-tree names the files and one cat-file --batch reads them all, so
+    the cost is two processes whatever the file count. The order is by path
+    COMPONENT, which is the order the working-tree walk this replaced gave:
+    an identical body credits the first path holding it, and a tie between
+    near matches keeps the first, so a string order that put `a-b/x` before
+    `a/b` would move rows.
+    """
+    listing = _git(root, "ls-tree", "-r", "-z", "--format=%(objecttype) %(objectname) %(path)",
+                   UPSTREAM_COMMIT)
+    if listing.returncode != 0:
+        message = f"git ls-tree {UPSTREAM_COMMIT} failed in {root}: {listing.stderr.decode(errors='replace')}"
+        raise MissingCommitError(message)
+    files = sorted(
+        ((path, name) for kind, name, path in (entry.split(" ", 2) for entry in listing.stdout.decode().split("\0") if entry)
+         if kind == "blob" and path.endswith(".metta")),
+        key=lambda item: PurePosixPath(item[0]).parts,
+    )
+    batch = _git(root, "cat-file", "--batch", input="".join(f"{name}\n" for _, name in files).encode())
+    if batch.returncode != 0:
+        message = f"git cat-file --batch failed in {root}: {batch.stderr.decode(errors='replace')}"
+        raise MissingCommitError(message)
+    sources, at, out = [], 0, batch.stdout
+    for path, _ in files:
+        header_end = out.index(b"\n", at)
+        size = int(out[at:header_end].rsplit(b" ", 1)[1])
+        start = header_end + 1
+        sources.append((path, out[start:start + size].decode("utf-8", errors="replace")))
+        at = start + size + 1
+    return sources
 
 
 def authors(root: Path, relative: str) -> str:
-    """Who wrote an upstream file, most commits first.
+    """Who wrote an upstream file up to UPSTREAM_COMMIT, most commits first.
 
     Per file rather than per project: thirteen people wrote the upstream files
     these examples come from, and naming only the most prolific would
     miscredit the rest.
     """
-    result = subprocess.run(  # noqa: S603  -- git, on a path this tool derived
-        ["git", "log", "--format=%an", "--follow", "--", relative],  # noqa: S607  -- git from PATH, not this box's copy of it
-        cwd=root, capture_output=True, text=True, check=False,
-    )
+    result = _git(root, "log", UPSTREAM_COMMIT, "--format=%an", "--follow", "--", relative, text=True)
     if result.returncode != 0:
         return ""
     counted: dict[str, int] = {}
@@ -129,9 +207,8 @@ def authors(root: Path, relative: str) -> str:
     return "; ".join(sorted(counted, key=lambda n: (-counted[n], n)))
 
 
-def body(path: Path) -> str:
-    """The program, without comments or blank lines."""
-    text = path.read_text(encoding="utf-8", errors="replace")
+def program(text: str) -> str:
+    """A source's program, without comments or blank lines."""
     return "\n".join(
         line.rstrip()
         for line in text.splitlines()
@@ -141,14 +218,14 @@ def body(path: Path) -> str:
 
 def derived(root: Path) -> list[tuple[str, str, float, str]]:
     """Every example whose body comes from upstream, with how much survives."""
-    upstream = [(p, body(p)) for p in sorted(root.rglob("*.metta"))]
+    upstream = [(path, program(text)) for path, text in upstream_sources(root)]
     identical = {}
     for path, text in upstream:
-        identical.setdefault(text, str(path.relative_to(root)))
+        identical.setdefault(text, path)
 
     rows: list[tuple[str, str, float, str]] = []
     for path in sorted((REPO / "examples").rglob("*.metta")):
-        text = body(path)
+        text = program(path.read_text(encoding="utf-8", errors="replace"))
         if not text:
             continue
         ours = str(path.relative_to(REPO))
@@ -165,8 +242,7 @@ def derived(root: Path) -> list[tuple[str, str, float, str]]:
             if ratio > score:
                 best, score = candidate, ratio
         if best is not None and score >= THRESHOLD:
-            relative = str(best.relative_to(root))
-            rows.append((ours, relative, round(score, 3), authors(root, relative)))
+            rows.append((ours, best, round(score, 3), authors(root, best)))
     return rows
 
 
@@ -206,12 +282,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write", action="store_true", help="rewrite the manifest")
     arguments = parser.parse_args(argv)
 
-    root = upstream_root()
-    if root is None:
-        print("no upstream checkout; set METTA_UPSTREAM to check the attribution")
-        return 0
-
-    rows = derived(root)
+    try:
+        root = upstream_root()
+        if root is None:
+            # 125 is the gate's word for a run that compared nothing, which it
+            # reads as skipped rather than ok; 0 here reported this lane as
+            # passing wherever no clone could be found.
+            print("no upstream clone, so nothing was compared; set METTA_UPSTREAM to check the attribution")
+            return 125
+        rows = derived(root)
+    except MissingCommitError as missing:
+        print(f"example_origins: {missing}", file=sys.stderr)
+        return 1
     total = len(list((REPO / "examples").rglob("*.metta")))
     rendered = render(rows, total)
     readme = REPO / "examples/README.md"
