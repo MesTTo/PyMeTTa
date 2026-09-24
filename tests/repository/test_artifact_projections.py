@@ -143,18 +143,20 @@ def vocabulary_catalog():
 
 @pytest.fixture
 def vocabulary_files(tmp_path, monkeypatch, vocabulary_catalog):
-    """Give the actual checker two independent generated files."""
+    """Give the actual checker three independent generated files."""
     monkeypatch.setattr(vocabgen, "ROOT", tmp_path)
     monkeypatch.setattr(vocabgen, "MODULE", tmp_path / "vocabulary.py")
     monkeypatch.setattr(vocabgen, "TS_MODULE", tmp_path / "vocabulary.ts")
+    monkeypatch.setattr(vocabgen, "C_MODULE", tmp_path / "vocabulary.h")
     monkeypatch.setattr(vocabgen, "catalog", lambda: vocabulary_catalog)
     vocabgen.MODULE.write_text(vocabgen.module_text(vocabulary_catalog), encoding="utf-8")
     vocabgen.TS_MODULE.write_text(vocabgen.ts_text(vocabulary_catalog), encoding="utf-8")
+    vocabgen.C_MODULE.write_text(vocabgen.c_text(vocabulary_catalog), encoding="utf-8")
     assert vocabgen.main([]) == 0
-    return vocabgen.MODULE, vocabgen.TS_MODULE
+    return vocabgen.MODULE, vocabgen.TS_MODULE, vocabgen.C_MODULE
 
 
-@pytest.mark.parametrize("output", (0, 1), ids=("python", "node"))
+@pytest.mark.parametrize("output", (0, 1, 2), ids=("python", "node", "c"))
 def test_vocabulary_wrong_spelling_is_refused_independently(vocabulary_files, output, capsys):
     """Changing only one seat's value cannot agree with the catalog."""
     path = vocabulary_files[output]
@@ -166,7 +168,7 @@ def test_vocabulary_wrong_spelling_is_refused_independently(vocabulary_files, ou
 
 
 def test_vocabulary_new_member_and_stale_type_fact_are_distinct(vocabulary_files, vocabulary_catalog, monkeypatch, capsys):
-    """Both seats must gain the value, and the engine must publish its type."""
+    """Every seat must gain the value, and the engine must publish its type."""
     updated = vocabulary_catalog._replace(
         vocabularies=[(name, [*values, "layout-violet"] if name == "fixture-colour" else values)
                       for name, values in vocabulary_catalog.vocabularies],
@@ -179,6 +181,7 @@ def test_vocabulary_new_member_and_stale_type_fact_are_distinct(vocabulary_files
     assert "type atoms disagree" not in output
     vocabulary_files[0].write_text(vocabgen.module_text(updated), encoding="utf-8")
     vocabulary_files[1].write_text(vocabgen.ts_text(updated), encoding="utf-8")
+    vocabulary_files[2].write_text(vocabgen.c_text(updated), encoding="utf-8")
     assert vocabgen.main([]) == 0
     monkeypatch.setattr(vocabgen, "catalog", lambda: updated._replace(colon=vocabulary_catalog.colon))
     assert vocabgen.main([]) == 1

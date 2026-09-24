@@ -157,8 +157,9 @@ def test_a_third_party_space_owned_kind_retires_with_its_space():
 
 def test_the_vocabulary_module_is_generated(repo_root):
     """The catalog presets and the binding's Literal types are one
-    authority: the checked-in module has to equal what the engine's own
-    (vocabulary ...) rows produce.
+    authority: the checked-in module, the Node table and the C header each
+    have to equal, byte for byte, what the engine's own (vocabulary ...) rows
+    produce.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     sys.path.insert(0, str(repo_root / "extensions" / "python" / "tools"))
     try:
