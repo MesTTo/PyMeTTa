@@ -509,11 +509,14 @@ C_HEADER = """/* Purpose: the engine's own closed value sets as C enums, one per
  *     is its rank, and mt_<vocabulary>_names[] holds the engine's word for
  *     the member at that position
  *   - a C name is C's casing of the engine's words and never a new name: the
- *     type is mt_ and the words of the vocabulary's MeTTa type name in lower
- *     case joined by underscores, and a member is MT_ and the type's words
- *     then the member's in upper case, so pureStructural in EffectClass is
- *     MT_EFFECT_CLASS_PURE_STRUCTURAL and best-first in AnswerPolicy is
- *     MT_ANSWER_POLICY_BEST_FIRST
+ *     enum's tag is mt_ and the words of the vocabulary's MeTTa type name in
+ *     lower case joined by underscores, and a member is MT_ and the type's
+ *     words then the member's in upper case, so pureStructural in EffectClass
+ *     is MT_EFFECT_CLASS_PURE_STRUCTURAL in enum mt_effect_class and
+ *     best-first in AnswerPolicy is MT_ANSWER_POLICY_BEST_FIRST
+ *   - each type is an enum tag with no typedef, so it lives in C's tag
+ *     namespace, apart from the functions and typedefs of cmetta.h: the limit
+ *     vocabulary's enum mt_limit and the door mt_limit are two names
  *   - mt_<vocabulary>_of(word, &member) answers whether word is a member and
  *     writes *member only when it is, so no word reads as a default member
  *   - a vocabulary the engine declares OPEN also admits a word registered
@@ -629,20 +632,20 @@ def c_text(known: Catalog) -> str:
         count = f"MT_VOCABULARY_COUNT({type_name}_names)"
         blocks.append(
             c_comment(row)
-            + f"typedef enum {type_name} {{\n"
+            + f"enum {type_name} {{\n"
             + "".join(f"  {member},\n" for member in members)
-            + f"}} {type_name};\n\n"
-            + f"/* The engine's word for each {type_name} member, by position. */\n"
+            + "};\n\n"
+            + f"/* The engine's word for each enum {type_name} member, by position. */\n"
             + f"MT_VOCABULARY_TABLE char *const {type_name}_names[] = {{\n"
             + "".join(f'  "{value}",\n' for value in values)
             + "};\n\n"
             + "/* Whether word names a member, written to *member only when it does. */\n"
-            + f"static inline bool {type_name}_of(const char *word, {type_name} *member)\n"
+            + f"static inline bool {type_name}_of(const char *word, enum {type_name} *member)\n"
             + "{ size_t i;\n"
             + f"  if ( !mt_vocabulary_index({type_name}_names,\n"
             + f"                            {count}, word, &i) )\n"
             + "    return false;\n"
-            + f"  *member = ({type_name})i;\n"
+            + f"  *member = (enum {type_name})i;\n"
             + "  return true;\n"
             + "}\n\n"
         )
