@@ -158,7 +158,7 @@ else:
 
 from metta._atoms.model import Atom
 from metta._atoms.wire import _atom_from_wire
-from metta._catalog.bounds import config
+from metta._catalog.bounds import Config, config
 from metta._errors.errors import (
     AssertionFailure,
     EngineError,
@@ -1189,7 +1189,7 @@ class Runtime:
         # the same words here as anywhere else: this is the FIRST crossing a
         # fresh install reaches, so it is the one a user meets.
         janus = bridge()
-        janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
+        janus.query_once(f"set_prolog_flag({Config.stack_limit.flag}, {stack_limit})")
         janus.query_once("set_prolog_flag(argv, ['extensions'])")
         main_file = root / "engine" / "qlf_boot.pl"
         helper_file = root / "extensions" / "python" / "helper.pl"

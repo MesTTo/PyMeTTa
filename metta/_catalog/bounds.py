@@ -37,6 +37,10 @@ Guarantees:
     test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - invalid METTA_* environment values stop package import with a named error
     [tested test_configuration_reads_and_validates_environment]
+  - a setting naming the SWI flag it sets is a startup setting, and reaches
+    the C seat's generated settings.h with its default and environment input,
+    where a setting naming none does not [tested:
+    test_setting_declaration_reaches_every_projection; commit=WORKTREE]
   - every row-backed setting is a `(limit ...)` row once an engine runs, a
     program that rewrites the row changes what the seat reads, and the two
     startup settings are absent from the rows [tested:
@@ -144,6 +148,12 @@ def _positive_integer(name: str, value: Any) -> int:
 class Setting:
     """One integer bound, including its validation and startup policy.
 
+    ``flag`` names the SWI flag a startup setting sets, which makes it a
+    setting every host embedding the engine applies before the engine loads
+    rather than one only this seat reads: the C seat reads each such setting's
+    default and environment input from the extensions/cmetta/settings.h that
+    tools/boundsgen.py writes from these declarations.
+
     Python calls __set_name__ when the owning class is built. Descriptor
     discovery follows the MRO, including a subclass that shadows a setting.
     https://docs.python.org/3.12/howto/descriptor.html#customized-names
@@ -151,13 +161,17 @@ class Setting:
 
     def __init__(
         self, default: int, documentation: str, *, environment: str | None = None,
-        startup: bool = False,
+        startup: bool = False, flag: str | None = None,
         validate: Callable[[str, Any], int] = _positive_integer,
     ) -> None:
+        if flag is not None and not startup:
+            msg = f"a setting that sets the SWI flag {flag!r} is a startup setting"
+            raise TypeError(msg)
         self.default = default
         self.__doc__ = documentation
         self.environment = environment
         self.startup = startup
+        self.flag = flag
         self.validate = validate
         self.name = ""
 
@@ -216,7 +230,7 @@ class Config:
 
     stack_limit = Setting(
         8_000_000_000, "Maximum SWI stack size in bytes.",
-        environment="METTA_STACK_LIMIT", startup=True,
+        environment="METTA_STACK_LIMIT", startup=True, flag="stack_limit",
     )
     heartbeat_interval = Setting(
         100_000, "Engine inferences between Python signal checks.",
