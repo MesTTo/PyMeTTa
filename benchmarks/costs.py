@@ -109,11 +109,10 @@ import multiprocessing
 import os
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date
 from pathlib import Path
 from typing import Any
 
-from benchmarks import atomic_json, collect_worker, curves
+from benchmarks import atomic_json, collect_worker, curves, started
 from benchmarks.scaling import configuration_drift, stamp_worker
 from metta import engine
 from metta._atoms.factories import Expression, Symbol, V, Variable
@@ -788,7 +787,7 @@ def control_verdict(control: Control, result: RowResult) -> list[str]:
 
 
 def _planted_row(
-    control: Control, recorded: Mapping[str, Any], rows: Mapping[str, Any], cause_commit: str
+    control: Control, recorded: Mapping[str, Any], rows: Mapping[str, Any]
 ) -> dict[str, Any]:
     """Take the work control's ANSWER counts from another row, never its own.
 
@@ -809,7 +808,6 @@ def _planted_row(
     return dict(recorded) | {
         "answers": list(source["answers"]),
         "cause": {
-            "commit": cause_commit,
             "chain": [
                 f"THE PLANT. Only `answers` is copied, from {control.pinned_from}, "
                 f"whose call answers one atom where this control answers one per "
@@ -829,10 +827,16 @@ def ledger_document(
     *,
     stamp: Mapping[str, Any],
     repetitions: int,
-    measured_on: str,
-    cause_commit: str,
+    measured: str,
 ) -> dict[str, Any]:
-    """Pin every measured row, keeping each control's row exactly as planted."""
+    """Pin every measured row, keeping each control's row exactly as planted.
+
+    A measured row carries `measured`, the time this run started as
+    `date -Iseconds` prints it, where it carried a date and, in its cause, a
+    `commit` the run could only fill with `WORKTREE`. A row this run did not
+    measure keeps what it carried, a legacy date and `commit` included, until
+    its measurement runs again.
+    """
     rows = dict(previous.get("rows", {}))
     recorded: dict[str, dict[str, Any]] = {}
     for head, result in results.items():
@@ -848,9 +852,8 @@ def ledger_document(
             "answers": list(result.measurement.answers),
             "spread": result.measurement.spread,
             "fit": result.fit,
-            "measured": measured_on,
+            "measured": measured,
             "cause": {
-                "commit": cause_commit,
                 "chain": [
                     f"python -m benchmarks.costs --record measured {head}",
                     f"minimum of {repetitions} fresh process(es), one fresh space per size",
@@ -867,9 +870,7 @@ def ledger_document(
     }
     for control in CONTROLS:
         if control.pinned_from is not None and control.head in recorded:
-            rows[control.head] = _planted_row(
-                control, recorded[control.head], rows, cause_commit
-            )
+            rows[control.head] = _planted_row(control, recorded[control.head], rows)
     return {
         "schema": SCHEMA_VERSION,
         "repetitions": repetitions,
@@ -943,13 +944,12 @@ def run_suite(
     output: Path | None,
     record: bool,
     paired: bool,
-    measured_on: str,
-    cause_commit: str,
     ledger_path: Path,
     context: Any,
     finish_process: Callable[[Any, float], str | None],
 ) -> int:
     """Measure every selected row, fit it, and report the verdict."""
+    measured = started()
     previous = json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {}
     pinned = previous.get("rows", {})
     stamp = collect_worker(
@@ -1087,8 +1087,7 @@ def run_suite(
                 previous,
                 stamp=stamp,
                 repetitions=repetitions,
-                measured_on=measured_on,
-                cause_commit=cause_commit,
+                measured=measured,
             ),
         )
         print(f"recorded {ledger_path}")
@@ -1174,14 +1173,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="also measure retired instructions for every shipped row",
     )
-    parser.add_argument(
-        "--measured-on",
-        default=os.environ.get("METTA_COSTS_MEASURED_ON", ""),
-        help="the date --record writes into each row; today when unset",
-    )
-    parser.add_argument(
-        "--cause-commit", default=os.environ.get("METTA_COSTS_CAUSE_COMMIT", "WORKTREE")
-    )
     arguments = parser.parse_args(argv)
     if arguments.repetitions < 1:
         parser.error("--repetitions must be positive")
@@ -1213,8 +1204,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         output=arguments.json,
         record=arguments.record,
         paired=arguments.paired,
-        measured_on=arguments.measured_on or date.today().isoformat(),
-        cause_commit=arguments.cause_commit,
         ledger_path=LEDGER_PATH,
         context=context,
         finish_process=finish_process,

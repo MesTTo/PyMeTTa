@@ -196,7 +196,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import datetime
 import hashlib
 import json
 import keyword
@@ -227,6 +226,10 @@ sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parent
      if (parent / 'pyproject.toml').exists() or (parent / '.git').exists())))
 import example_parity as parity
 
+# The seat's one reading of a stamp and its one clock, which the three ledgers
+# stamp their rows with too; the names are the ones this file used for them.
+from benchmarks import STAMP as _STAMP
+from benchmarks import started as _now
 from metta import vocabularies
 from metta._atoms.factories import Atom, _alpha_eq, _encode
 from metta._atoms.names import attribute_name, operator_attribute_target
@@ -2065,11 +2068,6 @@ _DIVERGE_TAG = (
     "side; command={command}]"
 )
 
-#: The whole of what `date -Iseconds` prints, the only time a tag may carry,
-#: which tests/checks/check_evidence_tags.py:STAMP reads the same way.
-_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}")
-
-
 def _stamped(stamp: str) -> str:
     """The stamp, refused unless it is the whole time `date -Iseconds` prints."""
     if not _STAMP.fullmatch(stamp):
@@ -2079,11 +2077,6 @@ def _stamped(stamp: str) -> str:
         )
         raise ValueError(msg)
     return stamp
-
-
-def _now() -> str:
-    """This moment as `date -Iseconds` prints it: local time, to the second, with its offset."""
-    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def repinned(

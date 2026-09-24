@@ -104,13 +104,18 @@ def _format_doc_atom(doc: Expression) -> str:
     return "\n".join(lines)
 
 @functools.cache
-def _cost_measurement_dates() -> Mapping[str, str]:
-    """Each measured head's date from the ledger, empty when it is not on disk.
+def _cost_measurements() -> Mapping[str, str]:
+    """When the ledger says each measured head was measured, empty when it is not on disk.
+
+    A row measured since the obligation-header rule carries the time its
+    measurement started, as `date -Iseconds` prints it; one the lane has not
+    measured since carries the date it was measured on. Either is shown as it
+    is written.
 
     Read once per process. The ledger is a build artifact that a gate run
     rewrites, not live state, so a process that started before a re-record
-    keeps showing the date it started with; `help()` in a fresh process shows
-    the new one.
+    keeps showing what it read then; `help()` in a fresh process shows the
+    new one.
 
     `seat()` is called HERE rather than at module scope. An installed wheel has
     no component above it, so `seat()` raises by design, and resolving this path
@@ -302,9 +307,9 @@ class _EngineFunction:
         The longhand is the row itself: `(match &metta (cost ($head $n) $class)
         $class)` reads what this reports, and `(explain (<head> ...))` answers
         the same pair beside every other declaration the call consults. What is
-        added here is the ledger's date, which says when the cost-rows lane last
-        measured the head against its claim rather than merely that the claim is
-        written down.
+        added here is the ledger's record of when the cost-rows lane last
+        measured the head against its claim, a stamp or a legacy date, rather
+        than merely that the claim is written down.
         """
         claim = self._space._rt.apply_must(
             "metta_py_cost_declaration", self._space._space, self._name
@@ -312,7 +317,7 @@ class _EngineFunction:
         if not isinstance(claim, list):
             return None
         cost_class, measure = claim
-        measured = _cost_measurement_dates().get(self._name)
+        measured = _cost_measurements().get(self._name)
         stamp = f"measured {measured}" if measured else "declared"
         return f"cost: {cost_class} in $n ({measure}), {stamp}"
 

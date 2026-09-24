@@ -66,7 +66,7 @@ from typing import Any, Literal
 
 from metta_benchmarking import measure_instructions
 
-from benchmarks import atomic_json, curves
+from benchmarks import atomic_json, curves, started
 from metta import MeTTa, S, Space, V, ground
 from metta._roots import seat
 
@@ -959,8 +959,13 @@ def aggregate_samples(
     }
 
 
-def baseline_document(results: Mapping[str, Any], *, cause_commit: str) -> dict[str, Any]:
-    """Reduce a complete run to pinned curves while retaining every noise band."""
+def baseline_document(results: Mapping[str, Any], *, measured: str) -> dict[str, Any]:
+    """Reduce a complete run to pinned curves while retaining every noise band.
+
+    Each case carries `measured`, the time the run started as `date -Iseconds`
+    prints it, where its cause carried a `commit` the run could only fill with
+    `WORKTREE`.
+    """
     cases: dict[str, Any] = {}
     for name, result in results["cases"].items():
         primary = result["metrics"][result["primary_metric"]]
@@ -972,8 +977,8 @@ def baseline_document(results: Mapping[str, Any], *, cause_commit: str) -> dict[
             "noise": primary["noise"],
             "fit": primary["fit"],
             "gated": primary["gated"],
+            "measured": measured,
             "cause": {
-                "commit": cause_commit,
                 "chain": [
                     f"bench.py --memory-scale spawns {name} in a fresh process",
                     f"{result['primary_metric']} is selected by minimum of repetitions",
@@ -1048,12 +1053,12 @@ def run_suite(
     output: Path | None,
     baseline_path: Path,
     update_baseline: bool,
-    cause_commit: str,
     keep_going: bool,
     context: Any,
     finish_process: Callable[[Any, float], str | None],
 ) -> int:
     """Run selected curve families, aggregate them, and compare or update pins."""
+    measured = started()
     selected = list(names or sorted(CASES))
     raw_cases: dict[str, dict[int, list[Mapping[str, int]]]] = {}
     extra_cases: dict[str, dict[str, dict[int, Sequence[int]]]] = {}
@@ -1152,7 +1157,7 @@ def run_suite(
     if quick:
         return int(bool(errors))
     if update_baseline:
-        atomic_json(baseline_path, baseline_document(document, cause_commit=cause_commit))
+        atomic_json(baseline_path, baseline_document(document, measured=measured))
         print(f"wrote memory-scale baseline to {baseline_path}")
         return int(bool(errors))
     if not baseline_path.exists():

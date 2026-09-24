@@ -46,7 +46,7 @@ import json
 
 import pytest
 
-from benchmarks import curves
+from benchmarks import STAMP, curves, started
 from benchmarks.costs import (
     CLASS_BANDS,
     CONTROLS_BY_HEAD,
@@ -60,11 +60,13 @@ from benchmarks.costs import (
     evaluate,
     fit_report,
     ladder_for,
+    ledger_document,
     refusal,
     shuffled,
 )
 from metta import MeTTa
 from metta._atoms.factories import Symbol
+from metta._declare import functions
 from metta._errors.errors import EngineError
 from metta._roots import workspace
 from metta.vocabularies import CostClass
@@ -351,6 +353,61 @@ def test_the_docstring_dates_the_measurement_from_the_ledger():
     measured = ledger["rows"]["car-atom"]["measured"]
     m = MeTTa()
     assert f"measured {measured}" in (m.self.fn["car-atom"].__doc__ or "")
+
+
+def test_recording_stamps_each_measured_row_and_keeps_a_legacy_one():
+    """A row recorded now carries the run's stamp in `measured` and no cause commit; one left alone keeps its date and commit.
+
+    The legacy row is planted rather than read from the committed ledger, so
+    this holds after that ledger is re-recorded too.
+    """
+    legacy = {
+        "measured": "2026-09-19",
+        "inferences": [3, 3, 3, 3],
+        "cause": {"commit": "WORKTREE", "chain": ["a row pinned before the stamp"]},
+    }
+    result = evaluate(
+        _row("car-atom", "linear"),
+        _measured(LENGTH_LADDER, [7 * size for size in LENGTH_LADDER]),
+        pinned=None,
+    )
+    stamp = started()
+
+    document = ledger_document(
+        {"car-atom": result},
+        {"rows": {"a-legacy-head": legacy}},
+        stamp={},
+        repetitions=1,
+        measured=stamp,
+    )
+
+    fresh = document["rows"]["car-atom"]
+    assert fresh["measured"] == stamp
+    assert STAMP.fullmatch(fresh["measured"])
+    assert "commit" not in fresh["cause"]
+    assert document["rows"]["a-legacy-head"] == legacy
+
+
+def test_the_docstring_shows_a_stamp_or_a_legacy_date_as_the_ledger_writes_it(
+    tmp_path, monkeypatch
+):
+    """help() reads a row measured since the stamp rule and one measured before it alike."""
+    stamp = started()
+    ledger = tmp_path / "benchmarks" / "cost-baseline.json"
+    ledger.parent.mkdir()
+    ledger.write_text(
+        json.dumps({"rows": {"car-atom": {"measured": stamp}, "cdr-atom": {"measured": "2026-09-19"}}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(functions, "seat", lambda: tmp_path)
+    functions._cost_measurements.cache_clear()
+    try:
+        assert functions._cost_measurements() == {"car-atom": stamp, "cdr-atom": "2026-09-19"}
+        m = MeTTa()
+        assert f"measured {stamp}" in (m.self.fn["car-atom"].__doc__ or "")
+        assert "measured 2026-09-19" in (m.self.fn["cdr-atom"].__doc__ or "")
+    finally:
+        functions._cost_measurements.cache_clear()
 
 
 def test_the_measure_comes_from_the_arrow_at_the_holes_position():

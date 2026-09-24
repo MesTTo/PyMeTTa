@@ -12,6 +12,10 @@ Guarantees:
     bound reads the same way in either
     [tested: test_a_family_that_left_its_route_is_refused_not_fitted,
     test_a_worker_that_sends_nothing_is_a_named_failure; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523].
+  - `started` answers this moment as `date -Iseconds` prints it, and `STAMP`
+    reads that whole time and nothing shorter, the seat's one reading of a
+    stamp, which the twins lane's re-pin and the three ledgers share
+    [tested 2026-09-25T04:18:23+10:00: test_a_measurement_is_stamped_as_date_prints_it].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,8 +26,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from collections.abc import Callable, Mapping
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +40,24 @@ from _workspace import on_path
 # path. The measurement modules read `metta_benchmarking`, which is one of
 # them.
 on_path()
+
+#: The whole of what `date -Iseconds` prints, the one time a measurement in
+#: this seat is stamped with. The workspace's evidence gate reads a tag's time
+#: with its own copy, tests/checks/check_evidence_tags.py:STAMP, which the
+#: twins lane's self-test holds equal to this one, since the seat cannot
+#: import the workspace's checks.
+STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}")
+
+
+def started() -> str:
+    """This moment as `date -Iseconds` prints it: local time, to the second, with its offset.
+
+    A measurement takes it at its start and records it, so the time it carries
+    is when its evidence ran, and the first commit carrying that time is the
+    tree it measured, where a commit pin could only name that tree from a
+    second commit.
+    """
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def atomic_json(path: Path, document: Mapping[str, Any]) -> None:

@@ -23,6 +23,7 @@ Guarantees:
 import json
 
 from bench import main as benchmark_main
+from benchmarks import STAMP, started
 from benchmarks.memory_scale import (
     CASES,
     aggregate_samples,
@@ -122,6 +123,29 @@ def test_instruction_join_workload_checks_both_projection_shapes():
     assert pure_benchmark_main(["memory-join-projection", "--size", "10"]) == 0
 
 
+def test_a_pinned_case_carries_its_runs_stamp_and_a_legacy_one_still_compares():
+    """Each pinned case carries the run's stamp and no cause commit; a legacy one compares as before.
+
+    A case pinned before the stamp carries `WORKTREE` in its cause and no
+    `measured`, and the comparison reads neither, so the two compare alike.
+    """
+    case = CASES["support-drop-one"]
+    raw = {size: [{"inferences": size * 10, "_worker_pid": size}] for size in case.sizes}
+    result = {"schema": 1, "repetitions": 1, "cases": {case.name: aggregate_samples(case, raw)}}
+    stamp = started()
+
+    baseline = baseline_document(result, measured=stamp)
+
+    pinned = baseline["cases"][case.name]
+    assert pinned["measured"] == stamp
+    assert STAMP.fullmatch(pinned["measured"])
+    assert "commit" not in pinned["cause"]
+    legacy = json.loads(json.dumps(baseline))
+    del legacy["cases"][case.name]["measured"]
+    legacy["cases"][case.name]["cause"]["commit"] = "WORKTREE"
+    assert compare_baseline(result, legacy) == compare_baseline(result, baseline) == []
+
+
 def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():
     """Compare every selected pin and identify the moved case."""
     case = CASES["support-drop-one"]
@@ -134,7 +158,7 @@ def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():
         "repetitions": 1,
         "cases": {case.name: aggregate_samples(case, raw)},
     }
-    baseline = baseline_document(result, cause_commit="a" * 40)
+    baseline = baseline_document(result, measured=started())
 
     assert compare_baseline(result, baseline) == []
     baseline["cases"]["second"] = json.loads(json.dumps(baseline["cases"][case.name]))

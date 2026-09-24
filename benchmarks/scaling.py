@@ -122,7 +122,7 @@ from typing import Any
 # pulls in the codec kit, the library loader, the space and the foreign seam.
 from metta_benchmarking import measure_instructions, measured_main
 
-from benchmarks import atomic_json, collect_worker, curves
+from benchmarks import atomic_json, collect_worker, curves, started
 from benchmarks.configuration import counter_configuration
 from metta import S, Space, V, engine
 from metta._roots import seat, workspace
@@ -876,7 +876,6 @@ def _planted_row(
     name: str,
     control: Mapping[str, Any],
     families: Mapping[str, Any],
-    cause_commit: str,
 ) -> dict[str, Any]:
     """Pin a constant-factor control against ANOTHER family's row, never its own.
 
@@ -896,7 +895,6 @@ def _planted_row(
         raise KeyError(msg)
     return dict(source) | {
         "cause": {
-            "commit": cause_commit,
             "chain": [
                 f"THE PLANT. This row is {source_name}'s own measurement, for the "
                 f"UNMULTIPLIED workload that {name} runs a fixed number of times.",
@@ -917,9 +915,14 @@ def ledger_document(
     *,
     stamp: Mapping[str, Any],
     repetitions: int,
-    cause_commit: str,
+    measured: str,
 ) -> dict[str, Any]:
     """Pin every measured family, keeping each control's row exactly as it was.
+
+    A measured family carries `measured`, the time this run started as
+    `date -Iseconds` prints it, where its cause carried a `commit` the run could
+    only fill with `WORKTREE`. A family this run did not measure keeps what it
+    carried, a legacy `commit` included, until its measurement runs again.
 
     A control row is never rewritten. The constant-factor control is planted by
     running three passes of a workload pinned at one pass, so re-recording it
@@ -939,8 +942,8 @@ def ledger_document(
                 "work": list(result.measurement.work),
                 "noise": result.measurement.noise,
                 "fit": result.fit,
+                "measured": measured,
                 "cause": {
-                    "commit": cause_commit,
                     "chain": [
                         f"python -m benchmarks.scaling --record measured {name}",
                         f"minimum of {repetitions} fresh processes per size",
@@ -949,7 +952,7 @@ def ledger_document(
                 },
             }
         elif "pinned_from" in control:
-            families[name] = _planted_row(name, control, families, cause_commit)
+            families[name] = _planted_row(name, control, families)
     return {
         "schema": SCHEMA_VERSION,
         "repetitions": repetitions,
@@ -1004,13 +1007,13 @@ def run_suite(
     output: Path | None,
     record: bool,
     paired: bool,
-    cause_commit: str,
     policy_path: Path,
     ledger_path: Path,
     context: Any,
     finish_process: Callable[[Any, float], str | None],
 ) -> int:
     """Measure every selected family, fit it, and report the verdict."""
+    measured = started()
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
     previous = json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {}
     pinned = previous.get("families", {})
@@ -1126,7 +1129,7 @@ def run_suite(
                 previous,
                 stamp=stamp,
                 repetitions=repetitions,
-                cause_commit=cause_commit,
+                measured=measured,
             ),
         )
         print(f"recorded {ledger_path}")
@@ -1154,9 +1157,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--paired",
         action="store_true",
         help="also measure retired instructions for families that declare it",
-    )
-    parser.add_argument(
-        "--cause-commit", default=os.environ.get("METTA_SCALING_CAUSE_COMMIT", "WORKTREE")
     )
     arguments = parser.parse_args(argv)
     if arguments.list_families:
@@ -1189,7 +1189,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         output=arguments.json,
         record=arguments.record,
         paired=arguments.paired,
-        cause_commit=arguments.cause_commit,
         policy_path=POLICY_PATH,
         ledger_path=LEDGER_PATH,
         context=multiprocessing.get_context("spawn"),

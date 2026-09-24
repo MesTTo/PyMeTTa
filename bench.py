@@ -97,7 +97,6 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--memory-repetitions", type=int, default=3)
     parser.add_argument("--memory-quick", action="store_true")
-    parser.add_argument("--memory-cause-commit", default=os.environ.get("METTA_MEMORY_CAUSE_COMMIT", "WORKTREE"))
     parser.add_argument("--update-baseline", action="store_true")
     parser.add_argument("--compare-wall", action="store_true")
     parser.add_argument("--json", type=Path)
@@ -254,7 +253,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             output=arguments.json,
             baseline_path=directory / "benchmarks" / "memory-scale-baseline.json",
             update_baseline=arguments.update_baseline,
-            cause_commit=arguments.memory_cause_commit,
             keep_going=arguments.keep_going,
             context=multiprocessing.get_context("spawn"),
             finish_process=finish_process,

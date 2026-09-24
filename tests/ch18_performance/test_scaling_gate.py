@@ -45,7 +45,7 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks import atomic_json, curves
+from benchmarks import STAMP, atomic_json, curves, started
 from benchmarks.memory_scale import _MODEL_ORDER, _transform, fit_curve
 from benchmarks.scaling import (
     LEDGER_PATH,
@@ -655,8 +655,9 @@ def test_recording_leaves_every_control_row_pinned():
         ),
     }
 
+    stamp = started()
     document = ledger_document(
-        inflated, policy, previous, stamp={}, repetitions=3, cause_commit="TEST"
+        inflated, policy, previous, stamp={}, repetitions=3, measured=stamp
     )
 
     assert document["families"]["write-door"]["representative"] == [
@@ -668,6 +669,51 @@ def test_recording_leaves_every_control_row_pinned():
     control = document["families"]["planted-constant-factor"]
     assert control["representative"] == [9999, 19999, 39999, 79999]
     assert control["representative"] != [999999, 1999999, 3999999, 7999999]
+    # The plant is the source's measurement, stamped with the source's run.
+    assert control["measured"] == stamp
+    assert "commit" not in control["cause"]
+
+
+def test_a_measurement_is_stamped_as_date_prints_it():
+    """`started()` is this moment as `date -Iseconds` prints it, and STAMP reads nothing shorter.
+
+    date(1) itself is the oracle: its own output and `started()`'s are each a
+    time STAMP reads whole, while a date alone, a time without its seconds or
+    its offset, and one written with Z are each refused.
+    """
+    printed = subprocess.run(
+        ["date", "-Iseconds"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    for stamp in (printed, started()):
+        assert STAMP.fullmatch(stamp), stamp
+    for short in ("2026-09-25", "2026-09-25T04:15", "2026-09-25T04:15:57", "2026-09-25T04:15:57Z"):
+        assert STAMP.fullmatch(short) is None, short
+
+
+def test_recording_stamps_each_measured_family_and_keeps_a_legacy_one():
+    """A family recorded now carries the run's stamp and no cause commit; one left alone keeps its legacy commit.
+
+    The legacy family is planted rather than read from the committed ledger,
+    so this holds after that ledger is re-recorded too.
+    """
+    legacy = {
+        "representative": [1, 2, 3, 4],
+        "cause": {"commit": "WORKTREE", "chain": ["a family pinned before the stamp"]},
+    }
+    stamp = started()
+    document = ledger_document(
+        {"write-door": _result("write-door", [200, 400, 800, 1600], [99, 199, 399, 799])},
+        _policy(),
+        {"families": {"a-legacy-family": legacy}},
+        stamp={},
+        repetitions=3,
+        measured=stamp,
+    )
+
+    fresh = document["families"]["write-door"]
+    assert fresh["measured"] == stamp
+    assert "commit" not in fresh["cause"]
+    assert document["families"]["a-legacy-family"] == legacy
 
 
 def _result(name, sizes, values):
@@ -765,7 +811,6 @@ def test_a_drifted_ledger_refuses_the_run_before_it_measures_anything(tmp_path, 
         output=None,
         record=False,
         paired=False,
-        cause_commit="TEST",
         policy_path=POLICY_PATH,
         ledger_path=drifted,
         context=multiprocessing.get_context("spawn"),
