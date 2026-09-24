@@ -45,7 +45,7 @@ metta_py_program_source(Space, Result) :-
 %table's functor-hash order, the first one met moved with every functor the
 %process allocated first [tested:
 %test_a_refused_save_names_the_same_symbol_wherever_its_functors_land;
-%commit=WORKTREE]. A save that succeeds reads every atom either way, so only a
+%commit=0f6d29ba65640e26b6055b66b950cf79dae6db0c]. A save that succeeds reads every atom either way, so only a
 %refused one reads more.
 metta_py_unwritable_atom(Space, Bad) :-
     findall(Unwritable,

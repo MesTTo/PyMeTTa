@@ -169,7 +169,7 @@ metta_py_query_count_under(Space, PatternsTagged, GuardTagged, VarNames,
 %one storage head, which reads through the first argument's index in insertion
 %order, so the cost follows the program alone [tested:
 %test_the_tagged_program_check_costs_the_same_wherever_its_functors_land;
-%commit=WORKTREE]. The conclusion is a copy without attributes and the probe
+%commit=0f6d29ba65640e26b6055b66b950cf79dae6db0c]. The conclusion is a copy without attributes and the probe
 %sits under double negation, so, as unifiable/3 did, it binds nothing and
 %wakes no constraint.
 metta_py_has_tagged_program(Space, Target, Has) :-
