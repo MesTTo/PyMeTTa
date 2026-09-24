@@ -254,7 +254,7 @@ def space_door_rows(calls: int = SPACE_CALLS, rounds: int = ROUNDS) -> list[Row]
     """
     space = Space()
 
-    space.run("(= (hk-accept-all $incoming) (accept))")
+    space.run("(= (hk-accept-all $incoming) (Accept))")
     space.run("!(declare-pre-add! &hk-guard hk-accept-all)")
     # The probe is an EXPRESSION, not a bare symbol. add-atom took upstream
     # PeTTa's domain at 12121e3c, an atom with a head, so the symbol this row

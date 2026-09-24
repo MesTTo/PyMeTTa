@@ -189,7 +189,7 @@ def test_alias_and_literal_checks_agree_with_discharge_verification(m, alias):
     m.run(f"{prefix}(: checked (-> {expected} {expected})) (= (checked $x) (+ $x 1)) (= (caller $x) (checked $x))")
     call = "!(with-pragma! ((verify-discharges True)) (caller 7))"
     assert m.run(call) == [[8]]
-    m.fn.add_typing_rule(S.deny_numbers, S.ordinary, S.Number, S.Number, S.refuse(S.denied))
+    m.fn.add_typing_rule(S.deny_numbers, S.ordinary, S.Number, S.Number, S.Refuse(S.denied))
     [refused] = m.run(call)
     assert len(refused) == 1 and refused[0][0] == S.Error
     assert "TypingRuleRefusal deny-numbers denied" in str(refused[0])
@@ -221,7 +221,7 @@ def test_alias_casts_keep_the_strict_witness_and_obey_user_refusals(m):
         m.cast(S.mystery, "Count")
     assert m.cast(7, "Any") == 7
     assert m.run("!(type-cast mystery Count &self)") == [[S.Error(S.mystery, S.BadType)]]
-    m.run("!(add-typing-rule! deny ordinary Count Count (refuse denied))")
+    m.run("!(add-typing-rule! deny ordinary Count Count (Refuse denied))")
     with pytest.raises(CastError, match="Count"):
         m.cast(7, "Count")
     m.run("!(remove-typing-rule! deny)")
@@ -232,7 +232,7 @@ def test_alias_casts_keep_the_strict_witness_and_obey_user_refusals(m):
 def test_aliases_of_unchecked_cast_targets_stay_unchecked(m, target):
     """A wildcard target asks for no witness under either type spelling."""
     m.run(f"(: Unchecked (Alias {target})) "
-          "!(add-typing-rule! deny ordinary $a $e (refuse denied))")
+          "!(add-typing-rule! deny ordinary $a $e (Refuse denied))")
     try:
         assert m.cast(7, target) == m.cast(7, "Unchecked") == 7
         assert m.cast(S.mystery, target) is m.cast(S.mystery, "Unchecked") is S.mystery

@@ -166,7 +166,7 @@ def test_a_user_typing_rule_reaches_the_type_mismatch_check(m):
     """A typing rule the space declares widens the check with nothing in the lint to change."""
     m.run('(: takes-number (-> Number Number)) (= (takes-number $n) $n) (= (caller) (takes-number "s"))')
     assert "type-mismatch" in _kinds(m.lint())
-    m.run("!(add-typing-rule! widen ordinary String Number accept)")
+    m.run("!(add-typing-rule! widen ordinary String Number Accept)")
     assert "type-mismatch" not in _kinds(m.lint())
 
 

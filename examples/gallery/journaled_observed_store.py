@@ -13,7 +13,7 @@ from tempfile import TemporaryDirectory
 
 from _common import claim, doctest, done
 
-from metta import MeTTa, S, V, accept, refuse
+from metta import Accept, MeTTa, Refuse, S, V
 from metta._errors.errors import EngineError
 
 
@@ -30,9 +30,9 @@ def validate_order(atom):
     """Refuse an Order whose total is negative."""
     match atom:
         case (S.Order, order_id, total) if total < 0:
-            return refuse(S.negative(order_id))
+            return Refuse(S.negative(order_id))
         case _:
-            return accept()
+            return Accept()
 
 
 def main() -> None:

@@ -100,7 +100,7 @@ def test_a_typing_rule_refuses_a_flat_python_call(m):
     assert demo(payload) == [S.seen(payload)]
 
     m.fn.add_typing_rule(S.deny_mystery, S.ordinary, S["%Undefined%"],
-                         S.DemoPayload, S.refuse(S.not_a_payload))
+                         S.DemoPayload, S.Refuse(S.not_a_payload))
     flat = demo(payload)
     assert flat == m.eval(S.demo(payload))
     refusal = S.BadArgType(1, S.DemoPayload, S["%Undefined%"],
@@ -130,7 +130,7 @@ def test_the_direct_goal_path_and_the_general_path_agree_on_every_corpus_call(m)
     m += typed(S.b1, S.B)
     m += typed(S.ruled, arrow(S.RulePayload, S.Atom))
     m.fn.add_typing_rule(S.deny_plain, S.ordinary, S["%Undefined%"],
-                         S.RulePayload, S.refuse(S.not_a_rule_payload))
+                         S.RulePayload, S.Refuse(S.not_a_rule_payload))
 
     @m.define
     def free(x):

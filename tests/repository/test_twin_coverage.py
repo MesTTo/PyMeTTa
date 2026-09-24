@@ -514,10 +514,9 @@ LANDED_DOORS = (
     "import operator\n"
     "import metta\n"
     "from metta import (\n"
-    "    FALSE, TRUE, UNIT, Expression, G, S, State, V,\n"
-    "    accept, and_, arrow, channel, drop, equation, every, ground, if_,\n"
-    "    in_, limits, match, not_, or_, par_map, race, refuse, solve, spawn,\n"
-    "    superpose, typed, view,\n"
+    "    FALSE, TRUE, UNIT, Accept, Drop, Expression, G, Refuse, S, State, V,\n"
+    "    and_, arrow, channel, equation, every, ground, if_, in_, limits,\n"
+    "    match, not_, or_, par_map, race, solve, spawn, superpose, typed, view,\n"
     ")\n"
     "from metta.vocabularies import (\n"
     "    AgendaPolicy, AnswerPolicy, Atomicity, Delivery, EventOrder, Fidelity,\n"
@@ -550,13 +549,13 @@ LANDED_DOORS = (
     "    def intake(atom):\n"
     "        match atom:\n"
     "            case (S.Raw, x):\n"
-    "                return accept((S.Order, x))\n"
+    "                return Accept((S.Order, x))\n"
     "            case (S.Bad, x):\n"
-    "                return refuse(S.negative(x))\n"
+    "                return Refuse(S.negative(x))\n"
     "            case (S.Noise, _):\n"
-    "                return drop()\n"
+    "                return Drop()\n"
     "            case _:\n"
-    "                return accept()\n"
+    "                return Accept()\n"
     "    @m.define\n"
     "    class Account:\n"
     "        owner: str\n"
@@ -633,6 +632,31 @@ def test_the_landed_doors_read_clean(tmp_path):
     # rules bundles all author equations, so the band's authoring allowance
     # counts every compiling door.
     assert coverage.definitions(doors) == 8
+
+
+def test_a_lowercase_verdict_builder_is_a_retired_name(tmp_path):
+    """The verdict builders took the constructors' own capitalized names.
+
+    A lowercase head is a call wherever a library defines a function of that
+    name, so `from metta import accept` writes the previous surface, and the
+    lane names the constructor that replaced each builder.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from metta import accept, drop, refuse\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert (accept(), drop(), refuse(1)) is not None\n",
+        encoding="utf-8",
+    )
+    findings = "\n".join(coverage.retired(planted))
+    for retired_name, current in (
+        ("accept", "Accept() or Accept(atom)"),
+        ("drop", "Drop()"),
+        ("refuse", "Refuse(words)"),
+    ):
+        assert f"{retired_name} is retired; write {current}" in findings, findings
 
 
 def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
@@ -740,8 +764,11 @@ def test_a_retired_module_import_is_a_finding(tmp_path):
 #: [measured 2026-08-24: `metta.alpha_eq` and `metta.atom_from_wire` are gone
 #: while `Atom.alpha_eq` and `metta.convert.atom_from_wire` are live; source:
 #: ai-narrow-core-renames.md, the wire-functions and alpha_eq rows;
-#: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
-RELOCATED = frozenset({"alpha_eq", "atom_from_wire"})
+#: commit=5c67147566907276a95a5fbf059cf8f98b6685f1]. `drop` is the handle's own
+#: release, `space.drop()`, while the root's verdict builder of that name became
+#: `Drop()` [tested: test_a_lowercase_verdict_builder_is_a_retired_name;
+#: commit=WORKTREE].
+RELOCATED = frozenset({"alpha_eq", "atom_from_wire", "drop"})
 
 
 def test_no_retired_spelling_is_ever_recommended():

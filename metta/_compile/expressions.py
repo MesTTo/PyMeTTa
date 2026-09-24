@@ -241,10 +241,11 @@ _INPLACE_BINOPS = _by_node(
 )
 
 # Names with special meaning inside a compiled body. `match` runs a pattern
-# against the running space, nondeterminism and verdict forms pass through,
-# and `empty` answers nothing.
+# against the running space, nondeterminism and the capitalized verdict
+# constructors pass through as the MeTTa atoms of the same names, and `empty`
+# answers nothing.
 # closed-set: decides; policy=which NAMES have a meaning of their own inside a compiled body rather than being a call; reads=none, it is the source
-_MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose", "unify")
+_MAGIC = ("Accept", "Drop", "Refuse", "collapse", "empty", "match", "superpose", "unify")
 
 #: What a compiled body STORES where the author named no space: the engine's
 #: own symbol for the space a program is running in, which is what a MeTTa

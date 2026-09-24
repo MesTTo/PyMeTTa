@@ -673,5 +673,5 @@ def test_slot_admission_is_the_engines_answer(metta):
         assert registry.admits(name, S.a(S.b), "Expression")
         assert registry.admits(name, G(3), "Number")
         assert not registry.admits(name, G("s"), "Number")
-        space.run("!(add-typing-rule! widen ordinary String Number accept)")
+        space.run("!(add-typing-rule! widen ordinary String Number Accept)")
         assert EngineRegistry(space.runtime).admits(name, G("s"), "Number")

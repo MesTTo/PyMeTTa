@@ -37,7 +37,7 @@ from typing import Any, get_overloads, get_type_hints
 
 import pytest
 
-from metta import MeTTa, S, V, accept, drop, match, refuse, space, superpose, unify
+from metta import Accept, Drop, MeTTa, Refuse, S, V, match, space, superpose, unify
 from metta._errors.errors import EngineError
 from metta._spaces.results import Answers
 
@@ -230,12 +230,12 @@ def test_pre_add_compiles_the_four_verdict_judge() -> None:
     @target.define
     def judge(atom):
         if atom == S.secret():
-            return refuse("secrets stay out")
+            return Refuse("secrets stay out")
         if atom == S.raw():
-            return accept(S.cooked())
+            return Accept(S.cooked())
         if atom == S.duplicate():
-            return drop()
-        return accept()
+            return Drop()
+        return Accept()
 
     target += S.plain()
     target += S.raw()

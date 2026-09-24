@@ -69,7 +69,7 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
     assert _answers(metta, "(p37-rule-target p37-other)") == mismatch
     assert _answers(
         metta,
-        "(add-typing-rule! p37-accept ordinary P37Other P37Payload accept)",
+        "(add-typing-rule! p37-accept ordinary P37Other P37Payload Accept)",
     ) == ["True"]
     assert _answers(metta, "(p37-rule-target p37-other)") == [
         "(seen p37-other)"
@@ -79,7 +79,7 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
 
     assert _answers(
         metta,
-        "(add-typing-rule! p37-defer ordinary %Undefined% P37Payload defer)",
+        "(add-typing-rule! p37-defer ordinary %Undefined% P37Payload Defer)",
     ) == ["True"]
     assert _answers(metta, "(p37-rule-target p37-unknown)") == baseline
     assert _answers(metta, "(remove-typing-rule! p37-defer)") == ["True"]
@@ -87,7 +87,7 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
     assert _answers(
         metta,
         "(add-typing-rule! p37-deny ordinary %Undefined% P37Payload "
-        "(refuse denied-by-user))",
+        "(Refuse denied-by-user))",
     ) == ["True"]
     assert _answers(metta, "(p37-rule-target p37-unknown)") == [
         "(Error (p37-rule-target p37-unknown) "
@@ -104,7 +104,7 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
     assert _answers(
         metta,
         "(add-typing-rule! p37-arity-deny arrow-arity 2 2 "
-        "(refuse arity-denied-by-user))",
+        "(Refuse arity-denied-by-user))",
     ) == ["True"]
     assert _answers(metta, "(p37-arity-target left right)") == [
         "(Error (p37-arity-target left right) "
@@ -116,8 +116,8 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
     planted = tmp_path / "typing-overlap.metta"
     planted.write_text(
         "!(add-typing-rule! p37-deny ordinary %Undefined% P37Payload "
-        "(refuse denied-by-user))\n"
-        "!(add-typing-rule! p37-guard ordinary %Undefined% $expected defer)\n"
+        "(Refuse denied-by-user))\n"
+        "!(add-typing-rule! p37-guard ordinary %Undefined% $expected Defer)\n"
     )
     completed = subprocess.run(
         [
@@ -211,7 +211,7 @@ def test_the_shipped_fast_path_answers_what_the_registry_answers():
     # must stop answering, or the refusal would be inert.
     metta.run(
         "!(add-typing-rule! p38-refuses-number ordinary Number Number "
-        "(refuse \"p38 refuses Number against Number\"))"
+        "(Refuse \"p38 refuses Number against Number\"))"
     )
     try:
         disagreements = _match_differential(metta)
@@ -237,7 +237,7 @@ def test_aliases_keep_the_fast_path_and_registry_in_agreement():
                       ["Number", "String"], ["->", "Number", "Number"]]
         expected = f"{len(vocabulary) ** 2}-[]"
         assert _match_differential(metta, vocabulary=vocabulary, dispatch=True) == expected
-        metta.run("!(add-typing-rule! deny ordinary Count Count (refuse denied))")
+        metta.run("!(add-typing-rule! deny ordinary Count Count (Refuse denied))")
         assert _match_differential(metta, vocabulary=vocabulary, dispatch=True) == expected
         assert metta.runtime.once(
             f"space_module('{metta.name}', _M), "
@@ -281,7 +281,7 @@ def test_unions_keep_the_fast_path_and_registry_in_agreement():
         # A user rule refusing one member must stop the fast path answering
         # about any pair, exactly as it does for a non-union refusal.
         metta.run("!(add-typing-rule! union-deny ordinary Number Number "
-                  "(refuse denied))")
+                  "(Refuse denied))")
         try:
             disagreements = _match_differential(metta, vocabulary=written)
             assert disagreements != expected, (
@@ -346,7 +346,7 @@ def test_a_static_parameter_proof_yields_to_a_later_typing_rule():
     assert _answers(
         metta,
         "(add-typing-rule! p43-deny-payload ordinary "
-        "P43PolicyPayload P43PolicyPayload (refuse denied-after-compile))",
+        "P43PolicyPayload P43PolicyPayload (Refuse denied-after-compile))",
     ) == ["True"]
     assert _answers(metta, call) == refusal
     assert _answers(metta, "(remove-typing-rule! p43-deny-payload)") == [
@@ -366,7 +366,7 @@ def test_a_rule_in_one_space_does_not_change_another_spaces_answers():
 
     left.run(
         "!(add-typing-rule! p43-left-denies-number ordinary Number Number "
-        "(refuse left-space-only))"
+        "(Refuse left-space-only))"
     )
     assert _answers(left, "(p43-local-target 1)") == [
         "(Error (p43-local-target 1) "

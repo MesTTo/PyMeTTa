@@ -392,7 +392,7 @@ def test_a_recycled_space_name_inherits_no_typing_rule_from_its_past_life(draine
     first.run(payload)
     first.run(
         "!(add-typing-rule! past-deny ordinary PastPayload PastPayload "
-        "(refuse gone))"
+        "(Refuse gone))"
     )
     # The rule is READ rather than taken on its receipt: it has to be in force
     # in the first life for the second life's acceptance to mean anything.

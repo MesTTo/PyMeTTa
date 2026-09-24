@@ -143,7 +143,13 @@ RUFF_FAMILY_BURN_DOWN = {
     # LockDrift joins the engine's error vocabulary by its atom name, and the
     # class-method controls name a first parameter the way the declared
     # class does.
-    "N": 64,
+    # 64 -> 67 for the hook verdict builders Accept, Refuse and Drop in
+    # metta/_spaces/ambient.py. They take the engine's capitalized constructor
+    # names because a lowercase verdict head is a call wherever a library
+    # defines a function of that name, so the name is the engine's word rather
+    # than one this package chose, the reason the 39 -> 53 rise gives. Each def
+    # carries N802 with that reason.
+    "N": 67,
     # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
     # strategy atoms, while each line carries the narrow A001 explanation.
     # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled

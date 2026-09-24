@@ -729,6 +729,13 @@ RETIRED_ROOT = {
     "val": "ground(...) or G(...)",
     "var": "V[...] or V.name",
     "variables": "a.vars",
+    # The verdict builders took the constructors' own capitalized names: a
+    # lowercase head is a call wherever a library defines a function of that
+    # name, as lib_functional's two-input drop made a judge's (drop) one
+    # [tested: test_a_lowercase_verdict_builder_is_a_retired_name; commit=WORKTREE].
+    "accept": "Accept() or Accept(atom)",
+    "drop": "Drop()",
+    "refuse": "Refuse(words)",
 }
 
 #: The same table for verbs the handle lost, whose names nothing live shares.

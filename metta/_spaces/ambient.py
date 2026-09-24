@@ -210,19 +210,23 @@ def superpose(*alternatives: _Any):
     return _ambient_space().answers(target)
 
 
-def accept(atom: _Any = _OMITTED) -> Expression:
-    """Build a pre-add verdict that keeps or replaces the offered atom."""
-    return S.accept() if atom is _OMITTED else S.accept(atom)
+# The verdicts keep MeTTa's own capitalized names. A lowercase head is an
+# application wherever a library defines a function of that name, so
+# (drop) beside lib_functional's two-input drop was a call, not a verdict
+# [tested: test_pre_add_compiles_the_four_verdict_judge; commit=WORKTREE].
+def Accept(atom: _Any = _OMITTED) -> Expression:  # noqa: N802  -- MeTTa's constructor name, kept as the name
+    """Build a hook verdict that keeps, or with an atom replaces, the atom."""
+    return S.Accept() if atom is _OMITTED else S.Accept(atom)
 
 
-def refuse(words: _Any) -> Expression:
-    """Build a pre-add verdict that rejects a write with the judge's words."""
-    return S.refuse(words)
+def Refuse(words: _Any) -> Expression:  # noqa: N802  -- MeTTa's constructor name, kept as the name
+    """Build a hook verdict that rejects a write with the handler's words."""
+    return S.Refuse(words)
 
 
-def drop() -> Expression:
-    """Build a pre-add verdict that silently skips the offered atom."""
-    return S.drop()
+def Drop() -> Expression:  # noqa: N802  -- MeTTa's constructor name, kept as the name
+    """Build a hook verdict that silently skips, or removes, the atom."""
+    return S.Drop()
 
 
 def under(algebra: _Any):

@@ -56,15 +56,15 @@ from metta._errors.errors import Timeout as Timeout
 from metta._errors.errors import is_transport_failure as is_transport_failure
 from metta._faces.metta import MeTTa as MeTTa
 from metta._faces.space import Space as Space
-from metta._spaces.ambient import accept as accept
+from metta._spaces.ambient import Accept as Accept
+from metta._spaces.ambient import Drop as Drop
+from metta._spaces.ambient import Refuse as Refuse
 from metta._spaces.ambient import attach as attach
 from metta._spaces.ambient import current_algebra as current_algebra
 from metta._spaces.ambient import current_space as current_space
-from metta._spaces.ambient import drop as drop
 from metta._spaces.ambient import engine as engine
 from metta._spaces.ambient import forms as forms
 from metta._spaces.ambient import llms as llms
-from metta._spaces.ambient import refuse as refuse
 from metta._spaces.ambient import space as space
 from metta._spaces.ambient import stubs as stubs
 from metta._spaces.ambient import superpose as superpose
@@ -184,7 +184,7 @@ class _AlgebraModule(_Protocol):
 algebra: _AlgebraModule
 # end generated algebra declaration
 
-__all__ = ['FALSE', 'TRUE', 'UNIT', 'Answer', 'Answers', 'Atom', 'Bindings', 'Config', 'Defined', 'Drift', 'Expression', 'G', 'Grounded', 'Handle', 'Library', 'Lock', 'MeTTa', 'MettaError', 'NotReducible', 'Rows', 'S', 'Space', 'SpaceLike', 'SpaceProvider', 'State', 'Symbol', 'Timeout', 'Undefined', 'V', 'Variable', '__version__', 'accept', 'add', 'amplitude', 'and_', 'arrow', 'attach', 'bag', 'bool', 'boot', 'budget', 'catalog', 'channel', 'config', 'counting', 'current_algebra', 'current_space', 'define', 'doc', 'drop', 'engine', 'equation', 'eval', 'every', 'fn', 'forms', 'fresh', 'ground', 'if_', 'in_', 'io', 'is_transport_failure', 'lib', 'limits', 'llms', 'match', 'move_on_after', 'not_', 'op', 'or_', 'par_map', 'parse', 'prob', 'prov', 'pure', 'py', 'race', 'ranked', 'reads', 'reflection', 'refuse', 'registered', 'remove', 'render', 'rules', 'run', 'scope', 'seg', 'set', 'solve', 'space', 'spawn', 'speculate', 'stats', 'stubs', 'superpose', 'trace', 'tropical', 'typed', 'under', 'unify', 'view', 'withdraw', 'writes']
+__all__ = ['FALSE', 'TRUE', 'UNIT', 'Accept', 'Answer', 'Answers', 'Atom', 'Bindings', 'Config', 'Defined', 'Drift', 'Drop', 'Expression', 'G', 'Grounded', 'Handle', 'Library', 'Lock', 'MeTTa', 'MettaError', 'NotReducible', 'Refuse', 'Rows', 'S', 'Space', 'SpaceLike', 'SpaceProvider', 'State', 'Symbol', 'Timeout', 'Undefined', 'V', 'Variable', '__version__', 'add', 'amplitude', 'and_', 'arrow', 'attach', 'bag', 'bool', 'boot', 'budget', 'catalog', 'channel', 'config', 'counting', 'current_algebra', 'current_space', 'define', 'doc', 'engine', 'equation', 'eval', 'every', 'fn', 'forms', 'fresh', 'ground', 'if_', 'in_', 'io', 'is_transport_failure', 'lib', 'limits', 'llms', 'match', 'move_on_after', 'not_', 'op', 'or_', 'par_map', 'parse', 'prob', 'prov', 'pure', 'py', 'race', 'ranked', 'reads', 'reflection', 'registered', 'remove', 'render', 'rules', 'run', 'scope', 'seg', 'set', 'solve', 'space', 'spawn', 'speculate', 'stats', 'stubs', 'superpose', 'trace', 'tropical', 'typed', 'under', 'unify', 'view', 'withdraw', 'writes']
 
 
 def __getattr__(name: str) -> _Any: ...

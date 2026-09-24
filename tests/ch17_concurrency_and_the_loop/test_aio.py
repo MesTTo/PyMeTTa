@@ -1284,7 +1284,7 @@ def test_async_rules_and_pre_add_land_as_awaitable_calls(m):
     an async caller unable to land an equation bundle or claim a write door at
     all [measured 2026-08-31].
     """
-    from metta import accept, equation, refuse
+    from metta import Accept, Refuse, equation
 
     async def go():
         async with _aio_surface.AsyncMeTTa(metta=m) as am:
@@ -1300,9 +1300,9 @@ def test_async_rules_and_pre_add_land_as_awaitable_calls(m):
             def judge(atom):
                 match atom:
                     case (S.secret, _):
-                        return refuse("no secrets here")
+                        return Refuse("no secrets here")
                     case _:
-                        return accept()
+                        return Accept()
 
             await guarded.pre_add(judge)
             await guarded.add(S.plain(1))

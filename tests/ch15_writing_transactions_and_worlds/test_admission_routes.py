@@ -42,10 +42,10 @@ def test_public_space_add_observes_every_pre_add_verdict(metta):
     pool = metta._new_space()
     try:
         metta.run(
-            f"(= ({guard} (plain $x)) (accept))\n"
-            f"(= ({guard} (raw $x)) (accept (cooked $x)))\n"
-            f"(= ({guard} (dup $x)) (drop))\n"
-            f"(= ({guard} (secret $x)) (refuse \"route refused\"))"
+            f"(= ({guard} (plain $x)) (Accept))\n"
+            f"(= ({guard} (raw $x)) (Accept (cooked $x)))\n"
+            f"(= ({guard} (dup $x)) (Drop))\n"
+            f"(= ({guard} (secret $x)) (Refuse \"route refused\"))"
         )
         metta.run(f"!(declare-pre-add! {pool.name} {guard})")
 

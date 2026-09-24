@@ -1629,11 +1629,11 @@ def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D
     def stamp(item):
         return Stamped(item)  # noqa: F821  constructor convention
 
-    m.run('(= (p12-witness-guard (secret $x)) (refuse "a python-compiled policy refuses secrets"))')
-    m.run("(= (p12-witness-guard (raw $x)) (accept (stamp $x)))")
+    m.run('(= (p12-witness-guard (secret $x)) (Refuse "a python-compiled policy refuses secrets"))')
+    m.run("(= (p12-witness-guard (raw $x)) (Accept (stamp $x)))")
     m.run(
         "(= (p12-witness-guard (count $n))"
-        ' (if (budget-allows $n) (accept) (refuse "the python budget said no")))'
+        ' (if (budget-allows $n) (Accept) (Refuse "the python budget said no")))'
     )
     m.run("!(declare-pre-add! &p12-witness-pool p12-witness-guard)")
     try:
