@@ -18,7 +18,7 @@ Guarantees:
     so a table filled by a live call survives the first use of a deferred
     library function in a space holding `from` rows, a class definition's
     among them, whatever ran before it in the process [tested:
-    test_a_reference_refresh_that_changes_nothing_keeps_the_table; commit=WORKTREE]
+    test_a_reference_refresh_that_changes_nothing_keeps_the_table; commit=f01ac14d61cf717b7adddb74bc54544d1c6679ea]
   - a function change drops the tables that can have read it and no other:
     the changed function's own, those of the functions whose compiled bodies
     reach it through the support graph, and those whose reach is unbounded
