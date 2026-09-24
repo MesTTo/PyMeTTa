@@ -27,6 +27,10 @@ Guarantees:
     complete run still detects any missing pinned case [tested:
     test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
     commit=d843bb6d17a525c36afd21cab077d63b34447535]
+  - object-reclamation counts the boxes still alive, draining first the
+    entries dead boxes queued for the table's next operation, so a box the
+    drop freed is never counted as retained
+    [tested 2026-09-25T04:33:28+10:00: test_memory_scale_cli_gates_object_reclamation]
 Owns resources:
   - every workload drops or empties the spaces and temporary files it creates;
     the parent process joins, terminates, or kills every worker through the
@@ -546,10 +550,26 @@ class _IdentityPayload:
 
 
 def _object_reclamation(size: int) -> dict[str, int]:
-    from metta._atoms.model import _BOXES  # noqa: PLC0415  -- this cache is the measurement target
+    from metta._atoms.model import (  # noqa: PLC0415  -- this cache is the measurement target
+        _BOXES,
+        _DEAD_BOXES,
+        _STATE_LOCK,
+        _expunge,
+    )
+
+    # The live boxes. A dead box's weakref callback only queues its entry for
+    # the table's next operation to expunge under _STATE_LOCK, so the table's
+    # raw length also counts every box that died since then: after the drop it
+    # read [1, 10], exactly the dropped objects. Draining first, the step
+    # boxed() starts with, leaves the boxes still alive. Time: one popleft and
+    # one dict probe per queued entry.
+    def boxes() -> int:
+        with _STATE_LOCK:
+            _expunge(_BOXES, _DEAD_BOXES)
+            return len(_BOXES)
 
     root = MeTTa().self
-    box_floor = len(_BOXES)
+    box_floor = boxes()
 
     def operation() -> dict[str, int]:
         space = root._new_space()
@@ -557,7 +577,7 @@ def _object_reclamation(size: int) -> dict[str, int]:
         references = [weakref.ref(item) for item in objects]
         atoms = [S.memscale_object(ground(item)) for item in objects]
         space.add(*atoms)
-        loaded_box_entries = len(_BOXES) - box_floor
+        loaded_box_entries = boxes() - box_floor
         del atoms, objects
         space.drop()
         reclamation_cycles = 0
@@ -575,13 +595,13 @@ def _object_reclamation(size: int) -> dict[str, int]:
             # commit=d843bb6d17a525c36afd21cab077d63b34447535]
             root.runtime.must("py_call(builtins:len([]), _Ignored)")
             gc.collect()
-            if len(_BOXES) == box_floor and all(
+            if boxes() == box_floor and all(
                 reference() is None for reference in references
             ):
                 break
         return {
             "loaded_box_entries": loaded_box_entries,
-            "post_drop_box_entries": len(_BOXES) - box_floor,
+            "post_drop_box_entries": boxes() - box_floor,
             "post_drop_live_objects": sum(
                 reference() is not None for reference in references
             ),
