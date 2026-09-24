@@ -40,7 +40,7 @@ Guarantees:
   - a setting naming the SWI flag it sets is a startup setting, and reaches
     the C seat's generated settings.h with its default and environment input,
     where a setting naming none does not [tested:
-    test_setting_declaration_reaches_every_projection; commit=WORKTREE]
+    test_setting_declaration_reaches_every_projection; commit=76ee5c5ff673eeb48916f4a68309d8113415480c]
   - every row-backed setting is a `(limit ...)` row once an engine runs, a
     program that rewrites the row changes what the seat reads, and the two
     startup settings are absent from the rows [tested:
