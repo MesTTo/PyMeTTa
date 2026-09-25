@@ -169,9 +169,16 @@ def _launch(arguments: tuple) -> subprocess.CompletedProcess:
 def _concurrent(arguments: list[tuple]) -> list[dict]:
     with concurrent.futures.ThreadPoolExecutor(max_workers=32) as workers:
         results = list(workers.map(_launch, arguments))
-    assert all(result.returncode == 0 for result in results), [
-        (result.returncode, result.stdout, result.stderr) for result in results if result.returncode
-    ]
+    # A text message rather than a list: pytest reprs a non-string message
+    # into 240 characters, which kept the head and tail of a child's stderr
+    # and dropped the error between them in two gate runs, so the only
+    # report of a child that failed its boot named neither the error nor the
+    # child [measured 2026-09-24T23:49:08+10:00 and 2026-09-25T07:20:45+10:00:
+    # the gate logs show `ERROR: .../morkspaces...urge_all_qlf,...))))`].
+    assert all(result.returncode == 0 for result in results), "\n\n".join(
+        f"child {work} exited {result.returncode}\nstdout: {result.stdout}\nstderr:\n{result.stderr}"
+        for work, result in zip(arguments, results, strict=True) if result.returncode
+    )
     return [json.loads(result.stdout) for result in results]
 
 
