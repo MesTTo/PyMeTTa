@@ -1128,21 +1128,76 @@ def test_a_cancelled_future_is_not_charged(m):
         # name, because the session space is shared and another test defines `spin`.
         return cancelled_spin(n - 1) if n > 0 else S.done
 
-    def measured() -> int:
-        with m.stats() as s, m:
-            future = spawn(S.cancelled_spin(300000))
-            future.cancel()
-        return s.inferences
+    # lib_thread's own record that a carrier is running the task.
+    running = (
+        "lib_thread:metta_future(Space, scheduler(Task), _), "
+        "lib_thread:metta_scheduler_task(Task, _, _, _, _, running(_, _))"
+    )
 
-    # The first two blocks pay first-use costs, the library's first worker
-    # and the cancellation path's first use (122,001 and 4,993 in a fresh
-    # process against the 4,484 every later block reads [measured
-    # 2026-09-19: six consecutive blocks; commit=32335687084e4d8ad43cf8800f2dedce707fa137]); the claim is
-    # about the blocks after them.
+    def measured() -> int:
+        with m.stats() as spawned, m:
+            future = spawn(S.cancelled_spin(300000))
+        # Each cancel finds its task on a carrier, spinning. A cancel that
+        # finds it still queued disposes of the engine itself, 27 inferences
+        # more than stopping a running one, as often as the schedule lets it:
+        # the cancel's own bookkeeping, not the spin [measured
+        # 2026-09-25T23:34:56+10:00: 2000 consecutive readings of spawn and
+        # cancel in one block on 3d66db04c at load 33, each cancel's branch
+        # noted, 1877 finding the task running and 121 still queued]. The
+        # wait sits between the two blocks, so its polls are charged to
+        # neither, and every cancel then takes the running branch [measured
+        # 2026-09-26T00:25:27+10:00: 2000 consecutive readings of this shape
+        # on cba7f041e at load 30 to 44, all at one value].
+        # Known issue: a cancel on the running branch still reads 12
+        # inferences fewer when the carrier records its completion before the
+        # cancel looks for it [measured 2026-09-26T00:22:02+10:00: one of 2000
+        # cancels after this wait on 3d66db04c at load 97]; a cancel whose
+        # bookkeeping charges every branch alike, or nothing, closes both.
+        while not m.runtime.once(running, Space=str(future.name)):
+            time.sleep(0.0005)
+        with m.stats() as cancelled, m:
+            future.cancel()
+        return spawned.inferences + cancelled.inferences
+
+    # The first block pays first-use costs, 10,810 inferences in a fresh
+    # process against the 6,959 every later block reads [measured
+    # 2026-09-26T00:25:40+10:00: two fresh processes, 401 blocks after the
+    # first]; the claim is about the blocks after the two warm-ups.
     measured(), measured()
     first, second = measured(), measured()
     assert first == second
     assert first < 300000
+
+
+def test_a_race_is_charged_for_its_caller_and_its_winner_only(m):
+    """A block is charged for the workers whose answers it used.
+
+    par-race stops the branch that lost and joins its thread through the
+    engine's discarding door, which takes the credit SWI adds at the join
+    back out, so the block holds the caller's work and the winner's and none
+    of however far the loser's two-million-step spin got: three races read
+    one integer [measured 2026-09-26T00:31:32+10:00: 200 races through run
+    on cba7f041e, all at 1,167 inferences].
+    """
+    m += lib.thread
+    # Its own names, because the session space is shared.
+    m.run(
+        "(= (charged-race-spin $n) (if (> $n 0) (charged-race-spin (- $n 1)) done)) "
+        "(= (charged-race-slow $x) (let $_ (charged-race-spin 2000000) $x)) "
+        "(= (charged-race-inc $x) (+ $x 1))"
+    )
+
+    def measured() -> int:
+        with m.stats() as s, m:
+            answers = m.run("!(par-race ((charged-race-slow 1) (charged-race-inc 41)))")
+        assert answers == [[Grounded(42)]]
+        return s.inferences
+
+    # The first race pays first-use costs; the claim is about the ones after.
+    measured()
+    first, second, third = measured(), measured(), measured()
+    assert first == second == third
+    assert first < 100000
 
 
 @contextlib.contextmanager

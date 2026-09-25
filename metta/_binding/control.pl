@@ -340,7 +340,7 @@ metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
 %The joined-worker credits this thread discarded come out the same way
 %(engine/metta/control.pl, metta_join_measured/3): a block is charged for the
 %workers whose answers it used and not for a stopped branch's spend
-%[tested: test_a_cancelled_future_is_not_charged; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
+%[tested 2026-09-26T00:36:52+10:00: test_a_race_is_charged_for_its_caller_and_its_winner_only].
 %Each door reads for one EDGE of the window two readings bracket, and the
 %discarded tally is read outside that window: before the inference read at
 %the opening edge, after it at the closing edge. Read after the inference

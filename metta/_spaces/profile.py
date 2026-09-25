@@ -134,13 +134,22 @@ class _StatsBlock:
     joiner's counter by 2,000,013 and a detached one by 7; command=python
     extensions/python/benchmarks/probes/interrupt_poll_accounting.py;
     commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6]. A joined worker whose
-    answer the block did not use is NOT: a race's losers, a cancelled future
-    or timer, the branches a `par-any` or `par-forall` stopped, are joined
-    through the engine's discarding door and their credit comes out here,
-    so the count is the work that produced the block's answers, one integer
-    rather than however far the schedule let a stopped branch run
-    (engine/metta/control.pl, metta_join_measured/3)
-    [tested: test_a_cancelled_future_is_not_charged; commit=55d451b670949c2dc9d2ab7bc678f33f21094bd2].
+    answer the block did not use is NOT: a race's losers, a cancelled
+    thread-backed future or timer, the branches a `par-any` or `par-forall`
+    stopped, are joined through the engine's discarding door and their
+    credit comes out here, so the count is the work that produced the
+    block's answers, one integer rather than however far the schedule let a
+    stopped branch run (engine/metta/control.pl, metta_join_measured/3)
+    [tested 2026-09-26T00:36:52+10:00: test_a_race_is_charged_for_its_caller_and_its_winner_only].
+    A spawned future runs as a scheduler engine whose carrier is never
+    joined, so its spin never reaches the block at all
+    [tested 2026-09-26T00:36:52+10:00: test_a_cancelled_future_is_not_charged].
+    Known issue: a race pulled through a held cursor engine, the engine a
+    streaming door such as `race()` or a `fn` call reads from, is not one
+    integer: that engine's part of the block varies with the schedule where
+    the direct door's does not [measured 2026-09-26T00:31:32+10:00: 200
+    races through `fn` on cba7f041e read 1,038 to 9,049 inferences, the
+    held engine's part 909 to 8,920, and 200 through `run` read 1,167 each].
 
     A counter is a delta, so there is nothing to read before the block that
     measures it has closed, and reading one there raises rather than
