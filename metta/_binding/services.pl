@@ -15,6 +15,7 @@ system:term_expansion(binding_forward(Indicator), Clause) :-
 
 binding_forward_clause(metta_control_signal_line/2, (metta_control_signal_line(A0, A1) :- metta_host_control_signal_line(A0, A1))).
 binding_forward_clause(metta_py_clear/1, (metta_py_clear(A0) :- metta_host_clear_space(A0))).
+binding_forward_clause(metta_py_copy_rows/2, (metta_py_copy_rows(A0, A1) :- metta_host_copy_rows(A0, A1))).
 binding_forward_clause(metta_py_cursor_chunk/3, (metta_py_cursor_chunk(A0, A1, A2) :- metta_host_hold_chunk(A0, A1, A2))).
 binding_forward_clause(metta_py_cursor_close/1, (metta_py_cursor_close(A0) :- metta_host_hold_close(A0))).
 binding_forward_clause(metta_py_fast_load/2, (metta_py_fast_load(A0, A1) :- metta_host_load_fast(A0, A1))).

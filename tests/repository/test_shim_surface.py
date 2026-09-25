@@ -68,6 +68,12 @@ HOST_SERVICES = {
     # reconstruction, so each binding reads the same program boundary.
     "metta_host_source_atoms/2",
     "metta_host_program_source/2",
+    # A copy restores one space's rows into another as a program and adopts
+    # the specializations it copied, which is the specializer's own state, so
+    # the seat's copy() became one engine crossing where it had composed the
+    # enumeration and the one-atom add door, and that composition compiled
+    # every copied equation on arrival.
+    "metta_host_copy_rows/2",
     "metta_host_reference_names/2",
     "catch_recover/2",
     # Actor inspection and occurrence blame are engine-owned identity reads.
@@ -443,6 +449,7 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: host would otherwise recover by parsing the boot transcript.
 FLOOR_REASONS = {
     "metta_host_source_atoms/2": "host-orchestration",
+    "metta_host_copy_rows/2": "host-orchestration",
     "metta_host_program_source/2": "host-orchestration",
     "metta_host_reference_names/2": "door",
     "metta_after_foreign/2": "door",

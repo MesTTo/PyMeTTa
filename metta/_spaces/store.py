@@ -35,22 +35,6 @@ from metta._errors.errors import EngineError, Timeout
 from metta._lazy import lazy
 
 
-def _copies_after_its_base(atom: Any) -> bool:
-    """Whether a copied atom is a specializer-generated equation.
-
-    The engine spells every generated head with the `_Spec_` infix, so the
-    infix is the marker; a user function that happens to carry it is merely
-    ORDERED after the others, never dropped, so the heuristic cannot lose an
-    atom.
-    """
-    try:
-        if not isinstance(atom, Expression) or str(atom.head) != "=":
-            return False
-        lhs = atom.args[0]
-        return isinstance(lhs, Expression) and "_Spec_" in str(lhs.head)
-    except (AttributeError, IndexError):
-        return False
-
 def _fact_stream(value: Any) -> Iterator[Any] | None:
     """Classify one ``+=`` operand without mistaking semantic atoms for rows.
 
@@ -446,18 +430,29 @@ def cast(space: _root.Space, value: Any, type_: Any = ..., /) -> Any:
     effect=_doors.EffectClass.oracleIO,
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
-    evidence=('extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_a_copy_reproduces_the_space_it_copied',),
+    evidence=('extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_a_copy_reproduces_the_space_it_copied', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_a_copy_of_compiled_lambda_code_equals_its_source', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_a_copy_of_a_named_space_equals_its_source', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_a_copy_owns_the_specializations_it_copied', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_a_copy_of_a_provider_space_holds_its_rows'),
 )
 def copy(space: _root.Space) -> _root.Space:
-    """This space's contents in a new anonymous space, cloned through
-    one bulk write, so equations copy as equations and keep running:
-    "a scratch space set up like production" is one line. The handle
-    is ``space()``'s kind, so drop it, or use it as a context
-    manager, to return the name. copy.copy(m) answers the same
-    through the copy protocol. There is deliberately no __deepcopy__:
-    stored Python objects keep their identity across the clone, the
-    shallow reading, and a deep clone of a live engine handle has no
-    meaning to promise.
+    """This space's contents in a new anonymous space, restored the way
+    a load restores a program: every copied equation arrives and waits,
+    and each function the source had compiled compiles in the clone,
+    which takes over the specializations it copied. So the clone holds
+    exactly its source's rows, including what the source derived and
+    nothing it had not, and its equations keep running: "a scratch
+    space set up like production" is one line. The handle is
+    ``space()``'s kind, so drop it, or use it as a context manager, to
+    return the name. copy.copy(m) answers the same through the copy
+    protocol. There is deliberately no __deepcopy__: stored Python
+    objects keep their identity across the clone, the shallow reading,
+    and a deep clone of a live engine handle has no meaning to promise.
+
+    Adding the rows one by one compiled every copied equation as it
+    arrived, so after one zip call a copy of a space holding
+    lib_functional held the specializations of chunk, window and
+    group-by, which its source had never run [measured
+    2026-09-25T02:18:49+10:00: six rows; source:
+    engine/filereader/source_lifecycle.pl, metta_host_copy_rows/2;
+    tested 2026-09-25T16:35:27+10:00: test_a_copy_of_compiled_lambda_code_equals_its_source].
 
     The contents are the space's OWN rows, the enumeration ``save()``
     persists: an origin row ``(from ...)`` copies, and the declarations
@@ -471,24 +466,14 @@ def copy(space: _root.Space) -> _root.Space:
     commit=1bf85bb150defced36894b48722a861fee616609].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     lazy('metta.foreign').require_capability(space._space, "enumerate", "copy")
-    # Enumerate the SOURCE before minting: a provider whose enumeration
-    # fails then costs nothing, where minting first leaked an anonymous
-    # clone on every such failure.
-    wires = space._rt.apply_must("metta_py_source_atoms", space._space)
-    atoms = [_atom_from_wire(w) for w in wires]
-    # Specializer-generated equations add LAST, stably. Re-adding a base
-    # equation invalidates the clone's specializations of that name, so
-    # an enumeration that interleaves a base between two generated
-    # clauses dropped the earlier one; with every base in first, each
-    # generated equation compiles once and is adopted by the engine.
-    atoms.sort(key=_copies_after_its_base)
     clone = space._new_space()
-    if atoms:
-        try:
-            clone.add(*atoms)
-        except BaseException:
-            clone.drop()
-            raise
+    try:
+        _spaces_execution_module.run_void_write(
+            space._rt, "metta_py_copy_rows", space._space, clone._space)
+    except BaseException:
+        clone.drop()
+        raise
+    lazy('metta._declare.functions')._invalidate_builtins_cache(space._rt)
     return clone
 
 @_doors.door(

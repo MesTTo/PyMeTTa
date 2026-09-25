@@ -84,6 +84,7 @@ metta_py_wrappable(metta_py_world_eval).
 %[tested: test_every_public_write_door_honours_the_execution_scopes].
 metta_py_wrappable(metta_py_add).
 metta_py_wrappable(metta_py_add_many).
+metta_py_wrappable(metta_py_copy_rows).
 metta_py_wrappable(metta_py_clear).
 metta_py_wrappable(metta_py_remove).
 metta_py_wrappable(metta_py_remove_many).

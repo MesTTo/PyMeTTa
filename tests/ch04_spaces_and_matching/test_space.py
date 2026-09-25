@@ -25,8 +25,14 @@ Guarantees:
     test_a_write_to_one_space_leaves_another_spaces_atoms_alone,
     test_copying_a_space_leaves_the_space_it_copies_alone]
   - copy() answers a space that holds what its source holds and answers what
-    its source answers, specializations over named functions included [tested
-    2026-09-25T04:49:09+10:00: test_a_copy_reproduces_the_space_it_copied]
+    its source answers, generated specializations included, those named after a
+    compiled lambda among them, from &self and from a named space alike, and
+    the copy owns the specializations it copied, so a change to the function
+    one was made from retires it in the copy [tested 2026-09-25T16:35:27+10:00:
+    test_a_copy_reproduces_the_space_it_copied,
+    test_a_copy_of_compiled_lambda_code_equals_its_source,
+    test_a_copy_of_a_named_space_equals_its_source,
+    test_a_copy_owns_the_specializations_it_copied]
   - run() preserves a runnable variable's source spelling through collection
     and the public wire [tested test_variable_names_survive_to_the_printer]
   - removing an equation from a named space removes its compiled answer as
@@ -64,9 +70,7 @@ Guarantees:
     test_guard_sequences_conjoin_without_changing_positional_patterns;
     commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
 Open Obligations:
-  To Do: i-copy-compile-cross-space - a copy of compiled code that passes a
-    |-> lambda holds specializations its source does not, pinned by the strict
-    xfail test_a_copy_of_compiled_lambda_code_equals_its_source
+  To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
@@ -1643,7 +1647,7 @@ def test_a_rational_tree_binding_refuses_its_row_loudly(m):  # noqa: D103  -- py
     # The remedy the message names works: the stored atom itself answers.
     stored = m.match(parse("(rt-fact (f $x) $x)"))
     assert len(stored) == 1
-def test_copy_clones_through_the_bulk_door(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_copy_runs_its_equations_and_is_independent_of_its_source(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta._new_space() as original:
         original.run("(= (cp-double $x) (* $x 2))")
         original.add(parse("(cp-fact one)"))
@@ -1964,35 +1968,150 @@ def test_a_copy_reproduces_the_space_it_copied(metta):
             clone.drop()
 
 
-# TODO: i-copy-compile-cross-space - drop this marker in the commit that makes
-# a copy name its specializations as its source did.
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="i-copy-compile-cross-space: every compile names a |-> lambda afresh "
-           "and a specialization after its lambda, so the copy's compiles publish "
-           "rows its source never held",
-)
+def _zip_compiled_once(space):
+    """Call lib_functional's zip once in space, which compiles zip alone.
+
+    zip passes a |-> lambda to unfold, so the call stores unfold's
+    specialization over that lambda in space. chunk, window and group-by pass
+    lambdas to unfold too, and nothing here calls them.
+    """
+    answers = [str(answer) for answer in space.fn.zip((1, 2), (3, 4))]
+    if answers != ["((1 3) (2 4))"]:
+        pytest.fail(f"zip answered {answers}, so the copy below proves nothing")
+
+
 def test_a_copy_of_compiled_lambda_code_equals_its_source():
     """A copy of an &self holding compiled lambda-bearing code holds its source's rows.
 
-    lib_functional's zip calls unfold through a |-> lambda, so one call of zip
-    compiles it and stores unfold specializations named after that lambda in
-    &self. The copy compiles the same equations again, lifts the lambda under a
-    fresh name, and stores specializations nothing adopts [measured
+    One call of zip compiles zip alone and stores unfold's specialization over
+    zip's lambda in &self. A copy compiles what its source compiled and nothing
+    else: its zip names the lambda by its content, finds the copied
+    specialization under the same name and adopts it. Named by a counter, the
+    copy's lambda was a new one and so were its specializations [measured
     2026-09-24T23:47:14+10:00: the copy held 8 rows its source lacked and the
-    source 6 the copy lacked].
+    source 6 the copy lacked]. Compiling every copied equation on arrival also
+    ran chunk, window and group-by, which the source never ran, and stored
+    their specializations [measured 2026-09-25T02:18:49+10:00: six rows].
     """
     with MeTTa() as m:
         m += lib.functional
-        answers = [str(answer) for answer in m.self.fn.zip((1, 2), (3, 4))]
-        if answers != ["((1 3) (2 4))"]:
-            pytest.fail(f"zip answered {answers}, so the copy below proves nothing")
+        _zip_compiled_once(m.self)
         clone = m.self.copy()
         try:
             assert _atom_multiset(clone) == _atom_multiset(m.self)
         finally:
             clone.drop()
+
+
+def test_a_copy_of_a_named_space_equals_its_source():
+    """A named space's copy holds its rows, and zip in the copy adds none.
+
+    The copy's module does not inherit a named source's module, so nothing the
+    source compiled is visible from the copy. The copy compiles zip because its
+    source had, and calling zip there answers from the adopted specialization
+    rather than storing a second one [measured 2026-09-25T02:18:49+10:00: 6
+    rows only in the copy when every copied equation compiled on arrival].
+    """
+    with MeTTa() as m, m.space() as source:
+        source += lib.functional
+        _zip_compiled_once(source)
+        clone = source.copy()
+        try:
+            assert _atom_multiset(clone) == _atom_multiset(source)
+            assert [str(answer) for answer in clone.fn.zip((5, 6), (7, 8))] == ["((5 7) (6 8))"]
+            assert _atom_multiset(clone) == _atom_multiset(source)
+        finally:
+            clone.drop()
+
+
+def test_a_copy_owns_the_specializations_it_copied():
+    """Redefining unfold in a copy retires the copied specialization of unfold.
+
+    A specialization is a copy of unfold's body with zip's lambda put in, so
+    it is stale the moment unfold changes, and its owner retires it. A copy
+    that left the copied specialization unowned until zip next compiled would
+    adopt the stale body then, and zip would answer as the old unfold does.
+    """
+    with MeTTa() as m, m.space() as source:
+        source += lib.functional
+        _zip_compiled_once(source)
+        clone = source.copy()
+        try:
+            unfold = [atom for atom in clone.atoms() if str(atom).startswith("(= (unfold ")]
+            assert len(unfold) == 1, unfold
+            clone.remove(unfold[0])
+            clone.add(S["="](S.unfold(V.step, V.seed), S.redefined))
+            assert [str(answer) for answer in clone.fn.zip((5, 6), (7, 8))] == ["redefined"]
+            assert [str(answer) for answer in source.fn.zip((5, 6), (7, 8))] == ["((5 7) (6 8))"]
+        finally:
+            clone.drop()
+
+
+def test_a_copy_of_a_provider_space_holds_its_rows(metta):
+    """copy() reads a provider-backed space through its own enumeration.
+
+    The copy restores the rows into a native clone as a program, so the
+    provider's equation compiles there and answers, and the provider itself is
+    read and never written.
+    """
+    rows = ["(pc-row 1)", "(pc-row 2)", "(= (pc-f $x) (+ $x 1))"]
+
+    class Rows(SpaceProvider):
+        def atoms(self):
+            return iter([parse(row) for row in rows])
+
+    def renamed(texts):
+        return sorted(re.sub(r"\$[\w-]+", "$V", text) for text in texts)
+
+    register_provider(_engine.runtime(), "&pc_rows", Rows())
+    try:
+        with metta._at("&pc_rows").copy() as clone:
+            assert renamed(str(atom) for atom in clone.atoms()) == renamed(rows)
+            assert clone.run("!(pc-f 41)") == [[42]]
+    finally:
+        unregister_provider(_engine.runtime(), "&pc_rows")
+
+
+def test_a_failed_specialization_in_one_space_leaves_another_free_to_specialize(metta):
+    """Whether a call specializes is decided by the space that compiles it.
+
+    Both spaces pass sp-inc through sp-wrap to sp-pass. In the idle space
+    sp-pass ignores its function, so specializing the call gains nothing and
+    the specializer records that it failed. The record named the function and
+    the call and not the space, so the keen space, whose sp-pass applies its
+    function, read the idle space's failure and never specialized.
+    """
+    common = "(= (sp-wrap $f $x) (sp-pass $f $x))\n(= (sp-inc $x) (+ $x 1))\n(= (sp-use $x) (sp-wrap sp-inc $x))\n"
+    with metta._new_space() as keen, metta._new_space() as idle:
+        keen.run(common + "(= (sp-pass $f $x) ($f $x))\n")
+        idle.run(common + "(= (sp-pass $f $x) $x)\n")
+        assert idle.run("!(sp-use 1)") == [[1]]
+        assert not any("sp-wrap_Spec_" in str(atom) for atom in idle.atoms())
+        assert keen.run("!(sp-use 1)") == [[2]]
+        assert any("sp-wrap_Spec_" in str(atom) for atom in keen.atoms())
+
+
+def test_a_loaded_specialization_is_not_adopted_once_its_function_changes(metta, tmp_path):
+    """A specialization loaded before its function compiles is checked before use.
+
+    A saved program carries sa-twice's specialization over sa-inc as ordinary
+    equations, and a load leaves them waiting until the call that needs them
+    compiles. Redefining sa-twice in between makes them stale. Adopted by name
+    alone, they answered as the old sa-twice does.
+    """
+    saved = tmp_path / "specialized.metta"
+    with metta._new_space() as writer:
+        writer.run("(= (sa-twice $f $x) ($f ($f $x)))\n(= (sa-inc $x) (+ $x 1))\n(= (sa-use $x) (sa-twice sa-inc $x))\n")
+        assert writer.run("!(sa-use 1)") == [[3]]
+        assert any("sa-twice_Spec_" in str(atom) for atom in writer.atoms())
+        writer.save(saved)
+    with metta._new_space() as reader:
+        reader.load(saved)
+        twice = [atom for atom in reader.atoms() if str(atom).startswith("(= (sa-twice ")]
+        assert len(twice) == 1, twice
+        reader.remove(twice[0])
+        reader.run("(= (sa-twice $f $x) ($f $x))")
+        assert reader.run("!(sa-use 1)") == [[2]]
 
 
 def test_a_copy_leaves_projected_rows_to_the_origins_it_copies(metta):

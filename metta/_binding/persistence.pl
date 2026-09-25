@@ -92,6 +92,13 @@ metta_py_fast_save(File, Space, Result) :-
     metta_py_persist_result(Outcome, Result).
 
 binding_forward(metta_py_fast_load/2).
+
+%A copy is the engine's restore of one space's rows into another, one
+%crossing; the unit-answering face is the one an execution scope calls, as
+%metta_py_add_many/3 is to metta_py_add_many/2.
+binding_forward(metta_py_copy_rows/2).
+metta_py_copy_rows(Source, Clone, true) :-
+    metta_py_copy_rows(Source, Clone).
 metta_py_persist_result(object(Atom), ["object", Encoded]) :- !,
     metta_py_encode(Atom, Encoded).
 metta_py_persist_result(symbol(Atom), ["symbol", Encoded]) :- !,
