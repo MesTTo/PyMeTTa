@@ -2361,8 +2361,17 @@ def _launch(source: str, root: Path) -> Run:
 MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
 
 #: What the child keeps from this process, beside the pinned PATH. HOME and the
-#: loader variables are what an engine launch needs; nothing else is inherited,
-#: so the environment BLOCK is the same size whoever runs the lane.
+#: loader variables are what an engine launch needs, and nothing else is
+#: inherited, so the environment BLOCK a child measures in is the same wherever
+#: the lane runs, inside a bounded scope or outside one: tools/bounded.sh, which
+#: starts every child, adds nothing that depends on where it runs unless it
+#: says out loud that a bound came out other than asked (its Guarantees)
+#: [tested 2026-09-25T16:08:59+10:00:
+#: tests/checks/check_twin_coverage_selftest.py, the context plant]. A loader
+#: variable counts once it is set, so a caller that sets LD_LIBRARY_PATH, as a
+#: host A/B does to reach another host, measures one variable more, which
+#: 31-system_lib's example walks three times; that is why both arms of a host
+#: A/B set the same variables.
 MEASURED_ENVIRONMENT = ("HOME", "LD_LIBRARY_PATH", "SWI_HOME_DIR")
 
 
