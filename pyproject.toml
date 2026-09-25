@@ -27,8 +27,8 @@ dynamic = ["version"]
 description = "MeTTa in Python, on a SWI-Prolog engine"
 readme = "README.md"
 requires-python = ">=3.12"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 #: Runtime, by the test that decides it: delete one, ship the wheel, and a
 #: user's program stops working. Neither is imported by `import metta` --
 #: measured, both absent from sys.modules after it -- but `metta._declare.operations` and
