@@ -6,10 +6,9 @@ pending shadow repairs) and Python cells (lease cells, admissions, pending
 withdrawals) return to their baseline after thousands of bare handles, temporary
 spaces, aborted births, committed retirements, alias releases and a failed close
 retried, and a Python object crossed as a query input or raised inside a
-callback is released at the reclamation barrier the memory benchmark names,
-atom GC followed by a Prolog-to-Python call, which every count here runs to its
-fixpoint [tested: extensions/python/tests/ch04_spaces_and_matching/test_reclamation.py;
-commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
+callback is released at the reclamation barrier, Runtime.reclaim(), which every
+count here crosses first [tested 2026-09-25T05:55:18+10:00:
+extensions/python/tests/ch04_spaces_and_matching/test_reclamation.py].
 """
 
 import gc
@@ -41,33 +40,9 @@ _ENGINE = (
 _ENGINE_KEYS = ("Leases", "Retiring", "Unseen", "Pending", "Caches", "Known", "Seen", "Slots", "Modules")
 
 
-def _settle(runtime) -> None:
-    """Run reclamation to its fixpoint: nothing Python or the engine can still free.
-
-    A round collects Python cycles, reclaims atoms and drains janus's deferred
-    releases: a py_object blob's Py_DECREF waits for atom GC, and then for the
-    next Prolog-to-Python call when atom GC ran without the GIL, while a Python
-    object that dies may queue an engine release for the next crossing
-    [source: janus-swi 1.5.3 janus.c, MyPy_DECREF/py_gil_ensure, as
-    extensions/python/benchmarks/memory_scale.py records it]. A round that
-    collected no object and reclaimed no atom is the fixpoint.
-    """
-    reclaimed = int(runtime.must("statistics(agc_gained, N)")["N"])
-    for _ in range(64):
-        collected = gc.collect()
-        row = runtime.must(
-            "garbage_collect_atoms, garbage_collect, py_call(builtins:len([]), _Ignored), "
-            "statistics(agc_gained, N)"
-        )
-        gained, reclaimed = int(row["N"]) - reclaimed, int(row["N"])
-        if collected == 0 and gained == 0:
-            return
-    pytest.fail("reclamation did not reach a fixpoint in 64 rounds")
-
-
 def _counts(context) -> dict[str, int]:
     runtime = context.runtime
-    _settle(runtime)
+    runtime.reclaim()
     row = runtime.must(_ENGINE)
     counts = {key: int(row[key]) for key in _ENGINE_KEYS}
     # The context registers the handle it mints and forgets it at that
@@ -254,10 +229,8 @@ def test_a_crossed_python_object_is_released_at_the_reclamation_barrier():
     """An input object is held by its blob until atom GC and a Prolog-to-Python call drain the queue.
 
     Janus defers a blob's Py_DECREF when atom GC does not hold the GIL and
-    drains that queue at the next py_gil_ensure, so a no-output Python call
-    is the observable barrier [source: janus-swi 1.5.3 janus.c,
-    MyPy_DECREF/py_gil_ensure, as extensions/python/benchmarks/memory_scale.py
-    records it].
+    drains that queue at the next Prolog-to-Python call, which reclaim() makes
+    in every round (metta_py_reclaim/1 in _binding/profiling.pl).
     """
     with MeTTa() as context:
         rt = context.runtime
@@ -269,7 +242,7 @@ def test_a_crossed_python_object_is_released_at_the_reclamation_barrier():
             del crossed
         gc.collect()
         assert all(ref() is not None for ref in refs), "a blob holds its object until the barrier"
-        _settle(rt)
+        rt.reclaim()
         survivors = [index for index, ref in enumerate(refs) if ref() is not None]
         holders = []
         for holder in (gc.get_referrers(refs[survivors[0]]()) if survivors else ()):
@@ -301,7 +274,7 @@ def test_a_callback_exception_is_released_at_the_reclamation_barrier():
         for _ in range(50):
             with pytest.raises(RuntimeError, match="rollback-callback"):
                 home.transaction(body)
-        _settle(rt)
+        rt.reclaim()
         survivors = [index for index, ref in enumerate(refs) if ref() is not None]
         assert not survivors, (
             f"callback exceptions {survivors} survived the barrier: the host keeps what a"

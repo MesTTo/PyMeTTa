@@ -68,6 +68,9 @@ PYTHON_SERVICES = {
     "metta.foreign": ("_provider_length",),
     "metta.algebra": ("_carrier_type_accepts",),
     "builtins": ("id", "str", "type"),
+    # The reclamation barrier's Python collector; the call is also the
+    # Prolog-to-Python crossing that hands back janus's deferred releases.
+    "gc": ("collect",),
     "importlib.util": ("module_from_spec", "spec_from_file_location"),
     "sys": (
         "modules.__contains__", "modules.__setitem__", "modules.pop",

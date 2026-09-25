@@ -143,6 +143,10 @@ _._x_List
 _._x_Dict
 _._x_JoinedStr
 
+# Runtime.reclaim, the reclamation barrier: its callers are the tests and the
+# memory-scale benchmark, and neither directory is in this scan's paths.
+_.reclaim
+
 # These methods ship as pytest compliance suites and are collected after a
 # provider or gateway supplies the fixture class.
 _.test_enumeration_answers_what_the_provider_holds

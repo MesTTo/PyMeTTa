@@ -726,23 +726,97 @@ def test_a_space_handles_context_borrows_it():  # noqa: D103  -- pytest discover
 
 
 def test_dropping_a_space_reclaims_its_atoms():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    import gc
-
     # A dropped space must leave its atoms collectable. The store therefore
     # clears in its own engine query, ahead of the release: a query cannot
     # reclaim the clauses it erased while it still runs, so clearing inside
     # the release left 10,000 atoms in the table where 6 belong.
     root = MeTTa().self
-    root.runtime.must("garbage_collect_atoms")
+    root.runtime.reclaim()
     before = root.runtime.once("statistics(atoms, N)")["N"]
     scratch = root._new_space()
     scratch.add(*[S.reclaim_probe(S[f"r{index:06x}"]) for index in range(4000)])
     scratch.drop()
-    gc.collect()
-    for goal in ("garbage_collect", "garbage_collect_clauses", "garbage_collect_atoms"):
-        root.runtime.must(goal)
+    root.runtime.reclaim()
     after = root.runtime.once("statistics(atoms, N)")["N"]
     assert after - before < 1000, f"{after - before} atoms survived a dropped space"
+
+
+def _race_a_drop(root, attempt):
+    """Drop a space while a thread of the test's own holds a clause collection.
+
+    Answers whether that collection ran and was still running after the drop,
+    and how many of the dropped space's names outlived reclaim(). The names
+    carry the attempt, so no attempt counts another's.
+    """
+    runtime = root.runtime
+    prefix = f"reclaimrace{attempt}"
+    scratch = root._new_space()
+    scratch.add(*[S.reclaim_race(S[f"{prefix}{index:05x}"]) for index in range(4000)])
+    runtime.must(
+        "current_prolog_flag(gc_thread, _Was), nb_setval(reclaim_race_gc_thread, _Was), "
+        "set_prolog_gc_thread(false), "
+        "forall(between(1, 1000000, _I), assertz(reclaim_race_work(_I))), "
+        "message_queue_create(_Queue), "
+        # Erased under clause/3's own walk, which no collection can reclaim
+        # past, so the work is still there when this thread collects it.
+        # The thread's goal succeeds only if its own collection ran: SWI's
+        # count of clause collections moves as one finishes.
+        "thread_create((forall(clause(reclaim_race_work(_), true, _Ref), erase(_Ref)), "
+        "thread_send_message(_Queue, collecting), statistics(cgc, _Before), "
+        "garbage_collect_clauses, statistics(cgc, _After), _After > _Before), _Collector), "
+        "thread_get_message(_Queue, collecting), message_queue_destroy(_Queue), "
+        "nb_setval(reclaim_race_collector, _Collector)"
+    )
+    try:
+        scratch.drop()
+        racing = runtime.once(
+            "nb_getval(reclaim_race_collector, _Collector), thread_property(_Collector, status(running))"
+        )
+        runtime.reclaim()
+        live = runtime.must(
+            "aggregate_all(count, (current_blob(_Name, text), atom_length(_Name, 17), "
+            f"sub_atom(_Name, 0, 12, _, {prefix})), Live)"
+        )["Live"]
+    finally:
+        joined = runtime.must(
+            "nb_getval(reclaim_race_collector, _Collector), thread_join(_Collector, _Status), "
+            "term_string(_Status, Status), "
+            "nb_getval(reclaim_race_gc_thread, _Was), set_prolog_gc_thread(_Was)"
+        )["Status"]
+    return bool(racing) and joined == "true", bool(racing), joined, live
+
+
+def test_a_drop_is_reclaimed_while_another_thread_collects():
+    """A dropped space's atoms are gone after reclaim() whoever else is collecting.
+
+    An explicit clause or atom collection does nothing while another thread
+    holds that collection, and a clause collection keeps what was erased
+    after it began. The drop test above counted after a single pass of each,
+    and in the seeded order 215044671 SWI's own collector thread was
+    mid-collection as it counted, so the count read the dropped names as
+    retained where one more round with that thread stopped reclaimed every
+    one [measured 2026-09-25T04:13:37+10:00: the chapter chunk replayed on two
+    workers under that seed; the drop test read 3776 atoms standing, 294 of
+    its names were still live when the failure was read, and none after one
+    round with the collector thread stopped]. Here a thread of the test's own holds a
+    clause collection over a million erased clauses across the drop, with
+    SWI's collector thread stopped so that the race is this one. A machine
+    loaded enough to delay the drop past that collection leaves nothing
+    raced, so the race is set up again, three times at most, and a run in
+    which no attempt raced fails rather than passing unexercised.
+    """
+    root = MeTTa().self
+    missed = []
+    for attempt in range(3):
+        raced, racing, joined, live = _race_a_drop(root, attempt)
+        if raced:
+            assert live == 0, f"{live} names of a dropped space outlived reclaim()"
+            return
+        missed.append(
+            f"the other thread's collection {'ran' if joined == 'true' else 'did not run'} "
+            f"and {'was' if racing else 'was not'} still running after the drop"
+        )
+    pytest.fail(f"nothing raced in {len(missed)} attempts: {'; '.join(missed)}")
 
 
 def test_a_home_handle_outliving_its_context_keeps_the_world():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

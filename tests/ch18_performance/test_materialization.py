@@ -336,37 +336,17 @@ def test_public_transactions_prepare_and_roll_back_the_same_relation():
         }
 
 
-def _collected_trie_identities():
-    """Separate host queries end transient Prolog roots; collect to a fixpoint.
+def _collected_trie_identities(runtime):
+    """The index roots still standing once everything collectable is freed.
 
-    Two things make a single collection call the wrong question.
-    garbage_collect_clauses/0 returns immediately when the collector thread
-    already owns the collection flag, so the clauses holding a retired index
-    survive it; stopping and joining that thread first is the protocol the
-    Prolog suite uses for the same assertion. And one round is not a fixpoint:
-    the atom pass that reclaims an index blob can already have run when the
-    clause pass drops the last reference to it, so the index goes on the next
-    round. Four rounds bound the loop with room; a retained root survives all
-    of them, so a leak still fails the assertion
-    [tested: test_a_released_index_is_collected_after_its_query_boundary,
-    test_a_rolled_back_index_is_collected_while_the_live_index_answers;
-    commit=3c64e2e24787362a5a5081513bc24b880711a1d7].
+    Separate host queries end transient Prolog roots, and a retired index goes
+    only when the clause that held it and then the blob itself are collected,
+    so this reads after the process-wide barrier rather than after one pass.
     """
-    previous = None
-    for _ in range(4):
-        janus_swi.query_once(
-            "current_prolog_flag(gc_thread,_GC),"
-            "setup_call_cleanup(set_prolog_gc_thread(false),"
-            "(garbage_collect_clauses,garbage_collect,garbage_collect_atoms),"
-            "set_prolog_gc_thread(_GC))"
-        )
-        identities = janus_swi.query_once(
-            "findall(_Text,(current_trie(_Trie),term_string(_Trie,_Text)),Identities)"
-        )["Identities"]
-        if identities == previous:
-            break
-        previous = identities
-    return identities
+    runtime.reclaim()
+    return janus_swi.query_once(
+        "findall(_Text,(current_trie(_Trie),term_string(_Trie,_Text)),Identities)"
+    )["Identities"]
 
 
 def test_a_rolled_back_index_is_collected_while_the_live_index_answers():
@@ -392,7 +372,7 @@ def test_a_rolled_back_index_is_collected_while_the_live_index_answers():
             "arg(1,_Box,Identity)",
             {"S": str(space.name)},
         )["Identity"]
-        identities = _collected_trie_identities()
+        identities = _collected_trie_identities(m.runtime)
         assert live in identities
         assert retired not in identities
         assert Counter(map(str, space.eval(S.materialized_reach(S.a, S.c)))) == {
@@ -413,7 +393,7 @@ def test_a_released_index_is_collected_after_its_query_boundary():
             assert Counter(map(str, space.eval(S.materialized_reach(S.a, S.c)))) == {
                 "True": 1
             }
-        assert retired not in _collected_trie_identities()
+        assert retired not in _collected_trie_identities(m.runtime)
 
 
 def test_public_floating_keys_preserve_the_original_answer_bag():

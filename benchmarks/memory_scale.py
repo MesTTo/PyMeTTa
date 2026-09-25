@@ -516,9 +516,7 @@ def _atom_reclamation(size: int) -> dict[str, int]:
     root = MeTTa().self
 
     def operation() -> dict[str, int]:
-        root.runtime.must("garbage_collect")
-        root.runtime.must("garbage_collect_clauses")
-        root.runtime.must("garbage_collect_atoms")
+        root.runtime.reclaim()
         before = _swi_snapshot(root)
         space = root._new_space()
         atoms = [S.memscale_gc(_fixed_symbol("msg", index)) for index in range(size)]
@@ -526,10 +524,7 @@ def _atom_reclamation(size: int) -> dict[str, int]:
         loaded = _swi_snapshot(root)
         space.drop()
         del atoms
-        gc.collect()
-        root.runtime.must("garbage_collect")
-        root.runtime.must("garbage_collect_clauses")
-        root.runtime.must("garbage_collect_atoms")
+        root.runtime.reclaim()
         after = _swi_snapshot(root)
         return {
             "loaded_atom_count": loaded["atom_count"] - before["atom_count"],
@@ -580,25 +575,7 @@ def _object_reclamation(size: int) -> dict[str, int]:
         loaded_box_entries = boxes() - box_floor
         del atoms, objects
         space.drop()
-        reclamation_cycles = 0
-        for _ in range(5):
-            reclamation_cycles += 1
-            root.runtime.must("garbage_collect_clauses")
-            root.runtime.must("garbage_collect_atoms")
-            root.runtime.must("garbage_collect")
-            # Janus defers a blob's Py_DECREF when atom GC does not hold the
-            # GIL, then drains that queue at the next py_gil_ensure. A
-            # no-output Python call is therefore the observable reclamation
-            # barrier. [source: janus-swi 1.5.3 janus.c,
-            # MyPy_DECREF/py_gil_ensure;
-            # sha256=6fb8941d22a6eb0981ba0ebac60e80bd2a299d0605d5f0b62a47276fcef104da;
-            # commit=d843bb6d17a525c36afd21cab077d63b34447535]
-            root.runtime.must("py_call(builtins:len([]), _Ignored)")
-            gc.collect()
-            if boxes() == box_floor and all(
-                reference() is None for reference in references
-            ):
-                break
+        reclamation_cycles = root.runtime.reclaim()
         return {
             "loaded_box_entries": loaded_box_entries,
             "post_drop_box_entries": boxes() - box_floor,

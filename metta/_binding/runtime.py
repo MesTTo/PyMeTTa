@@ -116,6 +116,15 @@ Guarantees:
     child reaches that refusal instead of deadlocking [tested:
     test_a_forked_child_refuses_the_inherited_engine,
     test_a_fork_resets_the_engine_locks; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
+  - Runtime.reclaim returns only once a round found no Python garbage,
+    reclaimed no clause but the one it erased itself and left the live atom
+    and clause counts where it found them, so a dropped space's atoms are gone
+    after it even when another thread held a clause collection as it began,
+    and it settles in a process whose erase listener is handed a blob for
+    every clause a collection reclaims [tested 2026-09-25T05:55:18+10:00:
+    test_a_drop_is_reclaimed_while_another_thread_collects,
+    test_dropping_a_space_reclaims_its_atoms,
+    test_a_released_index_is_collected_after_its_query_boundary]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -1491,6 +1500,20 @@ class Runtime:
             raise EngineError(
                 msg
             )
+
+    def reclaim(self) -> int:
+        """Free everything this process can free now, and answer the rounds it took.
+
+        The barrier to cross before counting what something left behind:
+        after it, a Python object, a clause or an atom still standing is
+        retained, not waiting for a collector. The engine runs Python's
+        collector, SWI's clause, stack and atom collectors and janus's
+        deferred releases in rounds until one frees only what it made itself,
+        with SWI's collector thread stopped throughout, because a collection
+        that thread is running makes an explicit one do nothing and keeps what
+        was erased after it began (metta_py_reclaim/1 in _binding/profiling.pl).
+        """
+        return int(self.apply_must("metta_py_reclaim"))
 
     def iter(self, goal: str, **inputs: Any) -> Iterator[dict]:
         """Enumerate a nondeterministic goal's answers, all of them.

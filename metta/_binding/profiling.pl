@@ -1,4 +1,5 @@
-% Purpose: measure engine execution and report predicate indexes.
+% Purpose: measure engine execution, report predicate indexes, and reclaim
+%   everything the process can free before a caller counts what is left.
 % Assumes: loaded through _binding/shim.pl in its host module.
 %   SWI-Prolog 10.1.13's profiler primitive `'$profile'/4` (src/pl-prof.c),
 %   the one library(prolog_profile) profile/2 runs: it resets the profiler,
@@ -8,6 +9,18 @@
 %   commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 % Guarantees: profiling returns data without invoking an interactive display
 %   [tested: test_profile_does_not_invoke_a_display_callback; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
+% Guarantees: metta_py_reclaim/1 leaves nothing collectable standing but at
+%   most its last tick's clause and the one blob holding it: a dropped space's
+%   atoms are gone after it even when another thread held a clause collection
+%   as it began, and it settles in a process holding an erase listener
+%   [tested 2026-09-25T05:55:18+10:00:
+%   test_a_drop_is_reclaimed_while_another_thread_collects,
+%   test_dropping_a_space_reclaims_its_atoms,
+%   test_a_released_index_is_collected_after_its_query_boundary].
+% Decides: 64 rounds before metta_py_reclaim/1 declares that no fixed point
+%   comes. A round frees at least one link of each chain of holders (object,
+%   blob, clause, atom), so a chain settles in as many rounds as it has
+%   links, and only a process still producing garbage elsewhere reaches it.
 % Owns resources: '$profile'/4 starts and stops the native sampler around its
 %   goal, including exception propagation [source:
 %   https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-prof.c#L942-L970;
@@ -15,6 +28,8 @@
 %   A profile whose sampler took no sample still answers the goal's answers,
 %   with zero samples and ticks and rows carrying their call counts
 %   [tested: test_a_profile_with_no_samples_still_answers; commit=d9c15a2e39c743ee44f92dc4eedcd82b5f3f8509].
+%   metta_py_reclaim/1 stops SWI's collector thread for its loop and restores
+%   the gc_thread setting it found on every exit, exceptions included.
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
@@ -217,4 +232,123 @@ metta_py_index_quality(Module, Name, Arity, Speedup, Realised) :-
                        ( R0 == true -> R = @(true) ; R = @(false) ) ), Pairs),
         sort(1, @>=, Pairs, [Speedup-Realised|_])
     ;   Speedup = 1.0, Realised = @(false)
+    ).
+
+%%%%%%%%%% Reclamation %%%%%%%%%%
+%
+% Everything the process can free now, freed, so a count taken next reads what
+% is retained rather than what is merely not collected yet. Python's collector,
+% SWI's clause, stack and atom collectors and janus's deferred releases feed
+% one another: a Python object holds a blob, a blob or a clause keeps atoms
+% alive, and a blob released without the GIL waits for the next
+% Prolog-to-Python call before its Python object goes [source
+% 2026-09-25T04:25:29+10:00: swipl-devel V10.1.14 packages/swipy/janus/janus.c,
+% release_python_object/1 queueing through MyPy_DECREF and py_gil_ensure
+% draining through delayed_decref]. So it runs rounds until one is quiet, and
+% answers how many that took.
+%
+% A collection has to be one that RAN, and started after what it should free.
+% garbage_collect_clauses/0 and garbage_collect_atoms/0 each return at once,
+% having done nothing, while another thread holds that collection, and a clause
+% collection keeps every clause erased after it began [source
+% 2026-09-25T04:19:30+10:00: swipl-devel V10.1.14 src/pl-proc.c,
+% pl_garbage_collect_clauses/0, the COMPARE_AND_SWAP on cgc_active and "clauses
+% that were erased before the start generation"; source
+% 2026-09-25T04:29:01+10:00: src/pl-atom.c pl_garbage_collect_atoms/0, the
+% COMPARE_AND_SWAP on gc_active]. With SWI's collector thread mid-collection a
+% single pass therefore reclaimed none of a drop's clauses and none of the atoms
+% they named: in plain SWI, with that thread collecting a million erased clauses,
+% one pass left all 4000 names of a retracted relation live and one round with
+% the thread stopped left none [measured 2026-09-25T04:22:36+10:00: assert and
+% retract a million clauses, thread_signal(gc, garbage_collect_clauses), retract
+% 4000 facts naming fresh atoms, then count the names]. So the collector thread
+% stays stopped for the whole loop, which joins it after the collection it is
+% running [source 2026-09-25T04:19:16+10:00: boot/syspred.pl
+% set_prolog_gc_thread/1 and boot/gc.pl gc_loop/0], and each collection is
+% repeated until SWI's count of collections run (statistics/2's cgc and agc,
+% not their _gained counts) moves, which a collection advances as it finishes
+% whether or not it freed anything, so one held by any other thread is waited
+% out rather than taken for done.
+%
+% Each clause collection first erases a clause of its own: a clause collection
+% starts only when some predicate holds erased clauses, and it reclaims only
+% clauses erased before it started, so the erase gives it work to start on and
+% puts the generation past everything erased before it, the protocol the
+% Prolog suite's collect_materialization_owners/0 uses for the same count.
+%
+% A round is quiet when Python's collector found nothing, the clause collection
+% reclaimed at most the round's own tick, and the live atom and clause counts
+% (statistics/2's atoms and clauses) end the round where they began it. What a
+% round freed cannot be the test, because what it makes for itself varies with
+% the process: SWI hands every clause a collection reclaims, the tick included,
+% to each listener on its erase channel as a clause blob [source
+% 2026-09-25T05:47:10+10:00: swipl-devel V10.1.14 src/pl-proc.c,
+% announceErasedClause/1 called from cleanDefinition/5 for each clause it
+% reclaims], and the engine keeps such a listener for the life of any process
+% that has published a materialized image (engine/materialize.pl
+% ensure_source_owner_listener/0). There every round freed a blob of its own,
+% and a rule that no round free an atom never held [measured
+% 2026-09-25T05:37:56+10:00: reclamation_unsettled(64, objects(0), clauses(1),
+% atoms(1)) after test_materialization's released-index setting; measured
+% 2026-09-25T05:44:48+10:00, plain SWI: a tick freed no atom a round without a
+% listener and one under a listener, in 499 rounds of 500]. What a round makes
+% and frees inside itself leaves the live counts as they were. A blob that
+% outlives its round, as one in those 500 did, holds its clause as well and
+% moves both counts, so that round is not quiet and the next frees it. The
+% reclaimed bound covers the one case both counts could miss: a clause
+% reclaimed in the round whose tick blob outlived it, freeing one atom as it
+% went, would leave each count where it was.
+:- dynamic metta_py_reclaim_tick/0.
+
+metta_py_reclaim(Rounds) :-
+    current_prolog_flag(gc_thread, Collector),
+    setup_call_cleanup(set_prolog_gc_thread(false),
+                       metta_py_reclaim_rounds(1, Rounds),
+                       set_prolog_gc_thread(Collector)).
+
+metta_py_reclaim_rounds(Round, Rounds) :-
+    statistics(atoms, Atoms0),
+    statistics(clauses, Clauses0),
+    statistics(cgc_gained, Reclaimed0),
+    py_call(gc:collect(), Objects),
+    metta_py_collection_ran(cgc, metta_py_collect_clauses),
+    garbage_collect,
+    metta_py_collection_ran(agc, garbage_collect_atoms),
+    statistics(atoms, Atoms),
+    statistics(clauses, Clauses),
+    statistics(cgc_gained, Reclaimed),
+    (   Objects =:= 0, Atoms =:= Atoms0, Clauses =:= Clauses0,
+        Reclaimed - Reclaimed0 =< 1
+    ->  Rounds = Round
+    ;   Round < 64
+    ->  Next is Round + 1,
+        metta_py_reclaim_rounds(Next, Rounds)
+    ;   ReclaimedClauses is Reclaimed - Reclaimed0,
+        ClausesMoved is Clauses - Clauses0,
+        AtomsMoved is Atoms - Atoms0,
+        throw(error(system_error(reclamation_unsettled(Round, objects(Objects),
+                                                       reclaimed_clauses(ReclaimedClauses),
+                                                       live_clauses_moved(ClausesMoved),
+                                                       live_atoms_moved(AtomsMoved))),
+                    context(metta_py_reclaim/1,
+                            'no round left the process as it found it; another thread keeps changing it')))
+    ).
+
+%Retracted rather than erased through a clause reference, which would add a
+%blob of the round's own to every round [measured 2026-09-25T05:44:48+10:00,
+%plain SWI: a tick erased through a held reference freed one atom a round
+%without a listener and two under one].
+metta_py_collect_clauses :-
+    assertz(metta_py_reclaim_tick),
+    retract(metta_py_reclaim_tick),
+    garbage_collect_clauses.
+
+metta_py_collection_ran(Count, Collection) :-
+    statistics(Count, Before),
+    call(Collection),
+    statistics(Count, After),
+    (   After > Before
+    ->  true
+    ;   sleep(0.001),
+        metta_py_collection_ran(Count, Collection)
     ).

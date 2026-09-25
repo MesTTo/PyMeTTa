@@ -268,6 +268,7 @@ def test_completed_captures_release_their_bound_methods(metta):
     released after unregistration is the reclamation unit's question: a
     Python object passed as a query input is not reliably released by this
     process even after collection, with or without a registration.
+    Runtime.reclaim() runs those collectors and that call to a fixed point.
     """
     name = f"&participant-gc-{uuid4().hex}"
     calls = []
@@ -281,10 +282,7 @@ def test_completed_captures_release_their_bound_methods(metta):
         registered = sys.getrefcount(provider)
         metta.transaction(lambda: handle.add(S.reclaim_participant(1)))
         assert any(isinstance(holder, MethodType) for holder in gc.get_referrers(provider)) or sys.getrefcount(provider) > registered
-        gc.collect()
-        metta.runtime.must("garbage_collect, garbage_collect_clauses, statistics(agc, Before), garbage_collect_atoms, "
-                           "statistics(agc, After), After > Before, py_call(builtins:len([]), _)")
-        gc.collect()
+        metta.runtime.reclaim()
         assert not any(isinstance(holder, MethodType) for holder in gc.get_referrers(provider))
         assert sys.getrefcount(provider) == registered
     finally:
