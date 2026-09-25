@@ -17,6 +17,11 @@ Guarantees:
     test_override_is_refused_when_nothing_is_shadowed,
     test_a_shadowing_definition_without_the_decorator_is_unchanged;
     commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
+  - only an EQUATION home outside the space counts as something to override:
+    a builtin is overridden nowhere, and a restricted space, which reaches
+    builtins alone, inherits nothing [tested 2026-09-25T16:27:30+10:00:
+    test_an_engine_builtin_is_not_something_to_override,
+    test_a_restricted_space_inherits_nothing_to_override]
   - a generated stub parses, and a consumer of it passes `mypy --strict` on
     the right argument type and fails on the wrong one [tested:
     test_a_generated_stub_checks_its_consumer; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
@@ -116,10 +121,18 @@ def test_override_holds_for_every_clause_of_the_definition_it_declared(metta, ba
 
 
 def test_an_engine_builtin_is_not_something_to_override(metta):
-    """`fun_here_in/2` admits every builtin; the shadow question must not."""
+    """Every builtin has a home in every space; the shadow question admits none."""
     space = metta._new_space()
     assert not _space_functions._is_function_inherited(space, "+")
     assert not _space_functions._is_function_inherited(space, "ide-nothing-of-this-name")
+
+
+def test_a_restricted_space_inherits_nothing_to_override(metta):
+    """A restricted space reaches builtins alone, so &self's definitions are not its to hide."""
+    metta.run("(= (ide-shared $x) (pair $x))")
+    assert _space_functions._is_function_inherited(metta._new_space(), "ide-shared")
+    with metta._new_space(restricted=True) as locked:
+        assert not _space_functions._is_function_inherited(locked, "ide-shared")
 
 
 def test_declarations_carry_arrows_arities_and_documentation(metta):

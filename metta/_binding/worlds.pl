@@ -77,7 +77,7 @@ metta_py_world_image_plan(Space, Origin, Image, [Operations, Effect, Coverage]) 
 metta_py_saga_compensation_callable(Space, Name) :-
     atom(Name),
     metta_py_module(Space, Module),
-    metta_ensure_compiled(Name),
+    metta_ensure_compiled_from(Module, Name),
     functor(Goal, Name, 2),
     current_predicate(Module:Name/2),
     predicate_property(Module:Goal, visible),

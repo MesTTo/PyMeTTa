@@ -191,7 +191,8 @@ metta_py_function_shape(Name0, [Tier, Detail, Arities, Determinism]) :-
     ;   Tier = "absent", Detail = ""
     ),
     ( fun_in(Home, Name) -> true ; metta_py_module('&self', Home) ),
-    spaces:metta_ensure_compiled(Name),
+    %Home's own clauses are what the index quality below reads.
+    spaces:metta_ensure_compiled(Home, Name),
     findall([Arity, Speedup, Realised],
             ( arity(Name, Arity),
               metta_py_index_quality(Home, Name, Arity, Speedup, Realised) ),

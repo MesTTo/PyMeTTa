@@ -193,7 +193,7 @@ metta_py_solve_clause(M, Goal, D, Tree, Status, Barrier) :-
     %into callees the running program may never have reached.
     (   Goal =.. [Predicate|_],
         translator:compiled_function_name(Fun, Predicate)
-    ->  spaces:metta_ensure_compiled(Fun)
+    ->  spaces:metta_ensure_compiled_from(M, Fun)
     ;   true
     ),
     metta_py_clause_owner(M, Goal, Owner),

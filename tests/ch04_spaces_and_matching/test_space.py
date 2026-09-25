@@ -19,8 +19,11 @@ Guarantees:
     space that wrote it and leaves the engine's own predicate answering, so
     the engine survives what used to brick it [tested
     test_a_system_predicate_survives_an_equation_for_its_name]
-  - a write into one space never removes atoms from another [tested
-    test_adding_in_one_space_never_removes_atoms_from_another]
+  - a write into one space never adds or removes atoms in another, and a copy
+    leaves the space it copies alone [tested 2026-09-25T16:27:30+10:00:
+    test_adding_in_one_space_never_removes_atoms_from_another,
+    test_a_write_to_one_space_leaves_another_spaces_atoms_alone,
+    test_copying_a_space_leaves_the_space_it_copies_alone]
   - copy() answers a space that holds what its source holds and answers what
     its source answers, specializations over named functions included [tested
     2026-09-25T04:49:09+10:00: test_a_copy_reproduces_the_space_it_copied]
@@ -1861,6 +1864,44 @@ def test_adding_in_one_space_never_removes_atoms_from_another(metta):
             other_before = _atom_multiset(other)
             subject.run("(= (p6-map $f $x) ($f $x))")
             assert _atom_multiset(other) == other_before
+
+
+def test_a_write_to_one_space_leaves_another_spaces_atoms_alone():
+    """Adding an equation to one space adds nothing to another.
+
+    lib_functional's zip waits in the home space untranslated until something
+    calls it, and its body passes a |-> lambda to unfold. Adding an unrelated
+    zip equation to a fresh space translated the home's waiting zip as a side
+    effect, which specialized unfold over that lambda and stored the
+    specialization in the HOME, a space nothing had written to [measured
+    2026-09-24T23:47:14+10:00: the home gained (: unfold_Spec_[lambda_4] ...)
+    and its equation].
+    """
+    with MeTTa() as m:
+        m += lib.functional
+        before = _atom_multiset(m.self)
+        with m.space() as other:
+            other.add(S["="](S.zip(V.x, V.y), S.pair(V.x, V.y)))
+            assert _atom_multiset(m.self) == before
+
+
+def test_copying_a_space_leaves_the_space_it_copies_alone():
+    """copy() reads its source and writes only the copy.
+
+    The copy adds the source's equations one by one, and each add used to
+    translate every space's waiting equations of its name, the source's
+    included, so copying a home that held lib_functional added unfold
+    specializations to the home itself [measured 2026-09-24T23:47:14+10:00:
+    eight rows].
+    """
+    with MeTTa() as m:
+        m += lib.functional
+        before = _atom_multiset(m.self)
+        clone = m.self.copy()
+        try:
+            assert _atom_multiset(m.self) == before
+        finally:
+            clone.drop()
 
 
 def test_a_system_predicate_survives_an_equation_for_its_name(metta):

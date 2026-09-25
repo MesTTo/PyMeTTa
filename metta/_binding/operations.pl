@@ -824,8 +824,10 @@ metta_py_unregister_op(Name0, Arity) :-
 %way out, so the call it had been answering came back unreduced
 %[tested test_a_prolog_registration_is_not_silently_replaced].
 metta_py_name_still_defined(Name) :-
-    spaces:metta_ensure_compiled(Name),
-    ( metta_py_module('&self', Module) ; Module = user ),
+    metta_py_module('&self', Self),
+    %The equation tier below is &self's, so its view is the one forced.
+    spaces:metta_ensure_compiled_from(Self, Name),
+    ( Module = Self ; Module = user ),
     spaces:metta_arity_ascending(Module, Name, A),
     functor(Head, Name, A),
     \+ predicate_property(Module:Head, built_in),

@@ -420,11 +420,20 @@ _ROWS = 2_000
 # as t; print(t._automatic_tabling_observations())" from extensions/python;
 # fixture=the committed tree (BATTERY_KEEP=''), the governed set purged and
 # warmed; commit=d4a365c16bdf1801f9839597e56ecfcc8c2b7a0c].
+# Re-pinned 2026-09-25: automatic +31 at n = 12, plain +31 at n = 12,
+# automatic +31 at n = 15, plain +31 at n = 15, automatic +31 at n = 18, plain
+# +31 at n = 18, automatic +31 at n = 20, plain +31 at n = 20, every force of
+# a waiting function names the module it is made from, through fun_home_in/3,
+# and a write forces only its own space. [measured 2026-09-25T16:59:32+10:00:
+# min of three observations per size and mode before this commit and with it,
+# read on one battery path at the landing's HEAD; command=python -c "import
+# benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
+# from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_226, "automatic": 17_729},
-    15: {"plain": 953_714, "automatic": 18_983},
-    18: {"plain": 7_605_618, "automatic": 20_237},
-    20: {"plain": 30_412_146, "automatic": 21_073},
+    12: {"plain": 122_257, "automatic": 17_760},
+    15: {"plain": 953_745, "automatic": 19_014},
+    18: {"plain": 7_605_649, "automatic": 20_268},
+    20: {"plain": 30_412_177, "automatic": 21_104},
 }
 
 

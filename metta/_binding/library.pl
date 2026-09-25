@@ -3,6 +3,15 @@
 % Guarantees: reflection reads a native space identity without converting its
 % expression to text or mistaking it for source paths [tested:
 % test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=349d40951e1412b91cb3b60aa476826cf4654e63].
+% Guarantees: metta_py_function_inherited/2 holds exactly when fun_home_in/3
+% gives the name an equation home outside the space's own module, so a builtin
+% is never something to override and a restricted space inherits nothing
+% [tested 2026-09-25T16:27:30+10:00: test_override_declares_a_shadow_of_an_inherited_definition,
+% test_an_engine_builtin_is_not_something_to_override,
+% test_a_restricted_space_inherits_nothing_to_override].
+% Guarantees: every door that reads a space's compiled definitions forces the
+% view it reads, what a call from that space reaches, and nothing beside it
+% [tested 2026-09-25T16:27:30+10:00: test_copying_a_space_leaves_the_space_it_copies_alone].
 
 % metta_py_disassemble/3 prints a compiled definition with listing/1; declared
 % here rather than left to the library index, which the no-autoload
@@ -209,8 +218,8 @@ metta_py_function_visible(Space0, Name0) :-
     %The question is about clauses, and a deferred function has none until
     %its equations translate; the clause probe below is a read the
     %undefined-predicate net never fires for.
-    spaces:metta_ensure_compiled(Name),
     metta_py_module(Space, Module),
+    spaces:metta_ensure_compiled_from(Module, Name),
     catch_recover(( spaces:metta_arity_ascending(Module, Name, Arity),
                     functor(Head, Name, Arity),
                     clause(Module:Head, _, _) ),
@@ -218,15 +227,15 @@ metta_py_function_visible(Space0, Name0) :-
 
 %Whether a head this space does NOT define answers here through the space
 %chain: a space it inherits from defines it, or &self does and this is some
-%other space, which is the sharing rule fun_here_in/2 states. This is the
+%other space, the walk fun_home_in/3 takes for every call. This is the
 %question `@typing.override` asks, so a definition that shadows nothing is
 %refused where it is written instead of answering beside the one it meant to
 %replace.
 %
-%A BUILTIN is deliberately not an answer, which is why this walks the chain
-%rather than calling fun_here_in/2: that predicate's last clause admits every
-%engine name, and shadowing a builtin is the same-space collision
-%metta_py_function_visible/2 already refuses with its own message.
+%A BUILTIN is deliberately not an answer, which is why only an EQUATION home
+%counts: shadowing a builtin is the same-space collision
+%metta_py_function_visible/2 already refuses with its own message, and a
+%restricted space, which reaches builtins alone, inherits nothing.
 %
 %fun_in/2 is a REGISTRATION fact rather than a clause fact -- register_fun_in/2
 %asserts it when the equation lands -- so unlike the clause probe above this
@@ -239,18 +248,7 @@ metta_py_function_inherited(Space0, Name0) :-
     fun(Name),
     metta_py_module(Space, Module),
     \+ spaces:fun_in(Module, Name),
-    metta_py_inherited_definer(Module, Name), !.
-
-metta_py_inherited_definer(Module, Name) :-
-    spaces:metta_exec_module_parent(Module, Parent),
-    (   spaces:fun_in(Parent, Name)
-    ->  true
-    ;   metta_py_inherited_definer(Parent, Name)
-    ).
-metta_py_inherited_definer(Module, Name) :-
-    spaces:metta_self_module(Self),
-    Module \== Self,
-    spaces:fun_in(Self, Name).
+    spaces:fun_home_in(Module, Name, equations(_)), !.
 
 metta_py_arities(Name0, As) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
@@ -309,12 +307,13 @@ metta_py_claim_name(Value, Name) :-
 metta_py_disassemble(Space, Name0, Text) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     %The listing below is a read, so a deferred function would show nothing
-    %and register no arity; the disassembly IS the demand.
-    spaces:metta_ensure_compiled(Name),
+    %and register no arity; the disassembly IS the demand, made from the
+    %space whose clauses it lists.
+    space_module(Space, Module),
+    spaces:metta_ensure_compiled_from(Module, Name),
     findall(A, arity(Name, A), As0),
     As0 \== [],
     sort(As0, As),
-    space_module(Space, Module),
     with_output_to(string(Text),
                    forall(member(A, As),
                           (   current_predicate(Module:Name/A)
