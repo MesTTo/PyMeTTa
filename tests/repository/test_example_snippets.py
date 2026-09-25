@@ -4,11 +4,12 @@ example it names, so the page cannot drift from code that runs.
 The seat's examples all run under the gate, and `test_examples.py` executes
 them. What nothing checked until now is the INDEX: it quotes 37 of them, and a
 quoted line that has been reworded, renamed or invented reads exactly like one
-that has not. `test_readme.py` covers only the repository root README, so these
-fences were an ungated documentation corpus.
+that has not. `tests/checks/check_readme_fences.py` runs every README's metta
+fences, and these are python fences, so they were an ungated documentation
+corpus.
 
 The fences are excerpts rather than whole files, so they cannot be executed the
-way the root README's blocks are. They are held to the weaker claim that is
+way the READMEs' metta fences are. They are held to the weaker claim that is
 still worth holding: every non-blank line is a line of the file the fence is
 attributed to. That catches a renamed door, a reworded call and an invented
 keyword argument, which is what a reader would copy and be wrong about. It does

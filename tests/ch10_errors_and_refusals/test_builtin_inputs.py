@@ -246,8 +246,9 @@ def test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason():
     # name carries this row's prefix because &self is shared by every MeTTa()
     # in a process, so a plain `double` answers twice for any other test in
     # the same worker that defined one. README.md used to be that other test
-    # and is no longer: its Python fences left with the PyMeTTa section, so
-    # tests/repository/test_readme.py now runs metta fences only. The prefix
+    # and is no longer: its Python fences left with the PyMeTTa section, and
+    # its metta fences run as programs of their own under
+    # tests/checks/check_readme_fences.py. The prefix
     # stays because the hazard is the shared space, not that one neighbour
     # [measured 2026-08-21; the README half removed 2026-09-21].
     engine.run("(= (p225-double $x) (* 2 $x))")

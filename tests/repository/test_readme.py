@@ -1,12 +1,16 @@
-"""Purpose: the README's fences, executed: documentation that cannot quietly
-stop being true, the Rust-doctest rule.
+"""Purpose: hold the engine README to its shape: every component named once in
+the Architecture table, and no component's own page copied onto the engine's.
 
-Each python block runs in a namespace of its own, so a reader can copy ANY block
-and have it work rather than discovering it needed one further up; a block
-needing an optional dependency (torch) skips exactly when the dependency is
-absent. Each metta block runs on a fresh space, and the corpus style it is drawn
-from asserts its own results through `!(test ...)`, so a drifted answer fails
-here rather than in a reader's terminal.
+Its metta fences are executed elsewhere, by tests/checks/check_readme_fences.py,
+each as a program in a process and a directory of its own, as rustdoc builds
+every doctest into a program of its own. They ran here until 2026-09-25, on a
+fresh space inside whichever pytest worker took this file, and a fresh space
+does not isolate a program: the Concurrency fence writes `&Point`, a space name
+every program in one engine shares, so a class named Point defined later in the
+same worker was refused as a space already used [measured
+2026-09-25T12:43:57+10:00: this file then
+tests/ch09_types/test_type_inspection.py in one process fails
+test_a_subtype_edge_waits_for_the_base_and_skips_an_undeclared_one that way].
 
 This page is the ENGINE's, so the only fences it may carry are the language's
 own and the engine's: `metta`, `prolog`, and the `bash` and `bibtex` that
@@ -29,64 +33,15 @@ import re
 
 import pytest
 
-import metta as metta_module
 from metta._roots import workspace
 
 README = workspace() / "README.md"
 _TEXT = README.read_text()
 
 
-_METTA = re.findall(r"```metta\n(.*?)```", _TEXT, re.DOTALL)
-assert _METTA, "the README lost its metta blocks"
-
 #: Languages whose component documents itself elsewhere, so a fence in one here
 #: is a component's own page copied back onto the engine's.
 _COMPONENT_LANGUAGES = ("c", "cpp", "js", "jsx", "python", "rust", "ts", "tsx", "typescript")
-
-
-#: A fence runs on every machine that runs the suite, so it may not reach the
-#: network. `git-import!` clones and then executes the repository's own build
-#: script, which is remote code execution inside a documentation test; a bare
-#: URL is the other spelling. The corpus settled this already, by building a
-#: throwaway local repository in `_fixtures/git_fixture.pl` because "the suite
-#: ran on every push and cloned github each time", and by refusing a website
-#: fence over any example `tests/data/example_skips.txt` names.
-_NOT_HERMETIC = ("git-import!", "https://", "http://")
-
-
-@pytest.mark.parametrize("index", range(len(_METTA)), ids=lambda i: f"metta-{i + 1}")
-def test_readme_metta_block_is_hermetic(index):
-    """A metta fence reaches no network, because the suite below runs it.
-
-    Caught after the fact: the first version of this file executed a fence
-    holding `!(git-import! "https://github.com/patham9/faiss_ffi" "build.sh")`
-    and left a clone in the battery tree.
-    """
-    source = _METTA[index]
-    found = [mark for mark in _NOT_HERMETIC if mark in source]
-    assert not found, (
-        f"metta fence {index + 1} names {found}, so running it would reach the "
-        f"network; show the feature with a local example and link the corpus "
-        f"file for the network one, as the extending-the-engine section does"
-    )
-
-
-@pytest.mark.parametrize("index", range(len(_METTA)), ids=lambda i: f"metta-{i + 1}")
-def test_readme_metta_block_runs(index, tmp_path, monkeypatch):
-    """A metta fence runs on a fresh space, and its own `!(test ...)` judges it.
-
-    A block of bare atoms with nothing to reduce is still run rather than
-    skipped: it proves the text PARSES, which is the failure a hand-written
-    fence actually has.
-
-    In a directory of its own, because a fence WRITES. The catalog fence
-    imports lib_package, which opens a catalog journal where the program runs,
-    and running it here left `catalog/` in the checkout.
-    """
-    monkeypatch.chdir(tmp_path)
-    source = _METTA[index]
-    space = metta_module.space()
-    space.run(source)
 
 
 #: Every component this repository composes, read from .gitmodules rather than
