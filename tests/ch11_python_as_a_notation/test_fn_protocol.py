@@ -10,6 +10,9 @@ Guarantees:
     and a head with neither a declaration nor an atom to read is still an
     honest (*args) [tested: test_signature_comes_from_the_arrow;
     commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
+  - a builtin's .compiled lists its clauses where they are defined, as a
+    defined head's does [tested 2026-09-25T23:30:47+10:00:
+    test_compiled_lists_a_builtin_where_its_clauses_are_defined]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -121,6 +124,20 @@ def test_compiled_and_disassemble_show_the_prolog(m):  # noqa: D103  -- pytest d
     assert "'fp-inc'(" in text  # the translator's clause head, Prolog-quoted
     with pytest.raises(MettaError, match="no compiled clauses"):
         _space_functions._disassemble(m, "fp-never-compiled")
+
+
+@pytest.mark.parametrize(("name", "head"), [("car-atom", "'car-atom'("), ("match", "match(")])
+def test_compiled_lists_a_builtin_where_its_clauses_are_defined(m, name, head):
+    """A builtin answers `.compiled` as a head the space defines does.
+
+    `car-atom` is defined in the engine's module and `match` in the spaces
+    subsystem's; the space's module only imports each, and SWI's listing/1
+    refuses a predicate a module merely imports, so both raised "Unknown
+    procedure" until the listing was made where the clauses are defined.
+    """
+    text = m.fn[name].compiled
+    assert text == _space_functions._disassemble(m, name)
+    assert head in text
 
 
 def test_partial_composes_with_stdlib_machinery(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

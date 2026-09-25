@@ -12,6 +12,10 @@
 % Guarantees: every door that reads a space's compiled definitions forces the
 % view it reads, what a call from that space reaches, and nothing beside it
 % [tested 2026-09-25T16:27:30+10:00: test_copying_a_space_leaves_the_space_it_copies_alone].
+% Guarantees: metta_py_disassemble/3 lists each arity where its clauses are
+% defined, so an engine builtin, which a space's module only imports, answers
+% as a head the space defines does [tested 2026-09-25T23:30:47+10:00:
+% test_compiled_lists_a_builtin_where_its_clauses_are_defined].
 
 % metta_py_disassemble/3 prints a compiled definition with listing/1; declared
 % here rather than left to the library index, which the no-autoload
@@ -301,9 +305,17 @@ metta_py_claim_name(Value, Name) :-
     ( atom(Value) -> Name = Value ; atom_string(Name, Value) ).
 
 %The Prolog clauses a name compiled to, dis for the translator: one
-%listing per registered arity, resolved in this space's module so a named
-%space shows the clauses it would run. Fails on a name the engine never
-%compiled, and the Python side turns that into its own refusal.
+%listing per registered arity, of the predicate a call from this space's
+%module reaches, so a named space shows the clauses it would run. They are
+%listed where they are DEFINED, which metta_py_clause_owner/3 reads from
+%implementation_module: a head this space defines lives in its own module,
+%while an engine builtin is only imported there, and listing/1 resolves
+%Module:Name/Arity through '$find_predicate'/2, whose current_predicate/2
+%never matches an imported predicate, so every builtin raised
+%existence_error [source 2026-09-25T23:36:58+10:00: SWI-Prolog 10.1.14
+%boot/dwim.pl find_predicate_/4 and library/listing.pl listing_/2]. Fails on a
+%name the engine never compiled, and the Python side turns that into its own
+%refusal.
 metta_py_disassemble(Space, Name0, Text) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     %The listing below is a read, so a deferred function would show nothing
@@ -315,7 +327,7 @@ metta_py_disassemble(Space, Name0, Text) :-
     As0 \== [],
     sort(As0, As),
     with_output_to(string(Text),
-                   forall(member(A, As),
-                          (   current_predicate(Module:Name/A)
-                          ->  listing(Module:Name/A)
-                          ;   true ))).
+                   forall(( member(A, As), current_predicate(Module:Name/A) ),
+                          ( functor(Head, Name, A),
+                            metta_py_clause_owner(Module, Head, Owner),
+                            listing(Owner:Name/A) ))).
