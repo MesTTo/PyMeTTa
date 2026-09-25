@@ -137,7 +137,7 @@ VERDICTS: Mapping[str, Verdict] = MappingProxyType({
     'space:compensates': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
     'space:consumption': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
     'space:context': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
-    'space:copy': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
+    'space:copy': Verdict(None, mixed=True, open=True, dependency=True),
     'space:covers': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
     'space:debug': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
     'space:define': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
