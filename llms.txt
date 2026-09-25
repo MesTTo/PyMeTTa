@@ -12,11 +12,16 @@
 ## Install
 
 ```sh
-pip install .            # from the repository root; the runtime is bundled
+pip install pymetta      # from PyPI
+pip install .            # from the repository root; the engine and libraries are bundled
 ```
 
-Or point `METTA_PATH` at a clone and import from there. You need Python 3.12+,
-SWI-Prolog 9.3+, and a `janus_swi` linked against that SWI.
+Or point `METTA_PATH` at a clone and import from there. You need Python 3.12+
+and the PATCHED SWI-Prolog the engine checks for at boot, with its janus
+bridge built against it: a stock SWI is refused by name, listing the patches it
+lacks. The Linux x86_64 wheels for CPython 3.12, 3.13 and 3.14 carry that host
+and bridge; anywhere else, build them as the repository's `docs/patched-host.md`
+describes and install `pymetta[engine]`.
 
 ## First call
 
@@ -81,7 +86,7 @@ kb.why(pattern)                     # why a pattern matched NOTHING
 Return shapes are the thing you cannot guess. `match` and `answers` both hand
 back `Answers`, which is lazy, replayable and chunked; `eval` is eager and
 flat for ONE target but grouped for several, which is `run`'s own shape. A row
-is an `Answer`: `row.x` reads a binding, and it unpacks and indexes. Answers
+is a `Row`, a tuple: `row.x` reads a binding, and it unpacks and indexes. Answers
 preserve MULTIPLICITY and do not promise order. `len(space)`,
 `atom in space`, `for atom in space` and `bool(space)` (always True, a handle
 is not a value that dwindles) are the container protocol; ask
@@ -101,7 +106,10 @@ conclusion; `bag` has the same operations and keeps the rows.
 as `kb.match(q, under=metta.ranked)[:2]` and the language's `(top 2 ...)`.
 The engine checks Exact routing, matching algebra and ordering, best-first
 emission and repeatable consumption. A guarded or joined query keeps its full
-candidate stream so limiting cannot discard an eventual answer.
+candidate stream so limiting cannot discard an eventual answer. The two Python
+doors take the ordinary route `(top 2 ...)` takes on a space that cannot
+enumerate, so a provider that implements `match` and no `atoms()` receives
+the bound through all three.
 
 ## Defining: two doors, and the price of each
 
@@ -311,10 +319,10 @@ themselves; the producer needs `pip install 'pymetta[arrow]'` and a consumer
 needs no pyarrow. `tables.sql_function(connection, kb.fn.dbl)` goes the other
 way and makes a MeTTa head a scalar SQL function.
 
-`extensions/python/examples/language-feature-examples/` is 224 runnable
-programs, each mirroring one MeTTa example's path. The `twins` REPORT lane
-runs each against the MeTTa it mirrors and prints what a twin cannot yet say;
-an example without a twin is a backlog row rather than a gap in the corpus.
+`extensions/python/examples/language-feature-examples/` holds a runnable
+program per twinned MeTTa example, each at that example's path and checked
+against the MeTTa it mirrors; an example without a twin is a backlog row
+rather than a gap in the corpus.
 They are the reference for idiomatic code on this surface.
 
 ## Types, and checking them
@@ -366,7 +374,8 @@ with m.speculate(): ...       # run and discard, per CALL: the writes too
 
 An abandoned future warns rather than spinning silently.
 
-`with m.atomic():` and `with m.speculative():` are per-CALL policies over
+`with m.atomic():` and `with m.speculate():` on the context, or
+`m.self.atomic()` and `m.self.speculative()` on a space, are per-CALL policies over
 every door in the block, `add`, `remove`, `del m[pattern]`, `transfer` and
 `clear` included: a speculative block leaves nothing behind and an atomic one
 makes each call its own committing transaction. That is the whole contract,
@@ -397,7 +406,9 @@ Inferences are deterministic and wall clock is not; gate on the former.
 ## The rest of the library, by module
 
 `metta.aio` is the same engine without blocking an event loop (`AsyncMeTTa`).
-`metta.arrays` crosses arrays through DLPack and the Array API standard.
+The `metta-arrays` distribution (`pip install 'pymetta[arrays]'`), whose module
+is `metta_arrays` and whose doors are a space's `arrays` namespace, crosses
+arrays through DLPack and the Array API standard.
 `Annotated[DLTensor, Shape(2, 3)]` refines an operation's arrow to
 `(Annotated DLTensor (Shape (2 3)))`. A `(4 1)` argument returns `BadArgType`;
 shared MeTTa dimension variables bind across parameters and the result.
@@ -412,18 +423,20 @@ live-value typing binds them.
 Python speed: `AlphaSet`, `PatternMap`, `MatchIndex`, `LiveView`,
 `ClosureView`, `TabledMap`. `metta.live` is the general materialised view
 `m.live(*query)` answers, `Live` with `Delta` and `Changes` its stream, kept
-out of `metta.structures` so the stores do not pay to build it.
+out of `metta.structures` so the stores do not pay to build it; the `m.live`
+door itself comes with `pip install 'pymetta[live]'`.
 `metta.events` is the public event stream, its clock and its commit
 boundaries, and `metta.subscribe` its two delivery models. `metta.convert` registers two-way
-conversions, `metta.casting` runtime casts, `metta.integrate` is the
+conversions and runs casts, `metta.integrate` is the
 interface a library implements to work deeply with the engine, `metta.paths`
 builds cycle-safe lazy structural paths, `metta.manifest` makes deployment
-knowledge (`metta.boot(path)` assembles an app), `metta.derivation` and
-`metta.trace` reify proofs and reductions, `metta.lint` reports diagnostics,
+knowledge (`metta.boot(path)` assembles an app), `metta.derivation` and the
+module-level `trace` door reify proofs and reductions, `metta.lint` reports diagnostics,
 and `metta.testing` ships hypothesis strategies for property-testing code
 built on this surface.
 
-`m += lib.x` imports one of the engine's 38 MeTTa libraries through the write
+`m += lib.x` imports one of the engine's shipped MeTTa libraries, the roster
+the repository root's llms.txt names, through the write
 door, because a library IS knowledge and the receiver is the target space.
 
 ## When it refuses
