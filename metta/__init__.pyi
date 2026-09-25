@@ -1,7 +1,9 @@
 # Purpose: declare named exports and the static root surface.
-# The named imports and __all__ are authoritative. tools/rootgen.py derives
-# the runtime exports; door declarations and catalog carriers own the marked
-# regions. The init-stub lane rejects projection drift.
+# The named imports are authoritative, and `from m import X as X` is what
+# publishes X. tools/rootgen.py derives __all__ from those re-exports and the
+# module doors, and the runtime exports from both; door declarations and
+# catalog carriers own the marked regions. The init-stub lane rejects
+# projection drift.
 
 import builtins as _builtins
 from collections.abc import Callable as _Callable
@@ -184,7 +186,9 @@ class _AlgebraModule(_Protocol):
 algebra: _AlgebraModule
 # end generated algebra declaration
 
-__all__ = ['FALSE', 'TRUE', 'UNIT', 'Accept', 'Answer', 'Answers', 'Atom', 'Bindings', 'Config', 'Defined', 'Drift', 'Drop', 'Expression', 'G', 'Grounded', 'Handle', 'Library', 'Lock', 'MeTTa', 'MettaError', 'NotReducible', 'Refuse', 'Rows', 'S', 'Space', 'SpaceLike', 'SpaceProvider', 'State', 'Symbol', 'Timeout', 'Undefined', 'V', 'Variable', '__version__', 'add', 'amplitude', 'and_', 'arrow', 'attach', 'bag', 'bool', 'boot', 'budget', 'catalog', 'channel', 'config', 'counting', 'current_algebra', 'current_space', 'define', 'doc', 'engine', 'equation', 'eval', 'every', 'fn', 'forms', 'fresh', 'ground', 'if_', 'in_', 'io', 'is_transport_failure', 'lib', 'limits', 'llms', 'match', 'move_on_after', 'not_', 'op', 'or_', 'par_map', 'parse', 'prob', 'prov', 'pure', 'py', 'race', 'ranked', 'reads', 'reflection', 'registered', 'remove', 'render', 'rules', 'run', 'scope', 'seg', 'set', 'solve', 'space', 'spawn', 'speculate', 'stats', 'stubs', 'superpose', 'trace', 'tropical', 'typed', 'under', 'unify', 'view', 'withdraw', 'writes']
+# begin generated root exports
+__all__ = ['FALSE', 'TRUE', 'UNIT', 'Accept', 'Answer', 'Answers', 'Atom', 'Bindings', 'Config', 'Defined', 'Drift', 'Drop', 'Expression', 'G', 'Grounded', 'Handle', 'Library', 'Lock', 'MeTTa', 'MettaError', 'NotReducible', 'Refuse', 'Rows', 'S', 'Space', 'SpaceLike', 'SpaceProvider', 'State', 'Symbol', 'Timeout', 'Undefined', 'V', 'Variable', '__version__', 'add', 'amplitude', 'and_', 'arrow', 'attach', 'bag', 'bool', 'boot', 'budget', 'catalog', 'channel', 'config', 'counting', 'current_algebra', 'current_space', 'debug', 'define', 'doc', 'engine', 'equation', 'eval', 'every', 'fn', 'forms', 'formula', 'fresh', 'from_', 'get_property', 'ground', 'if_', 'in_', 'io', 'is_transport_failure', 'lib', 'limits', 'llms', 'load', 'match', 'move_on_after', 'not_', 'op', 'or_', 'par_map', 'parse', 'polynomial', 'prob', 'prov', 'pure', 'py', 'race', 'ranked', 'reads', 'record', 'reflection', 'registered', 'remove', 'render', 'rules', 'run', 'scope', 'seg', 'set', 'solve', 'space', 'spawn', 'speculate', 'stats', 'stubs', 'superpose', 'trace', 'tropical', 'typed', 'under', 'unify', 'view', 'visibility', 'withdraw', 'writes']
+# end generated root exports
 
 
 def __getattr__(name: str) -> _Any: ...

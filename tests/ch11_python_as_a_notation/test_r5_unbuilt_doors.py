@@ -156,7 +156,10 @@ def test_define_absorbs_class_declaration_and_frees_space_type(metta):
 
     point = R5Point(3)
     assert metta.type(point) == S.R5Point
-    assert "record" not in pymetta.__all__
+    # The class-declaring `record` is gone. The root's `record` has been the
+    # recording door the module tier defines beside `trace` and `debug` since
+    # 2026-09-07, and it declares nothing.
+    assert pymetta.record.__module__ == pymetta.__name__
     assert not hasattr(op_module, "record")
 
 

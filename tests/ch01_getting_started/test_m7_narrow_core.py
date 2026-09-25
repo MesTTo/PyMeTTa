@@ -1,8 +1,11 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
   - the package surface is exactly what ``__all__`` names and is narrower
-    than the surface M7 replaced, and keeps ``record`` and ``order_key``
+    than the surface M7 replaced, and keeps ``order_key``
     absent [tested: test_m7_narrow_core_surface; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
+  - ``__all__`` is every public name the root resolves, each lazy export and
+    each module door, and every name it holds resolves
+    [tested 2026-09-25T23:30:47+10:00: test_all_is_every_public_name_the_root_resolves]
   - no extension package is a name on the root: a member is reached as its own
     module and no alias is left behind [tested: test_m7_narrow_core_surface;
     commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
@@ -41,6 +44,7 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import importlib
+import inspect
 import os
 import subprocess
 import sys
@@ -451,6 +455,31 @@ def test_m7_narrow_core_surface():
     _assert_absent(AsyncMeTTa, REMOVED_FROM_ASYNC)
     _assert_absent(Space, REMOVED_DECLARATION_CEREMONY)
     _assert_absent(AsyncMeTTa, REMOVED_DECLARATION_CEREMONY)
+
+
+def _private(name: str) -> bool:
+    return name.startswith("_") and not (name.startswith("__") and name.endswith("__"))
+
+
+def test_all_is_every_public_name_the_root_resolves():
+    """`__all__` is each public lazy export and each module door, and they resolve.
+
+    The root resolves a name through its lazy export table or as a door
+    function the module tier defines. `__all__` was a list written beside
+    both, and it had drifted from them: `formula`, `polynomial` and
+    `visibility` resolved and were missing from `dir(metta)` and `import *`,
+    and so were five doors, `debug`, `from_`, `get_property`, `load` and
+    `record`. tools/rootgen.py now derives `__all__` from the declarations
+    the other two come from.
+    """
+    lazy = {name for name in metta.__lazy_exports__ if not _private(name)}
+    doors = {
+        name for name, value in vars(metta).items()
+        if not _private(name) and inspect.isfunction(value) and value.__module__ == metta.__name__
+    }
+    assert set(metta.__all__) == lazy | doors
+    for name in metta.__all__:
+        getattr(metta, name)
 
 
 def test_m7_satellites_are_lazy_and_identity_stable():

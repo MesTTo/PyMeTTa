@@ -456,9 +456,14 @@ def asynchronous(rows: Iterable[Door], root: Path) -> dict[Path, str]:
     return {path: clean_imports(code, path)}
 
 
+def module_doors(rows: Iterable[Door]) -> list[tuple[str, Door]]:
+    """The Space doors the root mirrors as module functions, each with its name there."""
+    return [(row.alias or row.python, row) for row in rows
+            if row.owner is Owner.space and Tier.module in row.tiers]
+
+
 def module_tier(rows: Iterable[Door], root: Path, *, stub: bool = False) -> tuple[str, str]:
     """Return imports and declarations for the default context's door face."""
     emitter = Emitter(root, 'metta', 'metta', namespace='' if stub else '_root')
-    selected = [row for row in rows if row.owner is Owner.space and Tier.module in row.tiers]
-    methods = ''.join(emitter.method(row, 'module', name=row.alias or row.python, stub=stub) for row in selected)
+    methods = ''.join(emitter.method(row, 'module', name=name, stub=stub) for name, row in module_doors(rows))
     return emitter.imports_text(stub=stub), '\n\n'.join(dict.fromkeys(emitter.protocols)) + '\n\n' + methods + emitter.imports_text(stub=stub, after=True)

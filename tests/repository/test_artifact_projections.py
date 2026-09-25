@@ -51,11 +51,11 @@ def test_root_exports_and_new_carrier_reach_runtime_and_consumer(tmp_path, monke
     core.mkdir(parents=True)
     stub = core / "__init__.pyi"
     stub.write_text(
-        "from ._atoms.factories import Symbol as FixtureSymbol\n"
+        "from ._atoms.factories import Symbol as Symbol\n"
         "# isort: split\n"
         "# begin generated root imports\n# end generated root imports\n"
         "# isort: split\n"
-        "__all__ = ['FixtureSymbol']\n"
+        "# begin generated root exports\n# end generated root exports\n"
         "# begin generated root declarations\n# end generated root declarations\n"
         "# begin generated algebra declaration\n# end generated algebra declaration\n", encoding="utf-8",
     )
@@ -65,8 +65,11 @@ def test_root_exports_and_new_carrier_reach_runtime_and_consumer(tmp_path, monke
     runtime = ast.parse(changed[core / "__init__.py"])
     declarations = {node.targets[0].id: ast.literal_eval(node.value) for node in runtime.body
                     if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)}
-    assert declarations["__all__"] == ["FixtureSymbol"]
-    assert declarations["__lazy_exports__"]["FixtureSymbol"] == ("metta._atoms.factories", "Symbol")
+    # The re-export publishes the name: no list names it, and both __all__s
+    # are derived from the import.
+    assert declarations["__all__"] == ["Symbol"]
+    assert "__all__ = ['Symbol']" in changed[stub]
+    assert declarations["__lazy_exports__"]["Symbol"] == ("metta._atoms.factories", "Symbol")
     assert "fixture_carrier: _DeclaredAlgebra" in changed[stub]
     probe = tmp_path / "extensions/python/tests/typing/algebra_surface.py"
     assert "assert_type(metta.algebra.fixture_carrier, DeclaredAlgebra)" in changed[probe]

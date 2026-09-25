@@ -110,11 +110,14 @@ if TYPE_CHECKING:
         bool,  # noqa: A004 -- the declared public spelling
         budget,
         counting,
+        formula,
+        polynomial,
         prob,
         prov,
         ranked,
         set,  # noqa: A004 -- the declared public spelling
         tropical,
+        visibility,
     )
     from metta.foreign import SpaceProvider
     from metta.library._lock import Drift, Lock
@@ -180,6 +183,7 @@ __all__ = [
     'counting',
     'current_algebra',
     'current_space',
+    'debug',
     'define',
     'doc',
     'engine',
@@ -188,7 +192,10 @@ __all__ = [
     'every',
     'fn',
     'forms',
+    'formula',
     'fresh',
+    'from_',
+    'get_property',
     'ground',
     'if_',
     'in_',
@@ -197,6 +204,7 @@ __all__ = [
     'lib',
     'limits',
     'llms',
+    'load',
     'match',
     'move_on_after',
     'not_',
@@ -204,6 +212,7 @@ __all__ = [
     'or_',
     'par_map',
     'parse',
+    'polynomial',
     'prob',
     'prov',
     'pure',
@@ -211,6 +220,7 @@ __all__ = [
     'race',
     'ranked',
     'reads',
+    'record',
     'reflection',
     'registered',
     'remove',
@@ -233,6 +243,7 @@ __all__ = [
     'under',
     'unify',
     'view',
+    'visibility',
     'withdraw',
     'writes',
 ]

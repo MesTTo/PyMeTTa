@@ -8,6 +8,10 @@ remain declarations in the stub and keep their real runtime module objects.
 Guarantees: init-stub compares the runtime root, catalog carrier declaration,
 door declarations and algebra consumer against these authorities [tested:
 init-stub; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+__all__, in the declaration and the runtime alike, is every explicit
+re-export and every module door, derived rather than listed [tested 2026-09-25T23:30:47+10:00:
+test_all_is_every_public_name_the_root_resolves,
+test_root_exports_and_new_carrier_reach_runtime_and_consumer].
 probe_text checks exact root and callable-algebra result types;
 Any and a non-callable module are independently rejected [tested:
 test_root_consumer_rejects_any_and_non_callable_exports; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
@@ -20,6 +24,7 @@ import ast
 import builtins
 import sys
 import textwrap
+from collections.abc import Iterable
 from importlib.util import resolve_name
 from pathlib import Path
 
@@ -44,6 +49,7 @@ from artifacts import notice  # noqa: E402 -- the checkout path precedes tool im
 from doorfaces import (  # noqa: E402 -- the checkout path precedes tool imports
     clean_imports,
     header,
+    module_doors,
     module_tier,
 )
 from doorgen import (  # noqa: E402 -- the checkout path precedes tool imports
@@ -150,6 +156,23 @@ _not_an_integer: int = metta.algebra(int)  # type: ignore[assignment]
 """
 
 
+def published(declaration: str, doors: Iterable[str]) -> list[str]:
+    """Name what the root publishes: each explicit re-export and each module door.
+
+    `from m import X as X` is a stub's explicit re-export
+    [source 2026-09-25T23:37:13+10:00: the typing spec's Import Conventions,
+    https://github.com/python/typing/blob/0fed553b30cbbcc9d963aeb606a52fd44e8d9c35/docs/spec/distributing.rst#L404-L414],
+    the form every public root name is imported in and no private alias takes,
+    and the doors are the functions module_tier() writes into the root. Both
+    are read rather than listed, so a name the root resolves cannot be left
+    out of __all__ the way formula, polynomial and visibility were.
+    """
+    reexported = {alias.name for node in ast.parse(declaration).body
+                  if isinstance(node, (ast.Import, ast.ImportFrom))
+                  for alias in node.names if alias.asname == alias.name}
+    return sorted(reexported | set(doors))
+
+
 def exports(source: str) -> tuple[list[str], dict[str, tuple[str, str]]]:
     """Resolve the declaration's explicit named imports, refusing missing exports."""
     tree = ast.parse(source)
@@ -174,7 +197,7 @@ def exports(source: str) -> tuple[list[str], dict[str, tuple[str, str]]]:
                 module = resolve_name(module, 'metta')
             for alias in node.names:
                 name = alias.asname or alias.name
-                if name in names or (alias.asname == alias.name and not name.startswith('_')):
+                if name in names:
                     imported[name] = (module, alias.name)
     missing = set(names) - imported.keys() - functions
     if missing:
@@ -196,6 +219,9 @@ def projections(rows=None, root: Path = ROOT) -> dict[Path, str]:
         ('# begin generated algebra declaration', '# end generated algebra declaration', _algebra_protocol(carriers)),
     ):
         declaration = replace_region(declaration, start, end, [start, *content.splitlines(), end])
+    start, end = '# begin generated root exports', '# end generated root exports'
+    names = published(declaration, (name for name, _ in module_doors(rows)))
+    declaration = replace_region(declaration, start, end, [start, f'__all__ = {names!r}', end])
     declaration = clean_imports(declaration, core / STUB_NAME)
     names, imported = exports(declaration)
     table = '\n'.join(f'    {name!r}: {value!r},' for name, value in sorted(imported.items()))
