@@ -16,6 +16,10 @@ Guarantees:
     test_ranked_and_tropical_slices_are_stable_best_prefixes,
     test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound;
     commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - a provider that answers match and implements no atoms() takes its bound
+    through limit=, a slice and (top k ...) alike, and the tagged-program
+    question never asks it [tested 2026-09-25T23:30:47+10:00:
+    test_a_match_only_provider_takes_its_bound_through_every_door]
   - a retained derivation can be explained and reinterpreted without asking
     its provider again [tested:
     test_provenance_retains_a_derivation_for_no_requery_reinterpretation,
@@ -71,7 +75,7 @@ import metta as metta_module
 import metta.aio as _aio_surface
 from metta import Answer, S, V, budget, counting, prob, prov, ranked, tropical
 from metta._declare import declarations as _space_declarations
-from metta.algebra import AlgebraDeclarationError
+from metta.algebra import AlgebraDeclarationError, has_tagged_program
 from metta.foreign import SpaceProvider
 from metta.vocabularies import AlgebraLaw, Semiring
 
@@ -82,9 +86,6 @@ class _ScoredRows(SpaceProvider):
     def __init__(self, rows):
         self.rows = rows
         self.asks = 0
-
-    def atoms(self):
-        return iter(())
 
     def match(self, pattern, *, limit=None):  # noqa: ARG002 -- the provider protocol requires the pattern argument
         self.asks += 1
@@ -295,23 +296,23 @@ def test_ranked_and_tropical_slices_are_stable_best_prefixes(metta):
         assert [answer.value for answer in best] == [S.best_a, S.best_b]
 
 
+class _BestFirstRows(SpaceProvider):
+    """A ranker: it answers match best first, records each bound, and cannot enumerate."""
+
+    def __init__(self):
+        self.rows = [(S.best, 9), (S.middle, 4), (S.low, 1)]
+        self.limits = []
+
+    def match(self, pattern, *, limit=None):  # noqa: ARG002 -- the provider protocol requires the pattern argument
+        self.limits.append(limit)
+        rows = self.rows if limit is None else self.rows[:limit]
+        for value, annotation in rows:
+            yield Answer(value=S.score(value), k=annotation)
+
+
 def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
     """The slice reopens only a repeatable source whose declared order it can trust."""
-    class BestFirstRows(SpaceProvider):
-        def __init__(self):
-            self.rows = [(S.best, 9), (S.middle, 4), (S.low, 1)]
-            self.limits = []
-
-        def atoms(self):
-            return iter(())
-
-        def match(self, pattern, *, limit=None):  # noqa: ARG002 -- the provider protocol requires the pattern argument
-            self.limits.append(limit)
-            rows = self.rows if limit is None else self.rows[:limit]
-            for value, annotation in rows:
-                yield Answer(value=S.score(value), k=annotation)
-
-    provider = BestFirstRows()
+    provider = _BestFirstRows()
     _space_declarations._register_space(metta, provider, "&slice-ranked")
     scores = metta._at("&slice-ranked")
     scores.annotations("ranked")
@@ -333,7 +334,7 @@ def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
     ] == ["low"]
     assert provider.limits == [None]
 
-    no_order_promise = BestFirstRows()
+    no_order_promise = _BestFirstRows()
     _space_declarations._register_space(metta, no_order_promise, "&slice-no-emits")
     unpromised = metta._at("&slice-no-emits")
     unpromised.annotations("ranked")
@@ -344,7 +345,7 @@ def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
     ] == ["best"]
     assert no_order_promise.limits == [None]
 
-    inexact = BestFirstRows()
+    inexact = _BestFirstRows()
     _space_declarations._register_space(metta, inexact, "&slice-inexact")
     inexact_space = metta._at("&slice-inexact")
     inexact_space.annotations("ranked")
@@ -355,6 +356,32 @@ def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
         for value in inexact_space.match(S.score(V.x), under=ranked)[:1].x
     ] == ["best"]
     assert inexact.limits == [None]
+
+
+def test_a_match_only_provider_takes_its_bound_through_every_door(metta):
+    """limit=, a slice and (top k ...) each hand a ranker its k.
+
+    A ranker or a vector index answers match and implements no atoms(), so it
+    registers match and not enumerate. The under= doors first asked whether a
+    tagged program concludes the query by enumerating the space, and refused
+    before any match; every tagged route reads its program by enumeration, so
+    on a space that cannot enumerate the question answers False unasked.
+    """
+    provider = _BestFirstRows()
+    _space_declarations._register_space(metta, provider, "&under-match-only")
+    scores = metta._at("&under-match-only")
+    scores.annotations("ranked")
+    scores.handles("(score $x)", "Exact")
+    scores.emits("best-first")
+
+    assert not has_tagged_program(scores, S.score(V.x))
+    assert provider.limits == []
+    best = ["best", "middle"]
+    assert [str(value) for value in scores.match(S.score(V.x), under=ranked, limit=2).x] == best
+    assert [str(value) for value in scores.match(S.score(V.x), under=ranked)[:2].x] == best
+    (top,) = metta.run("!(collapse (top 2 (match &under-match-only (score $x) $x)))")
+    assert [str(atom) for atom in top] == ["(best middle)"]
+    assert provider.limits == [2, 2, 2]
 
 
 def test_provenance_retains_a_derivation_for_no_requery_reinterpretation(metta):

@@ -2,6 +2,10 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: indexed projections read the original variable cells through
 % metta_atom_index_get/3 [tested: shared_decode_index; commit=dfd348d37d4cbe3d42d877bd6dcf415b54f82179].
+% Guarantees: metta_py_has_tagged_program/3 answers false for a foreign space
+% whose provider does not declare enumerate, without asking the provider, so
+% every under= door reaches a provider that only matches [tested 2026-09-25T23:30:47+10:00:
+% test_a_match_only_provider_takes_its_bound_through_every_door].
 
 %%%%%%%%%% Query %%%%%%%%%%
 %
@@ -167,10 +171,27 @@ metta_py_query_count_under(Space, PatternsTagged, GuardTagged, VarNames,
 %commit=0f6d29ba65640e26b6055b66b950cf79dae6db0c]. The conclusion is a copy without attributes and the probe
 %sits under double negation, so, as unifiable/3 did, it binds nothing and
 %wakes no constraint.
+%
+%A foreign space whose provider does not declare enumerate answers false
+%without being asked anything. The declaration is the one get-atoms' own gate
+%reads, through foreign_provides/2, a service the host transport does not
+%call. Every tagged route reads its program by enumeration, the evaluator
+%through the space's atoms() and the counter through a findall over
+%get-atoms, so on such a space the tagged route could only refuse, and
+%declining it loses no answer. What remains is the ordinary route, the one
+%(top k (match ...)) takes, so a ranker or a vector index that answers match
+%and nothing else gets its bound through limit= and a slice instead of
+%get-atoms' enumerate refusal before any match. The question costs every
+%other space 6 inferences, the failed seam:foreign_space/1 [measured 2026-09-25T23:07:16+10:00:
+%53 to 59 with a tagged program, 64 to 70 without].
 metta_py_has_tagged_program(Space, Target, Has) :-
     metta_py_target_term_bindings(Space, Target, Query, _),
     copy_term_nat(Query, Conclusion),
-    (   metta_py_tagged_shape(Conclusion, Shape),
+    (   (   seam:foreign_space(Space)
+        ->  seam:foreign_capability(Space, enumerate)
+        ;   true
+        ),
+        metta_py_tagged_shape(Conclusion, Shape),
         \+ \+ 'get-atoms'(Space, Shape)
     ->  Has = true
     ;   Has = false
