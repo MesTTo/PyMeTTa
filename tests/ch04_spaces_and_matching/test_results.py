@@ -10,6 +10,10 @@ Guarantees:
   - eager and lazy binding rows group by the selected atom-valued column while
     retaining their row columns [tested:
     test_binding_rows_group_by_their_column_atom; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
+  - with no frame member installed, a declared frame door such as rows.to_df()
+    is absent and its AttributeError carries the frame refusal rows.to(...)
+    gives, while a query variable of its name still wins [tested 2026-09-26T00:24:42+10:00:
+    test_a_declared_frame_door_with_no_member_installed_is_absent_with_the_frame_refusal]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,7 +25,10 @@ import importlib.util
 import io
 import itertools
 import operator
+import os
 import pickle
+import subprocess
+import sys
 
 import metta_numpy  # noqa: F401  -- the array row a column builds through
 import metta_pandas  # noqa: F401  -- the frame row to_df() reads
@@ -29,6 +36,7 @@ import metta_polars  # noqa: F401  -- the frame row to_pl() reads
 import pytest
 
 from metta import S, V, config, equation, parse, tables
+from metta._roots import seat
 from metta._spaces.results import Answers, Rows, _row_class
 
 
@@ -57,6 +65,66 @@ def test_rows_to_df_builds_or_names_the_need(m):  # noqa: D103  -- pytest discov
             rows.to_df()
     else:
         assert rows.to_df()["points"].tolist() == [3]
+
+
+#: Run in a process whose path holds the seat alone, so no frame member is
+#: installed and neither door is registered.
+_NO_FRAME_MEMBER = """
+from metta import seam
+from metta._spaces.results import Answers, Rows
+
+assert not seam.frame.table(), seam.frame.table()
+rows = Rows(("n", "x"), [(1, 2)])
+answers = Answers(iter(()), columns=("n", "x"))
+try:
+    rows.to("a-library-nothing-registers")
+except TypeError as error:
+    remedy = str(error).split("; ", 1)[1]
+else:
+    raise AssertionError("rows.to refused nothing")
+assert "pip install" in remedy, remedy
+for owner, receiver in (("rows", rows), ("answers", answers)):
+    for door in ("to_df", "to_pl"):
+        assert not hasattr(receiver, door), f"{owner}.{door} is present"
+        try:
+            getattr(receiver, door)
+        except AttributeError as error:
+            assert error.name == door and error.obj is receiver, (error.name, error.obj)
+            message = str(error)
+        else:
+            raise AssertionError(f"{owner}.{door} answered")
+        assert message == f"no frame registration handles {owner}.{door}(); {remedy}", message
+assert list(Rows(("to_df",), [(7,)]).to_df) == [7]
+assert Answers(iter(()), columns=("to_df",)).to_df is not None
+try:
+    rows.not_a_door
+except AttributeError as error:
+    assert "not_a_door" in str(error), error
+else:
+    raise AssertionError("an unknown name answered")
+"""
+
+
+def test_a_declared_frame_door_with_no_member_installed_is_absent_with_the_frame_refusal():
+    """rows.to_df() with no frame member installed is absent, and says why in the frame point's words.
+
+    doorgen declared to_df and to_pl for type checkers only, so with no package
+    registering them the name fell through to the answer variables and raised
+    "no answer variable 'to_df'". A declared door that nothing registers stays
+    absent, as the no-packages lane requires of an unregistered sugar, and its
+    AttributeError now carries the frame point's refusal, with the door as its
+    subject and the registrants and install remedy rows.to(...) gives. A query
+    variable of the door's name still wins, and an undeclared name still names
+    itself.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", _NO_FRAME_MEMBER],
+        env=os.environ | {"PYTHONPATH": str(seat())},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_rows_to_dicts_returns_plain_records(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

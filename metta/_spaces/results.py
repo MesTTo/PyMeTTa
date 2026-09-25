@@ -143,6 +143,11 @@ Guarantees:
     library's sentence agree about the same mistake [tested:
     test_a_row_offers_its_own_columns,
     test_a_projection_answers_its_columns_from_dir; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+  - a door an extension package declares on Rows or Answers resolves after
+    the answer variables, as a registered door does, and with no installed
+    package registering it stays absent, its AttributeError carrying its base
+    door's point refusal [tested 2026-09-26T00:24:42+10:00:
+    test_a_declared_frame_door_with_no_member_installed_is_absent_with_the_frame_refusal]
 Owns resources: Answers closes its source; a failed close keeps that source
   available for another attempt [tested:
   test_failed_answer_exit_retains_its_source_for_retry; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
@@ -563,6 +568,39 @@ def _frame_row(field: str, value: str) -> Any:
     return None
 
 
+def _declared_refusal(receiver: Rows | Answers[Any], owner: _doors.Owner, name: str) -> str | None:
+    """Why a door an extension package declares on this receiver is absent, or None.
+
+    tools/doorgen.py writes each declared door's name, and the core door it is
+    sugar over, into the receiver's generated extension declarations, from the
+    package door marks the type checker reads, so the runtime knows every door
+    a type checker accepts. An installed package registers its doors, and
+    `metta.doors.sugar` resolves them before this is asked; declared and
+    unregistered means the package is absent. The door then stays absent, as
+    the no-packages lane requires of an unregistered sugar [source
+    2026-09-26T00:19:23+10:00: tests/shell/test_the_core_names_no_library.sh,
+    "short sugars are absent"], and its AttributeError says why in its base
+    door's words for nothing registered: the frame point's refusal for a
+    conversion over the frame door `to`, which names its registrants and the
+    extra that installs the packages this repository ships for it, and the door
+    point's for any other base. The subject is the door as the caller spelled
+    it, because the library it fixes lives in the absent package and the core
+    names no library. None when nothing declares `name`.
+
+    It is asked after the answer variables, as the registered doors are:
+    column projection keeps precedence over an optional result sugar [source
+    2026-09-26T00:06:37+10:00:
+    docs/journal/2026-09-08-space-as-a-projection-of-door-rows.md], so a name
+    the query binds is the variable whether or not the package is installed,
+    and the door keeps its longhand, `rows.to(...)`.
+    """
+    base = type(receiver)._extension_doors.get(name)
+    if base is None:
+        return None
+    point = seam.frame if base == f"{owner.value}:to" else seam.door
+    return point.refusal(f"{owner.value}.{name}()")
+
+
 
 
 class Rows(UserList[Row], _doors.DoorOwner):
@@ -635,7 +673,8 @@ class Rows(UserList[Row], _doors.DoorOwner):
                 return sugar(self, Owner.rows, name)
             except AttributeError:
                 pass
-            raise AttributeError(str(exc), name=name, obj=self) from None
+            refusal = _declared_refusal(self, Owner.rows, name)
+            raise AttributeError(refusal or str(exc), name=name, obj=self) from None
 
     def __dir__(self) -> list[str]:
         from metta.doors import Owner, table  # noqa: PLC0415  -- current registered sugars
@@ -1278,6 +1317,7 @@ class Rows(UserList[Row], _doors.DoorOwner):
     if TYPE_CHECKING:
         to_df = _door_types._rows_to_df
         to_pl = _door_types._rows_to_pl
+    _extension_doors: ClassVar[dict[str, str]] = {'to_df': 'rows:to', 'to_pl': 'rows:to'}
     # end generated extension declarations: Rows
 
 
@@ -1859,6 +1899,9 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                 return sugar(self, Owner.answers, name)
             except AttributeError:
                 pass
+            refusal = _declared_refusal(self, Owner.answers, name)
+            if refusal is not None:
+                raise AttributeError(refusal, name=name, obj=self)
         return self._project(name)
 
     def __dir__(self) -> list[str]:
@@ -2309,6 +2352,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
     if TYPE_CHECKING:
         to_df = _door_types._answers_to_df
         to_pl = _door_types._answers_to_pl
+    _extension_doors: ClassVar[dict[str, str]] = {'to_df': 'answers:to', 'to_pl': 'answers:to'}
     # end generated extension declarations: Answers
 
 # Resolve annotations after definitions so peer imports can finish.
