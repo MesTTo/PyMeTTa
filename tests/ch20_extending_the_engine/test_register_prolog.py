@@ -26,7 +26,7 @@ Guarantees:
     test_a_typo_in_the_list_registers_nothing]
   - a syntax error in the source raises a MettaError naming the line, where
     SWI would only have printed it, on a worker thread as on the thread that
-    booted the engine [tested 2026-09-25T18:46:53+10:00:
+    booted the engine [tested 2026-09-26T06:20:38+10:00:
     test_a_syntax_error_names_the_line,
     test_a_syntax_error_on_a_worker_thread_names_the_line]
   - every registration the contract refuses, refused here or by the engine,
@@ -272,9 +272,10 @@ def test_a_syntax_error_names_the_line(space):  # noqa: D103  -- pytest discover
 
 
 # The loader hears a load's errors through a message hook. Its clause used to
-# be one of thread_message_hook/3, which SWI declares thread_local, so it
-# existed only on the thread that booted the engine, and a worker thread's
-# syntax error was printed and then refused as a missing predicate.
+# be one of thread_message_hook/3 loaded with the engine, which SWI declares
+# thread_local, so it existed only on the thread that booted the engine, and
+# a worker thread's syntax error was printed and then refused as a missing
+# predicate. Each load now asserts its own on the thread running it.
 def test_a_syntax_error_on_a_worker_thread_names_the_line(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with ThreadPoolExecutor(max_workers=1) as worker:
         registration = worker.submit(
