@@ -10,6 +10,9 @@ Guarantees:
   - the runtime fn namespace and its inline typing declaration come from one deterministic
     catalog snapshot [tested: test_the_fn_namespace_is_generated;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - the generator's declared builtins are the tracked source's, so a tree
+    holding untracked copies and a clone holding none answer the same set
+    [tested 2026-09-25T23:30:47+10:00: test_a_materialised_tree_declares_what_its_source_declares]
   - INTERNAL catalog names remain exact S/fn mentions but are absent from the
     generated typed and reference surfaces [tested:
     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
@@ -384,6 +387,50 @@ def test_the_fn_namespace_is_generated(repo_root: Path):
         check=True,
     )
     assert imported.stdout.strip() == "car-atom"
+
+
+def test_a_materialised_tree_declares_what_its_source_declares(
+    repo_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """The declared builtins are the tracked source's, whatever else the tree holds.
+
+    A working tree keeps copies beside its source, the Node package's staged
+    engine/ and lib/ under extensions/node/_runtime and batteries inside a
+    component. The generator walked extensions/ and read their rows too, so
+    wt-merge and a tree materialised without the copies generated different
+    files. Here a repository declares one builtin under each root, an
+    untracked staged copy declares another, and a clone, which holds only
+    what git tracks, must answer what the source tree answers.
+    """
+    tools = repo_root / "extensions" / "python" / "tools"
+    sys.path.insert(0, str(tools))
+    try:
+        fngen = importlib.import_module("fngen")
+    finally:
+        sys.path.pop(0)
+    source = tmp_path / "source"
+    for relative, name in (
+        ("engine/packages.pl", "engine-declared"),
+        ("lib/lib_fixture/lib_fixture.pl", "library-declared"),
+        ("extensions/seat/bridge.pl", "seat-declared"),
+    ):
+        path = source / relative
+        path.parent.mkdir(parents=True)
+        path.write_text(f"seam:extension_builtin('{name}', pureFunction).\n", encoding="utf-8")
+    git = ["git", "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid"]
+    subprocess.run([*git, "init", "-q", str(source)], check=True)
+    subprocess.run([*git, "-C", str(source), "add", "-A"], check=True)
+    subprocess.run([*git, "-C", str(source), "commit", "-q", "-m", "fixture"], check=True)
+    staged = source / "extensions/node/_runtime/lib/lib_staged/lib_staged.pl"
+    staged.parent.mkdir(parents=True)
+    staged.write_text("seam:extension_builtin('staged-copy', pureFunction).\n", encoding="utf-8")
+    materialised = tmp_path / "materialised"
+    subprocess.run([*git, "clone", "-q", str(source), str(materialised)], check=True)
+
+    declared = {"engine-declared", "library-declared", "seat-declared"}
+    for tree in (source, materialised):
+        monkeypatch.setattr(fngen, "ROOT", tree)
+        assert fngen.declared_extension_builtins() == declared, tree
 
 
 def test_internal_catalog_names_stay_exact_but_leave_public_outputs(repo_root: Path):

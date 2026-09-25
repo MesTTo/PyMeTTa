@@ -21,6 +21,10 @@ Guarantees:
     typed members include PUBLIC rows only [tested:
     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
     commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
+  - the declared builtins are read from the files git tracks under engine,
+    lib and extensions, so a tree holding untracked copies beside them and
+    one materialised without them generate the same files
+    [tested 2026-09-25T23:30:47+10:00: test_a_materialised_tree_declares_what_its_source_declares]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -81,10 +85,12 @@ def catalog_documentation(
 
 
 _EXTENSION_BUILTIN = re.compile(r"extension_builtin\(\s*'([^']+)'")
+#: Where a builtin is declared: the engine, its libraries and its seats.
+_DECLARING_ROOTS = ("engine", "lib", "extensions")
 
 
 def declared_extension_builtins() -> set[str]:
-    """Every builtin an extension declares in the tree, built or not.
+    """Every builtin a tracked Prolog source declares, built or loaded or not.
 
     catalog_snapshot reads a LIVE engine, so a name reaches it only when its
     extension's artefact is present. That made this generator's output a
@@ -93,12 +99,37 @@ def declared_extension_builtins() -> set[str]:
     which does not build it, then read the checked-in file as stale and
     failed. The declaration ships in Prolog either way, so read that.
 
+    Read it from the files git tracks, not from a walk. A walk of extensions/
+    also read the copies a working tree keeps there, extensions/node/_runtime,
+    the Node package's staged engine/ and lib/, and batteries inside a
+    component, so wt-merge's output carried 22 rows from them and a tree
+    materialised without the copies read the checked-in file as stale
+    [measured 2026-09-25T23:32:06+10:00: lib_math's nine, lib_vector's seven,
+    lib_encoding's two, lib_uuid's one, collections_data's one and
+    engine/packages.pl's two]. Those rows are the tracked engine/ and lib/'s
+    own, which is why both are roots here beside extensions/. A listing git
+    cannot give is refused, never read as a tree declaring nothing.
     """
-    declared: set[str] = set()
-    for path in (ROOT / "extensions").rglob("*.pl"):
-        declared.update(
-            _EXTENSION_BUILTIN.findall(path.read_text(encoding="utf-8", errors="replace"))
+    listing = subprocess.run(  # noqa: S603  -- fixed argv over this checkout's own files
+        ["git", "ls-files", "--recurse-submodules", "-z", "--", *_DECLARING_ROOTS],  # noqa: S607  -- PATH git, as every lane runs it
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    if listing.returncode != 0:
+        msg = (
+            f"git cannot list the sources tracked under {ROOT}: "
+            f"{listing.stderr.decode(errors='replace').strip()}"
         )
+        raise RuntimeError(msg)
+    declared: set[str] = set()
+    for name in listing.stdout.decode().split("\0"):
+        path = ROOT / name
+        # A tracked file deleted in the working tree is not a source any more.
+        if name.endswith(".pl") and path.is_file():
+            declared.update(
+                _EXTENSION_BUILTIN.findall(path.read_text(encoding="utf-8", errors="replace"))
+            )
     return declared
 
 
@@ -156,9 +187,10 @@ def catalog_snapshot() -> tuple[list[str], dict[str, str]]:
     visibility = dict(rows)
     #Union the declared names in before the invariant, so a tree that has not
     #built an optional extension still generates the same file as one that has.
-    for declared in declared_extension_builtins():
+    declared_names = declared_extension_builtins()
+    for declared in declared_names:
         visibility.setdefault(declared, declared_visibility(declared))
-    unique_names = sorted(set(names) | declared_extension_builtins())
+    unique_names = sorted(set(names) | declared_names)
     if set(unique_names) != visibility.keys():
         msg = "every callable must have exactly one catalog visibility row"
         raise RuntimeError(msg)
