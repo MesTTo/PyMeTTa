@@ -30,8 +30,15 @@ def _storage(home, name):
         "current_predicate(_Module:_Functor/_Arity), clause(_Module:_Head, true) ), Values)",
         NameText=name, RelationText=ROW.name,
     )["Values"]
+    # Before lib_thread loads, no scope registry exists and no scope has revoked
+    # the name, so the reading is False rather than an unknown-procedure error.
+    # test_a_drop_outside_a_transaction_completes_before_returning loads no
+    # library, and it passed only when an earlier test on its worker had loaded
+    # lib_thread [tested 2026-09-26T00:12:00+10:00:
+    # test_a_drop_outside_a_transaction_completes_before_returning].
     scope_dead = bool(home.runtime.once(
-        "atom_string(_Name, NameText), lib_thread:scope_space_dead(_Name)", NameText=name,
+        "atom_string(_Name, NameText), current_predicate(lib_thread:scope_space_dead/1), "
+        "lib_thread:scope_space_dead(_Name)", NameText=name,
     ))
     return {"cached": cached, "rows": rows, "scope_dead": scope_dead}
 
