@@ -7,6 +7,9 @@ Guarantees:
   - release history and citation metadata exist and enter source archives
     [tested: test_release_and_citation_metadata_ship_in_source_archives;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - CITATION.cff, the README's citation block and the changelog's newest
+    release heading name the version metta._version declares
+    [tested 2026-09-25T19:28:42+10:00: test_every_restatement_of_the_version_is_the_packaged_one]
   - the Python gate uses the fixed load-tested worker protocol
     [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -135,6 +138,22 @@ def test_release_and_citation_metadata_ship_in_source_archives():  # noqa: D103 
     assert citation.startswith("cff-version: 1.2.0\n")
     assert 'repository-code: "https://github.com/MesTTo/MeTTa"' in citation
     assert {"include CHANGELOG.md", "include CITATION.cff"} <= set(source_manifest)
+
+
+# The version is dynamic, read from metta._version, and three files restate it
+# for readers the manifest never reaches: CITATION.cff's `version`, the README's
+# citation block and the changelog's newest release heading. Nothing held them
+# to it, so CITATION.cff and the README read 0.8.0 through 0.9.0, 0.9.1 and
+# 0.9.2. A release now fails here until all three name what it builds.
+def test_every_restatement_of_the_version_is_the_packaged_one():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8").splitlines()
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").splitlines()
+
+    assert [line for line in citation if line.startswith("version:")] == [f'version: "{__version__}"']
+    assert re.findall(r"^\s*version\s*=\s*\{([^}]*)\}", readme, re.MULTILINE) == [__version__]
+    released = [line for line in changelog if re.match(r"## \[\d", line)]
+    assert released and released[0].startswith(f"## [{__version__}] - "), released[:1]
 
 
 def test_the_wheel_carries_no_agent_scratch_references():
