@@ -25,7 +25,10 @@ Guarantees:
   - a typo anywhere in the name list registers nothing [tested
     test_a_typo_in_the_list_registers_nothing]
   - a syntax error in the source raises a MettaError naming the line, where
-    SWI would only have printed it [tested test_a_syntax_error_names_the_line]
+    SWI would only have printed it, on a worker thread as on the thread that
+    booted the engine [tested 2026-09-25T18:46:53+10:00:
+    test_a_syntax_error_names_the_line,
+    test_a_syntax_error_on_a_worker_thread_names_the_line]
   - every registration the contract refuses, refused here or by the engine,
     raises RegistrationError, a ValueError, whose message says what was
     missing and whose `requires`, remedy and ground are the registration
@@ -47,6 +50,7 @@ Open Obligations:
 import contextlib
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -263,8 +267,23 @@ def test_a_rival_declaring_source_is_refused_before_it_can_clobber(space, tmp_pa
 # 'rp-syntax' was defined", naming the symptom rather than the cause, with the
 # line and column only on stderr.
 def test_a_syntax_error_names_the_line(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(MettaError, match="Syntax error"):
+    with pytest.raises(MettaError, match=r":1:\d+: Syntax error"):
         space.register_prolog("'rp-syntax'(X, Y) :- Y is X * .", names=["rp-syntax"])
+
+
+# The loader hears a load's errors through a message hook. Its clause used to
+# be one of thread_message_hook/3, which SWI declares thread_local, so it
+# existed only on the thread that booted the engine, and a worker thread's
+# syntax error was printed and then refused as a missing predicate.
+def test_a_syntax_error_on_a_worker_thread_names_the_line(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    with ThreadPoolExecutor(max_workers=1) as worker:
+        registration = worker.submit(
+            space.register_prolog,
+            "'rp-thread-syntax'(X, Y) :- Y is X * .",
+            names=["rp-thread-syntax"],
+        )
+        with pytest.raises(MettaError, match=r":1:\d+: Syntax error"):
+            registration.result()
 
 
 # The whole point: gate on inferences, which are deterministic, rather than on
