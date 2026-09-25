@@ -18,6 +18,10 @@ Guarantees:
     the process and no binding source writing silent/1 itself
     [tested: test_verbosity_is_a_published_engine_door,
     test_no_binding_carries_its_own_verbosity_setter]
+  - a binding source is a file some seat's repository tracks, so an untracked
+    copy of the engine inside a seat, a build's, a package's staging or a
+    battery worktree's, is not read as a third binding
+    [tested 2026-09-25T12:45:53+10:00: test_no_binding_carries_its_own_verbosity_setter]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +29,8 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import re
+import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -36,7 +42,7 @@ from metta._errors.errors import AssertionFailure
 # text spells the parenthesis escaped, and the thing being looked for does not.
 _WRITES_THE_FLAG = re.compile(r"assertz\(\s*silent\(")
 
-_BINDING_SOURCE = ("*.pl", "*.py", "*.c", "*.h", "*.ts", "*.mjs", "*.js")
+_BINDING_SOURCE = frozenset((".pl", ".py", ".c", ".h", ".ts", ".mjs", ".js"))
 
 
 @pytest.fixture
@@ -134,26 +140,30 @@ def test_no_binding_carries_its_own_verbosity_setter(metta, repo_root):
             f"replaces was supposed to leave with the door's arrival"
         )
 
-    seats = repo_root / "extensions"
+    # What the seats' repositories TRACK, asked of git rather than walked:
+    # the walk read every untracked copy of the engine a seat can carry as a
+    # third binding, and grew one excluded directory name per copy it met,
+    # build (cmetta's install check), _runtime (node's staged package) and
+    # node_modules, then failed on extensions/node/ai-battery-1, a battery
+    # worktree of the seat that the next name would not have covered
+    # [measured 2026-09-24T23:49:08+10:00: the gate at 99bd67a73 failed this
+    # test naming extensions/node/ai-battery-1/engine/filereader.pl]. That the
+    # seats are populated, which --recurse-submodules needs to list them, is
+    # tests/checks/check_submodules_populated.py's to check, once for every
+    # scan of tracked files.
+    listing = subprocess.run(
+        ["git", "ls-files", "--recurse-submodules", "--", "extensions"],
+        cwd=repo_root, capture_output=True, text=True, timeout=60, check=False,
+    )
+    if listing.returncode != 0:
+        pytest.skip(f"git ls-files is unavailable here: {listing.stderr.strip()[:200]}")
     offenders = sorted(
-        str(path.relative_to(repo_root))
-        for pattern in _BINDING_SOURCE
-        for path in seats.rglob(pattern)
-        if "node_modules" not in path.parts
-        # cmetta's make install-check stages the whole engine tree, this
-        # file included, under extensions/cmetta/build; a build artifact is
-        # the engine's own copy, not a binding source growing a setter.
-        and "build" not in path.parts
-        # The node seat stages the same tree under extensions/node/_runtime,
-        # which `npm run build:dist` writes and `npm pack` runs `prepare` to
-        # make, so anyone who has built that seat carries a second copy of
-        # engine/filereader.pl and this scan read it as a THIRD binding growing
-        # its own setter. Same reason as the line above, different seat's word
-        # for the same directory [measured 2026-09-07: `npm install` in
-        # extensions/node makes extensions/node/_runtime/engine/filereader.pl
-        # and this test fails naming it].
-        and "_runtime" not in path.parts
-        and _WRITES_THE_FLAG.search(path.read_text(encoding="utf-8", errors="ignore"))
+        name
+        for name in listing.stdout.splitlines()
+        if Path(name).suffix in _BINDING_SOURCE
+        # A tracked file deleted in the working tree is not a source any more.
+        and (repo_root / name).is_file()
+        and _WRITES_THE_FLAG.search((repo_root / name).read_text(encoding="utf-8", errors="ignore"))
     )
     assert not offenders, (
         f"these binding sources set the engine's silent/1 themselves rather "
