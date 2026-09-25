@@ -8,7 +8,9 @@ Assumes: run as
   stores through the cheapest write door there is and asks every runnable one
   through the structured evaluation door, asserting only that something came
   back; an assert-family form is asked as its SUBJECT, because that is what a
-  twin asks before comparing in Python. So it authors no definition, states no
+  twin asks before comparing in Python. A path the example names relative to
+  itself (./_fixtures/...) is named from the repository root, where a twin
+  runs, as every shipped twin names it. So it authors no definition, states no
   extra claim and does no Python-side algebra, and its cost is the least any
   twin of that example could spend.
 Guarantees: prints one row per example with the example's own cost, the band
@@ -40,16 +42,34 @@ CONTROL = '''\
 """A minimal twin: the example's own forms, stored and asked, nothing else."""
 
 import json
+import posixpath
 
 import metta
 
+#: The example's directory from the repository root. An example names a file
+#: beside it relative to itself (./_fixtures/...), which the engine resolves
+#: against the example's directory when it loads the example and against the
+#: working directory when a twin asks, so the control names it from the root,
+#: as every shipped twin does.
+BASE = json.loads({base!r})
+
+
+def rooted(atom):
+    """The atom with each relative path symbol named from the repository root."""
+    if isinstance(atom, metta.Symbol) and atom.name.startswith(("./", "../")):
+        return metta.S["./" + posixpath.normpath(posixpath.join(BASE, atom.name))]
+    if isinstance(atom, metta.Expression) and atom.children:
+        return metta.Expression(*(rooted(child) for child in atom.children))
+    return atom
+
+
 #: Parsed at IMPORT, which is outside the lane's stats window, so the control
 #: prices the writing and the asking and not the reading that supplies them.
-STORED = [metta.parse(text) for text in json.loads({stored!r})]
+STORED = [rooted(metta.parse(text)) for text in json.loads({stored!r})]
 ASSERT_HEADS = set(json.loads({heads!r}))
 ASKED = []
 for text in json.loads({asked!r}):
-    form = metta.parse(text)
+    form = rooted(metta.parse(text))
     children = getattr(form, "children", ())
     if children and str(children[0]) in ASSERT_HEADS and len(children) > 1:
         ASKED.append(children[1])
@@ -109,6 +129,7 @@ def floor(example: Path, scratch: Path) -> int | None:
             stored=json.dumps(stored),
             asked=json.dumps(asked),
             heads=json.dumps(sorted(lane.ASSERT_HEADS)),
+            base=json.dumps(example.parent.relative_to(ROOT).as_posix()),
         ),
         encoding="utf-8",
     )
