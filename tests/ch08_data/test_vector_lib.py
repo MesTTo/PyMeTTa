@@ -4,8 +4,9 @@ Guarantees: generated vectors retain exact finite reductions, nearest floating
 rounding, IEEE class/sign behavior and reusable rational results
 [tested: test_vector_exact_reductions, test_vector_rational_rounding,
 test_vector_ieee_arithmetic, test_vector_rationals_compose; commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
-Owns resources: the shared engine fixture owns the imported library; tests
-produce immutable numeric expressions and acquire no external resources.
+Owns resources: a MeTTa() context of this module's own holds the imported
+library and releases it after the module's last test; tests produce immutable
+numeric expressions and acquire no external resources.
 """
 
 import decimal
@@ -20,7 +21,7 @@ import pytest
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
-from metta import G, S, V, lib, library
+from metta import G, MeTTa, S, V, lib, library
 from metta._errors.errors import AssertionFailure, MettaError, MettaOperationError
 
 FINITE = st.one_of(st.integers(-(1 << 256), 1 << 256),
@@ -29,10 +30,22 @@ PAIRS = st.lists(st.tuples(FINITE, FINITE), max_size=10)
 
 
 @pytest.fixture(scope="module")
-def vectors(metta):
-    """Import the shipped equations and numeric kernels for generated cases."""
-    metta += lib.vector
-    return metta
+def vectors():
+    """Import the shipped equations and numeric kernels for generated cases.
+
+    Into a context this module owns, not into the process home every later
+    test in the worker reads through. lib_vector's norm takes any argument and
+    refuses one that is not numeric, so left in the home it answered every
+    later class method named norm with that refusal [measured
+    2026-09-25T12:43:41+10:00: this file then
+    tests/ch09_types/test_class_method_costs.py in one process fails
+    test_method_entry_inferences_match_the_equivalent_native_body with
+    norm: Type error: number expected, found MeasuredMethodChild].
+    """
+    with MeTTa() as context:
+        home = context.self
+        home += lib.vector
+        yield home
 
 
 def bits(value):
