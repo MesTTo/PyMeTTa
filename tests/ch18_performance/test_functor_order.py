@@ -48,9 +48,23 @@ def _plant_functors(space, count):
 
 
 def _inferences(space, goal, **inputs):
-    """What one Prolog goal costs, counted around it in the same query."""
+    """What one Prolog goal costs, counted around it in the same query.
+
+    Clause garbage collection is drained before the count starts. The engine's
+    erase listener, materialize:source_owner_erased/1, runs on whichever thread
+    trips the collector, so a collection landing inside the window charged the
+    listener's work to the goal, and whether one lands there moves with
+    everything the process allocated before, which the plantings vary on
+    purpose. The name checks read 42 at one planting against 34 at the rest,
+    3 runs of 3, when the reference-face labelling moved the collector's timing;
+    the same runs read 34 throughout with the collection drained, and still 42
+    with the same prefix spelled `true`
+    [measured 2026-09-26T02:54:18+10:00: this file three times under each
+    query prefix, one battery on b40cf835c with the labelling applied].
+    """
     row = space.runtime.must(
-        f"statistics(inferences, Before), ({goal}), statistics(inferences, After), Spent is After - Before",
+        f"garbage_collect_clauses, statistics(inferences, Before), ({goal}), "
+        "statistics(inferences, After), Spent is After - Before",
         **inputs,
     )
     return row["Spent"]
