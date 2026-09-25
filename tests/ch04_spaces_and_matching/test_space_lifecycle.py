@@ -22,6 +22,10 @@ Guarantees:
     [tested
     test_a_recycled_space_name_inherits_no_typing_rule_from_its_past_life;
     commit=84327245373bba29fba00cf2cea62d8257a9f5cb]
+  - nor any record describing its past life's generated predicates, so a
+    content-named lambda compiled again by the next life specializes afresh
+    [tested 2026-09-25T23:23:11+10:00:
+    test_a_recycled_space_name_inherits_no_generated_record_from_its_past_life]
   - what a recycled name DOES carry is the process-wide registrations, which
     belong to no space [tested
     test_a_recycled_name_still_sees_process_wide_registrations]
@@ -422,6 +426,30 @@ def test_a_recycled_space_name_inherits_no_typing_rule_from_its_past_life(draine
         # it named is accepted again.
         second.run(payload)
         assert second.run("!(held p)") == [[S.kept(S.p)]]
+    finally:
+        second.drop()
+
+
+def test_a_recycled_space_name_inherits_no_generated_record_from_its_past_life(drained):
+    """What described a past life's generated predicates goes with them.
+
+    A lambda is named by its content, so the next life of a name compiles the
+    same lambda under the same name. The dead life's record of the lambda's
+    segment specialization stayed, the next life took the specialization as
+    built from it, and its call reached a predicate the drop had abolished:
+    `Unknown procedure: lambda_..._Spec_...`, the error that failed
+    test_callable_values.py and test_class_field_assignments.py once a second
+    context drew a first one's name.
+    """
+    program = "(= (use-seg $f) ($f a b)) !(use-seg (|-> ((:seg $xs)) (quote $xs)))"
+    first = drained._new_space()
+    name = first.name
+    answers = first.run(program)
+    first.drop()
+    second = drained._new_space()
+    try:
+        assert second.name == name
+        assert second.run(program) == answers
     finally:
         second.drop()
 
