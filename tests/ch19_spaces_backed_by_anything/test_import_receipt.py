@@ -57,8 +57,12 @@ def thread_state(space) -> dict:
         "user:space_module(Space, _Module), "
         # Deferred translation holds a source's clauses until first use, so
         # the clause counts below are read through the engine's own force
-        # door; a removed contribution has no rows to force and stays 0.
-        "user:metta_ensure_compiled('take-atom'), "
+        # door; a removed contribution has no rows to force and stays 0. The
+        # door is the one that names the space it forces for: this query runs
+        # in &self, and a force made from &self reaches &self's home of the
+        # name, never the target's waiting equations, so the target's clauses
+        # read 0 while the library stood compiled a call away.
+        "user:metta_ensure_compiled_from(_Module, 'take-atom'), "
         "functor(_Binary, 'take-atom', 3), "
         "functor(_Timed, 'take-atom', 4), "
         "aggregate_all(count, (clause(_Module:_Binary, _, _BinaryRef), "
