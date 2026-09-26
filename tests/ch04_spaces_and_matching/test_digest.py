@@ -8,6 +8,9 @@ Guarantees:
     and digest, including all eight formerly unwritable names in
     examples/ch05-equations-and-evaluation/05-02-changing-the-equations/04-specialize.metta [tested:
     test_a_specialized_program_saves_and_digests; commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
+  - a specialization over a lambda that captured a variable answers with the
+    loading caller's capture after a save and load [tested 2026-09-26T17:51:26+10:00:
+    test_a_capturing_specialization_answers_after_a_save_and_load]
   - the digest is pinned to the canonicalization it names, not merely to
     itself: tests/fixtures/space_digest_vector.json carries one program, the
     lines the engine writes for its atoms and their sha256, and this file
@@ -247,6 +250,27 @@ def test_a_specialized_program_saves_and_digests(metta, repo_root, tmp_path):
     )
     assert done.returncode == 0, done.stdout[-3000:] + done.stderr[-3000:]
     assert "ROUND TRIP HELD" in done.stdout, done.stdout[-3000:]
+
+
+def test_a_capturing_specialization_answers_after_a_save_and_load(metta, tmp_path):
+    """A clone keyed by a lambda that captured a variable answers once loaded.
+
+    A load compiles the clone from the row the specialization stored, and
+    that row put the captured variable free in the clone's body, so the
+    loaded clone ran `+` on an unbound capture. The name holds the closure's
+    shape and never the capture, so the row keeps that position the
+    equation's own parameter.
+    """
+    saved = tmp_path / "capture.metta"
+    with metta._new_space() as writer:
+        writer.run("(= (capture-hof $f $x) ($f $x))\n"
+                   "(= (capture-use $k) (capture-hof (|-> ($y) (+ $y $k)) 1))")
+        assert writer.run("!(capture-use 10)") == [[11]]
+        assert any("_Spec_" in str(atom) for atom in writer.atoms())
+        writer.save(saved)
+    with metta._new_space() as reader:
+        reader.load(saved)
+        assert reader.run("!(capture-use 20)") == [[21]]
 
 
 def test_a_second_load_of_a_specialized_program_still_round_trips(metta, repo_root, tmp_path):
