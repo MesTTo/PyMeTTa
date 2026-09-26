@@ -18,10 +18,10 @@ from metta._errors.errors import MettaError
 
 
 @pytest.fixture(scope="module")
-def randoms(metta):
+def randoms(module_space):
     """Import the sample constructors and their MeTTa collection basis."""
-    metta += lib.random
-    return metta
+    module_space += lib.random
+    return module_space
 
 
 SEEDS = st.integers(0, 1_000_000)

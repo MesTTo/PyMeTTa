@@ -14,10 +14,10 @@ from metta._errors.errors import MettaError
 
 
 @pytest.fixture(scope="module")
-def graphs(metta):
+def graphs(module_space):
     """Import the public graph library and its collection basis."""
-    metta += lib.graph
-    return metta
+    module_space += lib.graph
+    return module_space
 
 
 VERTICES = st.sets(st.integers(0, 4), max_size=5)

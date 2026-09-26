@@ -14,10 +14,10 @@ from metta._errors.errors import MettaError
 
 
 @pytest.fixture(scope="module")
-def collections(metta):
+def collections(module_space):
     """Import the public collection equations."""
-    metta += lib.datastructures
-    return metta
+    module_space += lib.datastructures
+    return module_space
 
 
 @settings(max_examples=70, deadline=None)

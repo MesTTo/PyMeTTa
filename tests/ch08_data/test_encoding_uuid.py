@@ -19,10 +19,10 @@ from metta._errors.errors import MettaError
 
 
 @pytest.fixture(scope="module")
-def codecs(metta):
+def codecs(module_space):
     """Load the public UUID composition and its Encoding dependency."""
-    metta += lib.uuid
-    return metta
+    module_space += lib.uuid
+    return module_space
 
 
 @settings(max_examples=100, deadline=None)

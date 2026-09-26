@@ -1719,7 +1719,7 @@ def test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag(m):
     assert answer.args[0].value is blob
 
 
-def test_a_source_registers_every_signature_before_any_form_runs(metta):
+def test_a_source_registers_every_signature_before_any_form_runs(scratch_space):
     """The engine's file reader registers a source's WHOLE signature set
     before processing any of its forms, so a `!` may name a function the same
     source defines lower down [source: engine/filereader.pl
@@ -1728,8 +1728,8 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
     skipped the pass: seven shipped examples passed in the engine and failed
     here with `Domain error: function_symbol expected` [measured 2026-08-18].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    metta.run("!(import! &self (library lib_reflect))")
-    groups = metta.run(
+    scratch_space.run("!(import! &self (library lib_reflect))")
+    groups = scratch_space.run(
         "!(engine-knows p111-later)\n"
         "!(engine-arity p111-later)\n"
         "(= (p111-later $x) (+ $x 1))\n"
@@ -1755,20 +1755,20 @@ def test_a_bang_before_the_definition_answers_unreduced_not_a_host_error(metta):
     ]
 
 
-def test_run_using_registers_signatures_over_the_forms_that_will_run(metta):
+def test_run_using_registers_signatures_over_the_forms_that_will_run(scratch_space):
     """using= rewrites the parsed forms before they run, so the pass reads
     what will actually run rather than the text it was read from.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    metta.run("!(import! &self (library lib_reflect))")
-    with metta.bind(factor=3):
-        groups = metta.run(
+    scratch_space.run("!(import! &self (library lib_reflect))")
+    with scratch_space.bind(factor=3):
+        groups = scratch_space.run(
             "!(engine-knows p111-scaled)\n(= (p111-scaled $x) (* $x factor))\n"
         )
     assert groups == [[True]]
-    assert metta.run("!(p111-scaled 4)") == [[12]]
+    assert scratch_space.run("!(p111-scaled 4)") == [[12]]
 
 
-def test_run_status_registers_signatures_before_any_form_runs(metta):
+def test_run_status_registers_signatures_before_any_form_runs(scratch_space):
     """run_status reads a source through its own entry point, so it carries
     the same pre-pass.
 
@@ -1777,8 +1777,8 @@ def test_run_status_registers_signatures_before_any_form_runs(metta):
     because nothing has compiled a clause for it yet. A `!` that NAMES the
     function is what this buys, which is how `memoize` is written.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    metta.run("!(import! &self (library lib_reflect))")
-    reported = metta.run_status(
+    scratch_space.run("!(import! &self (library lib_reflect))")
+    reported = scratch_space.run_status(
         "!(engine-knows p111-status)\n(= (p111-status $x) (* $x 2))"
     )
     assert [[(kind, str(answer)) for kind, answer in group] for group in reported] == [

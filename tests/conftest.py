@@ -28,6 +28,11 @@ Guarantees:
     [tested: test_a_write_loses_to_a_drop_that_committed_first,
     test_a_drop_loses_to_a_write_that_committed_first,
     test_overlapping_field_writes_use_the_published_record_patterns; commit=23dee6dc5b745a57ade43bd5fd2d317116634f6f]
+  - ``module_space`` holds what one module imports and drops it when the
+    module ends, so a library a module needs is callable nowhere after it
+    [tested 2026-09-26T17:51:29+10:00:
+    test_list_collects_engine_answers_and_preserves_host_lists after each
+    library module in one process].
 
 Open Obligations:
   To Do: None
@@ -522,6 +527,25 @@ def metta(metta_path):
     """
     os.environ.setdefault("METTA_PATH", metta_path)
     return Space(metta_path=metta_path)
+
+
+@pytest.fixture(scope="module")
+def module_space(metta):
+    """A space for the libraries one module imports, dropped when the module ends.
+
+    ``metta`` is the process home, and a library imported into it stays
+    callable from every space for the rest of the worker. lib_combinatorics'
+    ``range`` then made ``list(range(n))`` in any later ``@define`` the
+    ambiguity the compiler refuses, and
+    test_list_collects_engine_answers_and_preserves_host_lists failed after
+    any of nine library modules importing into it [measured
+    2026-09-26T18:05:22+10:00: each module replayed before that test in one
+    process]. Dropping the space withdraws what it imported, and scratch
+    spaces fall back to ``&self`` rather than to this, so nothing outside the
+    module reaches it.
+    """
+    with metta._new_space() as space:
+        yield space
 
 
 @pytest.fixture

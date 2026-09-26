@@ -32,10 +32,10 @@ PAIRS = st.lists(st.tuples(FINITE, FINITE), min_size=2, max_size=10)
 
 
 @pytest.fixture(scope="module")
-def stats(metta):
+def stats(module_space):
     """Load sample and finite-law equations with their shared numeric providers."""
-    metta += lib.statistics
-    return metta
+    module_space += lib.statistics
+    return module_space
 
 
 def assert_numeric(actual, expected, data):

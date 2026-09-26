@@ -18,10 +18,10 @@ from metta._errors.errors import AssertionFailure
 
 
 @pytest.fixture(scope="module")
-def testing(metta):
+def testing(module_space):
     """Import the generator bundle through the public library door."""
-    metta += lib.testing
-    return metta
+    module_space += lib.testing
+    return module_space
 
 
 VALUES = st.one_of(st.integers(min_value=-20, max_value=20),

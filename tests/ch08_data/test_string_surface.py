@@ -26,10 +26,10 @@ TEXT = st.text(SCALAR, max_size=60)
 
 
 @pytest.fixture(scope="module")
-def string_space(metta):
+def string_space(module_space):
     """Keep the engine-owned library available throughout the generated cases."""
-    metta += lib.string
-    return metta
+    module_space += lib.string
+    return module_space
 
 
 @settings(max_examples=120, deadline=None)

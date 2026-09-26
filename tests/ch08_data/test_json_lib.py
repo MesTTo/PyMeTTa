@@ -26,10 +26,10 @@ DOCUMENT = st.recursive(SCALAR, lambda values: st.one_of(
 
 
 @pytest.fixture(scope="module")
-def js(metta):
+def js(module_space):
     """Import the actual shipped face into the test's engine context."""
-    metta += lib.json
-    return metta
+    module_space += lib.json
+    return module_space
 
 
 def drop_tree(value):

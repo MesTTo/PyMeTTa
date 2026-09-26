@@ -331,7 +331,7 @@ def test_connections_must_match_bridges_exactly(metta, tmp_path):  # noqa: D103 
     assert list(metta.match("(boot (bridge &mconn $s $r))")) == []
 
 
-def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_manifest_neither_runs_nor_defines(metta, scratch_space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "bang.metta").write_text('!(boot (load "x.metta"))\n')
     with pytest.raises(metta_module.MettaError, match=r"does not run.*drop the !"):
         metta_module.boot(tmp_path / "bang.metta", m=metta)
@@ -344,8 +344,11 @@ def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):  # noqa: D103  --
     # query cannot see. run() and load() register a source's whole signature
     # set before processing its forms; a manifest read is the one door that
     # must not, because it neither compiles nor stores nor runs.
-    metta.run("!(import! &self (library lib_reflect))")
-    assert metta.run("!(engine-knows manifest-smuggled)") == [[False]]
+    # engine-knows reads the process's registrations, so a scratch space asks
+    # it for `metta` too, and lib_reflect leaves with that space rather than
+    # staying callable from every space the worker runs next.
+    scratch_space.run("!(import! &self (library lib_reflect))")
+    assert scratch_space.run("!(engine-knows manifest-smuggled)") == [[False]]
 
 
 def test_an_empty_manifest_refuses(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

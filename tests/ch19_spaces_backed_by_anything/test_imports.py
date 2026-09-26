@@ -352,7 +352,7 @@ def test_missing_relative_import_does_not_fall_back_to_cwd(metta, tmp_path, monk
         metta.load(str(root))
 
 
-def test_minimal_lib_install_is_idempotent_after_cross_file_traffic(metta):
+def test_minimal_lib_install_is_idempotent_after_cross_file_traffic(metta, scratch_space):
     """Exercise the minimized ordered trigger before installing twice.
 
     A notebook cell re-run, or two packages that both install it, calls
@@ -360,9 +360,11 @@ def test_minimal_lib_install_is_idempotent_after_cross_file_traffic(metta):
     that duplicated equations would double every answer. Signature prepasses
     followed by a copied specialization were the cross-file traffic that once
     made the installed base equation lose precedence to a generated equation.
+    The prepass registers for the whole process wherever it runs, so it runs
+    in a scratch space that holds lib_reflect for this test alone.
     """
-    metta.run("!(import! &self (library lib_reflect))")
-    assert metta.run(
+    scratch_space.run("!(import! &self (library lib_reflect))")
+    assert scratch_space.run(
         "!(engine-knows p017-later)\n"
         "!(engine-arity p017-later)\n"
         "(= (p017-later $x) (+ $x 1))\n"

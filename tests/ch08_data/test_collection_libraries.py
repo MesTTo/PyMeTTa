@@ -17,11 +17,11 @@ from metta._errors.errors import MettaError
 
 
 @pytest.fixture(scope="module")
-def collections(metta):
+def collections(module_space):
     """Import the public collection libraries and their common basis."""
-    metta += lib.pairs
-    metta += lib.sets
-    return metta
+    module_space += lib.pairs
+    module_space += lib.sets
+    return module_space
 
 
 VALUES = st.one_of(st.integers(-3, 3), st.text(alphabet="aπ🙂\0", max_size=3).map(G),
