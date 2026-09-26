@@ -6,6 +6,10 @@
 % Guarantees: declared _controlled entries expose prolog/1 opener handles or
 % [payload,text] resume packets to the binding generator
 % [tested: test_binding_controlled_signature_mutations_refuse; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+% Guarantees: an interrupt-poll tick leaves backtracking all it reclaims, since
+% the tick record is updated in place rather than copied to the global stack
+% [tested 2026-09-27T03:11:33+10:00:
+% heartbeat_accounting:a_tick_leaves_backtracking_what_it_reclaims].
 % Owns resources: held-engine output redirection; cleanup restores current_output
 % [source: extensions/python/metta/_binding/control.pl:416; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
@@ -304,16 +308,41 @@ prolog:heartbeat :-
 %reading the LAST one happened at, and what the ticks before it had spent.
 %The last pair is what lets the door leave out a tick that fired after its own
 %reading without a second read to ask about it.
+%
+%The term is UPDATED IN PLACE. nb_setval/2 of a compound copies it to the
+%global stack and freezes the stack at its top, and backtracking never lowers
+%the top below that bar [source 2026-09-27T03:04:42+10:00: SWI-Prolog
+%V10.1.14, src/pl-gvar.c setval() and freezeGlobal()]. A tick lands in the
+%middle of whatever the program is building, so a record replaced that way
+%kept what a failure-driven loop had built so far until the next collection.
+%Over sort-atom's instructions benchmark, whose 14 ticks the host's heartbeat
+%repair puts inside its sort, that was one collection and one global stack
+%shift more than with the poll off, 4,535,902,528 instructions where the
+%record updated in place reads 4,072,336,892 [measured
+%2026-09-27T03:11:33+10:00: benchmarks.check_instructions sort-atom, min of
+%three, on swipl-patched.7, against the lane's 2026-09-27T02:54:16+10:00
+%reading before the change]. nb_setarg/3 of a small integer writes the
+%argument cell and neither copies nor freezes [source
+%2026-09-27T03:05:27+10:00: SWI-Prolog V10.1.14, src/pl-prims.c setarg()], and
+%every field is a count far below the tagged integer limit, so a tick
+%allocates nothing. The record stays one term, so a reader's single
+%unification still takes the four fields of one tick.
 metta_py_heartbeat_tick(Path) :-
     statistics(inferences, At),
     metta_py_heartbeat_charge(Path, Charge),
-    (   nb_current('$metta_heartbeat_ticks', ticks(Count, Before, _, _))
+    (   nb_current('$metta_heartbeat_ticks', Record)
     ->  true
-    ;   Count = 0, Before = 0
+    ;   nb_setval('$metta_heartbeat_ticks', ticks(0, 0, 0, 0)),
+        nb_getval('$metta_heartbeat_ticks', Record)
     ),
+    arg(1, Record, Count),
+    arg(2, Record, Before),
     Next is Count + 1,
     Total is Before + Charge,
-    nb_setval('$metta_heartbeat_ticks', ticks(Next, Total, At, Before)).
+    nb_setarg(1, Record, Next),
+    nb_setarg(2, Record, Total),
+    nb_setarg(3, Record, At),
+    nb_setarg(4, Record, Before).
 
 %What one tick costs the counter, MEASURED THE WAY THE VM SPENDS IT rather
 %than written down: a constant here would be wrong the first time the hook's
