@@ -438,6 +438,15 @@ filterwarnings = [
     # test runs, so it is unreachable from this repository
     # [source: pytest_benchmark/plugin.py:260 pytest_addoption].
     "ignore:FileType is deprecated:PendingDeprecationWarning",
+    # A caller's `-p cacheprovider`, after the `-p no:cacheprovider` each
+    # runner here passes, turns the cache back on, and pytest then warns that
+    # it cannot assertion-rewrite _pytest.cacheprovider, which
+    # _pytest.legacypath imported as a module whether or not the plugin was
+    # blocked [source 2026-09-26T10:22:43+10:00: _pytest/legacypath.py:16,
+    # pytest 9.1.1]. Under `error` that warning refused the run, so the flag
+    # test.sh promises the caller did not work
+    # [tested 2026-09-26T10:26:02+10:00: test_the_pytest_lane_writes_no_cache_unless_asked].
+    "ignore:Module already imported so cannot be rewritten; _pytest.cacheprovider:pytest.PytestAssertRewriteWarning",
     # Last, so no entry above can soften it. An exception that CPython cannot
     # raise -- one escaping __del__, a weakref callback or a thread bootstrap --
     # is otherwise printed to stderr and the test still passes. This week's

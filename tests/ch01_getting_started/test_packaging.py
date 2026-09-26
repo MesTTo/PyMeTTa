@@ -462,6 +462,10 @@ def test_source_tree_fixtures_coexist_with_installed_plugin_metadata(tmp_path):
             # INTERNALERROR before a single test runs [measured 2026-09-07].
             "-p",
             "no:benchmark",
+            # And the gate's other, since this child is rooted in the seat:
+            # no .pytest_cache there, for the reason test.sh gives beside it.
+            "-p",
+            "no:cacheprovider",
         ],
         cwd=ROOT / "extensions" / "python",
         env=environment,

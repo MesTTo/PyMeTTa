@@ -60,7 +60,9 @@ fi
 # leaving the combined data file the coverage REPORT renders in about two
 # seconds, so the suite is measured once and read twice.
 run_solo GATE pytest       env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" --cov --cov-report=
-run GATE gallery      sh -c "cd '$PYDIR' && '$PY' -m pytest tests/repository/test_executable_docs.py tests/repository/test_gallery.py tests/repository/test_twin_coverage.py::test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity -q --rootdir=. -c pyproject.toml"
+# Every pytest run over this seat passes -p no:cacheprovider, for the reason
+# test.sh gives beside its own: instructions measures from this directory.
+run GATE gallery      sh -c "cd '$PYDIR' && '$PY' -m pytest tests/repository/test_executable_docs.py tests/repository/test_gallery.py tests/repository/test_twin_coverage.py::test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity -q -p no:cacheprovider --rootdir=. -c pyproject.toml"
 run GATE benchmarks   in_py "$PY" bench.py --counter-only --keep-going
 run_solo GATE instructions in_py "$PY" -m benchmarks.check_instructions
 
@@ -657,7 +659,7 @@ for Linux and macOS only; install pymetta[checks] to run this lane" >&2
         return 0
     fi
     metta_memray_status=0
-    in_py "$PY" -m pytest --memray -q -p no:benchmark -n 0 --rootdir=. -c pyproject.toml \
+    in_py "$PY" -m pytest --memray -q -p no:benchmark -p no:cacheprovider -n 0 --rootdir=. -c pyproject.toml \
         "$PYDIR/tests/ch04_spaces_and_matching/test_space_lifecycle.py" \
         "$PYDIR/tests/ch15_writing_transactions_and_worlds/test_worlds.py" \
         "$PYDIR/tests/ch16_events_and_standing_queries/test_events.py" \
@@ -666,14 +668,14 @@ for Linux and macOS only; install pymetta[checks] to run this lane" >&2
         || metta_memray_status=$?
     # Each half of the plant on its own, so the verdict is an exit status
     # rather than a line read out of a report.
-    in_py "$PY" -m pytest --memray -q -p no:benchmark -n 0 --rootdir=. -c pyproject.toml \
+    in_py "$PY" -m pytest --memray -q -p no:benchmark -p no:cacheprovider -n 0 --rootdir=. -c pyproject.toml \
         "$HERE/tests/checks/memray_plant.py::test_two_hundred_dropped_cursors_stay_under_the_bound" \
         || {
             echo "memray: the clean control failed its own bound, so the bound \
 is too tight to tell a leak from the engine's own retention" >&2
             metta_memray_status=1
         }
-    if in_py "$PY" -m pytest --memray -q -p no:benchmark -n 0 --rootdir=. -c pyproject.toml \
+    if in_py "$PY" -m pytest --memray -q -p no:benchmark -p no:cacheprovider -n 0 --rootdir=. -c pyproject.toml \
         "$HERE/tests/checks/memray_plant.py::test_two_hundred_kept_cursors_are_reported"; then
         echo "memray: the planted leak PASSED, so this lane can no longer \
 report one; two hundred retained cursors went unnoticed" >&2

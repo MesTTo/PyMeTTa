@@ -16,6 +16,9 @@
 #     a caller who passes only FLAGS still gets the whole suite.
 #   - every process this starts has faulthandler armed for its whole life,
 #     interpreter shutdown included, which is where a finaliser fault lands.
+#   - no run leaves .pytest_cache in this directory unless the caller passes
+#     `-p cacheprovider` [tested 2026-09-26T10:26:02+10:00:
+#     test_the_pytest_lane_writes_no_cache_unless_asked]
 #   - the exit status is pytest's, unpiped.
 # Open Obligations:
 #   To Do: None
@@ -106,5 +109,33 @@ export PYTHONFAULTHANDLER
 # 'pytest_benchmark_update_machine_info'` -- raised by the plugin this same
 # command disables [measured 2026-09-06]. pytest is the one that can tell a path
 # argument from a flag, so the default belongs in its configuration.
+#
+# The cache provider is off, so no run leaves .pytest_cache in this directory.
+# It is also the working directory and sys.path[0] of every workload the gate's
+# instructions lane counts after this lane, and every workload lists it on
+# import, so an entry one lane leaves here is an input to what another lane
+# counts: one empty directory by that name, nothing else changed, moved
+# term-operators from 1,018,396,244 to 1,038,437,205 instructions:u
+# [measured 2026-09-26T10:15:11+10:00: check_instructions term-operators with
+# the pre-window drain's benchmarks/pure.py placed, without and with an empty
+# .pytest_cache here] and, with this change in the tree, from 1,017,756,286 to
+# 1,016,796,398 [measured 2026-09-26T10:26:04+10:00: the same, on this tree].
+# Which way and how far follows the rest of the tree, so the input is removed
+# rather than pinned. Every other pytest run rooted here passes the same flag
+# for the same reason: bench.py's, check.sh's gallery and memray lanes, and the
+# one child the suite starts here, in
+# tests/ch01_getting_started/test_packaging.py. It goes ahead of the worker
+# protocol, which test_the_pytest_lane_is_deterministic_under_load_protocol
+# reads as one run of flags. Nothing in the suite reads the cache: no test
+# takes the cache fixture or reads config.cache, and pytest-randomly writes its
+# seed there only when the provider is loaded and reads it only for
+# --randomly-seed=last [source 2026-09-26T10:10:25+10:00:
+# pytest_randomly/__init__.py:119-141, pytest-randomly 5.0.0]. Blocked here,
+# on the command line, the provider is never registered, so a bare `--lf` is
+# refused as an unknown option rather than ignored, and a caller's own
+# `-p cacheprovider` after it turns the cache back on
+# [source 2026-09-26T10:13:10+10:00: _pytest/config/__init__.py:837-864,
+# pytest 9.1.1, PytestPluginManager.consider_pluginarg]; pyproject.toml's
+# filterwarnings carries the one warning that costs.
 exec sh "$HERE/../../tools/bounded.sh" \
-    "$PY" -m pytest -q -p no:benchmark -n 16 --dist loadfile --max-worker-restart=16 "$@"
+    "$PY" -m pytest -q -p no:cacheprovider -p no:benchmark -n 16 --dist loadfile --max-worker-restart=16 "$@"

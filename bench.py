@@ -155,6 +155,10 @@ def _arguments_for(
         f"--rootdir={directory}",
         "-c",
         str(directory / "pyproject.toml"),
+        # No .pytest_cache in the seat, for the reason test.sh gives beside the
+        # same flag: the gate's instructions lane runs next, from there.
+        "-p",
+        "no:cacheprovider",
     ]
     if counter_only:
         arguments.append("--benchmark-disable")
