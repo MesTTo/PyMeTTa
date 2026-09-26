@@ -264,12 +264,15 @@ def heartbeat_tick() -> None:
     """Enter Python so CPython can run the signal handlers it has queued.
 
     The engine's interrupt poll, called by ``prolog:heartbeat/0`` every
-    ``config.heartbeat_interval`` inferences. The body is empty on purpose:
-    only CPython runs CPython's signal handlers, it runs them between
-    bytecodes on the main thread, and nothing enters CPython while Prolog is
-    spinning. Crossing at all is the whole mechanism, so a Ctrl-C during a
-    long evaluation raises KeyboardInterrupt instead of waiting for the
-    evaluation to end.
+    ``config.heartbeat_interval`` inferences on the thread that started the
+    runtime (control.pl). The body is empty on purpose: only CPython runs
+    CPython's signal handlers, it runs them between bytecodes on the main
+    thread, and nothing enters CPython while Prolog is spinning. Crossing at
+    all is the whole mechanism, so a Ctrl-C during a long evaluation raises
+    KeyboardInterrupt instead of waiting for the evaluation to end, and a
+    handler that raises has its exception raised as itself from the
+    evaluation, as CPython raises it in whatever code the signal interrupted
+    [tested 2026-09-26T22:47:05+10:00: test_a_signal_stops_every_workload].
 
     The rung below is janus's own ``janus_swi.heartbeat(N)``, which arms the
     same SWI flag with a hook calling its own empty ``heartbeat_tick``. This
@@ -1163,13 +1166,16 @@ class Runtime:
             self._consult_shim()
             # Without a heartbeat, Python never processes a SIGINT while a
             # goal runs: probed, a Ctrl-C on query_once(repeat,fail) stayed
-            # queued past 1.5s. At the default 100,000-inference interval,
-            # the same signal raises KeyboardInterrupt within
-            # ~10ms of engine time (this engine spins ~13M inferences/s),
-            # and an interleaved A/B on a pure 3M-step loop measured parity
-            # with no heartbeat at all; 10,000 cost ~2% on that loop.
-            # config.heartbeat_interval exposes that latency/cost tradeoff
-            # [tested: test_sigint_interrupts_a_running_evaluation].
+            # queued past 1.5s. With it a signal is taken within one interval
+            # of engine work, and each crossing costs a couple of
+            # microseconds, so an interval of N inferences at r inferences a
+            # second spends r/N crossings a second: at the default 100,000 a
+            # 51M inferences/s loop is interrupted within 2 ms and pays under
+            # 0.1%, and 1,000 pays about 9%
+            # [measured 2026-09-26T21:42:06+10:00: 1.7 microseconds a crossing;
+            # python extensions/python/benchmarks/probes/interrupt_poll_price.py].
+            # config.heartbeat_interval is that latency/cost tradeoff
+            # [tested 2026-09-26T22:47:05+10:00: test_a_signal_stops_every_workload].
             #
             # Through the shim rather than janus.heartbeat(), which would
             # install a hook of janus's own that no counter can see: the
@@ -1735,8 +1741,16 @@ class Runtime:
         if row is not None and row.get("truth") is not False:
             kind = row.get("Kind")
             detail = row.get("Detail")
-            if kind == "interrupted" and isinstance(detail, list) and len(detail) == 2 and detail[0] == "scope":
-                return _scope.Cancelled(str(detail[1])), original
+            if kind == "interrupted" and isinstance(detail, list) and len(detail) == 2:
+                source, cause = detail
+                if source == "scope":
+                    return _scope.Cancelled(str(cause)), original
+                # A signal handler raised at the interrupt poll's crossing
+                # (control.pl, prolog:heartbeat/0), so its exception is the
+                # reading, raised as itself the way CPython raises a
+                # handler's exception in the code the signal interrupted.
+                if source == "python" and isinstance(cause, BaseException):
+                    return cause, cause
             error_type = (
                 _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
             )

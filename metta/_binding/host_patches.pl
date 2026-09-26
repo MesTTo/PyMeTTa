@@ -6,4 +6,5 @@
 :- module(metta_host_patches_packages_swipy, [host_patch/2]).
 
 host_patch('janus-callback-exception-leak.patch', '682b7866fc92ffb8f5a58cff80d258107efeea09ee048519e50fbcc53be36c83').
+host_patch('janus-conversion-drops-a-raised-exception.patch', '6464f43b4c970ff8c7042c43dde0a9280061faeb6b359b263d87db058fb082fc').
 host_patch('swi-file-search-cache-autoload.patch', '9017274ed2cc99a2cc938f062881921c1faa8cea9d7d7b1e009242c754db7567').

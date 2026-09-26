@@ -231,6 +231,11 @@ def _stream_failure(error: BaseException) -> tuple[_StreamFailureTag, BaseExcept
     calls, neither followed by ``check_error``;
     commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]. So no iterator this file
     hands to ``py_iter`` may raise; each ends a failure with this pair instead.
+    That is janus as released: the host this engine boots on carries
+    janus-conversion-drops-a-raised-exception.patch, under which such a pull
+    raises in Prolog. The pair stays because a replayable stream must raise
+    the same failure at the same index on every replay, which a failure cached
+    as an item does (``_ReplayableIterator.replay``).
 
     A PAIR, where ``metta._errors.errors.stream_failure`` uses the four-element list
     ``["x", "raise", Class, Exception]``. The shape is forced by the options

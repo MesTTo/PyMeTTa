@@ -170,13 +170,43 @@ metta_py_captured(Pred, Ins, [Out, Text]) :-
 %%%%%%%%%% The interrupt poll, and keeping it out of the counters %%%%%%%%%%
 %
 %SWI calls prolog:heartbeat/0 every `heartbeat` inferences of the running
-%thread. That hook is why a Ctrl-C reaches a program while the engine spins:
-%only CPython runs CPython's signal handlers, and nothing enters CPython while
+%thread or engine, at the first clause entry or foreign redo the count reaches.
+%That hook is why a Ctrl-C reaches a program while the engine spins: only
+%CPython runs CPython's signal handlers, and nothing enters CPython while
 %Prolog is running, so the hook crosses into Python and CPython takes its
 %queued signals there. janus arms it with a clause of its own,
 %`prolog:heartbeat :- py_call(janus_swi:heartbeat_tick())`, whose Python side
 %has an empty body: the CROSSING is the whole mechanism
 %[source: janus_swi 1.5.3, janus.py, heartbeat/1].
+%SWI as released called the hook only where a fact or a foreign predicate
+%exited, which a last-call loop never does, so a Ctrl-C waited for such a loop
+%to end. The host this engine boots on carries the repair, and
+%engine/host_check.pl refuses a host that does not
+%[source 2026-09-26T22:48:21+10:00:
+%tests/checks/host_workarounds/swi-heartbeat-fires-only-at-exits.patch].
+%
+%THE POLL CROSSES ONLY ON THE THREAD THAT ARMED IT. CPython runs a signal
+%handler only on its main thread
+%[source 2026-09-26T22:48:21+10:00:
+%https://docs.python.org/3/library/signal.html#signals-and-threads],
+%and the seat arms the poll on the thread that starts the runtime, the main one
+%when a program builds MeTTa() at its top level. A crossing from any other
+%thread delivers nothing and costs a GIL round trip, a wait whenever a Python
+%thread holds the GIL. A new thread or engine copies the heartbeat with the
+%other Prolog flags, so two rules keep the poll where it works. A thread or
+%engine that STARTS on another operating-system thread is disarmed by its
+%thread_initialization/1 goal before it runs anything, which also keeps a
+%worker's ticks away from the thread that joins it: SWI adds a joined thread's
+%inferences to its joiner's, where no correction sees them
+%[measured 2026-09-26T20:31:17+10:00: before this rule, a stats() block joining
+%one thread that ran forall(between(1,200000,_),true) read 400,025 inferences
+%with the poll off and 403,652 at an interval of 1,000]. And an engine, which
+%runs on whichever thread steps it, crosses only while it runs on the arming
+%one, so a cursor opened and stepped there is interrupted as its caller is,
+%while a scheduler task stepped on a carrier thread only pays the check.
+%Limitation: an engine started on another thread stays disarmed when the
+%arming thread steps it later, and the check a tick pays off that thread is
+%taken out of no reading.
 %
 %The hook is COUNTED WORK, and that is the defect this seat had. Its call port
 %and its body's are ordinary inferences in whatever thread the VM interrupted,
@@ -198,12 +228,12 @@ metta_py_captured(Pred, Ins, [Out, Text]) :-
 %for the block it is trying to interrupt, and writing the flag disturbs the
 %countdown, which measured half the ticks over a loop that rewrote it.
 %
-%The record is per THREAD, because an exited thread's inferences are added to
-%the thread that JOINS it while a running thread's are its own: a worker's
-%ticks must not be subtracted from the measurement its parent is taking.
-%nb_current/2 rather than a bare read, so a thread that reached the hook
-%without this file's thread_initialization/1 counts from zero instead of
-%raising inside the VM's hook.
+%The record is per THREAD and per ENGINE, since each counts its own
+%inferences: an engine's ticks come out of the readings taken inside it and
+%never out of its caller's, whose counter does not hold them. nb_current/2
+%rather than a bare read, so a thread that reached the hook without this
+%file's thread_initialization/1 counts from zero instead of raising inside the
+%VM's hook.
 %
 %WHAT IT SPENT TRAVELS WITH THE COUNTER READING IT SPENT IT AT, in one term,
 %and that is how the correction stays exact. The seat has two numbers to read,
@@ -219,20 +249,64 @@ metta_py_captured(Pred, Ins, [Out, Text]) :-
 %can disagree
 %[tested: heartbeat_accounting:a_tick_records_what_it_spent_and_where_it_happened,
 %test_a_reading_leaves_out_a_tick_that_fired_after_it].
-:- thread_initialization(
-       nb_setval('$metta_heartbeat_ticks', ticks(0, 0, 0, 0))).
 
+%The arming thread's operating-system id, written by metta_py_heartbeat_arm/1.
+%Absent until the seat arms, so a thread started during the boot keeps the
+%flag it inherited.
+:- dynamic metta_py_heartbeat_home/1.
+
+%A new thread or engine starts its tick record from zero, and with the poll
+%off when it starts on another thread. One that starts on the arming thread
+%keeps the interval it inherited, so a block that changed the flag there, as
+%the seat's own tests do, changes it for the engines the block opens too.
+metta_py_heartbeat_thread_start :-
+    nb_setval('$metta_heartbeat_ticks', ticks(0, 0, 0, 0)),
+    (   metta_py_heartbeat_home(Home),
+        \+ current_prolog_flag(system_thread_id, Home)
+    ->  set_prolog_flag(heartbeat, 0)
+    ;   true
+    ).
+
+:- thread_initialization(metta_py_heartbeat_thread_start).
+
+%A tick crosses on the arming thread and only checks anywhere else, and each
+%path records itself with its own charge, so an engine stepped on another
+%thread is corrected as exactly as one stepped on this.
+%
+%A signal handler that raises runs at the crossing, so its exception leaves
+%py_call/2 as a python_error ball, which the seat read as a Python
+%operation's failure and raised as an EngineError, and which a MeTTa catch
+%could take. It is the run being stopped from outside, so it goes on as that
+%signal carrying the handler's exception, and the seat raises that exception
+%as itself, as CPython raises a handler's exception in whatever its main
+%thread was running
+%[tested 2026-09-26T22:47:05+10:00: test_a_signal_stops_every_workload].
+%KeyboardInterrupt and SystemExit never reach the catch, since janus raises
+%them as unwind(keyboard_interrupt) and unwind(halt(Code)). The tick is
+%recorded before the signal goes on, so a reading the caller takes around the
+%stopped run is still corrected for it.
 prolog:heartbeat :-
-    py_call(metta_ops:heartbeat_tick()),
-    metta_py_heartbeat_tick.
+    current_prolog_flag(system_thread_id, Thread),
+    (   metta_py_heartbeat_home(Thread)
+    ->  catch(py_call(metta_ops:heartbeat_tick()),
+              error(python_error(_, Raised), _),
+              true),
+        metta_py_heartbeat_tick(crossed),
+        (   var(Raised)
+        ->  true
+        ;   throw(error(metta_control_signal(interrupted, [python, Raised]),
+                        context(metta, interrupted)))
+        )
+    ;   metta_py_heartbeat_tick(checked)
+    ).
 
 %One term per thread: how many ticks, what they have spent, the counter
 %reading the LAST one happened at, and what the ticks before it had spent.
 %The last pair is what lets the door leave out a tick that fired after its own
 %reading without a second read to ask about it.
-metta_py_heartbeat_tick :-
+metta_py_heartbeat_tick(Path) :-
     statistics(inferences, At),
-    metta_py_heartbeat_charge(Charge),
+    metta_py_heartbeat_charge(Path, Charge),
     (   nb_current('$metta_heartbeat_ticks', ticks(Count, Before, _, _))
     ->  true
     ;   Count = 0, Before = 0
@@ -248,36 +322,52 @@ metta_py_heartbeat_tick :-
 %difference is divided by the ticks it took, which is how a benchmark harness
 %prices its own overhead rather than assuming it [source: OpenJDK JMH,
 %org.openjdk.jmh.infra.Blackhole, calibrated per run].
+%Each path of the hook, crossing and checking, is priced so.
 %
 %A calibration that priced ONE tick would price the wrong one: the first call
 %of a predicate in a process costs an inference more than the calls after it,
 %so a charge taken from it subtracts more than a tick spends and every window
 %that absorbs a tick then reads one LOW. The hook is therefore called once
-%before the measurement and the measurement needs two ticks; once warm, a
-%direct call and a tick the VM raises cost the same
-%[measured 2026-09-08: both 8 inferences; command=python extensions/python/
-%benchmarks/probes/interrupt_poll_accounting.py; commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
-:- dynamic metta_py_heartbeat_charge/1.
-metta_py_heartbeat_charge(0).
+%before the measurement and the measurement needs two ticks. A tick the VM
+%raises costs one inference more than a direct call, the call of
+%'$heartbeat'/0 that runs the hook, which is why the charge is measured on
+%ticks and never on a call
+%[measured 2026-09-26T21:39:02+10:00: 12 inferences a crossing tick and 11 a
+%direct call; python extensions/python/benchmarks/probes/interrupt_poll_accounting.py].
+:- dynamic metta_py_heartbeat_charge/2.
+metta_py_heartbeat_charge(crossed, 0).
+metta_py_heartbeat_charge(checked, 0).
 
-%Arm the poll: calibrate first, then set the flag. Interval is the caller's
-%config.heartbeat_interval; 0 disarms, and the charge then measures nothing
-%because no tick can advance the record.
+%Arm the poll: record this thread as the one it crosses on, which the hook
+%checks and so must precede the calibration, price both paths, then set the
+%flag. The checking path is priced with the record naming no thread, -1 being
+%no thread's id. Interval is the caller's config.heartbeat_interval; 0
+%disarms, and the charges then measure nothing because no tick can advance
+%the record.
 %
-%The calibration spends about 3,400 inferences of the seat's boot, which the
+%The calibration spends about 7,000 inferences of the seat's boot, which the
 %engine's own boot benchmark does not see because it boots without this seat,
 %and buys counters that report the caller's work rather than the seat's
 %polling.
 metta_py_heartbeat_arm(Interval) :-
     must_be(nonneg, Interval),
     set_prolog_flag(heartbeat, 0),
-    retractall(metta_py_heartbeat_charge(_)),
-    assertz(metta_py_heartbeat_charge(0)),
+    current_prolog_flag(system_thread_id, Home),
+    metta_py_heartbeat_price(crossed, Home),
+    metta_py_heartbeat_price(checked, -1),
+    retractall(metta_py_heartbeat_home(_)),
+    assertz(metta_py_heartbeat_home(Home)),
+    set_prolog_flag(heartbeat, Interval).
+
+metta_py_heartbeat_price(Path, Home) :-
+    retractall(metta_py_heartbeat_home(_)),
+    assertz(metta_py_heartbeat_home(Home)),
+    retractall(metta_py_heartbeat_charge(Path, _)),
+    assertz(metta_py_heartbeat_charge(Path, 0)),
     prolog:heartbeat,
     metta_py_heartbeat_calibrate(800, 4, Charge),
-    retractall(metta_py_heartbeat_charge(_)),
-    assertz(metta_py_heartbeat_charge(Charge)),
-    set_prolog_flag(heartbeat, Interval).
+    retractall(metta_py_heartbeat_charge(Path, _)),
+    assertz(metta_py_heartbeat_charge(Path, Charge)).
 
 %The same loop twice, and the difference divided by the ticks. Fewer than two
 %ticks is not a measurement and a difference that does not divide exactly did
@@ -291,7 +381,7 @@ metta_py_heartbeat_arm(Interval) :-
 metta_py_heartbeat_calibrate(Iterations, Attempts, Charge) :-
     set_prolog_flag(heartbeat, 0),
     metta_py_heartbeat_bracket(Iterations, Bare, _),
-    set_prolog_flag(heartbeat, 1000),
+    set_prolog_flag(heartbeat, 100),
     metta_py_heartbeat_bracket(Iterations, Armed, Ticks),
     set_prolog_flag(heartbeat, 0),
     Spent is Armed - Bare,

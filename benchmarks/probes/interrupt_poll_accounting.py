@@ -71,8 +71,8 @@ def tick_cost(iterations=25_600):
 def direct_call_cost():
     """What the hook costs when a clause body calls it rather than the VM.
 
-    One more than the VM spends, because a goal written `prolog:heartbeat` is
-    module-qualified: the reason the charge is calibrated against the VM.
+    One fewer than the VM spends, which runs the hook through the call of
+    '$heartbeat'/0: the reason the charge is calibrated against the VM.
     """
     row = janus_swi.query_once(
         "set_prolog_flag(heartbeat, 0), "
@@ -114,7 +114,7 @@ def main(argv):
         space.add(S.edge(1, 2), S.edge(2, 3), S.edge(3, 1))
         query = parse(FORM.format(space=space.name))
         space.eval(query)  # warm: a first evaluation compiles as well as runs
-        charge = janus_swi.query_once("metta_py_heartbeat_charge(X)")["X"]
+        charge = janus_swi.query_once("metta_py_heartbeat_charge(crossed, X)")["X"]
         print(f"calibrated charge: {charge} inferences a tick")
         print(f"measured tick cost: {tick_cost()} inferences a tick")
         print(f"a direct call of the hook: {direct_call_cost()} inferences")

@@ -525,6 +525,12 @@ metta_py_pair(Pair, [Key, Value]) :-
 %metta_py_guard/2's goal the failure is reported at the pull that raised and
 %wears the py-iter call, not the py-atom that resolved the object.
 %
+%That is janus as released. The host carries
+%janus-conversion-drops-a-raised-exception.patch, under which a raising pull
+%raises in py_iter/2 itself, and the frame stays because host.py's replayable
+%streams cache a failure as an item, to raise it at the same index on every
+%replay.
+%
 %The reservation is the REPEATED VARIABLE in the first head: Tag binds from the
 %item's own first element and must then unify with the tag this process fetched
 %from metta_py, which is blob identity on a private module singleton. An
