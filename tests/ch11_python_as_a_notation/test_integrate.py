@@ -27,6 +27,11 @@ Guarantees:
     test_prolog_integration_aliases_keep_fully_qualified_module_names,
     test_an_explicitly_shared_library_alias_keeps_all_directories;
     commit=a6681e54ded570684ba0e2969f2893ae016a841a]
+  - an op registered after a class definition leaves the next import into the
+    process home bounded, where the op's host adoption queued the home's source
+    in the registering thread and the import's engine asked its pending reader
+    without end [tested 2026-09-26T09:51:00+10:00:
+    test_an_op_registered_beside_a_class_leaves_the_next_import_bounded]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,7 +39,10 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import contextlib
+import json
 import math
+import subprocess
+import sys
 import types
 from dataclasses import dataclass
 
@@ -44,6 +52,7 @@ import metta.integrate as pi
 from metta import Expression, MeTTa, MettaError, S, Symbol, V, convert, ground
 from metta._declare import declarations as _space_declarations
 from metta._errors.errors import SourceNotFound
+from metta._roots import seat
 from metta.convert import CastError
 
 
@@ -796,6 +805,47 @@ def test_networkx_integrates_in_a_page(metta):
     assert space.run("!(nx-path a c)") == [[Expression(S.a, S.b, S.c)]]
     rows = space.match(S.nx_edge(S.a, V.to, V.w))
     assert {(str(r.to), float(r.w)) for r in rows} == {("b", 1.0), ("c", 9.0)}
+
+
+#: The pair that hung an import: a class definition gives the process home a
+#: `from` row, and so a reference face, which the host adoption of an op
+#: registered afterwards invalidates, queuing the home's source in the
+#: registering thread's own pending set; the import, evaluated in a Prolog
+#: engine whose pending set was empty, met the source's pending reader and asked
+#: it again without end. A fresh process, so the home the session drives keeps
+#: no class or op of this test's.
+_QUEUED_PAIR = """
+import json, sys
+from dataclasses import dataclass
+from metta import Space, lib
+home = Space(metta_path=sys.argv[1])
+
+@home.define
+@dataclass(frozen=True)
+class QueuedEdge:
+    a: str
+    b: str
+
+home._new_space().op(lambda a: a, name="queued-op", effect="readOnlyLookup")
+with home.stats() as spent, home.limits(inferences=int(sys.argv[2])):
+    home += lib.datastructures
+print(json.dumps(spent.inferences))
+"""
+
+#: Twice what the import costs after the class definition alone, when the home's
+#: face is republished for each loaded form [measured 2026-09-26T09:51:21+10:00:
+#: 9,237,248 inferences, one process], and the loop spent it in under a second
+#: [measured 2026-09-26T09:51:23+10:00: the pair's import raised
+#: InferenceLimitError 0.758 s in without the resolver's enrolment, one process].
+_QUEUED_PAIR_BOUND = 20_000_000
+
+
+def test_an_op_registered_beside_a_class_leaves_the_next_import_bounded(metta_path):
+    """The pair in a fresh process: the import returns within the bound."""
+    done = subprocess.run([sys.executable, "-c", _QUEUED_PAIR, metta_path, str(_QUEUED_PAIR_BOUND)],
+                          cwd=seat(), capture_output=True, text=True, timeout=600, check=False)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert json.loads(done.stdout.strip().splitlines()[-1]) < _QUEUED_PAIR_BOUND
 
 
 def test_the_routing_frame_metta_subsumes_dispatch(metta):
