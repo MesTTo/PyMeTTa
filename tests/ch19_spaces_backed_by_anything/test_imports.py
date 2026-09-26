@@ -267,6 +267,60 @@ def test_python_sibling_modules_do_not_collide(metta, tmp_path):  # noqa: D103  
         sys.modules.pop(right_module, None)
 
 
+def test_a_python_import_pays_for_the_python_beside_it_and_nothing_else(metta, tmp_path):
+    """The import keeps the sys.modules entry of every Python source beside it.
+
+    So it lists the directory, and what it pays has to follow those sources
+    rather than the directory's other entries: a first import writes Python's
+    __pycache__ where it imports from, and a listing that paid per entry made
+    every later run of a program cost more than its first. Two directories of
+    the same shape cost the same, which is the control; a third, crowded with
+    entries that are not Python sources, has to cost what they cost.
+    """
+    def program(label, crowd):
+        directory = tmp_path / label
+        directory.mkdir()
+        module_name = f"{label}_{uuid.uuid4().hex}"
+        (directory / f"{module_name}.py").write_text("VALUE = 1\n")
+        (directory / "neighbour.py").write_text("VALUE = 2\n")
+        for entry in crowd:
+            if entry.endswith("/"):
+                (directory / entry).mkdir()
+            else:
+                (directory / entry).write_text("")
+        (directory / "root.metta").write_text(f'!(import! &self "{module_name}.py")\n')
+        return directory / "root.metta", module_name
+
+    crowd = ("__pycache__/", "notes.txt", "data.metta", "cached.pyc", ".hidden")
+    programs = {label: program(label, crowd if label == "crowded" else ())
+                for label in ("warm", "bare", "crowded", "again")}
+    try:
+        # The first load after the first Python import pays a one-time four
+        # inferences whether it imports Python or not, so warm alone left bare
+        # at 1,804 against 1,800 whenever this test ran first in its process
+        # [measured 2026-09-26T12:19:31+10:00: six fresh processes], and a
+        # plain load after it leaves all three equal [measured
+        # 2026-09-26T12:22:58+10:00: two fresh processes]. It is the first load
+        # after load_python_source/1 registers the loader's form rewriter
+        # [source 2026-09-26T12:20:29+10:00: metta/_binding/surface.pl,
+        # load_python_source/1].
+        metta.load(str(programs["warm"][0]))
+        settle = tmp_path / "settle.metta"
+        settle.write_text("(= (settled) 1)\n!(settled)\n")
+        metta.load(str(settle))
+        spent = {}
+        for label in ("bare", "crowded", "again"):
+            with metta.stats() as counters:
+                metta.load(str(programs[label][0]))
+            spent[label] = counters.inferences
+        assert spent["again"] == spent["bare"], spent
+        assert spent["crowded"] == spent["bare"], spent
+    finally:
+        for _, module_name in programs.values():
+            sys.modules.pop(module_name, None)
+        sys.modules.pop("neighbour", None)
+
+
 def test_all_overloads_are_registered_before_repair(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     function_name = f"overloaded_{uuid.uuid4().hex}"
     caller_name = f"caller_{uuid.uuid4().hex}"

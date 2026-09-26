@@ -28,6 +28,10 @@
 %     while an explicit Grounded reading is retained as a Python object
 %     reference [tested: test_a_python_tuple_answers_the_same_through_both_doors;
 %     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc].
+%   - importing a Python file costs what the Python sources beside it cost,
+%     whatever else its directory holds, a first import's own __pycache__
+%     included [tested 2026-09-26T12:36:37+10:00:
+%     test_a_python_import_pays_for_the_python_beside_it_and_nothing_else].
 %   - a py-atom type declaration follows its value through a Python round trip
 %     without a process-global Prolog fact owning the Python object [tested:
 %     test_a_py_atom_declaration_dies_with_its_grounded_value;
@@ -735,11 +739,27 @@ python_module_names(CanonPath, ModuleKey, ModuleName) :-
     file_base_name(CanonPath, BaseName),
     file_name_extension(ModuleName, _, BaseName).
 
+%The Python sources beside a file are the modules its import can bind by
+%name, so their sys.modules entries are saved around it and restored after.
+%They are the directory's *.py entries and nothing else, so the listing stays
+%a Python object and fnmatch.filter/2 hands back only those; each name is
+%still decided by file_name_extension/3, as when every entry went through
+%it, so the answer is the same. What changes is what it costs: testing every
+%entry's extension here paid for each one, and the first import from a
+%directory writes Python's __pycache__ into it, so every later run paid one
+%file_name_extension/3 call and one member/2 step more. That read
+%02-import_relative_nested 10,398 on its first run and 10,400 after
+%[measured 2026-09-25T02:10:51+10:00: port profiles of both runs with the
+%callers of file_name_extension/3 and member/2], and 03-python_import 3,543
+%and 3,545 [measured 2026-09-25T02:11:43+10:00: the same pair of profiles].
+%Time: two Python calls, then one member/2 step and one
+%file_name_extension/3 call per Python source.
 python_sibling_module_names(ParentDir, ModuleNames) :-
-    directory_files(ParentDir, Entries),
+    py_call(os:listdir(ParentDir), Entries, [py_object(true)]),
+    py_call(fnmatch:filter(Entries, '*.py'), Sources, [py_string_as(atom)]),
     findall(ModuleName,
-            ( member(Entry, Entries),
-              file_name_extension(ModuleName, py, Entry) ),
+            ( member(Source, Sources),
+              file_name_extension(ModuleName, py, Source) ),
             Names),
     sort(Names, ModuleNames).
 
