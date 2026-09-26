@@ -16,6 +16,12 @@ Guarantees:
     allocation decides can land inside it
     [tested: test_the_controlled_window_holds_the_cyclic_collector_off,
     test_the_controlled_window_holds_the_prolog_gc_thread_off]
+  - where the workload booted SWI, the window opens on SWI's clause and atom
+    garbage collected, so what it counts is the operation and the collection
+    of the operation's own garbage, and not whatever backlog the gc thread
+    had yet to reach [tested 2026-09-26T10:30:30+10:00:
+    test_the_controlled_window_holds_the_prolog_gc_thread_off,
+    test_the_controlled_window_drains_prolog_garbage_whatever_the_thread_was]
   - sized memory/scale joins use that same controlled interval, so retired
     instructions see primitive memberchk/2 work that SWI's inference counter
     cannot [tested: test_instruction_join_workload_checks_both_projection_shapes;
@@ -266,6 +272,44 @@ def _controlled(operation) -> int:
     )
     if prolog_collector == "true":
         prolog.cmd("system", "set_prolog_gc_thread", "false")
+    # The thread stops where it stands, and whatever it had yet to collect,
+    # the erased clauses and dropped atoms setup left, the window's first
+    # collection took on as its own. How far the thread got before the window
+    # opened is its schedule's business, so save-load-metta read two modes over
+    # one count of inferences: 4,077 to 4,078 M instructions with the window's
+    # clause collection reclaiming 40,034 clauses, and 4,051 to 4,053 M with
+    # it reclaiming 20,035, in 2 of 11 samples at the trunk [measured
+    # 2026-09-26T07:35:54+10:00: the lane's sampler with a window diagnostic,
+    # eight processes per arm, two batteries]. Collected here, synchronously
+    # and outside the window, the backlog is gone before any sample counts,
+    # so the window collects the operation's own garbage and nothing else:
+    # save-load-metta's window makes the same collections in every sample, two
+    # of atoms gaining 20,000 and two of clauses, over 2,066,722 inferences
+    # [measured 2026-09-26T10:02:36+10:00: SWI's counters read inside the
+    # window around the operation, fourteen samples]. With the drain, eleven
+    # samples a row on each arm read save-load-metta at 4,051.8 to 4,053.1 M
+    # and save-load-fast, which the same race made read 5,570 to 5,578 M with
+    # one sample in eleven at 5,647 M, at 5,643.1 to 5,645.6 M; sort-atom's
+    # spread narrows from 4,053.8 to 4,076.1 M to 4,059.6 to 4,065.3 M, and
+    # source-load and alpha-unique read 3.2 and 0.8 percent lower, each nearer
+    # its pin [measured 2026-09-26T08:28:49+10:00: benchmarks.check_instructions
+    # over those five rows and save-load-metta without the drain, and with it
+    # from 08:29:52, one battery]. Later samples found a second sub-mode over
+    # the same count of work, whose cause is not established: save-load-metta
+    # at 4,063.6 to 4,065.2 M, 0.33 percent above the first, and save-load-fast
+    # anywhere from 5,641.5 to 5,656.9 M [measured 2026-09-26T09:35:20+10:00:
+    # eleven samples a row, one of save-load-metta's in the upper sub-mode;
+    # the lane from 09:39:34 and 09:41:54, four of six; the counter run above,
+    # thirteen of fourteen]. Both stay inside their rows' bands, where the two
+    # modes before the drain straddled save-load-metta's lower edge. Clauses
+    # go first, since the atoms an erased clause held are collectable only
+    # after it is; draining clauses alone left save-load-metta in two modes
+    # [measured 2026-09-26T08:27:06+10:00: the lane with the clause drain
+    # only, one sample in fourteen at 4,052 M].
+    # A workload that never booted SWI has nothing to drain and is left alone.
+    if prolog is not None:
+        prolog.cmd("system", "garbage_collect_clauses")
+        prolog.cmd("system", "garbage_collect_atoms")
     try:
         if os.write(control, b"enable\n") != len(b"enable\n"):
             raise RuntimeError("perf control enable command was truncated")
