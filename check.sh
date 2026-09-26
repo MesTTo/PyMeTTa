@@ -59,11 +59,14 @@ fi
 # were 62 of that run's 120 minutes. `--cov-report=` collects without printing,
 # leaving the combined data file the coverage REPORT renders in about two
 # seconds, so the suite is measured once and read twice.
+full_width pytest
 run_solo GATE pytest       env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" --cov --cov-report=
 # Every pytest run over this seat passes -p no:cacheprovider, for the reason
 # test.sh gives beside its own: instructions measures from this directory.
 run GATE gallery      sh -c "cd '$PYDIR' && '$PY' -m pytest tests/repository/test_executable_docs.py tests/repository/test_gallery.py tests/repository/test_twin_coverage.py::test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity -q -p no:cacheprovider --rootdir=. -c pyproject.toml"
+full_width benchmarks
 run GATE benchmarks   in_py "$PY" bench.py --counter-only --keep-going
+full_width instructions
 run_solo GATE instructions in_py "$PY" -m benchmarks.check_instructions
 
 # The complexity CLASS, which every other pin here is structurally unable to
@@ -81,6 +84,7 @@ run_solo GATE instructions in_py "$PY" -m benchmarks.check_instructions
 # a family whose work crosses into C is `--paired`, and it is deliberately NOT
 # here: it needs a quiet box, and it is the evidence for a CHANGE that moves
 # work across the boundary rather than something every run should pay.
+full_width scaling
 run GATE scaling      in_py "$PY" -m benchmarks.scaling
 
 # The same question asked of the ENGINE's own claims rather than of a policy
@@ -106,6 +110,7 @@ run GATE scaling      in_py "$PY" -m benchmarks.scaling
 # `--paired`, deliberately not here for the reason the lane above gives; it is
 # what says unique-atom must not carry a row, and its verdict is recorded in
 # that head's own comment.
+full_width cost-rows
 run GATE cost-rows    in_py "$PY" -m benchmarks.costs
 
 # Run the complete fresh-process, min-of-three instrument once and reuse its
@@ -139,6 +144,7 @@ memory_scale_gate() {
     fi
 }
 
+full_width memory-scale
 run_solo REPORT memory-scale      memory_scale_report
 # memory-scale-gate READS the two files memory-scale WRITES, so it is one of
 # the lanes that cannot start until the lane above it has finished. Lanes run
@@ -149,6 +155,7 @@ run_solo REPORT memory-scale      memory_scale_report
 # at once, racing on one pair of files and measuring a box running two copies
 # of the measurement.
 lane_barrier
+full_width memory-scale-gate
 run_solo GATE   memory-scale-gate memory_scale_gate
 
 run GATE packaged sh -c "cd '$HERE' && sh tests/shell/test_packaged_cli.sh"
@@ -194,6 +201,7 @@ run GATE no-packages sh -c "cd '$HERE' && CHECK_PY='$PY' sh tests/shell/test_the
 # !(superpose (1 2)) then !(superpose (3 2)), and comparing text reported the
 # engine's `true` against the library's `True` on 191 of 200 files, which is
 # a spelling and not an answer.
+full_width parity
 run GATE   parity      sh -c "cd '$HERE' && '$PY' extensions/python/tools/example_parity.py"
 
 # The same corpus written in PYTHON: every example under examples/ may gain a
@@ -224,6 +232,7 @@ run GATE   parity      sh -c "cd '$HERE' && '$PY' extensions/python/tools/exampl
 # repairs the burn-down found, `&self` resolved at the add-atom door the way
 # the source door already resolved it, and the compiled default space operand
 # stored as `&self` instead of a `(context-space)` call.
+full_width twins
 run GATE   twins       sh -c "cd '$HERE' && '$PY' extensions/python/tools/twin_coverage.py"
 
 # A gate nobody has watched fail is a gate nobody knows the shape of, so each
@@ -308,6 +317,7 @@ run GATE imports-selftest "$PY" "$HERE/tests/checks/check_imports_selftest.py"
 # counts are exact and reproduce identically across rounds, so there is nothing
 # to be tolerant of. Rebaseline deliberately with --update when a row is meant
 # to move, which is the same contract the other counter gates hold.
+full_width extcost
 run GATE extcost       in_py "$PY" -m benchmarks.extension_cost
 
 # Which (cache Name Policy) rows a workload's own call counts would justify,
@@ -320,6 +330,7 @@ run GATE extcost       in_py "$PY" -m benchmarks.extension_cost
 # suggests belongs in a program, not in this tree; the lane's job is to keep
 # the reading current and visible. It prints the heads the workload called, the
 # rows it would propose, and the measured inferences before and after each.
+full_width memo-advisor
 run REPORT memo-advisor in_py "$PY" -m benchmarks.memo_advisor
 
 # The discrimination, which is a GATE: two plants of the same shape, one pure
@@ -617,6 +628,7 @@ check_mutation() {
     bounded "$PY" "$HERE/extensions/python/tools/mutation_score.py" \
         "$metta_mutation_scratch/mutants/mutmut-cicd-stats.json" "$metta_mutation_target"
 }
+full_width mutation
 run REPORT mutation    check_mutation
 
 # What a test still holds when it ends, which every lane above is structurally
@@ -683,6 +695,7 @@ report one; two hundred retained cursors went unnoticed" >&2
     fi
     return "$metta_memray_status"
 }
+full_width memray
 run REPORT memray      check_memray
 
 # These lanes belong to this component even when their checkers live in tests/checks.
