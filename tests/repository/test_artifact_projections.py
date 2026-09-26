@@ -11,6 +11,7 @@ import builtins
 import json
 import math
 import operator
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -334,16 +335,26 @@ def test_lexer_source_changes_reach_real_tokens_and_reject_drift(tmp_path, monke
     assert pygmentsgen.main([]) == 0
 
 
+#: The identity a fixture commit carries, given in the committing git child's
+#: environment. git-config(1) on user.name (git 2.53.0): "All of these can be
+#: overridden by the GIT_AUTHOR_NAME, GIT_AUTHOR_EMAIL, GIT_COMMITTER_NAME,
+#: GIT_COMMITTER_EMAIL, and EMAIL environment variables", and `-c user.name` is
+#: configuration, so an identity a harness exported for its own `git am` signed
+#: this fixture's commits and the lane credited the harness's author.
+_FIXTURE_IDENTITY = {"GIT_AUTHOR_NAME": "Fixture Author", "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+                     "GIT_COMMITTER_NAME": "Fixture Author", "GIT_COMMITTER_EMAIL": "fixture@example.invalid"}
+
+
 def _origins_clone(path: Path, files: dict[str, str]) -> str:
     """A git repository at `path` whose one new commit holds `files`, answering that commit."""
     path.mkdir(parents=True, exist_ok=True)
-    git = ["git", "-C", str(path), "-c", "user.name=Fixture Author", "-c", "user.email=fixture@example.invalid"]
+    git = ["git", "-C", str(path)]
     subprocess.run([*git, "init", "--quiet"], check=True)
     for name, text in files.items():
         (path / name).parent.mkdir(parents=True, exist_ok=True)
         (path / name).write_text(text, encoding="utf-8")
     subprocess.run([*git, "add", *files], check=True)
-    subprocess.run([*git, "commit", "--quiet", "-m", "fixture"], check=True)
+    subprocess.run([*git, "commit", "--quiet", "-m", "fixture"], check=True, env=os.environ | _FIXTURE_IDENTITY)
     return subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True,
                           text=True).stdout.strip()
 
@@ -365,13 +376,21 @@ def _origins_checkout(root: Path, monkeypatch, files: dict[str, str]) -> Path:
     return manifest
 
 
-def test_example_origins_reads_the_pinned_commit_from_any_clone(tmp_path, monkeypatch):
+@pytest.mark.parametrize("caller", ({}, dict.fromkeys(_FIXTURE_IDENTITY, "Caller")), ids=("unset", "exported"))
+def test_example_origins_reads_the_pinned_commit_from_any_clone(tmp_path, monkeypatch, caller):
     """METTA_UPSTREAM names a clone, never a revision: rows come from the pinned commit.
 
     The clone's HEAD is past the pin, and its working tree carries an untracked
     source too. Neither is credited: the parity lane exports this variable for
     a newer upstream whose untracked ai_fz_progs/ turned this lane red.
+
+    The credited author is the fixture's whether or not the caller exports a
+    git identity of its own, so both are set here rather than inherited.
     """
+    for name in _FIXTURE_IDENTITY:
+        monkeypatch.delenv(name, raising=False)
+    for name, value in caller.items():
+        monkeypatch.setenv(name, value)
     upstream = tmp_path / "upstream"
     pinned = _origins_clone(upstream, {"examples/fixture.metta": "!(+ 1 2)\n"})
     _origins_clone(upstream, {"examples/later.metta": "!(* 3 4)\n"})
