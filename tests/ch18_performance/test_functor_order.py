@@ -61,10 +61,18 @@ def _inferences(space, goal, **inputs):
     with the same prefix spelled `true`
     [measured 2026-09-26T02:54:18+10:00: this file three times under each
     query prefix, one battery on b40cf835c with the labelling applied].
+
+    The count is read through metta_py_work/2, the counter with the interrupt
+    poll's own spending out of it, as the seat's accounted doors read it. The
+    host delivers the heartbeat inside loops, so a tick lands in a window at a
+    count that moves with each planting, and read from statistics/2 the
+    hook's own inferences went into one planting's check: 56 against 41 at
+    the other eleven [measured 2026-09-27T04:53:15+10:00: the whole gate's
+    pytest lane on swipl-patched.7, seed 1576025412].
     """
     row = space.runtime.must(
-        f"garbage_collect_clauses, statistics(inferences, Before), ({goal}), "
-        "statistics(inferences, After), Spent is After - Before",
+        f"garbage_collect_clauses, metta_py_work(open, Before), ({goal}), "
+        "metta_py_work(close, After), Spent is After - Before",
         **inputs,
     )
     return row["Spent"]
@@ -88,6 +96,7 @@ def _tagged_graph(space):
 #: dozen plantings, while across processes it moved between three functors
 #: planted after boot and five [measured 2026-09-24 on the parent of this
 #: change: 66 inferences with 0 to 3 planted, 44 with 5 to 21].
+#: The window is read through metta_py_work/2 for the reason _inferences gives.
 _TAGGED_CHILD = """
 import sys, uuid
 from metta import MeTTa, S, V
@@ -99,8 +108,8 @@ for start, end, weight in ((S.a, S.b, 0.6), (S.b, S.a, 0.5), (S.a, S.c, 0.2), (S
 m.add_tagged_rule(1, S.path(V.x, V.y), S.edge(V.x, V.y))
 m.add_tagged_rule(1, S.path(V.x, V.z), S.edge(V.x, V.y), S.path(V.y, V.z))
 row = m.runtime.must(
-    "statistics(inferences, Before), metta_py_has_tagged_program(Space, Query, true),"
-    " statistics(inferences, After), Spent is After - Before",
+    "metta_py_work(open, Before), metta_py_has_tagged_program(Space, Query, true),"
+    " metta_py_work(close, After), Spent is After - Before",
     Space=m.name, Query=S.path(S.a, S.c).to_wire())
 print("COST", row["Spent"])
 """
