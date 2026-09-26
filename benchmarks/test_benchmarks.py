@@ -429,11 +429,22 @@ _ROWS = 2_000
 # read on one battery path at the landing's HEAD; command=python -c "import
 # benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
 # from extensions/python].
+# Re-pinned 2026-09-26: automatic +12 at n = 12, 15, 18 and 20, plain
+# unchanged. lib_memo's automatic-caching check asks whether the name is
+# tabled at any arity, and now collects the tabled arities through findall/3
+# where it stopped at the first; that costs the automatic arm 8 inferences at
+# every size, since the check runs once before the first force, and the tree
+# the change lands on already read 4 more at every size, inside the four-
+# inference allowance [measured 2026-09-26T13:35:10+10:00: min of three
+# observations per size and mode at bf789ce2c, then with lib_memo.pl's change
+# placed from 13:35:14, one battery; command=python -c "import
+# benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
+# from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_257, "automatic": 17_760},
-    15: {"plain": 953_745, "automatic": 19_014},
-    18: {"plain": 7_605_649, "automatic": 20_268},
-    20: {"plain": 30_412_177, "automatic": 21_104},
+    12: {"plain": 122_257, "automatic": 17_772},
+    15: {"plain": 953_745, "automatic": 19_026},
+    18: {"plain": 7_605_649, "automatic": 20_280},
+    20: {"plain": 30_412_177, "automatic": 21_116},
 }
 
 
