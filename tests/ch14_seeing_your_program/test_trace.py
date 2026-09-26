@@ -16,8 +16,6 @@ from metta import S, Symbol
 from metta._roots import workspace
 from metta.vocabularies import Limit
 
-from .test_features import polling_every
-
 _C_EXTENSION = (
     workspace() / "examples" / "ch19-spaces-backed-by-anything" / "19-03-a-builtin-in-c"
 )
@@ -313,41 +311,38 @@ def test_arming_the_tracer_is_not_charged_to_the_run_bound(m):
     depended on how much else had been loaded. The names below are the
     experiment, run twice with the same budget.
 
-    The interrupt poll is off for all of it, because with it on the two runs
-    are not charged the same work. The bound counts raw inferences, the
-    poll's 15 a tick among them, while stats() leaves the poll out, so the
-    budget is the run's own work and a tick that fell inside one bounded run
-    and not the other cut that run short: armed to tick inside the run, this
-    program kept 257 events at its budget of 12,200 against 258 without, and
-    at every budget the count with the tick was the count 15 lower without
+    The interrupt poll stays at its interval. The host leaves the poll's own
+    inferences out of an inference bound as stats() leaves them out of a
+    reading, so the budget and the bound count the same work wherever a tick
+    falls [source 2026-09-27T15:11:17+10:00:
+    tests/checks/host_workarounds/swi-heartbeat-inferences-charged-to-the-program.patch].
+    On a host that counted them, a tick inside one bounded run and not the
+    other cut that run 15 inferences short, 257 events against 258
     [measured 2026-09-27T10:42:41+10:00: the poll armed to fire inside the
-    bounded run, one fresh process, on swipl-patched.7]. Whether a bound
-    should leave the poll out as stats() does is the host's question, not
-    this test's.
+    bounded run, one fresh process, on swipl-patched.7].
     """
     m.run("(= (armed $n) (if (> $n 0) (armed (- $n 1)) done))")
-    with polling_every(m, 0):
+    m.trace("!(armed 0)")
+    with m.stats() as door:
         m.trace("!(armed 0)")
-        with m.stats() as door:
-            m.trace("!(armed 0)")
-        with m.stats() as ran:
-            whole = m.trace("!(armed 200)")
-        budget = (ran.inferences - door.inferences) // 2
-        before = m.trace("!(armed 200)", inferences=budget)
-        assert before.stopped is Limit.inferences
-        assert 0 < len(before) < len(whole)
+    with m.stats() as ran:
+        whole = m.trace("!(armed 200)")
+    budget = (ran.inferences - door.inferences) // 2
+    before = m.trace("!(armed 200)", inferences=budget)
+    assert before.stopped is Limit.inferences
+    assert 0 < len(before) < len(whole)
 
-        # A thousand more function names, which only the door's own walk reads.
-        # The check is the DIFFERENCE rather than a ratio: the walk costs twelve
-        # inferences per name wherever it starts from, and a ratio would ask the
-        # names to double a door whose cost this test does not set.
-        names = 1000
-        m.run("\n".join(f"(= (armed-filler-{index} $x) $x)" for index in range(names)))
-        with m.stats() as after_door:
-            m.trace("!(armed 0)")
-        assert after_door.inferences - door.inferences > names * 5
+    # A thousand more function names, which only the door's own walk reads.
+    # The check is the DIFFERENCE rather than a ratio: the walk costs twelve
+    # inferences per name wherever it starts from, and a ratio would ask the
+    # names to double a door whose cost this test does not set.
+    names = 1000
+    m.run("\n".join(f"(= (armed-filler-{index} $x) $x)" for index in range(names)))
+    with m.stats() as after_door:
+        m.trace("!(armed 0)")
+    assert after_door.inferences - door.inferences > names * 5
 
-        after = m.trace("!(armed 200)", inferences=budget)
+    after = m.trace("!(armed 200)", inferences=budget)
     assert len(after) == len(before)
     assert [str(e.term) for e in after] == [str(e.term) for e in before]
 

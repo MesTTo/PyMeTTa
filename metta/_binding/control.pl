@@ -1,4 +1,4 @@
-% Purpose: bound and capture execution and account for interrupt polling.
+% Purpose: bound and capture execution, and run the interrupt poll.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: native algebra operations compose with the same bounds as
 %   carrier checks [tested: test_visibility_operations_share_the_native_carrier;
@@ -7,9 +7,9 @@
 % [payload,text] resume packets to the binding generator
 % [tested: test_binding_controlled_signature_mutations_refuse; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Guarantees: an interrupt-poll tick leaves backtracking all it reclaims, since
-% the tick record is updated in place rather than copied to the global stack
-% [tested 2026-09-27T03:11:33+10:00:
-% heartbeat_accounting:a_tick_leaves_backtracking_what_it_reclaims].
+% the tick count is a small integer, which nb_setval/2 stores without copying
+% it to the global stack or freezing the stack [source 2026-09-27T03:04:42+10:00:
+% SWI-Prolog V10.1.14, src/pl-gvar.c setval()].
 % Owns resources: held-engine output redirection; cleanup restores current_output
 % [source: extensions/python/metta/_binding/control.pl:416; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
@@ -171,7 +171,7 @@ metta_py_captured(Pred, Ins, [Out, Text]) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
     with_output_to(string(Text), call(Goal)).
 
-%%%%%%%%%% The interrupt poll, and keeping it out of the counters %%%%%%%%%%
+%%%%%%%%%% The interrupt poll %%%%%%%%%%
 %
 %SWI calls prolog:heartbeat/0 every `heartbeat` inferences of the running
 %thread or engine, at the first clause entry or foreign redo the count reaches.
@@ -189,32 +189,18 @@ metta_py_captured(Pred, Ins, [Out, Text]) :-
 %[source 2026-09-26T22:48:21+10:00:
 %tests/checks/host_workarounds/swi-heartbeat-fires-only-at-exits.patch].
 %
-%THE POLL CROSSES ONLY ON THE THREAD THAT ARMED IT. CPython runs a signal
-%handler only on its main thread
-%[source 2026-09-26T22:48:21+10:00:
-%https://docs.python.org/3/library/signal.html#signals-and-threads],
-%and the seat arms the poll on the thread that starts the runtime, the main one
-%when a program builds MeTTa() at its top level. A crossing from any other
-%thread delivers nothing and costs a GIL round trip, a wait whenever a Python
-%thread holds the GIL. A new thread or engine copies the heartbeat with the
-%other Prolog flags, so two rules keep the poll where it works. A thread or
-%engine that STARTS on another operating-system thread is disarmed by its
-%thread_initialization/1 goal before it runs anything, which also keeps a
-%worker's ticks away from the thread that joins it: SWI adds a joined thread's
-%inferences to its joiner's, where no correction sees them
-%[measured 2026-09-26T20:31:17+10:00: before this rule, a stats() block joining
-%one thread that ran forall(between(1,200000,_),true) read 400,025 inferences
-%with the poll off and 403,652 at an interval of 1,000]. And an engine, which
-%runs on whichever thread steps it, crosses only while it runs on the arming
-%one, so a cursor opened and stepped there is interrupted as its caller is,
-%while a scheduler task stepped on a carrier thread only pays the check.
-%Limitation: an engine started on another thread stays disarmed when the
-%arming thread steps it later, and the check a tick pays off that thread is
-%taken out of no reading.
-%
-%The hook is COUNTED WORK, and that is the defect this seat had. Its call port
-%and its body's are ordinary inferences in whatever thread the VM interrupted,
-%so they landed in whichever measurement was open and a stats() block that
+%THE POLL IS NOT THE PROGRAM'S WORK, and the host leaves it out of every
+%count. The VM marks the frame that runs the hook, and what the hook spends
+%before that frame ends, by exit, exception or cut, is left out of
+%statistics/2, out of the credit a joined thread hands its joiner and out of
+%an inference limit, which waits while the hook runs
+%[source 2026-09-26T23:32:31+10:00:
+%tests/checks/host_workarounds/swi-heartbeat-inferences-charged-to-the-program.patch].
+%So the same work reads the same count at every interval, whether the seat,
+%a held engine or a bound reads it
+%[tested 2026-09-26T23:30:48+10:00: test_a_measurement_is_the_same_with_the_poll_dense,
+%test_heartbeat_correction_is_exact_with_32_concurrent_workers].
+%As released the hook was counted like any other goal, so a stats() block that
 %happened to contain a tick read higher than the identical block beside it: at
 %the shipped 100,000-inference interval, 51 of 4,000 measurements of one
 %659-inference evaluation read 667, and 2,568 of 4,000 did at an interval of
@@ -225,57 +211,48 @@ metta_py_captured(Pred, Ins, [Out, Text]) :-
 %depending on which window the tick fell in, which is what
 %test_analyze_numbers_equal_the_stats_of_the_same_query read as an intermittent
 %on two batteries.
+%The seat then priced its hook at boot and took each tick's price out of every
+%reading. That took a calibration, a record of what each thread's ticks had
+%spent and at which counter reading, and a rule for a tick landing between two
+%reads, and it could not reach call_with_inference_limit/3, which went on
+%counting the ticks, so whether a bound was met depended on where they fell
+%[measured 2026-09-26T23:29:23+10:00: tests/checks/host_workarounds/
+%swi-heartbeat-inferences-charged-to-the-program.pl on a host without that
+%patch, where a bound within ten of a 40,002-inference loop's count stopped
+%the loop at 21 of 21 limits with the poll at 1,000 and at 9 with it off].
 %
-%So the seat arms its OWN hook, which does the same crossing and records what
-%it spent, and the seat takes that out of the counters it reports. Turning the
-%poll off around a measurement was rejected instead: it would make Ctrl-C wait
-%for the block it is trying to interrupt, and writing the flag disturbs the
-%countdown, which measured half the ticks over a loop that rewrote it.
+%THE POLL CROSSES ONLY ON THE THREAD THAT ARMED IT. CPython runs a signal
+%handler only on its main thread
+%[source 2026-09-26T22:48:21+10:00:
+%https://docs.python.org/3/library/signal.html#signals-and-threads],
+%and the seat arms the poll on the thread that starts the runtime, the main one
+%when a program builds MeTTa() at its top level. A crossing from any other
+%thread delivers nothing and costs a GIL round trip, a wait whenever a Python
+%thread holds the GIL. A new thread or engine inherits the heartbeat with the
+%other Prolog flags, so the hook asks which operating-system thread it runs on
+%and crosses only on the arming one: an engine stepped there, such as a cursor
+%its caller opened, is interrupted as its caller is, and a worker thread, or a
+%scheduler task stepped on a carrier thread, only counts its tick.
 %
-%The record is per THREAD and per ENGINE, since each counts its own
-%inferences: an engine's ticks come out of the readings taken inside it and
-%never out of its caller's, whose counter does not hold them. nb_current/2
-%rather than a bare read, so a thread that reached the hook without this
-%file's thread_initialization/1 counts from zero instead of raising inside the
-%VM's hook.
-%
-%WHAT IT SPENT TRAVELS WITH THE COUNTER READING IT SPENT IT AT, in one term,
-%and that is how the correction stays exact. The seat has two numbers to read,
-%the engine's counter and this record, and no goal reads two things at one
-%instant, so a tick landing between the two reads would put its cost on one
-%side and its tally on the other: the same error the subtraction exists to
-%remove. A seqlock's answer is to detect the overlap and retry [source: Linux
-%kernel seqlock, read_seqbegin/read_seqretry], but a retry's own goals land
-%inside the measurement, which measured one reading in four thousand nine
-%inferences high. So the hook records WHERE it fired and what the ticks before
-%it had spent, and the seat leaves out a tick whose recorded reading is past
-%its own. One read, one comparison, no retry, and no window in which the pair
-%can disagree
-%[tested: heartbeat_accounting:a_tick_records_what_it_spent_and_where_it_happened,
-%test_a_reading_leaves_out_a_tick_that_fired_after_it].
+%Each thread and engine counts its own ticks, in a global variable of its own,
+%and a stats() block reports how many ran on its thread inside it.
+
+%A thread or engine starts its count at zero, so reading it costs the same in
+%every one. nb_current/2 on a global variable nobody has written calls SWI's
+%undefined_global_variable hook before it fails, one inference more inside
+%every window the read sits in, so a stats() block would read one more before
+%its thread's first tick than after it
+%[measured 2026-09-26T23:30:44+10:00: an empty block read 7 with the record
+%and 8 without it; python extensions/python/benchmarks/probes/
+%interrupt_poll_accounting.py].
+:- thread_initialization(nb_setval('$metta_heartbeat_ticks', 0)).
 
 %The arming thread's operating-system id, written by metta_py_heartbeat_arm/1.
-%Absent until the seat arms, so a thread started during the boot keeps the
-%flag it inherited.
+%Absent until the seat arms, so no tick crosses before then.
 :- dynamic metta_py_heartbeat_home/1.
 
-%A new thread or engine starts its tick record from zero, and with the poll
-%off when it starts on another thread. One that starts on the arming thread
-%keeps the interval it inherited, so a block that changed the flag there, as
-%the seat's own tests do, changes it for the engines the block opens too.
-metta_py_heartbeat_thread_start :-
-    nb_setval('$metta_heartbeat_ticks', ticks(0, 0, 0, 0)),
-    (   metta_py_heartbeat_home(Home),
-        \+ current_prolog_flag(system_thread_id, Home)
-    ->  set_prolog_flag(heartbeat, 0)
-    ;   true
-    ).
-
-:- thread_initialization(metta_py_heartbeat_thread_start).
-
-%A tick crosses on the arming thread and only checks anywhere else, and each
-%path records itself with its own charge, so an engine stepped on another
-%thread is corrected as exactly as one stepped on this.
+%The tick is counted before the crossing, so one that a signal ends is counted
+%too.
 %
 %A signal handler that raises runs at the crossing, so its exception leaves
 %py_call/2 as a python_error ball, which the seat read as a Python
@@ -284,181 +261,47 @@ metta_py_heartbeat_thread_start :-
 %signal carrying the handler's exception, and the seat raises that exception
 %as itself, as CPython raises a handler's exception in whatever its main
 %thread was running
-%[tested 2026-09-26T22:47:05+10:00: test_a_signal_stops_every_workload].
+%[tested 2026-09-26T23:30:48+10:00: test_a_signal_stops_every_workload].
 %KeyboardInterrupt and SystemExit never reach the catch, since janus raises
-%them as unwind(keyboard_interrupt) and unwind(halt(Code)). The tick is
-%recorded before the signal goes on, so a reading the caller takes around the
-%stopped run is still corrected for it.
+%them as unwind(keyboard_interrupt) and unwind(halt(Code)).
 prolog:heartbeat :-
+    metta_py_heartbeat_ticks(Count),
+    Next is Count + 1,
+    nb_setval('$metta_heartbeat_ticks', Next),
     current_prolog_flag(system_thread_id, Thread),
     (   metta_py_heartbeat_home(Thread)
     ->  catch(py_call(metta_ops:heartbeat_tick()),
               error(python_error(_, Raised), _),
               true),
-        metta_py_heartbeat_tick(crossed),
         (   var(Raised)
         ->  true
         ;   throw(error(metta_control_signal(interrupted, [python, Raised]),
                         context(metta, interrupted)))
         )
-    ;   metta_py_heartbeat_tick(checked)
+    ;   true
     ).
 
-%One term per thread: how many ticks, what they have spent, the counter
-%reading the LAST one happened at, and what the ticks before it had spent.
-%The last pair is what lets the door leave out a tick that fired after its own
-%reading without a second read to ask about it.
-%
-%The term is UPDATED IN PLACE. nb_setval/2 of a compound copies it to the
-%global stack and freezes the stack at its top, and backtracking never lowers
-%the top below that bar [source 2026-09-27T03:04:42+10:00: SWI-Prolog
-%V10.1.14, src/pl-gvar.c setval() and freezeGlobal()]. A tick lands in the
-%middle of whatever the program is building, so a record replaced that way
-%kept what a failure-driven loop had built so far until the next collection.
-%Over sort-atom's instructions benchmark, whose 14 ticks the host's heartbeat
-%repair puts inside its sort, that was one collection and one global stack
-%shift more than with the poll off, 4,535,902,528 instructions where the
-%record updated in place reads 4,072,336,892 [measured
-%2026-09-27T03:11:33+10:00: benchmarks.check_instructions sort-atom, min of
-%three, on swipl-patched.7, against the lane's 2026-09-27T02:54:16+10:00
-%reading before the change]. nb_setarg/3 of a small integer writes the
-%argument cell and neither copies nor freezes [source
-%2026-09-27T03:05:27+10:00: SWI-Prolog V10.1.14, src/pl-prims.c setarg()], and
-%every field is a count far below the tagged integer limit, so a tick
-%allocates nothing. The record stays one term, so a reader's single
-%unification still takes the four fields of one tick.
-metta_py_heartbeat_tick(Path) :-
-    statistics(inferences, At),
-    metta_py_heartbeat_charge(Path, Charge),
-    (   nb_current('$metta_heartbeat_ticks', Record)
-    ->  true
-    ;   nb_setval('$metta_heartbeat_ticks', ticks(0, 0, 0, 0)),
-        nb_getval('$metta_heartbeat_ticks', Record)
-    ),
-    arg(1, Record, Count),
-    arg(2, Record, Before),
-    Next is Count + 1,
-    Total is Before + Charge,
-    nb_setarg(1, Record, Next),
-    nb_setarg(2, Record, Total),
-    nb_setarg(3, Record, At),
-    nb_setarg(4, Record, Before).
+%The tick count, and zero in a thread or engine no tick has reached yet.
+metta_py_heartbeat_ticks(Ticks) :-
+    (   nb_current('$metta_heartbeat_ticks', Count)
+    ->  Ticks = Count
+    ;   Ticks = 0
+    ).
 
-%What one tick costs the counter, MEASURED THE WAY THE VM SPENDS IT rather
-%than written down: a constant here would be wrong the first time the hook's
-%body changes, and the body changes whenever the crossing does. The poll is
-%armed densely, one fixed loop is spent with it off and with it on, and the
-%difference is divided by the ticks it took, which is how a benchmark harness
-%prices its own overhead rather than assuming it [source: OpenJDK JMH,
-%org.openjdk.jmh.infra.Blackhole, calibrated per run].
-%Each path of the hook, crossing and checking, is priced so.
-%
-%A calibration that priced ONE tick would price the wrong one: the first call
-%of a predicate in a process costs an inference more than the calls after it,
-%so a charge taken from it subtracts more than a tick spends and every window
-%that absorbs a tick then reads one LOW. The hook is therefore called once
-%before the measurement and the measurement needs two ticks. A tick the VM
-%raises costs one inference more than a direct call, the call of
-%'$heartbeat'/0 that runs the hook, which is why the charge is measured on
-%ticks and never on a call
-%[measured 2026-09-26T21:39:02+10:00: 12 inferences a crossing tick and 11 a
-%direct call; python extensions/python/benchmarks/probes/interrupt_poll_accounting.py].
-:- dynamic metta_py_heartbeat_charge/2.
-metta_py_heartbeat_charge(crossed, 0).
-metta_py_heartbeat_charge(checked, 0).
-
-%Arm the poll: record this thread as the one it crosses on, which the hook
-%checks and so must precede the calibration, price both paths, then set the
-%flag. The checking path is priced with the record naming no thread, -1 being
-%no thread's id. Interval is the caller's config.heartbeat_interval; 0
-%disarms, and the charges then measure nothing because no tick can advance
-%the record.
-%
-%The calibration spends about 7,000 inferences of the seat's boot, which the
-%engine's own boot benchmark does not see because it boots without this seat,
-%and buys counters that report the caller's work rather than the seat's
-%polling.
+%Arm the poll: record this thread as the one it crosses on, then set the
+%flag. Interval is the caller's config.heartbeat_interval; 0 disarms.
 metta_py_heartbeat_arm(Interval) :-
     must_be(nonneg, Interval),
-    set_prolog_flag(heartbeat, 0),
     current_prolog_flag(system_thread_id, Home),
-    metta_py_heartbeat_price(crossed, Home),
-    metta_py_heartbeat_price(checked, -1),
     retractall(metta_py_heartbeat_home(_)),
     assertz(metta_py_heartbeat_home(Home)),
     set_prolog_flag(heartbeat, Interval).
 
-metta_py_heartbeat_price(Path, Home) :-
-    retractall(metta_py_heartbeat_home(_)),
-    assertz(metta_py_heartbeat_home(Home)),
-    retractall(metta_py_heartbeat_charge(Path, _)),
-    assertz(metta_py_heartbeat_charge(Path, 0)),
-    prolog:heartbeat,
-    metta_py_heartbeat_calibrate(800, 4, Charge),
-    retractall(metta_py_heartbeat_charge(Path, _)),
-    assertz(metta_py_heartbeat_charge(Path, Charge)).
-
-%The same loop twice, and the difference divided by the ticks. Fewer than two
-%ticks is not a measurement and a difference that does not divide exactly did
-%not measure one uniform cost, so both grow the loop and try again; a
-%calibration that cannot be made cannot be guessed, and the seat says so
-%rather than reporting counters it cannot account for.
-%
-%The warm-up and the two-tick floor are the arming door's, above, and the
-%reason is there with them: a charge taken from a cold first call is one
-%inference too high.
-metta_py_heartbeat_calibrate(Iterations, Attempts, Charge) :-
-    set_prolog_flag(heartbeat, 0),
-    metta_py_heartbeat_bracket(Iterations, Bare, _),
-    set_prolog_flag(heartbeat, 100),
-    metta_py_heartbeat_bracket(Iterations, Armed, Ticks),
-    set_prolog_flag(heartbeat, 0),
-    Spent is Armed - Bare,
-    (   Ticks > 1,
-        0 =:= Spent mod Ticks
-    ->  Charge is Spent // Ticks
-    ;   Attempts > 1
-    ->  Left is Attempts - 1,
-        Longer is Iterations * 2,
-        metta_py_heartbeat_calibrate(Longer, Left, Charge)
-    ;   throw(error(metta_py_heartbeat_uncalibrated(Spent, Ticks),
-                    context(metta_py_heartbeat_arm/1,
-                            'the interrupt poll spent no uniform cost over a \c
-                             loop of known size, so its charge cannot be \c
-                             taken out of the counters')))
-    ).
-
-%The rendering, so a boot that cannot price the poll says what happened
-%rather than printing `Unknown error term:`.
-:- multifile prolog:error_message//1.
-prolog:error_message(metta_py_heartbeat_uncalibrated(Spent, Ticks)) -->
-    [ 'the engine\'s interrupt poll spent ~w inferences over ~w ticks of a \c
-       loop of known size, which is not one uniform cost a measurement can \c
-       be corrected by. The counters would report the seat\'s own polling as \c
-       the caller\'s work, so the engine refuses to arm it'-[Spent, Ticks] ].
-
-metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
-    statistics(inferences, Raw0),
-    metta_py_heartbeat_term(Before, _, _, _),
-    forall(between(1, Iterations, _), true),
-    statistics(inferences, Raw1),
-    metta_py_heartbeat_term(After, _, _, _),
-    Spent is Raw1 - Raw0,
-    Ticks is After - Before.
-
-%The counter with the interrupt poll's own spending already out of it, for the
-%doors that report a measurement FROM here rather than handing the pieces
-%across the way metta_py_stats/1 does. Same rule, same arithmetic: a tick
-%whose recorded reading is past this one spent its inferences after it, so
-%what the ticks BEFORE it had spent comes out instead. Without it a door that
-%reports `Used` charges its caller for the seat's Ctrl-C polling, which is one
-%tick's charge in about every fifty thousand inferences it measures
-%[tested: test_nominal_subtyping_does_not_scan_unrelated_declarations, which
-%compares two hundred-evaluation measurements of the same work and allows
-%four].
-%The joined-worker credits this thread discarded come out the same way
-%(engine/metta/control.pl, metta_join_measured/3): a block is charged for the
+%The counter with the joined-worker credits this thread discarded taken out,
+%for the doors that report a measurement FROM here rather than handing the
+%pieces across the way metta_py_stats/2 does: a block is charged for the
 %workers whose answers it used and not for a stopped branch's spend
+%(engine/metta/control.pl, metta_join_measured/3)
 %[tested 2026-09-26T00:36:52+10:00: test_a_race_is_charged_for_its_caller_and_its_winner_only].
 %Each door reads for one EDGE of the window two readings bracket, and the
 %discarded tally is read outside that window: before the inference read at
@@ -472,27 +315,19 @@ metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
 metta_py_work(open, Work) :-
     metta_discarded_inferences(Discarded),
     statistics(inferences, Raw),
-    metta_py_heartbeat_term(_, Spent, At, Before),
-    Late is max(0, sign(At - Raw)),
-    Work is Raw - Spent + Late * (Spent - Before) - Discarded.
+    Work is Raw - Discarded.
 metta_py_work(close, Work) :-
     statistics(inferences, Raw),
-    metta_py_heartbeat_term(_, Spent, At, Before),
     metta_discarded_inferences(Discarded),
-    Late is max(0, sign(At - Raw)),
-    Work is Raw - Spent + Late * (Spent - Before) - Discarded.
+    Work is Raw - Discarded.
 
 %One crossing for the engine's own counters: statistics/2 inferences and
 %cputime, the garbage_collection triple (collections, bytes freed,
 %milliseconds spent), the thread's answer-table bytes, which the tabling
-%review found reachable only through the lower-level runtime, the
-%interrupt poll's four-field term, and the joined-worker credits this thread
-%discarded. The Python side reads deltas around a with-block and takes the
-%poll's charge and the discarded credits out there.
-%The tick's recorded inference position resolves a tick that arrives between
-%the inference read and the tick record; both sides of that boundary retain
-%the polling-disabled cost under concurrent workers
-%[tested: test_heartbeat_correction_is_exact_with_32_concurrent_workers; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+%review found reachable only through the lower-level runtime, the interrupt
+%poll's tick count, and the joined-worker credits this thread discarded. The
+%Python side reads deltas around a with-block and takes the discarded credits
+%out there.
 %
 %The DECISION is Python's and the reading is this door's, because this door
 %is INSIDE every measurement it takes: what it spends between the two
@@ -506,30 +341,21 @@ metta_py_work(close, Work) :-
 %The edge, as for metta_py_work/2: the discarded tally is read outside the
 %window, so the block's own cost stays the six inferences its pins carry.
 metta_py_stats(open, [Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes,
-                      Ticks, Spent, At, Before, Discarded]) :-
+                      Ticks, Discarded]) :-
     metta_discarded_inferences(Discarded),
     statistics(inferences, Inferences),
-    metta_py_heartbeat_term(Ticks, Spent, At, Before),
+    metta_py_heartbeat_ticks(Ticks),
     statistics(cputime, CpuTime),
     statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]),
     statistics(table_space_used, TableBytes).
 metta_py_stats(close, [Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes,
-                       Ticks, Spent, At, Before, Discarded]) :-
+                       Ticks, Discarded]) :-
     statistics(inferences, Inferences),
-    metta_py_heartbeat_term(Ticks, Spent, At, Before),
+    metta_py_heartbeat_ticks(Ticks),
     statistics(cputime, CpuTime),
     statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]),
     statistics(table_space_used, TableBytes),
     metta_discarded_inferences(Discarded).
-
-%The poll's own term, and zeros for a thread that reached this door without
-%this file's thread_initialization/1 rather than an exception from a counter
-%read.
-metta_py_heartbeat_term(Ticks, Spent, At, Before) :-
-    (   nb_current('$metta_heartbeat_ticks', ticks(Ticks0, Spent0, At0, Before0))
-    ->  Ticks = Ticks0, Spent = Spent0, At = At0, Before = Before0
-    ;   Ticks = 0, Spent = 0, At = 0, Before = 0
-    ).
 
 %Run the wrapped call through the engine's user-transaction coordinator:
 %dynamic state and enlisted providers finish first, then the buffered atom

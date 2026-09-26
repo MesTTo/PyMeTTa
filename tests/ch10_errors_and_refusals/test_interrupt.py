@@ -19,10 +19,10 @@ Guarantees:
     streaming cursor, which runs in an engine, and a transaction body, within
     LATENCY of the signal; the process then evaluates (+ 1 2) and exits 0,
     and a stopped transaction leaves no atom it added
-    [tested 2026-09-26T22:47:05+10:00: test_a_signal_stops_every_workload]
+    [tested 2026-09-26T23:30:48+10:00: test_a_signal_stops_every_workload]
   - under a time bound as well, whichever of the signal and the bound comes
     first stops the evaluation and the rest of the guarantee above holds
-    [tested 2026-09-26T22:47:05+10:00: test_signals_and_time_bounds_compose]
+    [tested 2026-09-26T23:30:48+10:00: test_signals_and_time_bounds_compose]
 Owns resources: one child process per case, each joined or killed.
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose
 

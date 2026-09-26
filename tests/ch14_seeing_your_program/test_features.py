@@ -1218,8 +1218,8 @@ def test_a_race_through_a_streaming_door_is_charged_for_its_caller_and_its_winne
     """A race pulled through a held cursor reads one integer, as through run.
 
     The cursor's engine reports its own work through metta_py_work/2, so the
-    credit its discarding join takes back from the stopped loser, and its
-    interrupt poll's spend, come out of the report the block adds; read from
+    credit its discarding join takes back from the stopped loser comes out of
+    the report the block adds; read from
     the raw counter, the report charged the block for however far the loser's
     two-million-step spin got [measured 2026-09-26T00:31:31+10:00: 200 races
     through m.fn on cba7f041e read 1,038 to 9,049 inferences].
@@ -1265,78 +1265,16 @@ def polling_every(space, inferences):
         space.runtime.once(f"set_prolog_flag(heartbeat, {before})")
 
 
-@contextlib.contextmanager
-def planted_poll_state(space):
-    """Write the interrupt poll's own term for a block and put it back.
-
-    The term is per thread and CUMULATIVE -- ticks, what they have spent, the
-    counter reading the last one happened at, and what the ticks before it had
-    spent -- so a test that left a smaller total behind would make the next
-    measurement in this worker subtract a negative. The poll is off for the
-    whole block, which is what makes the save exact: nothing else can move the
-    term while the test owns it.
-    """
-    read = "nb_getval('$metta_heartbeat_ticks', ticks(T, S, A, B))"
-    with polling_every(space, 0):
-        held = space.runtime.once(read)
-
-        def plant(ticks, spent, at, before):
-            space.runtime.once(
-                f"nb_setval('$metta_heartbeat_ticks', "
-                f"ticks({ticks}, {spent}, {at}, {before}))"
-            )
-
-        try:
-            yield plant
-        finally:
-            plant(held["T"], held["S"], held["A"], held["B"])
-
-
-def test_a_reading_leaves_out_a_tick_that_fired_after_it(m):
-    """A counter reading and the poll's tally are two reads, not one instant.
-
-    A tick landing between them would put its cost on one side and its tally on
-    the other, which is the same two inferences the subtraction exists to
-    remove. So the hook records the counter reading it fired at: a tick
-    recorded PAST a reading is left out of it, and what the ticks before it had
-    spent is subtracted instead.
-
-    It happens about once in fifty thousand readings in a live process, and on
-    demand here. Two identical blocks each end by planting a fifth tick that
-    spent six inferences; the first records it BEHIND the reading, so its six
-    come out, and the second records it AHEAD, which is the state a tick
-    landing between the exit reading's two halves leaves, so its six stay in
-    and its tally is not counted either.
-    """
-    m.run("(= (poll-probe $n) (if (== $n 0) done (poll-probe (- $n 1))))")
-    m.eval("(poll-probe 50)")  # warm: a first evaluation compiles as well as runs
-
-    with planted_poll_state(m) as plant:
-        plant(4, 24, 0, 18)
-        with m.stats() as behind:
-            m.eval("(poll-probe 50)")
-            plant(5, 30, 0, 24)
-
-        plant(4, 24, 0, 18)
-        with m.stats() as ahead:
-            m.eval("(poll-probe 50)")
-            plant(5, 30, 10**12, 24)
-
-    assert behind.heartbeats == 1
-    assert ahead.heartbeats == 0, "a tick recorded past the reading is not in it"
-    assert ahead.inferences - behind.inferences == 6
-
-
 def test_a_measurement_is_the_same_with_the_poll_dense(m):
     """The engine's interrupt poll is not the measured block's work.
 
     SWI calls the seat's `prolog:heartbeat/0` every `config.heartbeat_interval`
-    inferences, and that hook crosses into Python so a Ctrl-C can land. Its own
-    call ports are ordinary inferences in the interrupted thread, so before
-    this they landed in whichever measurement was open and two readings of the
-    SAME work differed: the intermittent
+    inferences, and that hook crosses into Python so a Ctrl-C can land. SWI as
+    released counted its call ports as the interrupted thread's, so they
+    landed in whichever measurement was open and two readings of the SAME
+    work differed: the intermittent
     `test_analyze_numbers_equal_the_stats_of_the_same_query` read on two
-    batteries.
+    batteries. The host this seat boots on leaves them out of every count.
 
     So the same work is measured three times here -- with the poll off, at an
     interval dense enough that dozens of ticks land inside the block, and off
@@ -1375,9 +1313,8 @@ def test_the_accounted_door_leaves_the_poll_out_too(m):
     `metta_py_evaluate` with accounting prices one evaluation inside the engine,
     which is what an algebra operation's quota is charged against and what
     `test_nominal_subtyping_does_not_scan_unrelated_declarations` compares two
-    hundred-evaluation runs of. It reads the same counter `stats()` does, so it
-    took the same interrupt poll with it until it took the poll's own record
-    out.
+    hundred-evaluation runs of. It reads the same counter `stats()` does, which
+    the host keeps the interrupt poll out of.
     """
     m.run("(= (accounted-probe $n) (if (== $n 0) done (accounted-probe (- $n 1))))")
     query = parse("(accounted-probe 200)")

@@ -10,11 +10,11 @@ Guarantees: prints, for an exit-free last-call loop and a failure-driven loop
   intervals of 100,000, 10,000 and 1,000, the minimum of ROUNDS interleaved
   rounds, with the cost of one crossing derived from each; then the lateness
   of twenty SIGALRM handlers raised into a spinning goal at 100,000 and 10,000
-  [measured 2026-09-26T21:42:06+10:00: a crossing costs about 1.7
-  microseconds, read at 1,000 where the crossings outweigh the noise (1.73
-  and 1.69), so the poll costs under 0.1% of a 51M inferences/s loop at
-  100,000, where one interval is 2.0 ms, and handlers ran a median 0.18 ms
-  late at 100,000 and 0.05 ms at 10,000].
+  [measured 2026-09-26T23:35:22+10:00: a crossing costs under a
+  microsecond, read at 1,000 where the crossings outweigh the noise (0.88
+  and 0.74), so the poll costs under 0.1% of a 40M inferences/s loop at
+  100,000, where one interval is 2.5 ms, and handlers ran a median 0.20 ms
+  late at 100,000 and 0.04 ms at 10,000].
 Fails when: the box is loaded enough that one round's noise exceeds the
   crossings at 100,000 and 10,000; read the per-crossing figure at 1,000.
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose

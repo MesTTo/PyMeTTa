@@ -272,13 +272,14 @@ def heartbeat_tick() -> None:
     KeyboardInterrupt instead of waiting for the evaluation to end, and a
     handler that raises has its exception raised as itself from the
     evaluation, as CPython raises it in whatever code the signal interrupted
-    [tested 2026-09-26T22:47:05+10:00: test_a_signal_stops_every_workload].
+    [tested 2026-09-26T23:30:48+10:00: test_a_signal_stops_every_workload].
 
     The rung below is janus's own ``janus_swi.heartbeat(N)``, which arms the
     same SWI flag with a hook calling its own empty ``heartbeat_tick``. This
-    seat arms its own hook instead, because a hook that is not counted cannot
-    be subtracted, and ``MeTTa.stats()`` reports the block's work rather than
-    the poll's [tested: test_a_measurement_is_the_same_with_the_poll_dense].
+    seat arms its own hook instead, which crosses only on the thread that
+    armed it, counts the ticks ``MeTTa.stats()`` reports as ``heartbeats``,
+    and raises a handler's exception as the signal that stopped the run
+    rather than as a Python operation's failure (control.pl).
     """
 
 
@@ -1167,21 +1168,21 @@ class Runtime:
             # Without a heartbeat, Python never processes a SIGINT while a
             # goal runs: probed, a Ctrl-C on query_once(repeat,fail) stayed
             # queued past 1.5s. With it a signal is taken within one interval
-            # of engine work, and each crossing costs a couple of
-            # microseconds, so an interval of N inferences at r inferences a
-            # second spends r/N crossings a second: at the default 100,000 a
-            # 51M inferences/s loop is interrupted within 2 ms and pays under
-            # 0.1%, and 1,000 pays about 9%
-            # [measured 2026-09-26T21:42:06+10:00: 1.7 microseconds a crossing;
+            # of engine work, and each crossing costs under a microsecond, so
+            # an interval of N inferences at r inferences a second spends r/N
+            # crossings a second: at the default 100,000 a 40M inferences/s
+            # loop is interrupted within 2.5 ms and pays under 0.1%, and
+            # 1,000 pays 4 to 6%
+            # [measured 2026-09-26T23:35:22+10:00: 0.88 and 0.74 microseconds
+            # a crossing in two loop shapes;
             # python extensions/python/benchmarks/probes/interrupt_poll_price.py].
             # config.heartbeat_interval is that latency/cost tradeoff
-            # [tested 2026-09-26T22:47:05+10:00: test_a_signal_stops_every_workload].
+            # [tested 2026-09-26T23:30:48+10:00: test_a_signal_stops_every_workload].
             #
-            # Through the shim rather than janus.heartbeat(), which would
-            # install a hook of janus's own that no counter can see: the
-            # shim's hook does the same crossing and counts itself, so
-            # stats() reports the measured block's work and not the poll's
-            # [tested: test_a_measurement_is_the_same_with_the_poll_dense].
+            # Through the shim rather than janus.heartbeat(), whose hook
+            # crosses on every thread and hands a handler's exception back
+            # as a Python operation's failure: the shim's hook does the same
+            # crossing on this thread only and raises it as the signal.
             self._janus.cmd(
                 "user", "metta_py_heartbeat_arm", config.heartbeat_interval
             )

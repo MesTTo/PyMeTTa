@@ -1,22 +1,23 @@
-"""Purpose: price the engine's interrupt poll and show what it did to a
-measurement, so the counter door's subtraction is read from numbers rather than
-argued: the same evaluation measured many times over, with the poll off, at the
-shipped interval and dense, before and after the correction.
-Assumes: `metta` imports (PYTHONPATH=extensions/python) and the engine boots;
-  run as `python extensions/python/benchmarks/probes/interrupt_poll_accounting.py`
-  from the repository root. `--raw` reports what the counters read WITHOUT the
-  correction, which is what the tree measured before this door existed.
-Guarantees: prints the calibrated charge, what a tick costs the counter as the
-  VM spends it, the cost of an empty stats() block, and one row per poll
-  interval with the distinct readings of one identical evaluation and the ticks
-  those readings absorbed
-  [measured 2026-09-08: at the shipped 100,000-inference interval, 20,000
-  measurements of one 658-inference evaluation read ONE value with the
-  correction and two without it, 37 of 3,000 landing 2 high; a tick costs 6
-  inferences and an empty block 7, against 5 before the poll was accounted;
-  the citations in extensions/python/metta/_binding/shim.pl's poll section and in
-  _space_objects.py's _without_the_interrupt_poll read this probe;
-  commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
+"""Purpose: show the engine's interrupt poll staying out of a measurement: the
+same evaluation measured many times over, with the poll off, at the shipped
+interval and dense, through stats() and through the raw counter.
+Assumes: `metta` imports (PYTHONPATH=extensions/python) and the engine boots,
+  which it does only on a host carrying
+  swi-heartbeat-inferences-charged-to-the-program.patch; run as
+  `python extensions/python/benchmarks/probes/interrupt_poll_accounting.py`
+  from the repository root.
+Guarantees: prints what the poll's ticks add to a fixed loop's count, what a
+  thread this one joins or only waits beside adds to its counter, the cost of
+  an empty stats() block with the thread's tick record and without it, and
+  one row per poll interval with the distinct readings of one identical
+  evaluation through stats() and through statistics/2, and the ticks the
+  stats() readings absorbed
+  [measured 2026-09-26T23:30:44+10:00: the poll added 0 inferences to a
+  51,200-inference loop over 51 ticks; a joined 2,000,000-inference thread
+  moved this counter by 2,000,015 and a detached one by 6; an empty block
+  read 7, and 8 in a thread without a tick record; 4,000 measurements of one
+  evaluation read one value at each of 0, 100,000 and 1,000, 666 through
+  stats() and 665 raw, absorbing 0, 26 and 2,604 ticks].
 Fails when: the interval is left where the probe put it -- it restores the
   shipped one on the way out, and a KeyboardInterrupt during a dense arm leaves
   the poll dense for the rest of the process.
@@ -36,51 +37,37 @@ FORM = "(match {space} (, (edge $x $y) (edge $y $z) (edge $z $x)) ($x $y $z))"
 INTERVALS = (0, 100_000, 1_000)
 
 
-def readings(space, query, runs, *, raw):
-    """The distinct inference readings of one evaluation, and the ticks seen."""
-    seen: dict[int, int] = {}
+def readings(space, query, runs):
+    """The distinct readings of one evaluation, through stats() and raw, and the ticks."""
+    through_stats: dict[int, int] = {}
+    raw: dict[int, int] = {}
     ticks = 0
     for _ in range(runs):
-        if raw:
-            before = janus_swi.query_once("statistics(inferences, X)")["X"]
+        with space.stats() as counters:
             space.eval(query)
-            after = janus_swi.query_once("statistics(inferences, X)")["X"]
-            count = after - before
-            absorbed = 0
-        else:
-            with space.stats() as counters:
-                space.eval(query)
-            count, absorbed = counters.inferences, counters.heartbeats
-        seen[count] = seen.get(count, 0) + 1
-        ticks += absorbed
-    return seen, ticks
+        through_stats[counters.inferences] = through_stats.get(counters.inferences, 0) + 1
+        ticks += counters.heartbeats
+        before = janus_swi.query_once("statistics(inferences, X)")["X"]
+        space.eval(query)
+        count = janus_swi.query_once("statistics(inferences, X)")["X"] - before
+        raw[count] = raw.get(count, 0) + 1
+    return through_stats, raw, ticks
 
 
 def tick_cost(iterations=25_600):
-    """What one tick costs the counter, as the VM itself spends it."""
+    """What the poll's ticks add to a fixed loop's count, and how many ran."""
     row = janus_swi.query_once(
         "set_prolog_flag(heartbeat, 0), "
-        f"metta_py_heartbeat_bracket({iterations}, Bare, _), "
-        "set_prolog_flag(heartbeat, 1000), "
-        f"metta_py_heartbeat_bracket({iterations}, Armed, Ticks), "
-        "set_prolog_flag(heartbeat, 100000), Spent is Armed - Bare"
+        "statistics(inferences, _B0), forall(between(1, Iterations, _), true), "
+        "statistics(inferences, _B1), "
+        "set_prolog_flag(heartbeat, 1000), metta_py_heartbeat_ticks(_T0), "
+        "statistics(inferences, _A0), forall(between(1, Iterations, _), true), "
+        "statistics(inferences, _A1), metta_py_heartbeat_ticks(_T1), "
+        "set_prolog_flag(heartbeat, 100000), "
+        "Added is (_A1 - _A0) - (_B1 - _B0), Ticks is _T1 - _T0",
+        {"Iterations": iterations},
     )
-    return row["Spent"] / row["Ticks"] if row["Ticks"] else None
-
-
-def direct_call_cost():
-    """What the hook costs when a clause body calls it rather than the VM.
-
-    One fewer than the VM spends, which runs the hook through the call of
-    '$heartbeat'/0: the reason the charge is calibrated against the VM.
-    """
-    row = janus_swi.query_once(
-        "set_prolog_flag(heartbeat, 0), "
-        "statistics(inferences, B0), statistics(inferences, B1), Read is B1 - B0, "
-        "statistics(inferences, C0), prolog:heartbeat, statistics(inferences, C1), "
-        "set_prolog_flag(heartbeat, 100000), Cost is C1 - C0 - Read"
-    )
-    return row["Cost"]
+    return row["Added"], row["Ticks"]
 
 
 def thread_fold(loops=1_000_000):
@@ -106,38 +93,60 @@ def thread_fold(loops=1_000_000):
     return joined, detached
 
 
-def main(argv):
-    """Print the poll's price and what it does to a repeated measurement."""
-    raw = "--raw" in argv
+def empty_block(space):
+    """What an empty stats() block reads, warm."""
+    with space.stats():
+        pass
+    with space.stats() as empty:
+        pass
+    return empty.inferences
+
+
+def without_the_record(space):
+    """An empty block in a thread whose tick record was never written.
+
+    Its read is one inference dearer there, the reason control.pl starts every
+    thread's record at zero; the record is put back afterwards.
+    """
+    held = janus_swi.query_once("nb_getval('$metta_heartbeat_ticks', Held)")["Held"]
+    janus_swi.query_once("nb_delete('$metta_heartbeat_ticks')")
+    try:
+        return empty_block(space)
+    finally:
+        janus_swi.query_once("nb_setval('$metta_heartbeat_ticks', Held)", {"Held": held})
+
+
+def main():
+    """Print what the poll adds to a count, and what a repeated measurement reads."""
     runs = 4_000
     with MeTTa() as metta, metta.space("&poll-probe") as space:
         space.add(S.edge(1, 2), S.edge(2, 3), S.edge(3, 1))
         query = parse(FORM.format(space=space.name))
         space.eval(query)  # warm: a first evaluation compiles as well as runs
-        charge = janus_swi.query_once("metta_py_heartbeat_charge(crossed, X)")["X"]
-        print(f"calibrated charge: {charge} inferences a tick")
-        print(f"measured tick cost: {tick_cost()} inferences a tick")
-        print(f"a direct call of the hook: {direct_call_cost()} inferences")
+        added, ticks = tick_cost()
+        print(f"the poll adds {added} inferences to a fixed loop over {ticks} ticks")
         joined, detached = thread_fold()
         print(
             f"another thread's 2,000,000 inferences move this counter by "
             f"{joined} when joined and {detached} when detached"
         )
-        with space.stats() as empty:
-            pass
-        print(f"an empty stats() block: {empty.inferences} inferences")
+        print(
+            f"an empty stats() block: {empty_block(space)} inferences, and "
+            f"{without_the_record(space)} in a thread without a tick record"
+        )
         for interval in INTERVALS:
             janus_swi.query_once(f"set_prolog_flag(heartbeat, {interval})")
             try:
-                seen, ticks = readings(space, query, runs, raw=raw)
+                seen, raw, ticks = readings(space, query, runs)
             finally:
                 janus_swi.query_once("set_prolog_flag(heartbeat, 100000)")
             print(
                 f"interval {interval:>7}: {runs} measurements read "
-                f"{dict(sorted(seen.items()))}, absorbing {ticks} ticks"
+                f"{dict(sorted(seen.items()))} through stats() and "
+                f"{dict(sorted(raw.items()))} raw, absorbing {ticks} ticks"
             )
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())

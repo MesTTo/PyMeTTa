@@ -29,38 +29,7 @@ from metta._binding.runtime import Runtime
 from metta._errors.errors import EngineError
 from metta._lazy import lazy
 
-_SNAPSHOT_WIDTH = 11
-
-def _without_the_interrupt_poll(
-    raw: float,
-    ticks: float,
-    spent: float,
-    at: float,
-    before: float,
-) -> tuple[int | float, int | float]:
-    """One counter reading with the engine's interrupt poll taken out of it.
-
-    SWI calls the seat's ``prolog:heartbeat/0`` every
-    ``config.heartbeat_interval`` inferences so a Ctrl-C can reach Python
-    while the engine runs, and the hook's own call ports are ordinary
-    inferences in the interrupted thread. They are not the measured block's
-    work, so they come out: ``spent`` is what the polls have cost this thread
-    and it is subtracted from the counter.
-
-    ``at`` is why this is exact rather than nearly right. The counter and the
-    poll's tally are two reads, and no goal reads two things at one instant,
-    so a tick landing between them would put its cost on one side and its
-    tally on the other -- the same two inferences the subtraction exists to
-    remove. The hook therefore records the counter reading it fired at, in the
-    same term as the tally, and a tick recorded PAST this reading is a tick
-    whose cost is not in it: `before`, what the ticks up to that one had
-    spent, is subtracted instead
-    [tested: test_a_reading_leaves_out_a_tick_that_fired_after_it,
-    test_a_measurement_is_the_same_with_the_poll_dense].
-    """
-    if at > raw:
-        return raw - before, ticks - 1
-    return raw - spent, ticks
+_SNAPSHOT_WIDTH = 8
 
 def _stats_snapshot(
     rt: Runtime,
@@ -90,20 +59,17 @@ def _stats_snapshot(
             msg = f"engine statistics returned a non-numeric counter: {value!r}"
             raise EngineError(msg)
         values.append(value)
-    inferences, ticks = _without_the_interrupt_poll(
-        values[0], values[6], values[7], values[8], values[9]
-    )
     # The credits of joined workers this thread discarded, a race's losers
-    # and cancelled futures, come out here too; both counters are cumulative,
-    # so the block's delta is the delta of their difference.
+    # and cancelled futures, come out here; both counters are cumulative, so
+    # the block's delta is the delta of their difference.
     return (
-        inferences - values[10],
+        values[0] - values[7],
         values[1],
         values[2],
         values[3],
         values[4],
         values[5],
-        ticks,
+        values[6],
     )
 
 class _StatsBlock:
@@ -117,10 +83,12 @@ class _StatsBlock:
 
     `inferences` is the block's own work. The engine's interrupt poll, which
     crosses into Python every `config.heartbeat_interval` inferences so a
-    Ctrl-C can land, costs inferences of its own in whatever thread the VM
-    interrupts, and those are NOT the block's: they are subtracted, and
-    `heartbeats` says how many times the poll ran inside the block. Without
-    that subtraction two measurements of the same work differed, one time in
+    Ctrl-C can land, is not: the host leaves what the poll spends out of
+    every count, so the same work reads the same number at any interval, and
+    `heartbeats` says how many times the poll ran on this thread inside the
+    block [tested 2026-09-26T23:30:48+10:00:
+    test_a_measurement_is_the_same_with_the_poll_dense]. SWI as released
+    counted them, and two measurements of the same work differed, one time in
     eighty at the shipped interval and two times in three at a dense one
     [measured 2026-09-08: 51 of 4,000 measurements of one 659-inference
     evaluation read 667, and 2,568 of 4,000 did at an interval of 1,000;
@@ -130,10 +98,10 @@ class _StatsBlock:
     A thread the block JOINS inside its window is counted, because SWI adds an
     exited thread's inferences to the thread that joins it, and waiting for
     that work is doing it; a detached thread finishing beside the block is not
-    [measured 2026-09-08: a joined 2,000,000-inference thread moves the
-    joiner's counter by 2,000,013 and a detached one by 7; command=python
-    extensions/python/benchmarks/probes/interrupt_poll_accounting.py;
-    commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6]. A joined worker whose
+    [measured 2026-09-26T23:30:44+10:00: a joined 2,000,000-inference thread
+    moves the joiner's counter by 2,000,015 and a detached one by 6;
+    python extensions/python/benchmarks/probes/interrupt_poll_accounting.py].
+    A joined worker whose
     answer the block did not use is NOT: a race's losers, a cancelled
     thread-backed future or timer, the branches a `par-any` or `par-forall`
     stopped, are joined through the engine's discarding door and their
@@ -148,7 +116,7 @@ class _StatsBlock:
     such as `race()` or a `fn` call reads from, is one integer too: that
     engine reports its own work through metta_py_work/2, so the credit its
     discarding join takes back comes out there
-    [tested 2026-09-26T23:59:26+10:00: test_a_race_through_a_streaming_door_is_charged_for_its_caller_and_its_winner_only].
+    [tested 2026-09-27T00:06:02+10:00: test_a_race_through_a_streaming_door_is_charged_for_its_caller_and_its_winner_only].
     Read from the raw counter it was not [measured 2026-09-26T00:31:32+10:00:
     200 races through `fn` on cba7f041e read 1,038 to 9,049 inferences, the
     held engine's part 909 to 8,920, and 200 through `run` read 1,167 each].
@@ -231,7 +199,9 @@ class _StatsBlock:
             a - b for a, b in zip(after, before, strict=True)
         )
         # The two metta_py_stats crossings themselves sit inside the
-        # window; their cost is a few hundred inferences, the noise floor.
+        # window, the same 7 inferences in every block, which an empty block
+        # reads [measured 2026-09-26T23:30:44+10:00: python
+        # extensions/python/benchmarks/probes/interrupt_poll_accounting.py].
         # AsyncMeTTa enters and exits the same block in distinct copied
         # request contexts. The entry context has already ended, so its token
         # cannot leak and cannot be reset from the exit request [tested:

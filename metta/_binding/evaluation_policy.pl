@@ -5,9 +5,9 @@
 % [tested: test_evaluation_presets_and_records_share_one_policy;
 % commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Guarantees: a held goal reports its engine's own work through metta_py_work/2,
-% so the credit a discarding join takes back and the interrupt poll's spend
-% come out of the Used a stats block adds, and a race pulled through a
-% streaming door reads one integer [tested 2026-09-26T07:56:01+10:00:
+% so the credit a discarding join takes back comes out of the Used a stats
+% block adds, and a race pulled through a streaming door reads one integer
+% [tested 2026-09-27T00:06:02+10:00:
 % test_a_race_through_a_streaming_door_is_charged_for_its_caller_and_its_winner_only].
 % Decides: only declared presets are specialized; dynamic collections retain
 % indexed clauses rather than generating the product of all option values
@@ -87,8 +87,9 @@ evaluation_clause(metta_py_collect(status, _, Space, Term, _, Results), Goal) :-
 % A held engine reports the work between its two readings through
 % metta_py_work/2, as the accounted path above does, so the report is the
 % engine's own work: the credit a race inside it takes back at a discarding
-% join, and its interrupt poll's spend, both sit in that engine's own tallies
-% and come out there. Read from statistics(inferences) alone, a race through a
+% join sits in that engine's own tally and comes out there, and its interrupt
+% poll's spend never enters its count, which the host keeps the poll out of.
+% Read from statistics(inferences) alone, a race through a
 % streaming door charged its caller for however far the stopped loser got,
 % 1,038 to 9,049 inferences over 200 races where run read 1,167 each
 % [measured 2026-09-26T00:31:31+10:00: 200 par-races through m.fn, then 200
