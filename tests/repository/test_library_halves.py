@@ -9,9 +9,10 @@ child, and reads the artifact that child wrote, which also covers the half's
 nested governed dependency; a later process starts no child and loads every
 governed source from its artifact while an ungoverned nested source loads from
 source and gains no artifact; and two later processes read the same inference
-count [tested: test_the_first_import_compiles_each_half_once_in_a_child,
+count, the second with SWI's file-search sweep last run at the epoch
+[tested 2026-09-26T19:42:20+10:00: test_the_first_import_compiles_each_half_once_in_a_child,
 test_a_later_process_loads_every_governed_source_from_its_artifact,
-test_two_later_processes_read_the_same_inference_count; commit=0a81c782fd6ba00984c36e58e228f73bca810dee].
+test_two_later_processes_read_the_same_inference_count].
 Assumes: the copied engine/ and lib/ boot on the host running this suite, and a
 `false` executable exists to stand in for a foreign swipl [assumed 2026-09-24].
 Owns resources: pytest owns the copied tree and the decoy; every subprocess is
@@ -25,6 +26,21 @@ then names: the compile child used to be started from that flag, so on a host
 whose PATH found the stock swipl the host check refused every child and no
 artifact was ever written [measured 2026-09-24: 47 of 47 warm-up children
 refused]. A script would not do, since SWI names a script's #! interpreter.
+
+Each probe fixes SWI's file_search_cache_time at its maximum before it boots,
+the protocol every counted process follows
+(docs/journal/2026-09-07-merged-tree-reconciliations.md: the twin launch
+preamble fixes it outside the counted operation). At the default ten seconds a
+cache miss sweeps the cache once half of that has passed since the last sweep
+[source 2026-09-26T19:44:01+10:00:
+https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/boot/init.pl#L1490-L1563],
+and the sweep is Prolog work inside the window: with the third process's stamp
+aged and the default lifetime, the import cost it 4 inferences more than the
+second [measured 2026-09-26T19:41:58+10:00: 63,374 against 63,370, three runs
+of three], the gap the pytest lane read between the two later processes at a
+load of 122 [measured 2026-09-26T19:10:46+10:00: 63,374 against 63,370]. The
+third process's sweep stamp is aged to the epoch, so the equality is asked of
+an expired clock every run, not only when a process happens to run slowly.
 """
 
 from __future__ import annotations
@@ -51,14 +67,17 @@ NESTED = "lib/lib_encoding/lib_encoding.pl"
 UNGOVERNED = "lib/lib_csv/support/csv_codec.pl"
 
 #: One import in a fresh process: which children the claim started, how SWI
-#: loaded every file inside the window, and what the window cost.
+#: loaded every file inside the window, and what the window cost. The fourth
+#: argument, `aged`, sets the cache sweep's last run to the epoch first.
 PROBE = r'''
 import json, sys
-seat, tree, library = sys.argv[1:4]
+seat, tree, library, clock = sys.argv[1:5]
 sys.path.insert(0, seat)
+import janus_swi as janus
+# Engines inherit flags when created, so the lifetime is set before boot.
+janus.cmd("system", "set_prolog_flag", "file_search_cache_time", 9223372036854775807)
 from metta import MeTTa
 m = MeTTa(metta_path=tree).self
-import janus_swi as janus
 janus.consult("library_halves_probe", """
 :- module(library_halves_probe, []).
 :- use_module(library(prolog_wrap), [wrap_predicate/4]).
@@ -70,6 +89,9 @@ janus.consult("library_halves_probe", """
 user:message_hook(load_file(done(_, file(_, Absolute), How, _, _, _)), _, _) :-
     watching, assertz(loaded(Absolute, How)), fail.
 """)
+if clock == "aged":
+    janus.query_once("retractall(system:'$search_path_gc_time'(_)), "
+                     "assertz(system:'$search_path_gc_time'(0))")
 janus.query_once("assertz(library_halves_probe:watching)")
 before = janus.query_once("statistics(inferences, I)")["I"]
 m.run(f"!(import! &self (library {library}))")
@@ -107,9 +129,9 @@ def runs(tmp_path_factory):
     environment = {**os.environ,
                    "PATH": os.pathsep.join((str(decoy), os.environ.get("PATH", "")))}
 
-    def run() -> dict:
+    def run(clock: str) -> dict:
         result = subprocess.run(
-            [sys.executable, "-c", PROBE, str(seat()), str(tree), LIBRARY],
+            [sys.executable, "-c", PROBE, str(seat()), str(tree), LIBRARY, clock],
             cwd=tree, env=environment, capture_output=True, text=True, check=False,
         )
         assert result.returncode == 0, result.stdout + result.stderr
@@ -123,7 +145,8 @@ def runs(tmp_path_factory):
                              for path in report["spawned"]]
         return report
 
-    return {"tree": tree, "decoy": decoy, "first": run(), "later": run(), "again": run()}
+    return {"tree": tree, "decoy": decoy, "first": run("fresh"), "later": run("fresh"),
+            "again": run("aged")}
 
 
 def test_the_first_import_compiles_each_half_once_in_a_child(runs):
@@ -150,5 +173,5 @@ def test_a_later_process_loads_every_governed_source_from_its_artifact(runs):
 
 
 def test_two_later_processes_read_the_same_inference_count(runs):
-    """Neither pays a compile, so the import costs both the same."""
+    """Neither pays a compile or a cache sweep, so the import costs both the same."""
     assert runs["later"]["inferences"] == runs["again"]["inferences"]
