@@ -41,6 +41,7 @@ import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from benchmarks import decide_width
 from metta import Grounded, Space
 
 CLAUSES = (8, 16, 32)
@@ -144,6 +145,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("clauses", type=int, nargs="*", default=CLAUSES)
     arguments = parser.parse_args(argv)
+    decide_width("measures")
     for row in rows(arguments.clauses):
         print(
             f"clauses={row.clauses:3d} crossings={row.crossings:5d} "

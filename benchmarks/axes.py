@@ -42,6 +42,7 @@ from collections.abc import Callable
 
 from metta_benchmarking import measure_instructions
 
+from benchmarks import decide_width
 from metta import MeTTa, S, Space
 from metta._roots import seat
 
@@ -256,6 +257,8 @@ def main(argv: list[str] | None = None) -> int:
         # The only thing on stdout, because the driver reads it back.
         print(run_case(arguments.case))
         return 0
+    # The report measures; a --case is the child perf counts, which must not.
+    decide_width("measures")
     _report()
     return 0
 

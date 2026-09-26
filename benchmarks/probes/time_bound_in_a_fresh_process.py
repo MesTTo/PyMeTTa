@@ -25,6 +25,7 @@ REPO = next(parent for parent in Path(__file__).resolve().parents if (parent / '
 sys.path.insert(0, str(REPO / "extensions" / "python"))
 
 import metta  # noqa: E402
+from benchmarks import decide_width  # noqa: E402
 from metta._errors.errors import InferenceLimitError, TimeLimitError  # noqa: E402
 
 SPIN = REPO / "ai-tmp" / "probes" / "time-bound-forever.metta"
@@ -32,6 +33,7 @@ SPIN = REPO / "ai-tmp" / "probes" / "time-bound-forever.metta"
 
 def main() -> int:
     """Twelve rounds of the two bounds over a program that never returns."""
+    decide_width("measures")
     SPIN.parent.mkdir(parents=True, exist_ok=True)
     SPIN.write_text(
         "(= (spin) (spin))\n"

@@ -58,6 +58,7 @@ sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parent
 
 import metta
 import metta._catalog.bounds as config_module
+from benchmarks import decide_width
 from metta import MeTTa, S, V
 
 #: What the constant was before the bound became a row [source:
@@ -217,6 +218,7 @@ def main() -> int:
     )
     parser.add_argument("--bounds", action="store_true", help="the rows themselves")
     asked = parser.parse_args()
+    decide_width("measures")
     if asked.read or not (asked.write or asked.bounds or asked.subscription):
         read()
     if asked.write:

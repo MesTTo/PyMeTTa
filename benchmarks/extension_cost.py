@@ -53,6 +53,7 @@ from pathlib import Path
 
 from metta_benchmarking import BenchmarkBaseline
 
+from benchmarks import decide_width
 from benchmarks.configuration import counter_configuration
 from metta import Space
 from metta._roots import workspace
@@ -459,6 +460,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--update", action="store_true")
     arguments = parser.parse_args(argv)
 
+    # The table's microseconds column is a wall-clock reading, a load-sensitive
+    # one whatever the inference columns it sits beside (tools/full_width.sh).
+    decide_width("measures")
     measured = rows()
     print(_render(measured))
     print()

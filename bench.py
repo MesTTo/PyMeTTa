@@ -249,6 +249,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.skip:
             print(f"skipping {', '.join(sorted(set(arguments.skip)))}")
         directory = Path(__file__).resolve().parent
+        # Memory figures are this run's evidence, and a run beside it moves them.
+        from benchmarks import decide_width  # noqa: PLC0415 -- after the members are on the path
+
+        decide_width("measures")
         return run_suite(
             names=selected,
             repetitions=arguments.memory_repetitions,
@@ -285,6 +289,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.update_baseline and json_target is None and not arguments.counter_only:
         json_target = directory / "benchmarks" / "pytest-baseline.json"
 
+    # The cases run one process at a time, and the wall clock is on unless
+    # --counter-only turns it off: then the counters are inference counts,
+    # which load does not move, and nothing here is full-width.
+    if not arguments.counter_only:
+        from benchmarks import decide_width  # noqa: PLC0415 -- after the members are on the path
+
+        decide_width("measures")
     context = multiprocessing.get_context("spawn")
     failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="metta-benchmark-json-") as temporary:

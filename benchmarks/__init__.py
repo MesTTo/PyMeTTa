@@ -16,6 +16,10 @@ Guarantees:
     reads that whole time and nothing shorter, the seat's one reading of a
     stamp, which the twins lane's re-pin and the three ledgers share
     [tested 2026-09-25T04:18:23+10:00: test_a_measurement_is_stamped_as_date_prints_it].
+  - `decide_width` decides a driver's width by the workspace's rule and holds
+    the machine while a full-width driver runs, reaching the rule only when
+    called, so a process perf measures imports nothing more for it
+    [tested 2026-09-27T02:16:58+10:00: test_a_measuring_driver_holds_the_machine].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,6 +31,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import tempfile
 from collections.abc import Callable, Mapping
 from datetime import datetime
@@ -58,6 +63,24 @@ def started() -> str:
     second commit.
     """
     return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def decide_width(width: int | str) -> str:
+    """Decide this driver by the workspace's rule, holding the machine when full-width.
+
+    WIDTH is the processes the driver runs at once, or "measures" for one that
+    reads a wall clock, retired instructions, cycles or memory
+    (tests/checks/full_width.py). The workspace's checks come onto the path
+    here and not at import: benchmarks.pure imports this package and runs
+    under perf, and a path entry or a module more in its image would move
+    what it counts.
+    """
+    from _workspace import ROOT  # noqa: PLC0415 -- see above
+
+    sys.path.append(str(ROOT / "tests" / "checks"))
+    import full_width  # noqa: PLC0415 -- see above
+
+    return full_width.invocation(width)
 
 
 def atomic_json(path: Path, document: Mapping[str, Any]) -> None:

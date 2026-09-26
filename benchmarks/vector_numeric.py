@@ -12,11 +12,13 @@ allowance; dimension traversal is linear and arithmetic also depends on bit size
 
 import time
 
+from benchmarks import decide_width
 from metta import MeTTa, lib
 
 
 def main():
     """Check exact goldens, then print costs at geometrically growing dimensions."""
+    decide_width("measures")
     with MeTTa() as engine:
         engine += lib.vector  # noqa: PLW2901 -- the import returns the same context owner
         goldens = [

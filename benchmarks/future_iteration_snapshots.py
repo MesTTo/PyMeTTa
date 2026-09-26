@@ -43,6 +43,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from benchmarks import decide_width
 from metta import Atom, MeTTa, S, spawn
 from metta.parallel import FutureSpace
 from metta.subscribe import Subscription
@@ -150,6 +151,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("polls", type=int, nargs="*", default=POLLS)
     parser.add_argument("--atoms", type=int, default=ATOMS)
     arguments = parser.parse_args(argv)
+    decide_width("measures")
     for row in rows(arguments.polls, arguments.atoms):
         print(
             f"polls={row.polls:3d} atoms={row.atoms:4d} "

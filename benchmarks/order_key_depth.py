@@ -39,6 +39,7 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from benchmarks import decide_width
 from metta import Atom, Expression, G, Grounded, S, Symbol, Variable
 from metta._atoms.factories import order_key
 
@@ -166,6 +167,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--repetitions", type=int, default=REPETITIONS)
     parser.add_argument("--rounds", type=int, default=ROUNDS)
     arguments = parser.parse_args(argv)
+    decide_width("measures")
     for row in rows(arguments.depths, arguments.repetitions, arguments.rounds):
         items = "failed" if row.current_items is None else str(row.current_items)
         print(

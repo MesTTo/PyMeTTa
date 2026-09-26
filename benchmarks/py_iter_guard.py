@@ -41,6 +41,7 @@ import argparse
 import time
 
 import metta._binding.host as metta_py
+from benchmarks import decide_width
 from metta._binding.runtime import runtime
 
 #: The two goals differ in exactly one conjunct. Both build their own source
@@ -100,6 +101,7 @@ def main() -> None:
     parser.add_argument("--items", type=int, default=20_000)
     parser.add_argument("--rounds", type=int, default=3)
     arguments = parser.parse_args()
+    decide_width("measures")
 
     items = arguments.items
     arms = prolog_arms(items, arguments.rounds)

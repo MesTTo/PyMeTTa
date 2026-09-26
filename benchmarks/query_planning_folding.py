@@ -37,6 +37,7 @@ from pathlib import Path
 from time import process_time_ns
 from typing import Any
 
+from benchmarks import decide_width
 from benchmarks.query_planning import finish_metadata, source_snapshot
 from metta import MeTTa
 from metta._roots import workspace
@@ -104,6 +105,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.samples < 1:
         parser.error("samples must be a positive integer")
+    decide_width("measures")
     before = source_snapshot()
     git = shutil.which("git")
     if git is None:

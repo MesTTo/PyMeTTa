@@ -43,6 +43,7 @@ from time import process_time_ns
 
 import janus_swi
 
+from benchmarks import decide_width
 from benchmarks.query_planning import finish_metadata, source_snapshot
 from metta import MeTTa, S
 
@@ -142,6 +143,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--load-mode", choices=("run", "reload", "fast"), default="run")
     parser.add_argument("--metadata", type=Path, required=True)
     args = parser.parse_args(argv)
+    decide_width("measures")
     before = source_snapshot()
     metadata = {
         "workload": "materialization", "mode": args.mode,

@@ -46,6 +46,7 @@ import time
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 
+from benchmarks import decide_width
 from metta import Atom, Expression, G, S
 from metta.derivation import Derivation, Fact, Node, Step, _node, _walk
 
@@ -249,6 +250,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--facts", type=int, nargs="+", default=FACT_COUNTS)
     parser.add_argument("--rounds", type=int, default=ROUNDS)
     arguments = parser.parse_args(argv)
+    decide_width("measures")
     for depth_row in (measure_depth(depth, arguments.rounds) for depth in arguments.depths):
         print(
             f"depth={depth_row.depth:5d} "

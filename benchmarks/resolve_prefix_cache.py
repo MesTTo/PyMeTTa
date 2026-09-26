@@ -42,6 +42,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import metta._binding.host as metta_py
+from benchmarks import decide_width
 
 DEPTHS = (4, 16, 64)
 REPETITIONS = 5_000
@@ -158,6 +159,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--repetitions", type=int, default=REPETITIONS)
     parser.add_argument("--rounds", type=int, default=ROUNDS)
     arguments = parser.parse_args(argv)
+    decide_width("measures")
     for row in rows(arguments.depths, arguments.repetitions, arguments.rounds):
         print(
             f"depth={row.depth:3d} repetitions={row.repetitions:6d} "

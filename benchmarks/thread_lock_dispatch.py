@@ -46,6 +46,7 @@ from typing import Any
 
 from metta_benchmarking import measure_instructions
 
+from benchmarks import decide_width
 from benchmarks.engine_workloads import close_engine_case, space_name_case
 from benchmarks.pure import _controlled
 from metta._binding.runtime import _CALL_LOCKS, _LOCK, Runtime
@@ -134,6 +135,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
     if arguments.controlled and arguments.case is None:
         parser.error("--controlled applies only to --case")
+    # A report measures; a --case is the child perf counts, which must not.
+    if arguments.case is None:
+        decide_width("measures")
     if arguments.micro:
         _micro_report()
     elif arguments.instructions:

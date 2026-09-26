@@ -24,6 +24,7 @@ from pathlib import Path
 
 from metta_benchmarking import measure_instructions
 
+from benchmarks import decide_width
 from benchmarks.pure import _controlled
 from metta import Expression, MeTTa, S, V, arrow, equation, seg, typed
 from metta._roots import workspace
@@ -117,6 +118,8 @@ def main() -> int:
     if args.controlled and args.matrix:
         parser.error("--controlled applies only to --case")
     if args.matrix:
+        # The matrix measures; a --case is the child perf counts, which must not.
+        decide_width("measures")
         cases = [(family, n) for family in ("trailing", "prefix")
                  for n in (0, 1, 2, 4, 8)]
         cases += [("two", n) for n in (2, 4, 8)]

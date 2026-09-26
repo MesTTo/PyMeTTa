@@ -102,7 +102,6 @@ import signal
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -112,6 +111,10 @@ from pathlib import Path
 # bootstrap files, and the marker is the workspace's, the tree holding engine/ and lib/.
 REPO = next(parent for parent in Path(__file__).resolve().parents
        if (parent / "engine").is_dir() and (parent / "lib").is_dir())
+# The workspace's width rule, which every runner here decides by.
+sys.path.insert(0, str(REPO / "tests" / "checks"))
+import full_width  # noqa: E402  -- the path is installed above
+
 SKIPS = REPO / "tests" / "data" / "example_skips.txt"
 #: A verdict line, by its SHAPE rather than by a word inside it. Both
 #: configurations print `is X, should Y. <mark>` per `!(test ...)`, and reading
@@ -685,7 +688,7 @@ def main() -> int:
 
     sys.path.insert(0, str(REPO / "extensions" / "python"))
     started = os.getloadavg()[0]
-    with ThreadPoolExecutor() as pool:
+    with full_width.pool(len(paths)) as pool:
         found = [d for d in pool.map(compare, paths) if d is not None]
 
     for difference in found:

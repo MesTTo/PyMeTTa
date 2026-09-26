@@ -1,10 +1,11 @@
-"""Purpose: set up the suite's import path and load its two harness plugins.
+"""Purpose: set up the suite's import path and load its three harness plugins.
 
 `_workspace.on_path()` is the one implementation of the path; this is the hook
 that runs it before a test module imports a member. The benchmark drivers call
 the same function for the same reason, since they run as their own processes.
 `tests._xdist_scheduling` keeps a replaced xdist worker from wedging the run,
-and `tests._progress_timeout` times each item by its progress, not the clock.
+`tests._progress_timeout` times each item by its progress, not the clock, and
+`tests._full_width` decides the run's width once it knows its tests.
 
 Assumes: this file's directory is importable, which pytest's `pythonpath = ["."]`
   provides and which this file also arranges for itself, because a conftest is
@@ -15,6 +16,8 @@ Guarantees:
   - every run under this rootdir loads `tests._xdist_scheduling` and
     `tests._progress_timeout` [tested: test_the_suite_loads_the_restart_scheduler,
     test_the_suite_times_items_by_progress; commit=51660d49c0291583453328617e311fad6ff028f0]
+  - every run under this rootdir loads `tests._full_width`
+    [tested 2026-09-27T02:16:58+10:00: test_the_suite_decides_its_width]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -38,4 +41,4 @@ on_path()
 # conftest, and this one is loaded by every run beneath it, a run narrowed to
 # one file included
 # [source: https://docs.pytest.org/en/stable/deprecations.html#pytest-plugins-in-non-top-level-conftest-files].
-pytest_plugins = ["tests._xdist_scheduling", "tests._progress_timeout"]
+pytest_plugins = ["tests._xdist_scheduling", "tests._progress_timeout", "tests._full_width"]

@@ -47,7 +47,7 @@ from unittest.mock import patch
 
 import metta.algebra as carrier
 import metta.algebra._demand as demand
-from benchmarks import atomic_json
+from benchmarks import atomic_json, decide_width
 from metta import MeTTa, S, V
 from metta._roots import workspace
 from metta.algebra import AlgebraEvaluation, evaluate
@@ -232,6 +232,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if (args.workload == "join" and args.family in {"two-hub", "small-third"}
             and any(size % 4 for size in sizes)):
         parser.error("two-hub edge counts must be multiples of four")
+    decide_width("measures")
     before = source_snapshot()
     metadata = {
         "workload": args.workload, "control": args.control,

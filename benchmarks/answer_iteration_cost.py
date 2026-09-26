@@ -42,6 +42,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from types import FunctionType
 
+from benchmarks import decide_width
 from metta._spaces.results import Answers
 
 CALLS = 2_000
@@ -122,6 +123,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--calls", type=int, default=CALLS)
     parser.add_argument("--rounds", type=int, default=ROUNDS)
     arguments = parser.parse_args(argv)
+    decide_width("measures")
     for row in rows(calls=arguments.calls, rounds=arguments.rounds):
         print(
             f"padding={row.padding:4d} positions={row.positions:5d} "

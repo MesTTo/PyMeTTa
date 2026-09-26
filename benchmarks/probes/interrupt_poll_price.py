@@ -28,6 +28,7 @@ import time
 
 import janus_swi
 
+from benchmarks import decide_width
 from metta import Space
 
 ROUNDS = int(os.environ.get("ROUNDS", "9"))
@@ -103,6 +104,7 @@ def lateness_rows() -> None:
 
 def main() -> int:
     """Print both tables and restore the shipped interval."""
+    decide_width("measures")
     with Space("&poll-price"):
         janus_swi.consult("poll_price", data="""
             spin_to(N, N) :- !.

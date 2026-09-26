@@ -29,6 +29,7 @@ from pathlib import Path
 
 from metta_benchmarking import BenchmarkBaseline, measure_instructions, measured_main
 
+from benchmarks import decide_width
 from benchmarks.configuration import counter_configuration
 from benchmarks.pure import _CASES
 
@@ -89,6 +90,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--update", action="store_true")
     arguments = parser.parse_args(argv)
 
+    decide_width("measures")
     directory = Path(__file__).resolve().parent
     baseline = BenchmarkBaseline(directory / "baseline.json", update=arguments.update)
     # Several cases boot the engine, so the C-reader mode moves their

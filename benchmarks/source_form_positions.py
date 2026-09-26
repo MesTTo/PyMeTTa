@@ -37,6 +37,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import metta._binding.positions as _source_forms
+from benchmarks import decide_width
 from metta._binding.positions import SourceForm
 
 SIZES = (500, 1_000, 2_000, 4_000)
@@ -126,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("sizes", nargs="*", type=int, default=list(SIZES))
     parser.add_argument("--rounds", type=int, default=ROUNDS)
     args = parser.parse_args(argv)
+    decide_width("measures")
     print("forms quadratic_us current_us")
     for count in args.sizes:
         row = measure(count, args.rounds)

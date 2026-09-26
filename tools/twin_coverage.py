@@ -206,7 +206,6 @@ import sys
 import textwrap
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -225,6 +224,7 @@ from pathlib import Path
 sys.path.insert(0, str(next(parent for parent in Path(__file__).resolve().parents
      if (parent / 'pyproject.toml').exists() or (parent / '.git').exists())))
 import example_parity as parity
+import full_width  # on the path example_parity installed, beside it
 
 # The seat's one reading of a stamp and its one clock, which the three ledgers
 # stamp their rows with too; the names are the ones this file used for them.
@@ -3152,9 +3152,13 @@ def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> N
 
 
 def _full_lane_round(examples: list[Path], entries: list[dict]) -> list[Verdict]:
-    """One observation of the same scheduler and work mix the gate runs."""
+    """One observation of the same scheduler and work mix the gate runs.
+
+    Its pool is where this tool's width is created, so it decides there: the
+    whole corpus is full-width and a few named twins are not.
+    """
     protocol = full_lane_protocol(len(examples))
-    with ThreadPoolExecutor(max_workers=FULL_LANE_WORKERS) as pool:
+    with full_width.pool(len(examples), FULL_LANE_WORKERS) as pool:
         return list(
             pool.map(
                 lambda path: check(path, entries, protocol=protocol),

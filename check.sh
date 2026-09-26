@@ -64,7 +64,6 @@ run_solo GATE pytest       env CHECK_PY="$PY" sh "$HERE/extensions/python/test.s
 # Every pytest run over this seat passes -p no:cacheprovider, for the reason
 # test.sh gives beside its own: instructions measures from this directory.
 run GATE gallery      sh -c "cd '$PYDIR' && '$PY' -m pytest tests/repository/test_executable_docs.py tests/repository/test_gallery.py tests/repository/test_twin_coverage.py::test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity -q -p no:cacheprovider --rootdir=. -c pyproject.toml"
-full_width benchmarks
 run GATE benchmarks   in_py "$PY" bench.py --counter-only --keep-going
 full_width instructions
 run_solo GATE instructions in_py "$PY" -m benchmarks.check_instructions
@@ -84,7 +83,6 @@ run_solo GATE instructions in_py "$PY" -m benchmarks.check_instructions
 # a family whose work crosses into C is `--paired`, and it is deliberately NOT
 # here: it needs a quiet box, and it is the evidence for a CHANGE that moves
 # work across the boundary rather than something every run should pay.
-full_width scaling
 run GATE scaling      in_py "$PY" -m benchmarks.scaling
 
 # The same question asked of the ENGINE's own claims rather than of a policy
@@ -110,7 +108,6 @@ run GATE scaling      in_py "$PY" -m benchmarks.scaling
 # `--paired`, deliberately not here for the reason the lane above gives; it is
 # what says unique-atom must not carry a row, and its verdict is recorded in
 # that head's own comment.
-full_width cost-rows
 run GATE cost-rows    in_py "$PY" -m benchmarks.costs
 
 # Run the complete fresh-process, min-of-three instrument once and reuse its
@@ -123,13 +120,16 @@ run GATE cost-rows    in_py "$PY" -m benchmarks.costs
 # measured and pinned, but cannot turn a loaded host red.
 memory_scale_report() {
     in_py "$PY" bench.py --memory-scale --memory-repetitions 3 \
-        --timeout 200 --keep-going --json "$MEMORY_SCALE_DATA"
+        --timeout 200 --keep-going --json "$MEMORY_SCALE_DATA" 6>&-
     memory_scale_result=$?
     printf '%s\n' "$memory_scale_result" > "$MEMORY_SCALE_STATUS"
     return "$memory_scale_result"
 }
 
 memory_scale_gate() {
+    # A memory measurement's verdict, whether this lane runs the measurement
+    # or reads the one memory-scale ran beside it (tools/full_width.sh).
+    metta_full_width_invocation measures || return $?
     if [ ! -s "$MEMORY_SCALE_STATUS" ]; then
         memory_scale_report
     fi
@@ -330,7 +330,6 @@ run GATE extcost       in_py "$PY" -m benchmarks.extension_cost
 # suggests belongs in a program, not in this tree; the lane's job is to keep
 # the reading current and visible. It prints the heads the workload called, the
 # rows it would propose, and the measured inferences before and after each.
-full_width memo-advisor
 run REPORT memo-advisor in_py "$PY" -m benchmarks.memo_advisor
 
 # The discrimination, which is a GATE: two plants of the same shape, one pure
@@ -622,14 +621,25 @@ check_mutation() {
         # test_the_atom_factories_are_concrete_to_a_type_checker].
         PYTEST_ADDOPTS=${METTA_MUTATION_TESTS:-tests/ch03_atoms_and_expressions/test_atoms.py --deselect tests/ch03_atoms_and_expressions/test_atoms.py::test_the_atom_factories_are_concrete_to_a_type_checker}
         export PYTEST_ADDOPTS
-        bounded "$PY" -m mutmut run "$metta_mutation_target" || exit $?
-        bounded "$PY" -m mutmut export-cicd-stats >/dev/null || exit $?
+        # mutmut generates and runs mutants os.cpu_count() at a time unless
+        # told otherwise [source 2026-09-27T01:24:11+10:00: mutmut 3.7.0
+        # __main__.py, _run: max_children = os.cpu_count() or 4], and a mutant
+        # set outnumbers them, so that is this invocation's width
+        # (tools/full_width.sh).
+        metta_full_width_invocation "$(bounded "$PY" -c 'import os; print(os.cpu_count() or 4)')" || exit $?
+        bounded "$PY" -m mutmut run "$metta_mutation_target" 6>&- || exit $?
+        bounded "$PY" -m mutmut export-cicd-stats >/dev/null 6>&- || exit $?
     ) || return $?
     bounded "$PY" "$HERE/extensions/python/tools/mutation_score.py" \
         "$metta_mutation_scratch/mutants/mutmut-cicd-stats.json" "$metta_mutation_target"
 }
+# Alone, because the width it decides above is every core: beside other lanes
+# its mutants would take the cores those lanes were counted against, and held
+# to one lane's share (tools/full_width.sh) it would run that many mutants at
+# once instead of one per core. Alone, it has every core without taking one
+# from a neighbour.
 full_width mutation
-run REPORT mutation    check_mutation
+run_solo REPORT mutation    check_mutation
 
 # What a test still holds when it ends, which every lane above is structurally
 # unable to see: the suite counts ENGINE-SIDE handles -- open cursors, live
@@ -708,6 +718,7 @@ artifact_protocol_sync_witnesses() {
     bounded env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" "$HERE/extensions/python/tests/repository/test_protocol_projections.py" "$HERE/extensions/python/tests/repository/test_protocol_source.py" "$HERE/extensions/python/tests/repository/test_operator_documentation.py" "$HERE/extensions/python/tests/ch11_python_as_a_notation/test_protocol_programs.py" || return $?
 }
 # Owner: extensions/python; artifact inputs and outputs stay in this component.
+full_width protocol-sync-selftest 4
 run GATE protocol-sync-selftest artifact_protocol_sync_witnesses
 
 # Owner: extensions/python; artifact inputs and outputs stay in this component.

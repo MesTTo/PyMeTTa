@@ -71,12 +71,12 @@ METTA_ROOT="$HERE/../.."
 # is 62 per cent of the run, so workers past sixteen buy nothing until that
 # test does].
 # The benchmark plugin is disabled because it refuses parallel timing; the
-# dedicated benchmark lanes own those measurements. Four workers is the fixed
+# dedicated benchmark lanes own those measurements. Sixteen workers is the fixed
 # load-tested ceiling rather than a machine-size-dependent `auto` expansion
 # [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
 # commit=dcfc20be4933c19140ccb5759291401d13058301].
 #
-# Through bounded.sh, so the four xdist workers and everything they spawn share
+# Through bounded.sh, so the sixteen xdist workers and everything they spawn share
 # this process's fate; conftest.py bounds each worker's own children in turn.
 # Spelled as the path rather than through a `bounded` function, because a
 # function cannot be exec'd and this file's exit status must stay pytest's.

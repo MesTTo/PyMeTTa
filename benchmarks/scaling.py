@@ -1182,6 +1182,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     # of the process perf measures.
     from bench import finish_process  # noqa: PLC0415
 
+    # One process at a time over inference counts, which load does not move,
+    # unless --paired adds retired instructions, which it does.
+    if arguments.paired:
+        from benchmarks import decide_width  # noqa: PLC0415 -- deferred with the import above
+
+        decide_width("measures")
     return run_suite(
         names=list(arguments.names),
         repetitions=arguments.repetitions,
