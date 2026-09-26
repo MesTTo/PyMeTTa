@@ -68,10 +68,15 @@ PYTHON_SERVICES = {
     "metta.foreign": ("_provider_length",),
     "metta.algebra": ("_carrier_type_accepts",),
     "builtins": ("id", "str", "type"),
+    # A Python import's sibling listing: one directory read and one pattern
+    # filter, so the import pays for the Python sources beside it and nothing
+    # else (surface.pl, python_sibling_module_names/2).
+    "fnmatch": ("filter",),
     # The reclamation barrier's Python collector; the call is also the
     # Prolog-to-Python crossing that hands back janus's deferred releases.
     "gc": ("collect",),
     "importlib.util": ("module_from_spec", "spec_from_file_location"),
+    "os": ("listdir",),
     "sys": (
         "modules.__contains__", "modules.__setitem__", "modules.pop",
         "path.clear", "path.copy", "path.extend", "path.insert",
