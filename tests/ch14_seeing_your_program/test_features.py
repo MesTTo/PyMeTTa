@@ -1200,6 +1200,39 @@ def test_a_race_is_charged_for_its_caller_and_its_winner_only(m):
     assert first < 100000
 
 
+def test_a_race_through_a_streaming_door_is_charged_for_its_caller_and_its_winner_only(m):
+    """A race pulled through a held cursor reads one integer, as through run.
+
+    The cursor's engine reports its own work through metta_py_work/2, so the
+    credit its discarding join takes back from the stopped loser, and its
+    interrupt poll's spend, come out of the report the block adds; read from
+    the raw counter, the report charged the block for however far the loser's
+    two-million-step spin got [measured 2026-09-26T00:31:31+10:00: 200 races
+    through m.fn on cba7f041e read 1,038 to 9,049 inferences].
+    """
+    m += lib.thread
+    # Its own names, because the session space is shared.
+    m.run(
+        "(= (streamed-race-spin $n) (if (> $n 0) (streamed-race-spin (- $n 1)) done)) "
+        "(= (streamed-race-slow $x) (let $_ (streamed-race-spin 2000000) $x)) "
+        "(= (streamed-race-inc $x) (+ $x 1))"
+    )
+
+    def measured() -> int:
+        with m.stats() as s, m:
+            answer = m.fn.par_race((S.streamed_race_slow(1), S.streamed_race_inc(41))).one()
+        assert answer == 42
+        return s.inferences
+
+    # The first race pays first-use costs; the claim is about the ones after.
+    # Ten, because the loser's credit varies with the schedule and three
+    # readings of the raw count could agree by chance.
+    measured()
+    readings = {measured() for _ in range(10)}
+    assert len(readings) == 1, sorted(readings)
+    assert readings.pop() < 100000
+
+
 @contextlib.contextmanager
 def polling_every(space, inferences):
     """Set the engine's interrupt-poll interval for a block and put it back.

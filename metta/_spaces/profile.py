@@ -144,11 +144,13 @@ class _StatsBlock:
     A spawned future runs as a scheduler engine whose carrier is never
     joined, so its spin never reaches the block at all
     [tested 2026-09-26T00:36:52+10:00: test_a_cancelled_future_is_not_charged].
-    Known issue: a race pulled through a held cursor engine, the engine a
-    streaming door such as `race()` or a `fn` call reads from, is not one
-    integer: that engine's part of the block varies with the schedule where
-    the direct door's does not [measured 2026-09-26T00:31:32+10:00: 200
-    races through `fn` on cba7f041e read 1,038 to 9,049 inferences, the
+    A race pulled through a held cursor engine, the engine a streaming door
+    such as `race()` or a `fn` call reads from, is one integer too: that
+    engine reports its own work through metta_py_work/2, so the credit its
+    discarding join takes back comes out there
+    [tested 2026-09-26T23:59:26+10:00: test_a_race_through_a_streaming_door_is_charged_for_its_caller_and_its_winner_only].
+    Read from the raw counter it was not [measured 2026-09-26T00:31:32+10:00:
+    200 races through `fn` on cba7f041e read 1,038 to 9,049 inferences, the
     held engine's part 909 to 8,920, and 200 through `run` read 1,167 each].
 
     A counter is a delta, so there is nothing to read before the block that

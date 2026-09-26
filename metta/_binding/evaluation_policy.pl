@@ -4,6 +4,11 @@
 % templates; expansion never evaluates program goals or traverses program data
 % [tested: test_evaluation_presets_and_records_share_one_policy;
 % commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+% Guarantees: a held goal reports its engine's own work through metta_py_work/2,
+% so the credit a discarding join takes back and the interrupt poll's spend
+% come out of the Used a stats block adds, and a race pulled through a
+% streaming door reads one integer [tested 2026-09-26T07:56:01+10:00:
+% test_a_race_through_a_streaming_door_is_charged_for_its_caller_and_its_winner_only].
 % Decides: only declared presets are specialized; dynamic collections retain
 % indexed clauses rather than generating the product of all option values
 % [source: extensions/python/metta/_binding/evaluation_policy.pl:binding_evaluation_expansion/2;
@@ -69,9 +74,9 @@ evaluation_clause(metta_py_collect(count, Options, Space, Term, _, Answer), Goal
 evaluation_clause(metta_py_collect(retained, Options, Space, Term, Bindings,
                                   [Count, prolog(Engine)]), Goal) :-
     metta_py_options(Options, [columns(VarNames)]),
-    Replay = (statistics(inferences, Before), member(Value-HeldRow, Bag),
+    Replay = (metta_py_work(open, Before), member(Value-HeldRow, Bag),
               metta_py_retained_encoded(Value, Encoded),
-              statistics(inferences, Now), Used is Now - Before),
+              metta_py_work(close, Now), Used is Now - Before),
     Goal = (findall(Held-Row, (metta_py_produce(raw, Space, Term, Held),
                              metta_py_row(VarNames, Bindings, Row)), Bag),
             length(Bag, Count), metta_host_hold([Encoded, HeldRow, Used], Replay, Engine)).
@@ -79,6 +84,15 @@ evaluation_clause(metta_py_collect(status, _, Space, Term, _, Results), Goal) :-
     Goal = (metta_py_classify(Space, Term, Status),
             findall([Status, E], metta_py_produce(wire, Space, Term, E), Answers),
             (Answers == [] -> Results = [[empty, none]] ; Results = Answers)).
+% A held engine reports the work between its two readings through
+% metta_py_work/2, as the accounted path above does, so the report is the
+% engine's own work: the credit a race inside it takes back at a discarding
+% join, and its interrupt poll's spend, both sit in that engine's own tallies
+% and come out there. Read from statistics(inferences) alone, a race through a
+% streaming door charged its caller for however far the stopped loser got,
+% 1,038 to 9,049 inferences over 200 races where run read 1,167 each
+% [measured 2026-09-26T00:31:31+10:00: 200 par-races through m.fn, then 200
+% through run, on cba7f041e].
 evaluation_clause(metta_py_collect(cursor, Options, Space, Term, Bindings, prolog(Engine)), Goal) :-
     metta_py_options(Options,
         [columns(VarNames), seconds(Time), inferences(Quota),
@@ -87,17 +101,17 @@ evaluation_clause(metta_py_collect(cursor, Options, Space, Term, Bindings, prolo
               metta_py_row(VarNames, Bindings, Row)),
     Goal = (metta_py_option_limits(Time, Quota, TimeS, Inf),
             (Under == none
-             -> Held = (statistics(inferences, Before), Values,
-                        statistics(inferences, Now), Used is Now - Before),
+             -> Held = (metta_py_work(open, Before), Values,
+                        metta_py_work(close, Now), Used is Now - Before),
                 Template = [Encoded, Row, Used]
              ; Under = [Algebra, Limit, Direction],
                (Direction == none
-                -> Core = (statistics(inferences, Before), metta_py_under_query(Space, Values, K),
-                           statistics(inferences, Now), Used is Now - Before)
-                ; Core = (statistics(inferences, Before),
+                -> Core = (metta_py_work(open, Before), metta_py_under_query(Space, Values, K),
+                           metta_py_work(close, Now), Used is Now - Before)
+                ; Core = (metta_py_work(open, Before),
                           metta_py_ordered_within_time(TimeS, Direction, K0-[Encoded, Row],
                               metta_py_under_query(Space, Values, K0), Ordered),
-                          statistics(inferences, Now), Used is Now - Before,
+                          metta_py_work(close, Now), Used is Now - Before,
                           member(K-[Encoded, Row], Ordered))),
                Held = (metta_with_evaluation_context(evaluation_context(Algebra, Limit, Direction), Core),
                        metta_py_encode(K, KWire)),
