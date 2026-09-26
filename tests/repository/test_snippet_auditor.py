@@ -2,6 +2,10 @@
 Guarantees:
   - the auditor's fixed-baseline output reaches the gate log
     [tested: test_the_snippet_auditor_runs_from_the_gate; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a gate run of the auditor alone builds nothing, so the run this test
+    starts inside the pytest lane rewrites none of the objects that lane's
+    workers load [tested 2026-09-26T17:38:36+10:00:
+    test_the_snippet_auditor_runs_from_the_gate]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,6 +26,29 @@ sys.path.insert(0, str(SCRIPTS))
 
 import audit_snippets as auditor  # noqa: E402
 
+#: What the gate's component builds write and a pytest lane's workers load: the
+#: engine's C units, morklib.so, the chapter 19 C objects and the compiled Node
+#: bridge. A run of every build.sh over a built tree rewrote the three chapter
+#: 19 objects and all 118 files under extensions/node/build [measured
+#: 2026-09-26T17:37:37+10:00: every build.sh over a built private tree at
+#: 5397122a3, the files newer than a marker afterwards].
+BUILT = (
+    "engine/*.so",
+    "extensions/mork/mork_ffi/morklib.so",
+    "examples/ch19-*/*/*.so",
+    "extensions/node/build/**/*.js",
+)
+
+
+def _built(root: Path) -> dict[str, tuple[int, int]]:
+    """Each built object's inode and modification time, by its path."""
+    return {
+        str(path.relative_to(root)): (path.stat().st_ino, path.stat().st_mtime_ns)
+        for pattern in BUILT
+        for path in root.glob(pattern)
+        if path.is_file()
+    }
+
 
 def test_the_snippet_auditor_runs_from_the_gate(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     gate = (repo_root / "tools" / "check.sh").read_text(encoding="utf8")
@@ -36,6 +63,7 @@ def test_the_snippet_auditor_runs_from_the_gate(repo_root):  # noqa: D103  -- py
     # and the assertion read an empty summary [measured 2026-08-21].
     child_env = {k: v for k, v in os.environ.items() if k != "GATE_ONLY"}
     child_env["CHECK_PY"] = sys.executable
+    built = _built(repo_root)
     run = subprocess.run(
         ["sh", "tools/check.sh", "snippets"],
         cwd=repo_root,
@@ -58,6 +86,11 @@ def test_the_snippet_auditor_runs_from_the_gate(repo_root):  # noqa: D103  -- py
     assert "tracked in website/scripts/snippet_backlog.tsv" in log
     assert "guide/contract.md fence 1:" in log
     assert "REPORT snippets     findings" in log
+    # The auditor reads sources alone (reads_sources in tools/check.sh), so the
+    # gate builds nothing for it. This run starts inside the pytest lane, and
+    # its builds used to relink morklib.so and re-emit the Node bridge under the
+    # lane's workers, and ran it past its 30 seconds under load.
+    assert _built(repo_root) == built, "the gate rewrote objects the pytest lane's workers load"
 
 
 def test_the_snippet_backlog_cannot_grow(monkeypatch, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
