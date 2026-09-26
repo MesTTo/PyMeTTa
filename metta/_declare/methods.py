@@ -64,7 +64,15 @@ from metta._catalog.build import build
 from metta._catalog.documentation import documentation_atom
 from metta._catalog.project import project
 from metta._compile.records import _BUILTIN_PROTOCOLS, field_call
-from metta._declare import call_syntax, classes, define, field_values, operations, projections
+from metta._declare import (
+    call_syntax,
+    classes,
+    define,
+    field_values,
+    functions,
+    operations,
+    projections,
+)
 from metta._errors.errors import CompileError
 from metta.vocabularies import EffectClass
 
@@ -309,7 +317,7 @@ class Method:
         else:
             try:
                 compiled = define.compile_function(
-                    self.source_fn, known=owner.space.is_function,
+                    self.source_fn, known=functools.partial(functions._callable_here, owner.space),
                     nondet=lambda name: any(method.generator and name in (
                         method.name, _word(method.python_name)
                     ) for plan in (owner, *owner.bases) for method in plan.methods.values()),

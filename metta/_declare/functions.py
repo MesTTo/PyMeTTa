@@ -415,7 +415,7 @@ class _FunctionNamespace:
         # definition measured 1,347 inferences on the next attribute access
         # (the whole of one twin's band overrun); membership is double
         # digits and answers the same union.
-        return _is_catalogued(self._space, name) or self._space.is_function_here(name)
+        return _callable_here(self._space, name)
 
     def _resolve(self, name: str, *, attribute: str | None = None) -> _EngineFunction:
         resolved = name
@@ -681,6 +681,22 @@ def _is_catalogued(space: _root.Space, name: str) -> bool:
             "metta_py_catalogue_member(Space, Name)", Space=space._space, Name=name
         )
     )
+
+def _callable_here(space: _root.Space, name: str) -> bool:
+    """Whether a call to ``name`` made in this space reaches a head.
+
+    The one answer to "is this an engine function here": the bound namespace
+    resolves ``m.fn.x`` by it, and the compiler asks it for each call-or-data
+    decision in a body it compiles into this space, ``list(f(...))``, a
+    lowercase name in a pattern and ``yield from f(...)``. ``is_function``
+    answers for the whole process, so a head only some other space can call
+    decided those three here: a class whose method takes ``**options`` loads
+    lib_dict's home, which brings lib_combinatorics' ``range``, and from then
+    on ``list(range(n))`` in every other space was refused as ambiguous
+    [tested 2026-09-26T17:51:28+10:00:
+    test_a_head_only_another_space_calls_leaves_list_of_range_a_host_list].
+    """
+    return _is_catalogued(space, name) or space.is_function_here(name)
 
 @_doors.door(
     kind=_doors.Kind.introspection,

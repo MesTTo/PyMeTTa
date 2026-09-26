@@ -12,7 +12,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from metta import Expression, Grounded, S, V, Variable, match, py, superpose
+from metta import Expression, Grounded, S, V, Variable, lib, match, py, superpose
 from metta._errors.errors import CompileError
 
 
@@ -54,6 +54,28 @@ def test_list_collects_engine_answers_and_preserves_host_lists(m):
         assert len(result) == 1
         assert isinstance(result[0], Grounded)
         assert result[0].value == [0, 1, 2]
+
+
+def test_a_head_only_another_space_calls_leaves_list_of_range_a_host_list(m, metta):
+    """A library another space holds does not make a Python builtin ambiguous here.
+
+    lib_combinatorics defines `range`, and while any space holds it the head
+    is known to the whole process. The compiler asked that process-wide
+    question, so `list(range(n))` was refused in every space while the other
+    lived; it asks what a call made in the defining space reaches.
+    """
+    with metta._new_space() as other:
+        other += lib.combinatorics
+        assert metta.is_function("range")
+
+        @m.define
+        def host_numbers(n):
+            return list(range(n))
+
+        result = list(host_numbers(3))
+    assert len(result) == 1
+    assert isinstance(result[0], Grounded)
+    assert result[0].value == [0, 1, 2]
 
 
 def test_list_collects_matching_answers_without_splicing_their_terms(m):

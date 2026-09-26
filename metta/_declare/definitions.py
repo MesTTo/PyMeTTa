@@ -886,7 +886,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     name = attribute_name(fn.__name__) if name is None else name
     compiled = _declare_define_module.compile_function(
         fn,
-        known=space.is_function,
+        known=partial(_space_functions._callable_here, space),
         nondet=partial(_is_nondeterministic, space),
         effect=partial(_operation_effect, space),
         returns_bool=partial(_returns_bool, space),
