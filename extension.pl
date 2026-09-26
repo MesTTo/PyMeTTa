@@ -15,6 +15,13 @@
 title('MeTTa in Python: the janus bridge and the metta library''s transport').
 needs(prolog_library(janus)).
 
+% The patches to janus this seat's code relies on, generated from the ledger's
+% patches to packages/swipy by `sh tools/pymetta-host/declare-host.sh require
+% packages/swipy`. Every host that loads this seat's engine entry loads janus
+% through it, the Python host, the C host and the SWI host alike, so the engine
+% holds each of them to these before the entry loads.
+requires(host_patches('metta/_binding/host_patches.pl')).
+
 % The two directions under their own roles, which is what dissolves this seat's
 % bridge/shim naming: entry(engine, ...) is the ENGINE reaching Python (py-atom
 % resolves, py-call applies; consulted here at boot), and entry(host, ...) is

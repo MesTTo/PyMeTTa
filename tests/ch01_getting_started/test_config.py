@@ -599,11 +599,10 @@ def test_backend_startup_does_not_change_process_working_directory(monkeypatch, 
     # Every native backend that is built, naming none of them: the embedding
     # host used to test for MORK's shared library and pass `mork`.
     assert "set_prolog_flag(argv, ['extensions'])" in bridge.queries
-    # After the engine's boot the bridge consults its own host requirement,
-    # janus's patches, generated beside the runtime module, and asks the
-    # engine's one check to hold the home's declaration to it.
-    requirement = Path(_engine.__file__).with_name("host_patches.pl")
-    assert bridge.consulted == [str(main_file), str(requirement)]
+    # The bridge consults the engine and nothing else: janus's patches are
+    # required by this seat's extension.pl, which the engine's loader holds
+    # every host to, so the bridge runs no check of its own.
+    assert bridge.consulted == [str(main_file)]
     assert "metta_qlf_boot:qlf_load_engine" in bridge.queries
-    assert any("metta_require_host_patches" in goal for goal in bridge.queries)
+    assert not any("metta_require_host_patches" in goal for goal in bridge.queries)
     assert consulted is bridge
