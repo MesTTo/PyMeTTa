@@ -440,11 +440,23 @@ _ROWS = 2_000
 # placed from 13:35:14, one battery; command=python -c "import
 # benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
 # from extensions/python].
+# Re-pinned 2026-09-27: automatic +6 at n = 12, plain +15 at n = 12, automatic
+# +6 at n = 15, plain +15 at n = 15, automatic +6 at n = 18, plain +15 at n =
+# 18, automatic +6 at n = 20, plain +15 at n = 20, a force of a waiting
+# function takes the typing policy and the specializer's lock before
+# translation: spaces:metta_ensure_compiled/2 stabilises the policy and takes
+# the specializer's mutex around the translation once per force, and the
+# translation's own per-pair stabilisation re-enters through
+# with_typing_policy_stable/1's first clause. [measured
+# 2026-09-27T10:00:16+10:00: min of three observations per size and mode
+# before this commit and with it, read on one battery path at the landing's
+# HEAD; command=python -c "import benchmarks.test_benchmarks as t;
+# print(t._automatic_tabling_observations())" from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_257, "automatic": 17_772},
-    15: {"plain": 953_745, "automatic": 19_026},
-    18: {"plain": 7_605_649, "automatic": 20_280},
-    20: {"plain": 30_412_177, "automatic": 21_116},
+    12: {"plain": 122_272, "automatic": 17_778},
+    15: {"plain": 953_760, "automatic": 19_032},
+    18: {"plain": 7_605_664, "automatic": 20_286},
+    20: {"plain": 30_412_192, "automatic": 21_122},
 }
 
 
