@@ -79,10 +79,11 @@ _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-
 # loses rather than for which directive failed, and the two files needing
 # subprocess are one capability because the cost is the same. Every row is
 # decided when first read, so the capabilities nothing loads at boot, the
-# environment listing, HTTP, HTTPS and sockets, are named here too. `python` is
-# the one row the standard library declares rather than the platform: the py-*
-# doors, which only a loaded Python seat implements, and the Node seat loads
-# none.
+# environment listing, HTTP, HTTPS, sockets and ISub, are named here too.
+# `python` is the one row the standard library declares rather than the
+# platform: the py-* doors, which only a loaded Python seat implements, and the
+# Node seat loads none. `isub` rests on library(shlib), since lib_string's ISub
+# half loads only as a shared object, and the WebAssembly build links none.
 _EXPECTED_REFUSALS = [
     ("concurrency", "library(thread)"),
     ("crypto", "library(crypto)"),
@@ -92,6 +93,7 @@ _EXPECTED_REFUSALS = [
              "library(http/http_client),library(http/http_header),"
              "library(socket),library(uri),library(thread_pool)]"),
     ("https", "[library(http/http_ssl_plugin),library(ssl),library(crypto)]"),
+    ("isub", "library(shlib)"),
     ("python", "extension(python)"),
     ("redis", "library(redis)"),
     ("socket", "library(socket)"),
