@@ -52,6 +52,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from pathlib import Path
 
 import metta_faiss  # noqa: F401  -- the index row this scenario compares
@@ -147,7 +148,13 @@ def _script_subscription_boundaries(monkeypatch):
             msg = "injected reflection removal failure"
             raise RuntimeError(msg)
 
+    # The scripted world gets its own abandoned queue beside its own registry:
+    # subscribe() drains the queue before its own work, so with the process's
+    # queue it would withdraw a watch another test abandoned against this
+    # registry, which does not hold it, and drop it, leaving the real fold
+    # registered and its space's hooks installed for the rest of the process.
     monkeypatch.setattr(subscribe_module, "_REGISTRY", registry)
+    monkeypatch.setattr(subscribe_module, "_ABANDONED", deque())
     monkeypatch.setattr(subscribe_module, "_reflect_add", reflect_add)
     monkeypatch.setattr(subscribe_module, "_reflect_remove", reflect_remove)
     return runtime, registry
@@ -294,6 +301,13 @@ def test_subscription_hooks_follow_the_active_space_set(m):  # noqa: D103  -- py
     def installed(kind):
         return bool(m._rt.once(f"metta_py_subscription_hook_ref({kind}, _)"))
 
+    # A watch an earlier test in this process dropped keeps its hooks until it
+    # is collected, its finaliser enqueues it (metta.subscribe._ABANDONED),
+    # and the next subscribe() or cancel() withdraws it, since a finaliser may
+    # only enqueue; so the state this test starts from is the one after that
+    # sequence: a collection, then one subscription opened and cancelled here.
+    gc.collect()
+    m.subscribe(S.hook_lifecycle_safe_point(V.value)).cancel()
     assert not installed("added")
     assert not installed("removed")
     subscription = m.subscribe(S.hook_lifecycle(V.value))
