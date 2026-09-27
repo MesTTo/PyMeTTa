@@ -29,6 +29,8 @@
 
 :- multifile seam:host_transport_failure/1.
 
+:- multifile seam:platform_supplier/2.
+
 seam:grounded_extra_type(Obj, Type) :-
     python_object_blob(Obj),
     py_is_object(Obj),
@@ -52,6 +54,12 @@ seam:extension_builtin('py-dict',  oracleIO).
 seam:extension_builtin('py-iter',  oracleIO).
 
 seam:extension_builtin('py-iter-once', oracleIO).
+
+seam:platform_supplier(library(Name), Remedy) :-
+    metta_py_bridge,
+    format(atom(Text), '~w', [Name]),
+    catch(py_call('metta._host':supplier(Text), Remedy, [py_string_as(atom)]), _, fail),
+    Remedy \== @(none).
 
 seam:grounded_length(Tuple, Length) :-
     compound(Tuple),

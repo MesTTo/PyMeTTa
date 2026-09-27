@@ -23,6 +23,17 @@ directory itself, so the one site naming the bridge stays
 `metta._binding.runtime`, which imports it, and a vendored module added by
 assemble.sh is guarded without an edit here.
 
+The home leaves out the SWI libraries whose plugins link copyleft code, which
+the MeTTa Library Pack's host distribution carries instead (the user's ruling
+of 2026-09-27; tools/pymetta-host/split-home.py moves them). `pack-libraries.txt`
+beside the home names each one as library(...) spells it, written by
+assemble.sh from the same host build, so the seat can name the remedy for a
+library the home left out without naming the distribution that supplies it.
+The remedy lives in SUPPLIERS, which the seat fills at boot when no pack was
+attached (metta._binding.runtime) and the engine reads through the seat's
+answer to seam:platform_supplier/2 (metta/_binding/provides/declaration.pl),
+here because that answer runs where janus alone imported this package.
+
 Assumes: when `swipl/` is present, it and `_vendor/` were grafted by
     tools/pymetta-host/assemble.sh from ONE build, so the bridge links the
     libswipl this home belongs to.
@@ -41,6 +52,13 @@ Guarantees:
     cannot undo one: `sys.modules` is consulted first, so a path inserted
     after janus loaded changes nothing
     [tested: extensions/python/tests/ch01_getting_started/test_host_activation.py; commit=WORKTREE]
+  - PACK_LIBRARIES is the libraries pack-libraries.txt names, in its order,
+    and empty where this install carries no host or no such file
+    [tested 2026-09-27T22:15:47+10:00: test_a_library_left_for_the_pack_names_the_command]
+  - supplier(name) answers the sentence SUPPLIERS holds for library(name), and
+    None for every other name [tested 2026-09-27T22:15:47+10:00:
+    test_a_library_in_a_directory_names_the_command_however_it_is_spelled,
+    test_a_library_nobody_supplies_keeps_swis_words]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -60,6 +78,24 @@ _VENDOR = _HERE / "_vendor"
 _BUNDLED = _HERE / "swipl" / "lib" / "swipl"
 #: The bundled SWI home, or None where this install carries none.
 HOME: Path | None = _BUNDLED if _BUNDLED.is_dir() else None
+
+_PACK_LIST = _HERE / "pack-libraries.txt"
+#: The libraries the bundled home leaves for the MeTTa Library Pack, as
+#: library(...) names them, or none where this install carries no host.
+PACK_LIBRARIES: tuple[str, ...] = (
+    tuple(line for line in _PACK_LIST.read_text(encoding="utf-8").splitlines() if line)
+    if HOME is not None and _PACK_LIST.is_file()
+    else ()
+)
+
+#: The sentence that installs each library the running host lacks, by the name
+#: library(...) gives it; filled at boot by the seat, empty until then.
+SUPPLIERS: dict[str, str] = {}
+
+
+def supplier(name: str) -> str | None:
+    """The sentence that installs library(name), or None where nothing supplies it."""
+    return SUPPLIERS.get(name)
 
 
 def activate() -> Path | None:

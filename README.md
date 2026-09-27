@@ -91,6 +91,7 @@ Optional integrations are separate distributions, installed only for the doors y
 | `pymetta[remote]` | The remote accessor |
 | `pymetta[models]` | Model conversion integration |
 | `pymetta[otel]` | OpenTelemetry integration |
+| `pymetta[pack]` | The SWI-Prolog libraries a Linux wheel's host leaves out because they link LGPL code: `library(odbc)`, `library(crypt)`, `library(isub)` |
 
 [llms.txt](llms.txt) is the compact reference; [examples](examples/README.md) contains programs that check their own results.
 

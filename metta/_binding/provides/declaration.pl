@@ -57,3 +57,19 @@ seam:foreign_capability(Space, Capability) :-
     metta_py_foreign(Space),
     metta_py_capability(Space, Capability)
 )).
+
+provides_declaration(engine, user, platform_supplier/2).
+
+%The install command for a library the bundled host's home left out for the
+%MeTTa Library Pack while no pack is attached, read from what the seat wrote
+%at boot (metta._host.SUPPLIERS), under the name library(...) spells unquoted,
+%so cql/cql and 'cql/cql' are one library. Asked only while the engine words a refusal,
+%so a Python that cannot answer leaves SWI's own words standing rather than
+%raising inside a message.
+provides(engine, user, (
+seam:platform_supplier(library(Name), Remedy) :-
+    metta_py_bridge,
+    format(atom(Text), '~w', [Name]),
+    catch(py_call('metta._host':supplier(Text), Remedy, [py_string_as(atom)]), _, fail),
+    Remedy \== @(none)
+)).

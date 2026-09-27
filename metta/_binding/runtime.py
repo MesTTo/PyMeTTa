@@ -142,6 +142,15 @@ Guarantees:
     test_an_abandoned_view_releases_without_crossing_from_its_finaliser,
     test_a_dropped_carried_term_hands_its_record_over_after_an_error_left_a_stream_suspended,
     test_a_collected_handle_releases_through_the_queue]
+  - before the engine boots, every host-pack row's directory is attached with
+    attach_packs/2, and a row built against another host than the running
+    one refuses the boot naming both builds; with no row attached, each
+    library the bundled home left for the pack (metta._host.PACK_LIBRARIES)
+    gets the host-pack point's install command in metta._host.SUPPLIERS,
+    which the seat's seam:platform_supplier/2 answers from, so a load of it
+    is refused naming that command
+    [tested 2026-09-27T22:15:47+10:00: test_a_row_for_this_host_attaches_its_packs,
+    test_a_row_for_another_host_is_refused, test_a_library_left_for_the_pack_names_the_command]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -175,6 +184,7 @@ from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, Protocol, cast
 
+from metta import _host, seam
 from metta._host import activate as activate_bundled_host
 from metta._lazy import lazy
 
@@ -555,6 +565,51 @@ def _wheel_would_carry_host() -> bool:
     except importlib.metadata.PackageNotFoundError:
         return False
     return f"Programming Language :: Python :: {sys.version_info[0]}.{sys.version_info[1]}" in classifiers
+
+
+def _attach_host_packs(janus: JanusBridge) -> bool:
+    """Attach the SWI packs each host-pack row names, answering whether any row did.
+
+    Runs before the engine loads, so the census it takes at boot finds a
+    pack's libraries through SWI's own library and foreign search paths
+    (attach_packs/2, boot/packs.pl). A pack's plugins are linked against one
+    libswipl, so a row built for another host than the one running refuses
+    the boot rather than loading them into this one.
+    """
+    rows = seam.host_pack.table()
+    if not rows:
+        return False
+    flag = janus.query_once("current_prolog_flag(compiled_at, C)")
+    if not flag:
+        msg = "this SWI-Prolog reports no compiled_at, so no host pack can be matched to the build it was linked against"
+        raise EngineError(msg)
+    running = flag["C"]
+    for name, row in rows.items():
+        if row.build != running:
+            msg = (
+                f"the {name!r} host packs at {row.directory} were built for the "
+                f"SWI-Prolog compiled at {row.build}, and this pymetta's host was "
+                f"compiled at {running}. A pack's plugins link one libswipl, so "
+                f"they are refused here rather than loaded into another; install "
+                f"the packs built with this pymetta: `pip install --force-reinstall "
+                f"'pymetta[{seam.host_pack.extra}]'`"
+            )
+            raise EngineError(msg)
+        janus.query_once("attach_packs(D, [])", {"D": str(row.directory)})
+    return True
+
+
+def _declare_pack_suppliers() -> None:
+    """Tell the engine how to get each library the bundled home left for the pack.
+
+    The seat answers the engine's seam:platform_supplier/2 from what this
+    writes, and the engine's census and SWI's own existence-error message
+    read that seam, so a load of a library the home left out is refused with
+    the install command. The command is the host-pack point's own extra, so
+    nothing here names what supplies it.
+    """
+    remedy = f"`pip install 'pymetta[{seam.host_pack.extra}]'` installs it"
+    _host.SUPPLIERS.update(dict.fromkeys(_host.PACK_LIBRARIES, remedy))
 
 
 def _no_engine(exc: ImportError) -> NoReturn:
@@ -1365,6 +1420,9 @@ class Runtime:
         janus = bridge()
         janus.query_once(f"set_prolog_flag({Config.stack_limit.flag}, {stack_limit})")
         janus.query_once("set_prolog_flag(argv, ['extensions'])")
+        # Before the engine loads, so the census it takes at boot sees each
+        # attached pack's libraries as the home's own.
+        attached = _attach_host_packs(janus)
         main_file = root / "engine" / "qlf_boot.pl"
         helper_file = root / "extensions" / "python" / "helper.pl"
         if not main_file.is_file():
@@ -1386,6 +1444,8 @@ class Runtime:
             # words are the error, raised as the type every other no-engine
             # refusal here raises.
             raise EngineError(_clean_message(exc)) from exc
+        if not attached:
+            _declare_pack_suppliers()
         if helper_file.is_file():
             janus.consult(str(helper_file))
         logger.debug("consulted the MeTTa engine")

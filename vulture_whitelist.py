@@ -348,6 +348,14 @@ _.drifted_versions
 # [source: extensions/python/metta/_binding/bounds.pl:24, seam:catalog_row_changed/2;
 # commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 bound_row_changed
+# The engine reaches this one from PROLOG as well: the seat's
+# seam:platform_supplier/2 clause calls py_call('metta._host':supplier(Text))
+# when a library the bundled home left for the MeTTa Library Pack is loaded
+# without it, and names the install command that call answers. No Python
+# name load reaches it [source 2026-09-28T01:09:55+10:00:
+# extensions/python/metta/_binding/provides/declaration.pl,
+# seam:platform_supplier/2].
+supplier
 # A generated row's own field, read by the suite this scan does not walk:
 # tests/repository/test_refusal_rows.py's
 # test_a_class_this_seat_spells_differently_carries_its_reason asks every

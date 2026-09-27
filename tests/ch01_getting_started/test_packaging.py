@@ -270,16 +270,18 @@ def test_every_extra_installs_packages_and_never_a_library():
     assert not set(extras["checks"]) & set(extras["test"])
 
 
-def test_the_engine_extra_is_the_complement_of_the_vendored_wheels():
-    """janus-swi installs exactly where no pymetta wheel carries the patched host.
+def test_the_host_extras_split_the_platforms_the_wheels_cover():
+    """janus-swi installs exactly where no pymetta wheel carries the patched host, and the pack exactly where one does.
 
     tools/pymetta-host/assemble.sh builds one manylinux x86_64 wheel per CPython
     the classifiers name, each carrying the patched SWI and its own bridge in
     metta/_host. The engine extra must add janus-swi everywhere else and
     nowhere there: missing it strands the py3-none-any install with no bridge,
     and adding it beside a vendored bridge is the pairing metta._host refuses.
-    The marker's version bound is a fact about the classifiers, so it is
-    derived from them here rather than trusted.
+    The pack extra is its complement: metta-library-pack carries the plugins
+    that host's home leaves out, built against it, and a host built by hand
+    keeps them in its own home. Each marker's version bound is a fact about
+    the classifiers, so it is derived from them here rather than trusted.
     """
     from packaging.markers import default_environment
 
@@ -287,7 +289,8 @@ def test_the_engine_extra_is_the_complement_of_the_vendored_wheels():
     prefix = "Programming Language :: Python :: 3."
     vendored = {f"3.{c[len(prefix):]}" for c in manifest["classifiers"] if c.startswith(prefix)}
     [janus] = [Requirement(r) for r in manifest["optional-dependencies"]["engine"]]
-    assert janus.name == "janus-swi"
+    [pack] = [Requirement(r) for r in manifest["optional-dependencies"]["pack"]]
+    assert (janus.name, pack.name) == ("janus-swi", "metta-library-pack")
     newest = max(vendored, key=lambda v: int(v.split(".")[1]))
     beyond = f"3.{int(newest.split('.')[1]) + 1}"
     for platform in ("linux", "darwin", "win32"):
@@ -300,13 +303,13 @@ def test_the_engine_extra_is_the_complement_of_the_vendored_wheels():
                         "platform_machine": machine,
                         "platform_python_implementation": implementation,
                         "python_version": version,
-                        "extra": "engine",
                     }
                     carries_host = (
                         platform == "linux" and machine == "x86_64"
                         and implementation == "CPython" and version in vendored
                     )
-                    assert janus.marker.evaluate(env) is not carries_host, env
+                    assert janus.marker.evaluate({**env, "extra": "engine"}) is not carries_host, env
+                    assert pack.marker.evaluate({**env, "extra": "pack"}) is carries_host, env
 
 
 def test_the_minimal_version_matrix_installs_no_optional_integration():

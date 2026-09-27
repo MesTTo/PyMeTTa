@@ -115,10 +115,22 @@ metta = "metta.cli:main"
 #: (engine/host_check.pl). The marker is the complement of that wheel matrix,
 #: spelled as an `or` of negated halves because PEP 508's grammar has no `not`
 #: [source: https://peps.python.org/pep-0508/#grammar], and
-#: test_the_engine_extra_is_the_complement_of_the_vendored_wheels holds its
+#: test_the_host_extras_split_the_platforms_the_wheels_cover holds its
 #: python_version bound to the classifiers.
 engine = [
     "janus-swi>=1.5.2; sys_platform != 'linux' or platform_machine != 'x86_64' or platform_python_implementation != 'CPython' or python_version >= '3.15'",
+]
+#: The SWI-Prolog libraries the bundled host leaves out because their plugins
+#: link LGPL code (library(odbc) with library(cql/...), library(crypt) and
+#: library(isub)), one SWI pack each, built beside that host and attached
+#: through the host-pack seam point before the engine boots
+#: (tools/pymetta-host/split-home.py says what moves and why). Exactly the
+#: engine extra's complement: the packs exist only for a wheel that carries the
+#: host, and a host built by hand has these libraries in its own home, so
+#: test_the_host_extras_split_the_platforms_the_wheels_cover holds both markers
+#: to the classifiers.
+pack = [
+    "metta-library-pack; sys_platform == 'linux' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and python_version < '3.15'",
 ]
 #: EVERY extra below installs PACKAGES, never libraries. pymetta ships zero
 #: integrations (the ruling of 2026-09-07): each library the Python seat can be
@@ -296,6 +308,7 @@ metta-benchmarking = { workspace = true }
 metta-duckdb = { workspace = true }
 metta-faiss = { workspace = true }
 metta-graphql = { workspace = true }
+metta-library-pack = { workspace = true }
 metta-live = { workspace = true }
 metta-nanoarrow = { workspace = true }
 metta-numpy = { workspace = true }
@@ -817,6 +830,7 @@ DEP002 = [
     "metta-duckdb",
     "metta-faiss",
     "metta-graphql",
+    "metta-library-pack",
     "metta-live",
     "metta-nanoarrow",
     "metta-numpy",

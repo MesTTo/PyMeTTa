@@ -1337,6 +1337,23 @@ graphql: Point = point(
     ),
 )
 
+host_pack: Point = point(
+    "host-pack",
+    "declaration",
+    fields=("directory", "build"),
+    extra="pack",
+    doc=(
+        "A directory of SWI-Prolog packs built beside the host a Linux wheel "
+        "carries, holding the SWI libraries that wheel's home leaves out "
+        "because their plugins link copyleft code. `directory` is attached "
+        "with SWI's attach_packs/2 before the engine boots, so SWI's own "
+        "library and foreign search paths find each pack's prolog/ and "
+        "lib/<arch>/; `build` is the compiled_at of the host the plugins were "
+        "linked against, and a row whose build is not the running host's is "
+        "refused, since a plugin links one libswipl."
+    ),
+)
+
 
 # ------------------------------------------------------------- the services
 

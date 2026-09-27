@@ -70,6 +70,9 @@ PYTHON_SERVICES = {
     # that hands back janus's deferred releases.
     "metta._binding.runtime": ("reclaim_round",),
     "metta._errors.errors": ("is_transport_failure",),
+    # What installs a library the bundled host's home left for the MeTTa
+    # Library Pack, the seat's answer to seam:platform_supplier/2.
+    "metta._host": ("supplier",),
     "metta.foreign": ("_provider_length",),
     "metta.algebra": ("_carrier_type_accepts",),
     "builtins": ("id", "str", "type"),
