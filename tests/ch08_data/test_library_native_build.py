@@ -34,20 +34,27 @@ ROOT = workspace()
 
 @dataclass(frozen=True)
 class NativeLibrary:
-    """One real consumer's copied build inputs and executable probe."""
+    """One real consumer's copied build inputs and executable probe, for one native object."""
 
     path: Path
     name: str
     source: Path
     runtime_goal: str
     remedy: str
+    library: str
+    build: str
 
     @property
     def builder(self):
-        """The owner's native build module follows its library name."""
-        return f"lib_{self.name}_native_build"
+        """The owner's native build goal: its library's build module and the goal building this object."""
+        return f"lib_{self.library}_native_build:{self.build}"
 
 
+#: Each native object by the name its build refusal carries: its source, the
+#: module loading it, a goal running it and the remedy the refusal names, then
+#: its library and the goal of that library's build module building it, where
+#: they are not the name and native_object. lib_string builds two objects, the
+#: ISub half apart from the permissive one.
 PROVIDERS = {
     "database": ("support/lock.c", "support/native.pl",
                  "setup_call_cleanup(tmp_file_stream(binary,Probe,Stream),"
@@ -60,6 +67,9 @@ PROVIDERS = {
                "lib_crypto_native:digest(sha256,utf8(hello),none,B), length(B,32)", "libssl-dev"),
     "string": ("support/string_native.cpp", "support/native.pl",
                'lib_string_native:edit_distance("kitten","sitting",3)', "build-essential"),
+    "string_isub": ("support/isub_native.cpp", "support/isub.pl",
+                    'lib_string_isub_native:substring_similarity("language","language",2,false,S), S =:= 1.0',
+                    "build-essential", "string", "isub_object"),
     "compression": ("support/archive_locale.c", "support/native.pl",
                     'setup_call_cleanup(open_string("x",Input),'
                     'lib_compression_native:with_utf8('
@@ -75,11 +85,13 @@ def native_library(tmp_path, request):
 
     Two helpers: native_build.pl builds a library's object and native_install.pl
     loads it, or on a host that links foreign code statically activates the half
-    it was built with; every support/native.pl imports both.
+    it was built with; every loader, each support/native.pl and lib_string's
+    support/isub.pl, imports both.
     """
     name = request.param
-    source, loader, probe, remedy = PROVIDERS[name]
-    library = tmp_path / "lib" / f"lib_{name}"
+    source, loader, probe, remedy, *where = PROVIDERS[name]
+    owner, build = where or (name, "native_object")
+    library = tmp_path / "lib" / f"lib_{owner}"
     origin = ROOT / "lib" / library.name
     for directory in ("support", "vendor"):
         inputs = origin / directory
@@ -90,7 +102,7 @@ def native_library(tmp_path, request):
     for helper in ("native_build.pl", "native_install.pl"):
         shutil.copy2(ROOT / "lib/_support" / helper, shared / helper)
     return NativeLibrary(library, name, library / source,
-                         f"use_module('{loader}'), {probe}", remedy)
+                         f"use_module('{loader}'), {probe}", remedy, owner, build)
 
 
 def native_command(goal, prelude=None):
@@ -104,7 +116,7 @@ def native_command(goal, prelude=None):
 def run_native(library, prelude=None):
     """Build, load and execute the resulting object before returning its path."""
     return subprocess.run(
-        native_command(f"{library.builder}:native_object(P), "
+        native_command(f"{library.builder}(P), "
                        f"{library.runtime_goal}, writeln(P)", prelude),
         cwd=library.path, capture_output=True, text=True, check=False,
     )
@@ -141,9 +153,9 @@ def test_concurrent_processes_and_threads_publish_one_native_object(native_libra
     source.write_text(source.read_text(encoding="utf-8") + '\n#pragma message("native_build_once")\n', encoding="utf-8")
     goal = (
         "findall(T, (between(1,4,_), "
-        f"thread_create({native_library.builder}:native_object(_),T,[])), Threads), "
+        f"thread_create({native_library.builder}(_),T,[])), Threads), "
         "maplist(thread_join,Threads,Statuses), maplist(=(true),Statuses), "
-        f"{native_library.builder}:native_object(P), "
+        f"{native_library.builder}(P), "
         f"{native_library.runtime_goal}, writeln(P)"
     )
     with ExitStack() as resources:
@@ -185,7 +197,7 @@ def test_cancelled_build_waits_for_its_compiler_and_discards_the_stage(native_li
     newer = binary.stat().st_mtime_ns + 2_000_000_000
     os.utime(source, ns=(newer, newer))
     goal = (
-        f"thread_create(catch({native_library.builder}:native_object(_),"
+        f"thread_create(catch({native_library.builder}(_),"
         f"error({native_library.name}_native_build(build_cancelled),_),thread_exit(cancelled)), Worker, []),"
         "get_char(_), thread_signal(Worker,throw(build_cancelled)),"
         "writeln(cancel_requested), flush_output,"
@@ -267,7 +279,9 @@ def test_warm_native_build_needs_no_process_library(native_library):
 
 
 @pytest.mark.parametrize(("native_library", "header_path"),
-                         [("string", "vendor/isub.hpp"),
+                         [("string", "vendor/rapidfuzz/distance/Levenshtein.hpp"),
+                          ("string", "support/string_boundary.hpp"),
+                          ("string_isub", "vendor/isub.hpp"),
                           ("compression", "vendor/archive_read_support_format_zip.c")],
                          indirect=["native_library"])
 def test_native_header_change_rebuilds_the_object(native_library, header_path):
@@ -311,7 +325,9 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert any(name.endswith("/lib/lib_csv/support/csv_codec.pl") for name in source_names)
     assert any(name.endswith("/engine/owned_resources.pl") for name in source_names)
     assert any(name.endswith("/engine/packages.pl") for name in source_names)
-    provider_files = ["lib/lib_string/support/string_native.cpp", "lib/lib_string/vendor/SHA256SUMS",
+    provider_files = ["lib/lib_string/support/string_native.cpp", "lib/lib_string/support/isub_native.cpp",
+                      "lib/lib_string/support/string_boundary.hpp", "lib/lib_string/support/isub.pl",
+                      "lib/lib_string/vendor/SHA256SUMS",
                       "lib/lib_vector/lib_vector.pl", "lib/lib_vector/pkg.metta",
                       "lib/lib_vector/lib.metta", "lib/lib_database/lib.metta",
                       "lib/lib_vector/README.md", "lib/lib_vector/vendor/README.md",
@@ -395,6 +411,7 @@ with MeTTa() as engine:
     assert engine.fn.string_edit_distance(G("a\0🦊"), G("a")).one() == 2
     assert engine.fn.string_replace(G("a\0🦊"), G("\0"), G("-")).one() == "a-🦊"
     assert engine.fn.string_dedent(G("  a\0\n  b\n")).one() == "a\0\nb\n"
+    assert engine.fn.string_isub(G("language"), G("language")).one() == 1.0
     engine += lib.vector
     ratios = engine.fn.vector_divide((1, 2), (3, 3)).one()
     assert ratios[0].to_wire()[0] == "n"
@@ -427,6 +444,7 @@ with MeTTa() as engine:
 assert list((runtime / "lib/lib_regex/.native").glob("pcre-*"))
 assert list((runtime / "lib/lib_crypto/.native").glob("crypto-*"))
 assert list((runtime / "lib/lib_string/.native").glob("string-*"))
+assert list((runtime / "lib/lib_string/.native").glob("string_isub-*"))
 assert list((runtime / "lib/lib_compression/.native").glob("archive_locale-*"))
 assert list((runtime / "lib/lib_database/.native").glob("database-*"))
 print("installed native sources built and executed")

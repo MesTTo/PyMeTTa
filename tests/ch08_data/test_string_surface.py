@@ -196,7 +196,13 @@ def test_string_card_keeps_every_public_head():
 
 
 def test_string_native_manifest_covers_the_include_closure():
-    """The build manifest covers every transitive vendor include and exact bytes."""
+    """The build manifest covers every transitive vendor include of both native halves, and exact bytes.
+
+    Each half's own sources sit in support/, the permissive half's
+    string_native.cpp and the ISub half's isub_native.cpp, and the boundary
+    header they share is there too; those are followed but are no vendored
+    file, so the manifest does not list them.
+    """
     owner = ROOT / "lib/lib_string"
     vendor = owner / "vendor"
     declared = {}
@@ -207,7 +213,8 @@ def test_string_native_manifest_covers_the_include_closure():
         assert path not in declared
         assert hashlib.sha256(path.read_bytes()).hexdigest() == checksum, name
         declared[path] = checksum
-    pending = [owner / "support/string_native.cpp"]
+    support = (owner / "support").resolve()
+    pending = [owner / "support/string_native.cpp", owner / "support/isub_native.cpp"]
     visited = set()
     while pending:
         path = pending.pop().resolve()
@@ -223,7 +230,7 @@ def test_string_native_manifest_covers_the_include_closure():
             else:
                 continue
             dependency = dependency.resolve()
-            assert dependency in declared, dependency
+            assert dependency in declared or dependency.parent == support, dependency
             pending.append(dependency)
-    headers = {path for path in visited if path.suffix == ".hpp"}
+    headers = {path for path in visited if path.suffix == ".hpp" and path.is_relative_to(vendor.resolve())}
     assert headers == {path for path in declared if path.suffix == ".hpp"}
