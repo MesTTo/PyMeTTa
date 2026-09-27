@@ -318,6 +318,14 @@ ARTIFACTS = (
         requires=("SWI-Prolog with prolog_xref and PlDoc; source initializers are not executed",),
     ),
     Artifact(
+        "library-licences", ("lib/.reuse/dep5", "lib/*/lib.metta", "lib/*/vendor/**"),
+        tool("librarylicences", "--write"),
+        (Output("lib/*/pkg.metta", ("; begin generated licence", "; end generated licence"),
+                contains="; begin generated licence"),),
+        tool("librarylicences"), (("@python", "@root/tests/checks/check_librarylicences_selftest.py"),),
+        requires=("the engine's reader, for each lib.metta's import! forms; no form runs",),
+    ),
+    Artifact(
         "libdoc", ("lib/*/*.metta", "lib/*/*.pl"), tool("libdoc", "--write"),
         (Output("website/reference/metta-libraries.md"),
          Output("llms.txt", ("<!-- begin generated library glossary -->",

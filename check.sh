@@ -503,7 +503,9 @@ run GATE   bandit      in_py "$PY" -m bandit -q -c pyproject.toml -r metta
 # discovery-only because this manifest governs the Python package, not checkers
 # [source: https://github.com/osprey-oss/deptry/blob/0.25.1/python/deptry/core.py;
 # commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
-run GATE   deptry      in_py "$PY" -m deptry . tools ../../tests/checks
+# The host notices' DEP-5 reader, which tools/librarylicences.py imports, is
+# a discovery-only root for the same reason.
+run GATE   deptry      in_py "$PY" -m deptry . tools ../../tests/checks ../../tools/host-notices
 run GATE   audit       in_py "$PY" -m pip_audit --progress-spinner off
 # ledger F: public API documentation is held above the 80% target
 run GATE   interrogate in_py "$PY" -m interrogate metta
