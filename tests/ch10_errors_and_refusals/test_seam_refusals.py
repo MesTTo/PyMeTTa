@@ -7,9 +7,12 @@ Assumes:
     whose bytes are not UTF-8 hands one straight to a caller
 Guarantees:
   - text with no UTF-8 encoding is refused as ValueError, naming where in the
-    input it sits, rather than arriving as janus's bare SystemError
-    [tested: test_text_with_no_utf8_encoding_is_refused_by_kind,
-    test_the_refusal_says_where_in_the_input_the_text_sits]
+    input it sits, a dict's key as its value, whether janus reports the
+    failed conversion as the codec's UnicodeEncodeError, as the janus this
+    seat requires does, or as a bare SystemError, as an unpatched one did
+    [tested 2026-09-27T23:54:06+10:00: test_text_with_no_utf8_encoding_is_refused_by_kind,
+    test_the_refusal_says_where_in_the_input_the_text_sits,
+    test_a_key_with_no_utf8_encoding_is_refused_by_where_it_sits]
   - the call AFTER a refused one is unaffected, on every door
     [tested: test_a_refused_crossing_does_not_fail_the_next_call,
     test_no_door_leaves_the_next_call_carrying_the_refusal]
@@ -66,6 +69,17 @@ def test_the_refusal_says_where_in_the_input_the_text_sits():
     """A server rejecting a payload needs the position, not just the fact."""
     with pytest.raises(ValueError, match=r"\['answers'\]\[1\]\['x'\]"):
         _json.dumps({"answers": [{"x": "fine"}, {"x": UNPAIRED_SURROGATE}]})
+
+
+def test_a_key_with_no_utf8_encoding_is_refused_by_where_it_sits():
+    """A key crosses as its value does, so it is refused as its value is.
+
+    The janus this seat requires takes a str key through the same UTF-8
+    codec as a str value (janus-unconvertible-input-not-raised), where an
+    unpatched one aborted the process on it.
+    """
+    with pytest.raises(ValueError, match=r"the key 'x\\ud800' of .*\['answers'\]\[1\] contains"):
+        _json.dumps({"answers": [{"x": "fine"}, {f"x{UNPAIRED_SURROGATE}": 1}]})
 
 
 def test_no_door_leaves_the_next_call_carrying_the_refusal(space):

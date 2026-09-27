@@ -298,7 +298,9 @@ def _unencodable(inputs: Any) -> str | None:
     Python allows an unpaired surrogate in a str, and every surrogateescape
     decode makes them: os.listdir over a filename whose bytes are not UTF-8
     hands back exactly this. UTF-8 has no encoding for one, so the conversion
-    into a Prolog term fails inside janus's C.
+    into a Prolog term fails inside janus's C, a dict's key as its value,
+    since the janus this seat requires sends both through the one UTF-8 codec
+    (janus-unconvertible-input-not-raised).
 
     Walked only after a crossing has already failed, with an explicit stack
     rather than recursion because the input is the caller's structure and may
@@ -326,6 +328,8 @@ def _unencodable(inputs: Any) -> str | None:
                     f"position {exc.start}, which has no UTF-8 encoding"
                 )
         elif isinstance(value, Mapping):
+            pending.extend((f"the key {key!r} of {where or 'the input'}", key)
+                           for key in value if isinstance(key, str))
             pending.extend((f"{where}[{key!r}]" if where else str(key), item)
                            for key, item in value.items())
         elif isinstance(value, (list, tuple)):
@@ -1285,6 +1289,7 @@ class Runtime:
             try:
                 row = self._janus.query_once(*_scope.bind(goal, inputs))
             except self._janus.PrologError as exc:
+                self._refuse_uncrossable(inputs)
                 self._raise(exc)
             except SystemError as exc:
                 self._lost_crossing(exc, inputs)
@@ -1447,6 +1452,7 @@ class Runtime:
                 )
             except self._janus.PrologError as exc:
                 self._resynchronise()
+                self._refuse_uncrossable(inputs)
                 self._raise(exc)
             except SystemError as exc:
                 self._lost_crossing(exc, inputs)
@@ -1491,6 +1497,7 @@ class Runtime:
                 )
             except self._janus.PrologError as exc:
                 self._resynchronise()
+                self._refuse_uncrossable(inputs)
                 self._raise(exc)
             except SystemError as exc:
                 self._lost_crossing(exc, inputs)
@@ -1556,6 +1563,7 @@ class Runtime:
             try:
                 rows = list(self._janus.query(*_scope.bind(goal, inputs)))
             except self._janus.PrologError as exc:
+                self._refuse_uncrossable(inputs)
                 self._raise(exc)
             except SystemError as exc:
                 self._lost_crossing(exc, inputs)
@@ -1583,11 +1591,14 @@ class Runtime:
     def _lost_crossing(self, exc: SystemError, inputs: Any) -> NoReturn:
         """Recover from an input conversion that failed inside janus's C.
 
-        janus reports such a failure as a bare ``SystemError`` naming nothing,
-        and the Python exception it set stays pending in the engine: measured
-        2026-08-29, the NEXT call, however unrelated, is the one that raises
-        it, and the call after that is clean again. On a server that made one
-        peer's malformed payload fail a different peer's request.
+        An unpatched janus reports such a failure as a bare ``SystemError``
+        naming nothing, and the Python exception it set stays pending in the
+        engine: measured 2026-08-29, the NEXT call, however unrelated, is the
+        one that raises it, and the call after that is clean again. On a
+        server that made one peer's malformed payload fail a different peer's
+        request. The janus this seat requires raises the pending exception
+        from the call itself and clears it, and reports a ``SystemError`` only
+        when nothing was pending (janus-unconvertible-input-not-raised).
 
         So the failure is made local here, the way a database client discards
         a connection's pending results after a framing error rather than
@@ -1595,16 +1606,31 @@ class Runtime:
         pending error, and this call raises for its own input. Nothing is
         spent on the succeeding path, because the recovery runs only once a
         crossing has already been lost.
+        """
+        self._resynchronise()
+        self._refuse_uncrossable(inputs)
+        msg = f"the engine could not accept this call's inputs: {exc}"
+        raise EngineError(msg) from exc
+
+    @staticmethod
+    def _refuse_uncrossable(inputs: Any) -> None:
+        """Refuse, as the caller's error, a call whose inputs hold text with no UTF-8 encoding.
+
+        Such a call never ran: janus converts every input before it calls, and
+        the conversion of that text is what failed, whether janus reported it
+        as the codec's UnicodeEncodeError, as the janus this seat requires
+        does, or as a bare SystemError, as an unpatched one did. So a failed
+        call whose inputs walk to such text raises ValueError naming where it
+        sits, and any other failure returns here for its own classification.
+        The walk runs only after a call has failed.
 
         The refusal matches _atoms_core._encodable, which already gives this
         wording where an ATOM carries the same text; this is the raw goal
         interface it never covered.
         """
-        self._resynchronise()
         reason = _unencodable(inputs)
         if reason is None:
-            msg = f"the engine could not accept this call's inputs: {exc}"
-            raise EngineError(msg) from exc
+            return
         msg = (
             f"this call cannot cross to the engine: {reason}. Repair the "
             f"text, or carry it whole with metta.ground(text)."

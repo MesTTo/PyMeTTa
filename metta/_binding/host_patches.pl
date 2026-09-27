@@ -7,4 +7,9 @@
 
 host_patch('janus-callback-exception-leak.patch', '682b7866fc92ffb8f5a58cff80d258107efeea09ee048519e50fbcc53be36c83').
 host_patch('janus-conversion-drops-a-raised-exception.patch', '6464f43b4c970ff8c7042c43dde0a9280061faeb6b359b263d87db058fb082fc').
+host_patch('janus-eval-argument-double-release.patch', 'f91acb458ccbced72242f689c1d4129c4c35ceee8191eed234543c14c3893b02').
+host_patch('janus-ignores-no-signals.patch', '2080bc149d9fe34f1e0583fdce6f4eb5150dfd8d967306f495982308cd3da3fe').
+host_patch('janus-prologio-uninitialised.patch', '0d5bd9a6cfab9edf5b57fe3fa4b95aaa75cf93b09cc0d92d61dc20394c87216f').
+host_patch('janus-python-outlives-cleanup.patch', 'bdf507399b39e5286973f54e23bf2527216044e4b31648ceca94d8488c4adfd5').
+host_patch('janus-unconvertible-input-not-raised.patch', '504e384727bfc66e47495ca30a51a2d37bbfa68d950e7fb7f29b81d415367455').
 host_patch('swi-file-search-cache-autoload.patch', '9017274ed2cc99a2cc938f062881921c1faa8cea9d7d7b1e009242c754db7567').
