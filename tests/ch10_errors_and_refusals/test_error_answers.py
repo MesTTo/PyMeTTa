@@ -200,24 +200,25 @@ def test_an_op_authors_exception_group_stays_wrapped(metta):
     assert "two user failures" in str(caught.value)
 
 
-def test_case_dual_refusal_names_the_unarrived_cases(metta):
-    """The refusal says WHY: the cases have not arrived at compile time.
+def test_cases_handed_in_at_run_time_are_negated_by_failure(metta):
+    """A ground call to a case handed its cases at run time is negated by failure.
 
-    A dual is built once, out of the equation as written, so case branches
-    handed in at run time have none to negate. let*'s dual already refuses
-    with that precise reason; case fell through to the generic special-form
-    refusal, which names a true fact about case and the wrong reason for
-    this equation.
+    Such a case has no dual: the cases arrive, the call runs, and the negation
+    answers what the written-out cases would. A form with no dual whose
+    variable is still unbound refuses, and the refusal says why.
     """
     with metta._new_space() as space:
         space.run("(= (cdrf-key) 1)")
         space.run("(= (cdrf-handed $cs) (case (cdrf-key) $cs))")
+        proved = space.run("!(not-provable (cdrf-handed (quote ((1 (> 1 0))))))")
+        unmatched = space.run("!(not-provable (cdrf-handed (quote ((2 (> 1 0))))))")
+        assert [str(answer) for answer in proved[0]] == ["False"]
+        assert [str(answer) for answer in unmatched[0]] == ["True"]
         with pytest.raises(EngineError) as caught:
-            space.run("!(not-provable (cdrf-handed (quote ((1 (> 1 0))))))")
+            space.run("!(let $r (not-provable (once (cdrf-handed $cs))) ($r $cs))")
         message = str(caught.value)
-        assert "arrive" in message
-        assert "writing the cases out" in message
-        assert "special form" not in message
+        assert "once has no dual" in message
+        assert "negation as failure" in message
 
 
 def test_an_opaque_argument_does_not_replace_the_failure_it_was_passed_to(metta):

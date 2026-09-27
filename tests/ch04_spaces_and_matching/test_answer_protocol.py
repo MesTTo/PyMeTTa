@@ -1092,6 +1092,20 @@ def test_negation_runs_over_a_declared_closed_world(metta):  # noqa: D103  -- py
     assert str(present[0][0]) == "False"
 
 
+def test_a_nested_negation_leaves_the_outer_one_guarded(metta):
+    """An inner negation's answer leaves the outer one refusing an undeclared world.
+
+    The inner negation answers first and the outer one then reads an
+    undeclared world, which it must still refuse: the flag the inner one set
+    goes back to what it found, not to off.
+    """
+    _space_declarations._register_space(metta, _NamedRows(["(fact a)"]), "&cw-nested")
+    metta.run("(= (cw-nohas $x) (match &cw-nested (fact $x) True))")
+    metta.run("(= (cw-local $x) (== $x zz))")
+    with pytest.raises(EngineError, match="closed-world"):
+        metta.run("!(not-provable (and (not-provable (cw-local b)) (cw-nohas b)))")
+
+
 def test_negation_over_native_spaces_is_untouched(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(add-atom &self (cw-native here))")
     metta.run("(= (cw-nhas $x) (match &self (cw-native $x) True))")
