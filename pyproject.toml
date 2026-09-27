@@ -275,6 +275,10 @@ checks = [
     "pytest-memray>=1.8",
     "radon>=6.0",
     "refurb>=2.3",
+    #: REUSE's own linter, the reference the notices-coverage-selftest lane
+    #: cross-checks the notices maps' coverage rule against
+    #: (tests/checks/check_notices_coverage_selftest.py).
+    "reuse>=6.2",
     "ruff>=0.14",
     "setuptools>=83",
     "slotscheck>=0.20",
