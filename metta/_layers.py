@@ -42,6 +42,7 @@ BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "_declare": ("_roots", "_spaces", "_compile", "doors", "_catalog", "_atoms", "_errors", "seam"),
     "_observe": ("_declare", "_spaces", "_binding", "_catalog", "_atoms", "_errors", "seam"),
     "_faces": ("_declare", "_observe", "_spaces", "doors", "_atoms"),
+    "errors": ("_errors",),
     "algebra": ("_faces",),
     "convert": ("_faces",),
     "derivation": ("_faces",),
@@ -70,7 +71,7 @@ BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "aio": ("_faces", "subscribe", "lint"),
     "_history": ("aio", "importing", "manifest", "subscribe", "testing", "parallel", "spaces"),
     "metta": (
-        "_history", "cli", "derivation", "ipython", "paths", "pytest_plugin",
+        "_history", "cli", "derivation", "errors", "ipython", "paths", "pytest_plugin",
         "typing", "__main__", "_pygments", "_version", "_layers", "lint", "live", "spaces",
     ),
 })

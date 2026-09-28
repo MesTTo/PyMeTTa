@@ -324,9 +324,11 @@ REMOVED_FROM_ROOT = {
     "Prepared",
     # Importable implementation modules are not package attributes. ``define``
     # is now the ruled default-engine verb, not the implementation module.
+    # ``errors`` left this set on 2026-09-29: it is the error family's public
+    # satellite again, the module Fork 4 put the detailed classes in, and the
+    # classes themselves stay off the root, listed above.
     "answer",
     "atoms",
-    "errors",
     "ops",
     "results",
     "persistent",

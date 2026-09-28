@@ -860,7 +860,7 @@ layers = [
     "_binding | _compile | doors",
     "_catalog",
     "vocabularies",
-    "_atoms",
+    "_atoms | errors",
     "_errors",
     "seam",
     "_host | _layers | _lazy | _roots | _version",
