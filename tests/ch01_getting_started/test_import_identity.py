@@ -123,10 +123,11 @@ def test_callback_facade_owns_no_state_and_delegates():
         if not name.startswith("__") and name not in exported
     }
     # `_sys` is the module reference a refusal names as its `obj` so the
-    # interpreter can offer a suggestion; a module import is not state.
+    # interpreter can offer a suggestion; a module import is not state, and
+    # `_EXHAUSTED` is the immutable sentinel a stream pull compares against.
     assert set(own_state) == {
-        "_Any", "_CALLBACKS", "_Callable", "_ENTERED", "_entry", "_functools", "_importlib",
-        "_sys", "_threading", "annotations", "entered",
+        "_Any", "_CALLBACKS", "_Callable", "_ENTERED", "_EXHAUSTED", "_GeneratorType", "_entry",
+        "_functools", "_importlib", "_pulled", "_sys", "_threading", "annotations", "depth", "entered",
     }
     assert all(
         isinstance(owner, tuple) and len(owner) == 2

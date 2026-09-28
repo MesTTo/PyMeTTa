@@ -251,7 +251,12 @@ class _Batch:
     def __len__(self) -> int:
         return len(self._pending)
 
-_ACTIVE_SPACE: ContextVar[_SpaceId | None] = ContextVar(
+#: The space the innermost Python ``with space:`` block names, with the number
+#: of engine callbacks open on the thread that entered it
+#: (metta._binding.callbacks.depth). The block names the space for code at that
+#: level only: an operation the engine calls from inside the block runs one
+#: level deeper, where the engine's evaluating space is the answer.
+_ACTIVE_SPACE: ContextVar[tuple[_SpaceId, int] | None] = ContextVar(
     "metta_active_space", default=None
 )
 

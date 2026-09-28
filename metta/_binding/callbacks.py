@@ -8,11 +8,19 @@ Guarantees:
     `__wrapped__` names that object [tested:
     test_callback_facade_owns_no_state_and_delegates; commit=f80cc416ddcadaf710caafd08f3f1f9ae7791e36]
   - `entered()` answers True exactly while a callback frame is open on the
-    running thread, which is how a scope lookup knows the engine may hold a
-    scope the host does not, and an ordinary door access makes no engine
-    call to find out [tested: test_the_engine_scope_is_read_inside_a_callback,
-    test_a_space_accessor_costs_no_engine_call_outside_a_callback;
-    commit=f80cc416ddcadaf710caafd08f3f1f9ae7791e36]
+    running thread, a pull of a stream a callback answered included, which is
+    how a scope lookup knows the engine may hold a scope the host does not,
+    and an ordinary door access makes no engine call to find out [tested
+    2026-09-29T05:26:00+10:00:
+    test_the_engine_scope_is_read_inside_a_callback,
+    test_a_space_accessor_costs_no_engine_call_outside_a_callback,
+    test_an_operation_reads_the_evaluating_space_under_an_outer_with_block]
+  - `depth()` counts the frames open on the running thread, so a scope the
+    host enters can record the level it belongs to and a reader can tell it
+    from one a caller entered before the engine called back in [tested
+    2026-09-29T04:38:10+10:00:
+    test_an_operation_reads_the_evaluating_space_under_an_outer_with_block,
+    test_a_with_block_an_operation_enters_names_its_space_for_the_body]
   - importing the callback facade does not import event, provider, or path
     satellites [tested: test_m7_satellites_are_lazy_and_identity_stable;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -36,6 +44,7 @@ import importlib as _importlib
 import sys as _sys
 import threading as _threading
 from collections.abc import Callable as _Callable
+from types import GeneratorType as _GeneratorType
 from typing import Any as _Any
 
 # begin generated binding callbacks
@@ -177,7 +186,10 @@ __all__ = [
 # thread while a callback runs, so code that may run on the engine's behalf
 # (an operation's body, a provider, a subscription handler) can ask whether it
 # does, and the scope it runs under is the engine's own then rather than the
-# host's ambient one.
+# host's ambient one. janus pulls a stream a callback answered (py_iter) after
+# the callback's own frame has closed, and each pull runs the stream's code on
+# the engine's behalf too, so a pull and the stream's release are frames of
+# their own.
 _ENTERED = _threading.local()
 
 
@@ -186,16 +198,54 @@ def entered() -> bool:
     return getattr(_ENTERED, "depth", 0) > 0
 
 
+def depth() -> int:
+    """How many engine callbacks are open on the running thread.
+
+    A scope the host enters records it, so its reader can tell a scope the
+    running code entered from one a caller entered before the engine called
+    back into Python: the second belongs to a shallower frame.
+    """
+    return getattr(_ENTERED, "depth", 0)
+
+
 def _entry(target: _Callable[..., _Any]) -> _Callable[..., _Any]:
     @_functools.wraps(target)
     def callback(*args: _Any, **kwargs: _Any) -> _Any:
         _ENTERED.depth = getattr(_ENTERED, "depth", 0) + 1
         try:
-            return target(*args, **kwargs)
+            value = target(*args, **kwargs)
+        finally:
+            _ENTERED.depth -= 1
+        return _pulled(value) if type(value) is _GeneratorType else value
+
+    return callback
+
+
+def _pulled(stream: _Any) -> _Any:
+    """The stream a callback answered, each pull and its release in a frame.
+
+    Every stream the shim pulls is total already (errors.guarded), so a pull
+    here never raises; the sentinel is a private identity no stream yields.
+    """
+    try:
+        while True:
+            _ENTERED.depth = getattr(_ENTERED, "depth", 0) + 1
+            try:
+                item = next(stream, _EXHAUSTED)
+            finally:
+                _ENTERED.depth -= 1
+            if item is _EXHAUSTED:
+                return
+            yield item
+    finally:
+        _ENTERED.depth = getattr(_ENTERED, "depth", 0) + 1
+        try:
+            stream.close()
         finally:
             _ENTERED.depth -= 1
 
-    return callback
+
+_EXHAUSTED = object()
 
 
 def __getattr__(name: str) -> _Any:

@@ -63,6 +63,7 @@ from metta import (
     Symbol,
     V,
     Variable,
+    current_space,
     ground,
     reflection,
 )
@@ -1127,6 +1128,70 @@ def test_injection_binds_the_calling_space(metta):  # noqa: D103  -- pytest disc
         assert group[0] == "&self"
     finally:
         metta.unregister_op("inj-here")
+
+
+@pytest.mark.parametrize("kind", ["det", "many", "async"])
+def test_an_operation_reads_the_evaluating_space_under_an_outer_with_block(metta, kind):
+    """A Python `with` block around an evaluation does not move the operation.
+
+    The engine calls an operation where it is evaluating, so inside one both
+    metta.current_space() and the injected engine answer that space, whatever
+    space a `with` block around the call names for the Python code in it: the
+    MeTTa-PC integration measured the block's space from both, which made its
+    compile read an empty space.
+    """
+    seen: list[tuple[str, str]] = []
+    name = unique(f"where-{kind}")
+
+    def record(engine: MeTTa) -> int:
+        seen.append((str(current_space()), str(engine.self.name)))
+        return 1
+
+    def where_det(engine: MeTTa) -> int:
+        return record(engine)
+
+    def where_many(engine: MeTTa):
+        yield record(engine)
+
+    async def where_async(engine: MeTTa) -> int:
+        return record(engine)
+
+    where = {"det": where_det, "many": where_many, "async": where_async}[kind]
+    metta.op(where, name=name, effect="oracleIO", arities=[0])
+    evaluating = metta._new_space()
+    try:
+        with metta._new_space():
+            for answer in (*evaluating.eval(S[name]()), *evaluating.run(f"!({name})")[0]):
+                if kind == "async":
+                    list(answer.wait())
+        assert seen == [(str(evaluating.name), str(evaluating.name))] * 2
+    finally:
+        evaluating.drop()
+        metta.unregister_op(name)
+
+
+def test_a_with_block_an_operation_enters_names_its_space_for_the_body(metta):
+    """The innermost scope names the space: a block the operation body enters wins there."""
+    seen: list[str] = []
+    name = unique("where-inner")
+    inner = metta.metta.space(f"&{unique('inner-kb')}")
+
+    def where() -> int:
+        with inner:
+            seen.append(str(current_space()))
+        seen.append(str(current_space()))
+        return 1
+
+    metta.op(where, name=name, effect="oracleIO", arities=[0])
+    evaluating = metta._new_space()
+    try:
+        with metta._new_space():
+            evaluating.eval(S[name]())
+        assert seen == [str(inner.name), str(evaluating.name)]
+    finally:
+        evaluating.drop()
+        inner.drop()
+        metta.unregister_op(name)
 
 
 def test_injection_composes_with_defaults_and_position(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

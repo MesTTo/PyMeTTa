@@ -89,7 +89,12 @@ def attach(name: str | Symbol, backing: _Any):
 
 
 def current_space():
-    """Return the ambient space selected by an enclosing space context."""
+    """Return the space the running code is in.
+
+    Python code inside a ``with space:`` block is in that space; an operation
+    the engine calls is in the space evaluating it, even from inside such a
+    block, until its own body enters one.
+    """
     from metta._spaces import handle  # noqa: PLC0415 -- a root import does not request a handle
 
     return handle.current_space()

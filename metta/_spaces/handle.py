@@ -60,6 +60,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Never, Self, cast
 
+import metta._binding.callbacks as _callbacks
 import metta._spaces.intents as _spaces_intents_module
 import metta._spaces.lease as _spaces_lease_module
 import metta._spaces.lifetime as _spaces_lifetime_module
@@ -109,11 +110,15 @@ def current_space(default: str = _DEFAULT_SPACE) -> _SpaceId:
     Callable from inside a registered operation, where it answers the space
     of the program that called it: janus re-enters the engine cleanly, so
     an operation can behave per-space without the space being an argument.
+    A Python ``with space:`` block names the space for the code at its own
+    level, and an operation the engine calls from inside the block runs a
+    callback deeper, so it answers the engine's space; a block the
+    operation's own body enters names its space there.
     Outside any evaluation it answers the default.
     """
     selected = _spaces_scope_module._ACTIVE_SPACE.get()
-    if selected is not None:
-        return selected
+    if selected is not None and selected[1] == _callbacks.depth():
+        return selected[0]
     if not started():
         return _SpaceId(default)
     row = bridge().query_once("current_metta_space(S)")
@@ -896,7 +901,9 @@ class SpaceHandle(Handle):
         )
 
     def __enter__(self) -> Self:
-        self._context_tokens.append(_spaces_scope_module._ACTIVE_SPACE.set(self._space))
+        self._context_tokens.append(
+            _spaces_scope_module._ACTIVE_SPACE.set((self._space, _callbacks.depth()))
+        )
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

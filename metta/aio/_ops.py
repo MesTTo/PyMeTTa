@@ -75,6 +75,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+import metta._binding.callbacks as _callbacks
 import metta._binding.task_context as _task_context
 import metta._spaces.lifetime as _scope
 from metta._binding.runtime import Runtime, active_runtime, engine_thread
@@ -167,11 +168,6 @@ def start(token: int) -> bool:
     try:
         loop = _event_loop()
         context = _task_context.context_copy(pending.context)
-        from metta._spaces.scope import (  # noqa: PLC0415 -- bind the captured engine space
-            _ACTIVE_SPACE,
-        )
-
-        context.run(_ACTIVE_SPACE.set, pending.call_space)
     except BaseException as error:  # noqa: BLE001
         _fail_start(token, pending, error)
         return True
@@ -181,6 +177,13 @@ def start(token: int) -> bool:
             if token not in _STARTING:
                 return
         try:
+            # The captured engine space, named at the level the coroutine runs
+            # at: this runs on the loop's thread, in the task's own context.
+            from metta._spaces.scope import (  # noqa: PLC0415 -- bind the captured engine space
+                _ACTIVE_SPACE,
+            )
+
+            _ACTIVE_SPACE.set((pending.call_space, _callbacks.depth()))
             coroutine = pending.fn(*pending.args)
             task = loop.create_task(coroutine, context=context)
         except BaseException as error:  # noqa: BLE001
