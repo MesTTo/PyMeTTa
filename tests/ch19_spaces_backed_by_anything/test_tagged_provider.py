@@ -19,6 +19,11 @@ Guarantees:
     bound reports that bound on every door, direct and tagged alike [tested:
     test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it;
     commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
+  - a provider's annotation reaches a weighed query through every combinator
+    and through a native rule over a union, whether the provider is a member
+    itself or backs a space handle that is [tested 2026-09-29T03:09:05+10:00:
+    test_a_composition_carries_a_provider_members_annotation,
+    test_a_native_rule_over_a_union_reads_the_provider_annotation]
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ from metta import (
     prob,
     prov,
     ranked,
+    spaces,
     tropical,
     under,
 )
@@ -496,3 +502,54 @@ def test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it(
             assert resource_word in str(stopped.value)
             assert provider.entered == 1
             assert helper.eval(S["+"](1, 2)) == [3]
+
+
+#: Every combinator a member can sit in, each taking the member and answering
+#: a provider: the pattern it is asked with, and the member pattern that
+#: pattern means inside it.
+COMPOSITIONS = {
+    "union": (lambda member: spaces.union(member), S.err(V.x)),
+    "readonly": (lambda member: spaces.readonly(member), S.err(V.x)),
+    "overlay": (lambda member: spaces.overlay(member, make_space()), S.err(V.x)),
+    "mapped": (lambda member: spaces.mapped(member, S.bridge(S.fault(V.x), S.err(V.x))), S.fault(V.x)),
+}
+
+
+def _annotations(space, pattern, carrier):
+    return sorted((str(answer.value), str(answer.annotation)) for answer in space.match(pattern, under=carrier))
+
+
+@pytest.mark.parametrize("composition", sorted(COMPOSITIONS))
+@pytest.mark.parametrize("carrier", ["prov", "tropical", "prob"])
+def test_a_composition_carries_a_provider_members_annotation(composition, carrier):
+    """A member attached to a provider answers a weighed query as that provider does.
+
+    A handle's rows are bindings, so a combinator that read a handle member
+    through them answered every weight as the carrier's one: a union of a
+    native rule and a provider's weighted fact read (times 2.0 one) under prov
+    where the provider's own match read 0.7. mapped also dropped every answer
+    a provider gave in the explicit form, weight or not.
+    """
+    compose, pattern = COMPOSITIONS[composition]
+    rows = [(S.err(S.n1), 0.7), (S.err(S.n2), 0.4)]
+    with make_space(backing=WeightedRules([], rows)) as attached:
+        through_handle = make_space(backing=compose(attached))
+        through_provider = make_space(backing=compose(WeightedRules([], rows)))
+        weighed = _annotations(through_handle, pattern, carrier)
+        assert weighed == _annotations(through_provider, pattern, carrier)
+        assert sorted(annotation for _, annotation in weighed) == ["0.4", "0.7"]
+
+
+def test_a_native_rule_over_a_union_reads_the_provider_annotation():
+    """A tagged rule's premise answered by an attached provider keeps its weight."""
+    rows = [(S.err(S.n1), 0.7)]
+    with make_space() as home, make_space(backing=WeightedRules([], rows)) as attached:
+        home.add_tagged_rule(2.0, S.bad(V.x), S.err(V.x))
+        attached.annotations("prov")
+        both = make_space(backing=spaces.union(home, attached))
+        assert [str(answer.annotation) for answer in both.match(S.bad(V.x), under=prov)] == [
+            "(times 2.0 0.7)"
+        ]
+        # A plain query still reads the handle, whose own declaration admits
+        # the weight, so the rows are the attached space's own.
+        assert [row.x for row in both.match(S.err(V.x))] == [S.n1]

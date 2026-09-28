@@ -36,6 +36,13 @@ Guarantees:
     fixed ones written here
     [tested: test_random_combinator_trees_serve_what_they_claim;
     commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
+  - a member attached to a provider answers a query that weighs its answers
+    as the provider itself does, so union, readonly, overlay and mapped
+    carry that provider's annotation through, and mapped keeps every answer
+    a provider gives in the explicit form, value and annotation included
+    [tested 2026-09-29T03:09:05+10:00:
+    test_a_composition_carries_a_provider_members_annotation,
+    test_a_native_rule_over_a_union_reads_the_provider_annotation]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -49,6 +56,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from typing import Any
 
+from metta._atoms.answer import Answer
 from metta._atoms.factories import (
     Atom,
     Expression,
@@ -330,18 +338,45 @@ class _Member:
         return iter(self.target.atoms())
 
     def match(self, pattern: Atom) -> Iterator[Atom]:
-        if self._is_space:
+        provider = self._annotating_provider()
+        if self._is_space and provider is None:
             rows = self.target.match(pattern)
             names = rows.columns
             for row in rows:
                 yield substitute(pattern, dict(zip(names, row, strict=True)))
             return
-        self._require("match", "match", pattern=pattern)
-        if isinstance(self.target, Matcher):
-            yield from self.target.match(pattern)
+        if provider is None:
+            provider = self.target
+        self._require("match", "match", provider=provider, pattern=pattern)
+        if isinstance(provider, Matcher):
+            yield from provider.match(pattern)
             return
-        self._require("enumerate", "match", pattern=pattern)
-        yield from self.target.atoms()
+        self._require("enumerate", "match", provider=provider, pattern=pattern)
+        yield from provider.atoms()
+
+    def _annotating_provider(self) -> Any:
+        """The provider a handle attached, while the evaluation weighs answers.
+
+        A handle's rows are bindings and carry no annotation, so while the
+        evaluation in progress runs under an algebra, a member attached to a
+        provider is asked through that provider, whose explicit answers carry
+        the k the rows would drop, and it answers as that provider named as a
+        member does. Outside one, the handle answers as it always did, its own
+        declarations deciding whether a k is admitted. The signal is the
+        engine's evaluation context, not current_algebra(), which falls back
+        to the annotations row of whatever space is current: inside `with
+        attached:` a plain query read that row. A native space's tagged
+        program reaches the engine through enumeration, and it holds no
+        backing, so its handle is asked as it always was.
+        """
+        if not self._is_space:
+            return None
+        provider = getattr(self.target, "_backing", None)
+        if provider is None or not self.target.runtime.once(
+            "metta_evaluation_context(evaluation_context(_, _, _))"
+        ):
+            return None
+        return provider
 
     def add(self, *atoms: Atom) -> None:
         if self._is_space:
@@ -361,7 +396,7 @@ class _Member:
         self.target.clear()
 
     def _require(
-        self, capability: str, operation: str, **request: Any
+        self, capability: str, operation: str, *, provider: Any = None, **request: Any
     ) -> None:
         """The framework's refusal, not a bare AttributeError.
 
@@ -370,12 +405,14 @@ class _Member:
         "declines this request"; a combinator member reached the method
         directly, so a ReadOnly provider under overlay().clear() died with
         AttributeError instead [measured 2026-09-01]. A Space handle always
-        carries the methods, so only the provider case asks.
+        carries the methods, so only the provider case asks, and `provider`
+        names the one asked when it is the provider behind the handle.
         """
-        if self._is_space or not isinstance(self.target, SpaceProvider):
+        asked = self.target if provider is None else provider
+        if (provider is None and self._is_space) or not isinstance(asked, SpaceProvider):
             return
         _require_provider(
-            self.target, self.describe(), capability, operation, **request
+            asked, self.describe(), capability, operation, **request
         )
 
     def snapshot(self) -> tuple[Atom, ...]:
@@ -649,6 +686,24 @@ class _Mapped(_Composed):
             return None
         return substitute(self._outer, bindings)
 
+    def _outward_answer(self, item: Any, inner_pattern: Atom) -> Any:
+        """One member answer in this view's outward shape, or None.
+
+        A provider may answer in the explicit form, bindings or a value with
+        a residue and an annotation. The view maps the atom that answer stands
+        for and keeps its residue and annotation, so what a query weighs
+        survives the view; the plain form maps as an atom always has.
+        """
+        if not isinstance(item, Answer):
+            return self._outward(item)
+        inner = item.value if item.value is not None else substitute(
+            inner_pattern, {name: _encode(value) for name, value in item.theta.items()}
+        )
+        outward = self._outward(_encode(inner))
+        if outward is None:
+            return None
+        return Answer(value=outward, residue=item.residue, k=item.k)
+
     def atoms(self) -> Iterator[Atom]:
         for atom in self._member.atoms():
             outward = self._outward(atom)
@@ -669,7 +724,7 @@ class _Mapped(_Composed):
             _is_ground(pattern) or not _repeats_a_variable(pattern)
         ):
             for candidate in self._member.match(inner_pattern):
-                outward = self._outward(candidate)
+                outward = self._outward_answer(candidate, inner_pattern)
                 if outward is not None:
                     yield outward
             return
