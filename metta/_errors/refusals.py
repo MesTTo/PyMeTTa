@@ -23,6 +23,11 @@ Guarantees:
   - `cls` is the class THIS seat raises and `departure` says why when it is
     not the row's own name [tested: test_every_seat_raises_the_rows_class_or_says_why;
     commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
+  - `FIELD_PAYLOADS` is the engine's own field typing,
+    metta_host_error_field_row/2, by field name, which is how the crossing
+    knows a term field arrives encoded and decodes it into an atom
+    [tested 2026-09-29T07:01:52+10:00: test_the_refusal_table_is_generated,
+    test_every_term_field_arrives_as_this_seats_own_atom]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -264,6 +269,20 @@ REFUSALS: Final[Mapping[str, Refusal]] = MappingProxyType({
         acts=(),
         fields=('requires',),
     ),
+    'catalog_key_taken': Refusal(
+        kind='catalog_key_taken',
+        cls='IntegrityError',
+        declared='IntegrityError',
+        departure=None,
+        origin='term',
+        ground_kind='metta-law',
+        citation="HostLaws: engine/spaces/catalog.pl metta_catalog_key/4 -- a keyed catalog head admits one row per key, refused as the write lands and again at an engine transaction's outer commit, except that a key which is its row's whole content is not counted there, since a second copy repeats the fact",
+        title='remove-atom the standing <head> row for <key> to declare another',
+        remedy_kind='quickfix',
+        applicability='prose',
+        acts=(),
+        fields=('head', 'key'),
+    ),
     'engine': Refusal(
         kind='engine',
         cls='EngineError',
@@ -278,4 +297,26 @@ REFUSALS: Final[Mapping[str, Refusal]] = MappingProxyType({
         acts=(),
         fields=(),
     ),
+})
+
+#: What each field holds as it crosses, by field name, in the wire grammar's
+#: words: `text` a name or a sentence, `number` a count or a bound, `term` a
+#: MeTTa atom that crosses encoded and decodes into this seat's own atom.
+FIELD_PAYLOADS: Final[Mapping[str, str]] = MappingProxyType({
+    'bound': 'number',
+    'call': 'text',
+    'capability': 'text',
+    'costs': 'text',
+    'culprit': 'text',
+    'expected': 'text',
+    'head': 'text',
+    'key': 'term',
+    'kind': 'text',
+    'limit': 'number',
+    'line': 'number',
+    'operation': 'text',
+    'requires': 'text',
+    'restraint': 'text',
+    'source': 'text',
+    'space': 'text',
 })

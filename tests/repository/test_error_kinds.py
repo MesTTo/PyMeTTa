@@ -20,6 +20,15 @@ Guarantees:
     compared both ways [tested: test_every_kind_is_in_the_exception_table; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - the fixture lists exactly the kinds the running engine declares, with the
     same fields [tested: test_the_fixture_lists_exactly_the_engines_own_rows; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
+  - the fixture types exactly the fields the running engine types, with the
+    same payload [tested 2026-09-29T07:01:52+10:00: test_the_fixture_types_exactly_the_engines_own_fields]
+  - a field the engine types `term` arrives on the raised class as this
+    seat's own atom, printing as the MeTTa the fixture expects [tested 2026-09-29T07:01:52+10:00:
+    test_every_term_field_arrives_as_this_seats_own_atom]
+  - a term field that does not decode leaves the refusal an EngineError with
+    the ball's own message rather than raising the decoder's error in its
+    place [tested 2026-09-29T07:04:39+10:00:
+    test_a_term_field_that_does_not_decode_answers_engine_error]
   - every listed ball classifies engine-side to its own kind and fields
     [tested: test_every_listed_ball_classifies_to_its_own_kind; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - throwing a listed ball through this seat raises the class the fixture
@@ -51,19 +60,24 @@ import pytest
 
 import metta._errors.errors as error_classes
 from metta import MeTTa
+from metta._atoms.model import Atom
 
 # The private table IS the subject: this file exists to pin it against the
 # shared list, so reading it here is the point rather than a way around a
-# public door. Nothing else in the suite touches it.
+# public door. Nothing else in the suite touches it. The module is held too,
+# so one case can plant a drifted field table into it.
+from metta._binding import runtime
 from metta._binding.runtime import _EXCEPTION_TYPES
 from metta._roots import workspace
 
 #: Read at import rather than through the repo_root fixture, because the cases
 #: below are one test per kind and parametrize runs at collection time. Same
 #: derivation the host-carve scan uses.
-KINDS = json.loads(
+_FIXTURE = json.loads(
     (workspace() / "tests" / "data" / "error-kinds.json").read_text()
-)["kinds"]
+)
+KINDS = _FIXTURE["kinds"]
+FIELD_TYPES = _FIXTURE["field-types"]
 
 _ADD_A_KIND = (
     "declare its row in engine/metta/registration.pl, add it to "
@@ -163,6 +177,19 @@ def test_the_fixture_lists_exactly_the_engines_own_rows(engine):
     assert declared == listed, f"the engine and the shared kind list disagree; {_ADD_A_KIND}"
 
 
+def test_the_fixture_types_exactly_the_engines_own_fields(engine):
+    """The shared list and the running engine type the same fields alike."""
+    rows = engine.runtime.must(
+        "findall([_Field, _Payload], metta_host_error_field_row(_Field, _Payload), Rows)"
+    )["Rows"]
+    declared = dict(rows)
+    listed = {field: row["payload"] for field, row in FIELD_TYPES.items()}
+    assert declared == listed, (
+        "the engine's metta_host_error_field_row/2 and the shared list's "
+        "field-types disagree"
+    )
+
+
 def test_every_thrown_kind_is_a_listed_signal_row(tree_kinds):
     """The kinds the tree throws and the fixture's signal rows are one set.
 
@@ -181,11 +208,14 @@ def test_every_listed_ball_classifies_to_its_own_kind(name, engine):
     row = KINDS[name]
     answer = engine.runtime.must(
         # _-prefixed because janus converts every NAMED variable of a goal and
-        # refuses a compound: the ball and the pair list are intermediates, and
-        # only the kind, the field names and their values cross.
+        # refuses a compound: the ball, the pair list and the raw values are
+        # intermediates, and only the kind, the field names and the values as
+        # the engine's own renderer writes them cross, so a term field reads
+        # as the MeTTa its writer prints.
         "term_string(_Ball, BallText), "
         "metta_host_error_kind(_Ball, Kind, _Pairs), "
-        "pairs_keys_values(_Pairs, Names, Values)",
+        "pairs_keys_values(_Pairs, Names, _Raw), "
+        "maplist(metta_engine:metta_host_error_field_text, _Raw, Values)",
         BallText=row["ball"],
     )
     assert answer["Kind"] == name
@@ -211,6 +241,43 @@ def test_a_thrown_ball_raises_the_class_the_fixture_names(name, engine):
         )
     else:
         assert raised == wanted
+
+
+def test_every_term_field_arrives_as_this_seats_own_atom(engine):
+    """A `term` field is an Atom on the class this seat raises, never its text.
+
+    Every kind carrying one is driven through the seat's own crossing, so a
+    field typed `term` later is covered the day it is typed.
+    """
+    carrying = [
+        (name, field)
+        for name, row in KINDS.items()
+        for field in row["fields"]
+        if FIELD_TYPES[field]["payload"] == "term"
+    ]
+    assert carrying, "no kind carries a term field, so this measures nothing"
+    for name, field in carrying:
+        row = KINDS[name]
+        with pytest.raises(Exception) as failure:
+            engine.runtime.must("term_string(_Ball, BallText), throw(_Ball)", BallText=row["ball"])
+        held = getattr(failure.value, row["python"]["attributes"][field])
+        assert isinstance(held, Atom), f"{name}.{field} arrived as {type(held).__name__}"
+        assert str(held) == row["expects"][field]
+
+
+def test_a_term_field_that_does_not_decode_answers_engine_error(engine, monkeypatch):
+    """A classifier that itself fails answers EngineError with the ball's own message.
+
+    Planted as the drift it guards against: this seat's field table typing
+    `term` a field the engine sends as text, so the decode refuses it. The
+    private table is the subject, as `_EXCEPTION_TYPES` is above.
+    """
+    row = KINDS["catalog_key_taken"]
+    monkeypatch.setattr(runtime, "FIELD_PAYLOADS", {**runtime.FIELD_PAYLOADS, "head": "term"})
+    with pytest.raises(Exception) as failure:
+        engine.runtime.must("term_string(_Ball, BallText), throw(_Ball)", BallText=row["ball"])
+    assert type(failure.value).__name__ == "EngineError"
+    assert "remove-atom the standing row" in str(failure.value)
 
 
 @pytest.mark.parametrize("name", sorted(KINDS))

@@ -27,6 +27,10 @@ Guarantees:
     test_the_duplicate_check_sees_a_planted_duplicate; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - a row rewritten in the catalog reaches this seat with no change to any
     Python source [tested: test_a_rewritten_row_reaches_this_seat_at_once; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
+  - the refusals page's field types are the engine's, and its check reports a
+    field the engine and the shared list type differently [tested 2026-09-29T07:08:06+10:00:
+    test_the_refusals_page_is_generated,
+    test_the_page_check_sees_a_field_typed_two_ways]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -228,12 +232,25 @@ def test_the_page_check_sees_a_kind_on_one_side_only(repo_root):
     doc = _refusalsdoc(repo_root)
     rowed = [{"kind": "planted"}]
     listed = {"vanished": {}}
-    found = doc.findings(rowed, listed)
+    found = doc.findings(rowed, listed, {}, {})
     assert found == [
         "planted: has a row and no entry in the shared kind list",
         "vanished: is in the shared kind list and has no row",
     ]
-    assert doc.findings(rowed, {"planted": {}}) == []
+    assert doc.findings(rowed, {"planted": {}}, {}, {}) == []
+
+
+def test_the_page_check_sees_a_field_typed_two_ways(repo_root):
+    """A field typed differently by the engine and the shared list, or by one alone, is a finding."""
+    doc = _refusalsdoc(repo_root)
+    engine = {"key": "term", "planted": "text"}
+    listed = {"key": {"payload": "text"}, "vanished": {"payload": "number"}}
+    assert doc.findings([], {}, engine, listed) == [
+        "field key: the engine types it term and the shared list text",
+        "field planted: the engine types it text and the shared list not at all",
+        "field vanished: the engine types it not at all and the shared list number",
+    ]
+    assert doc.findings([], {}, {"key": "term"}, {"key": {"payload": "term"}}) == []
 
 
 def test_a_hole_is_written_as_code_on_the_page(repo_root):

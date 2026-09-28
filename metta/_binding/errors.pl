@@ -134,7 +134,11 @@ metta_py_assertion_call(Tagged, Form, Actual, Expected) :-
 %which janus has no Python spelling for. They are what lets the seat build the
 %class its row names with the parts that class declares: a stack overflow
 %carries its ceiling and a missing source carries its path, where before both
-%arrived as a sentence with nothing to read off it.
+%arrived as a sentence with nothing to read off it. A field the engine types
+%`term` (metta_host_error_field_row/2) crosses encoded, as every other atom
+%does, and the Python side decodes it into its own atom by the same table,
+%which refusalgen.py writes into FIELD_PAYLOADS; janus alone would hand it
+%over as a list of strings, a space reference among them read as a name.
 %
 %It FAILS for a ball whose kind carries no catalog row, which the row lane
 %forbids and a program that removed the row can still produce; the Python side
@@ -145,8 +149,13 @@ metta_py_refusal(Error, Kind, Fields, Class, Ground, Remedy) :-
     metta_py_encode(GroundRow, Ground),
     metta_py_encode(RemedyRow, Remedy).
 
-%One Name-Value pair as the two-element list janus has a Python spelling for.
-metta_py_refusal_field(Name-Value, [Name, Value]).
+%One Name-Value pair as the two-element list janus has a Python spelling for,
+%a term field's value encoded.
+metta_py_refusal_field(Name-Value, [Name, Crossed]) :-
+    (   metta_host_error_field_row(Name, term)
+    ->  metta_py_encode(Value, Crossed)
+    ;   Crossed = Value
+    ).
 
 %The Python side's contributions to the engine's control-signal seam. There
 %was a metta_py_control_exception/1 here holding a SECOND copy of the list,

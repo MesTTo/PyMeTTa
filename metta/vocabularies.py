@@ -478,7 +478,7 @@ class Refinement(_AtomStrEnum):
     Unit = "Unit"
     Literal = "Literal"
 
-#: (vocabulary refusal-kind syntax time_limit inference_limit restraint interrupted value type assertion capability platform operation stack source registration engine)
+#: (vocabulary refusal-kind syntax time_limit inference_limit restraint interrupted value type assertion capability platform operation stack source registration catalog_key_taken engine)
 class RefusalKind(_AtomStrEnum):
     """Typed values of the refusal-kind vocabulary."""
     syntax = "syntax"
@@ -495,6 +495,7 @@ class RefusalKind(_AtomStrEnum):
     stack = "stack"
     source = "source"
     registration = "registration"
+    catalog_key_taken = "catalog_key_taken"
     engine = "engine"
 
 #: (vocabulary registry-image expression symbol handle operations)

@@ -67,7 +67,7 @@ from benchmarks.costs import (
 from metta import MeTTa
 from metta._atoms.factories import Symbol
 from metta._declare import functions
-from metta._errors.errors import EngineError
+from metta._errors.errors import EngineError, IntegrityError
 from metta._roots import workspace
 from metta.vocabularies import CostClass
 
@@ -255,12 +255,20 @@ def test_one_hole_used_twice_is_one_hole():
 
 
 def test_a_second_row_for_one_head_is_refused_with_its_remedy():
-    """One class per head, and the refusal says how to change the one standing."""
+    """One class per head, and the refusal names the head and key to free.
+
+    A taken key is the catalog_key_taken refusal, IntegrityError, whose head
+    and key are fields, the key the key tuple as an Expression, and the
+    sentence still says how to change the row.
+    """
     m = MeTTa()
     _catalog_row(m, "(cost (probe-twice-declared $n) linear)")
     try:
-        with pytest.raises(EngineError) as raised:
+        with pytest.raises(IntegrityError) as raised:
             _catalog_row(m, "(cost (probe-twice-declared $n) quadratic)")
+        assert raised.value.head == "cost"
+        assert raised.value.key.children == (Symbol("probe-twice-declared"),)
+        assert str(raised.value.key) == "(probe-twice-declared)"
         assert "one cost row per head" in str(raised.value)
         assert "remove-atom the standing row" in str(raised.value)
     finally:

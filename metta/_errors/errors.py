@@ -28,6 +28,12 @@ Guarantees:
     as fields [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - IntegrityError carries the catalog head, a name, and the key tuple as an
+    Expression, `(race &self)` for an algebra's name and context, of a keyed
+    declaration whose key a standing row holds [tested 2026-09-29T07:01:52+10:00:
+    test_a_second_row_for_one_head_is_refused_with_its_remedy,
+    test_every_term_field_arrives_as_this_seats_own_atom,
+    test_each_named_class_takes_the_attributes_the_fixture_lists]
   - semantic refusals carry a structured Python-reference or MeTTa-law ground,
     and every CompileError derives one from its construct [tested:
     extensions/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py,
@@ -97,6 +103,7 @@ __all__ = [
     "EngineError",
     "Ground",
     "InferenceLimitError",
+    "IntegrityError",
     "Interrupted",
     "LockDrift",
     "MettaError",
@@ -731,6 +738,35 @@ class RegistrationError(MettaError, ValueError):
     ):
         super().__init__(*args, **fields)
         self.requires = requires
+
+
+class IntegrityError(MettaError, ValueError):
+    """A keyed catalog declaration whose key a standing row already holds.
+
+    Both bases as RegistrationError has them: a well-formed declaration whose
+    value conflicts with what the catalog holds is Python's ValueError, and a
+    caller wrapping a whole declaration writes `except MettaError`. The name
+    is PEP 249's for a broken integrity constraint, which sqlite3 raises for a
+    unique key already taken.
+
+    `head` is the catalog head whose one-row-per-key rule the declaration
+    broke, a name, and `key` the key it names as an Expression, the key's
+    arguments in row order: `(race &self)` for an algebra's name and context,
+    so a caller reads the algebra's name as `key.children[0]` rather than
+    parsing anything. They are the fields the `catalog_key_taken` refusal row
+    declares and its remedy names.
+    """
+
+    def __init__(
+        self,
+        *args: object,
+        head: str | None = None,
+        key: _root.Expression | None = None,
+        **fields: Any,
+    ):
+        super().__init__(*args, **fields)
+        self.head = head
+        self.key = key
 
 
 class EngineError(MettaError):

@@ -182,6 +182,7 @@ from metta._errors.errors import (
     refusal_classes,
     refusing,
 )
+from metta._errors.refusals import FIELD_PAYLOADS
 from metta._roots import workspace
 
 logger = logging.getLogger(__name__)
@@ -1141,6 +1142,18 @@ def _answer_bag(wires: object) -> tuple[Atom, ...] | None:
     return tuple(_atom_from_wire(wire) for wire in cast("list[Any]", wires))
 
 
+def _crossed_field(name: str, value: object) -> object:
+    """One refusal field as its declared payload says it crossed.
+
+    A `term` field crossed encoded and decodes into this seat's own atom, so a
+    caller takes it apart as data; a `text` or `number` field crossed as
+    itself [source 2026-09-29T07:03:54+10:00: engine/metta/registration.pl,
+    metta_host_error_field_row/2, which refusalgen.py writes into
+    FIELD_PAYLOADS].
+    """
+    return _atom_from_wire(value) if FIELD_PAYLOADS.get(name) == "term" else value
+
+
 class Runtime:
     """One consulted engine, shared by every space and operation.
 
@@ -1694,11 +1707,18 @@ class Runtime:
         )
         # The parts the ball carried, under the names its kind declares, which
         # are the keywords the class takes: `refusal-sync` holds every class to
-        # its row's field list, so this cannot pass one the class refuses.
-        carried = {
-            str(name): value
-            for name, value in row.get("Fields") or ()
-        }
+        # its row's field list, so this cannot pass one the class refuses. A
+        # term field is decoded into an atom on the way, and one that does not
+        # decode is a classifier that itself failed, which answers EngineError
+        # with the ball's own message rather than raising the decoder's error
+        # in the refusal's place.
+        try:
+            carried = {
+                str(name): _crossed_field(str(name), value)
+                for name, value in row.get("Fields") or ()
+            }
+        except (TypeError, ValueError):
+            return EngineError(message)
         error = error_class(message, **carried)
         try:
             ground = Ground.from_atom(_atom_from_wire(row["Ground"]))

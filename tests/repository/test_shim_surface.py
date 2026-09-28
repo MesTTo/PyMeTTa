@@ -264,6 +264,10 @@ HOST_SERVICES = {
     # for the three above, one kind at a time.
     "metta_host_error_kind/3",
     "metta_host_error_kind_row/3",
+    # What each field holds as it crosses. This seat's own refusal crossing
+    # asks it per field, so a field the engine types `term` crosses encoded
+    # and decodes into an atom rather than arriving as janus's list.
+    "metta_host_error_field_row/2",
     # The catalog's DECLARATION for whichever kind a ball is: the class name,
     # the ground and the remedy with its holes filled from that ball. This
     # seat calls the aggregate reading, metta_py_refusal/5 being one crossing
@@ -515,6 +519,7 @@ FLOOR_REASONS = {
     "metta_host_space_capability_error/4": "error-vocabulary",
     "metta_host_error_kind/3": "error-vocabulary",
     "metta_host_error_kind_row/3": "error-vocabulary",
+    "metta_host_error_field_row/2": "error-vocabulary",
     "metta_host_refusal/6": "error-vocabulary",
     "metta_host_refusal_row/4": "error-vocabulary",
     "metta_host_read_forms/2": "host-orchestration",

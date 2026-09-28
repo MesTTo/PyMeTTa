@@ -22,6 +22,11 @@ Guarantees:
   - a kind whose row and fixture entry disagree about existing is a finding
     rather than a missing section
     [tested: test_the_refusals_page_is_generated; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
+  - the page's field types are the engine's own, metta_host_error_field_row/2,
+    and a field the engine and the fixture type differently, or only one of
+    them types, is a finding [tested 2026-09-29T07:08:06+10:00:
+    test_the_refusals_page_is_generated,
+    test_the_page_check_sees_a_field_typed_two_ways]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -48,7 +53,8 @@ FIXTURE = ROOT / "tests" / "data" / "error-kinds.json"
 
 #: One line per row, tab separated, because a citation carries commas and
 #: parentheses and a remedy title carries both. The acts are rendered by the
-#: engine's own writer, so the page shows the MeTTa a reader would write.
+#: engine's own writer, so the page shows the MeTTa a reader would write. After
+#: a FIELDS line, one line per field with what it holds, from the same process.
 ROWS_QUERY = (
     "consult('engine/metta.pl'), "
     "forall(metta_host_refusal_row(K, C, [ground, A, Cite], "
@@ -59,7 +65,9 @@ ROWS_QUERY = (
     "         atomic_list_concat(Fields, ' ', FieldText), "
     "         format('~w\\t~w\\t~w\\t~w\\t~w\\t~w\\t~w\\t~w\\t~w~n', "
     "                [K, C, Origin, FieldText, A, Cite, T, RK, Ap]), "
-    "         format('~w~n', [ActsText]) ))"
+    "         format('~w~n', [ActsText]) )), "
+    "format('FIELDS~n'), "
+    "forall(metta_host_error_field_row(F, P), format('~w\\t~w~n', [F, P]))"
 )
 
 HEADER = """# Refusals
@@ -94,12 +102,15 @@ word; `tests/data/error-kinds.json` records what it spells and why.
 """
 
 
-def rows(root: pathlib.Path) -> list[dict[str, str]]:
-    """Every (refusal ...) row, read from a running engine."""
+def rows(root: pathlib.Path) -> tuple[list[dict[str, str]], dict[str, str]]:
+    """Every (refusal ...) row and every field's type, read from a running engine."""
     answered = subprocess.run(  # noqa: S603  -- fixed argv, no untrusted input
         ["swipl", "-q", "-g", ROWS_QUERY, "-t", "halt"],  # noqa: S607  -- PATH swipl, as every lane runs it
         cwd=root, capture_output=True, text=True, timeout=280, check=True,
     ).stdout.splitlines()
+    split = answered.index("FIELDS")
+    answered, typed = answered[:split], answered[split + 1:]
+    payloads = dict(line.split("\t") for line in typed)
     read = []
     for head, acts in zip(answered[0::2], answered[1::2], strict=True):
         kind, klass, origin, fields, authority, citation, title, remedy, level = head.split("\t")
@@ -117,7 +128,7 @@ def rows(root: pathlib.Path) -> list[dict[str, str]]:
                 "acts": acts,
             }
         )
-    return read
+    return read, payloads
 
 
 def summary(read: list[dict[str, str]], seats: dict[str, dict]) -> list[str]:
@@ -138,6 +149,28 @@ def summary(read: list[dict[str, str]], seats: dict[str, dict]) -> list[str]:
             f"{python if python.startswith('*') else f'`{python}`'} | "
             f"{node if node.startswith('*') else f'`{node}`'} | {fields} |"
         )
+    return [*lines, ""]
+
+
+def field_types(payloads: dict[str, str], types: dict[str, dict[str, str]]) -> list[str]:
+    """What each field holds as it crosses, and which ones hold more than they carry yet."""
+    lines = [
+        "## What each field holds",
+        "",
+        "A field crosses to a seat as what it holds, in the wire grammar's words:",
+        "`text` a name or a sentence, `number` a count or a bound, and `term` a",
+        "MeTTa atom that each seat decodes into its own atom, so",
+        "`IntegrityError.key` is an expression a caller takes apart rather than",
+        "text it parses. `engine/metta/registration.pl` types each field once, by",
+        "name, in `metta_host_error_field_row/2`, and `tests/data/error-kinds.json`",
+        "holds the same table.",
+        "",
+        "| field | crosses as | still to come |",
+        "|---|---|---|",
+    ]
+    for name in sorted(payloads):
+        note = types.get(name, {}).get("holds", "")
+        lines.append(f"| `{name}` | {payloads[name]} | {note} |")
     return [*lines, ""]
 
 
@@ -189,23 +222,42 @@ def entry(row: dict[str, str], seat: dict) -> list[str]:
     return lines
 
 
-def page(read: list[dict[str, str]], seats: dict[str, dict]) -> str:
-    """The whole page: the summary table, then one section per kind."""
-    lines = [HEADER.rstrip("\n"), "", *summary(read, seats), "## Each kind", ""]
+def page(
+    read: list[dict[str, str]],
+    seats: dict[str, dict],
+    payloads: dict[str, str],
+    types: dict[str, dict[str, str]],
+) -> str:
+    """The whole page: the summary table, the field types, then one section per kind."""
+    lines = [
+        HEADER.rstrip("\n"), "", *summary(read, seats), *field_types(payloads, types),
+        "## Each kind", "",
+    ]
     for row in read:
         lines += entry(row, seats[row["kind"]])
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
-def findings(read: list[dict[str, str]], seats: dict[str, dict]) -> list[str]:
+def findings(
+    read: list[dict[str, str]],
+    seats: dict[str, dict],
+    payloads: dict[str, str],
+    types: dict[str, dict[str, str]],
+) -> list[str]:
     """Whatever would make the page say something the tree does not."""
     listed, rowed = set(seats), {row["kind"] for row in read}
+    typed = {name: held["payload"] for name, held in types.items()}
     return [
         f"{kind}: {where}"
         for kind, where in sorted(
             [(kind, "has a row and no entry in the shared kind list") for kind in rowed - listed]
             + [(kind, "is in the shared kind list and has no row") for kind in listed - rowed]
         )
+    ] + [
+        f"field {name}: the engine types it {payloads.get(name, 'not at all')} and "
+        f"the shared list {typed.get(name, 'not at all')}"
+        for name in sorted(payloads.keys() | typed.keys())
+        if payloads.get(name) != typed.get(name)
     ]
 
 
@@ -215,14 +267,15 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--write", action="store_true", help="rewrite the page")
     arguments = parser.parse_args(argv)
 
-    seats = json.loads(FIXTURE.read_text(encoding="utf-8"))["kinds"]
-    read = rows(ROOT)
-    problems = findings(read, seats)
+    fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    seats = fixture["kinds"]
+    read, payloads = rows(ROOT)
+    problems = findings(read, seats, payloads, fixture["field-types"])
     if problems:
         for problem in problems:
             print(f"  {problem}")
         return 1
-    rendered = page(read, seats)
+    rendered = page(read, seats, payloads, fixture["field-types"])
     if arguments.write:
         PAGE.write_text(rendered, encoding="utf-8")
         print(f"rewrote {PAGE.relative_to(ROOT)}")

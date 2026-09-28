@@ -284,7 +284,9 @@ ARTIFACTS = (
     ),
     Artifact(
         "refusal-sync", ("engine/**/*.pl", "tests/data/error-kinds.json", SEAT + "_errors/errors.py"),
-        tool("refusalgen", "--write"), (Output(SEAT + "_errors/refusals.py"),), tool("refusalgen"),
+        tool("refusalgen", "--write"),
+        (Output(SEAT + "_errors/refusals.py"), Output("extensions/node/src/refusal-fields.ts")),
+        tool("refusalgen"),
         (("@python", "@root/tests/checks/check_refusal_sync_selftest.py"),), requires=("engine",),
     ),
     Artifact(
