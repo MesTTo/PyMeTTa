@@ -326,6 +326,13 @@ ARTIFACTS = (
         requires=("the engine's reader, for each lib.metta's import! forms; no form runs",),
     ),
     Artifact(
+        "html5-dtd", ("extensions/python/tools/html5dtd.py", "tools/host-notices/LICENSES/BSD-3-Clause.txt"),
+        tool("html5dtd", "--write"), (Output("lib/lib_markup/DTD/HTML5.dtd"),), tool("html5dtd"),
+        (("@python", "@root/tests/checks/check_html5dtd_selftest.py"),),
+        requires=("the pinned whatwg/html and whatwg/html-build clones `html5dtd.py --fetch` makes beside "
+                  "the main checkout, or those WHATWG_HTML and WHATWG_HTML_BUILD name",),
+    ),
+    Artifact(
         "libdoc", ("lib/*/*.metta", "lib/*/*.pl"), tool("libdoc", "--write"),
         (Output("website/reference/metta-libraries.md"),
          Output("llms.txt", ("<!-- begin generated library glossary -->",
