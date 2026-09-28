@@ -217,6 +217,7 @@ if TYPE_CHECKING:
         is_ground: Symbol
         is_member: Symbol
         is_space: Symbol
+        is_symbol: Symbol
         is_var: Symbol
         isinf_math: Symbol
         "isinf-math: (-> Number Bool)\n\n`math.isinf`."
@@ -612,6 +613,7 @@ _NAMES = frozenset(
         "is-ground",
         "is-member",
         "is-space",
+        "is-symbol",
         "is-var",
         "isinf-math",
         "isnan-math",
@@ -921,6 +923,7 @@ _ALIASES.update(
         ("is_ground", "is-ground"),
         ("is_member", "is-member"),
         ("is_space", "is-space"),
+        ("is_symbol", "is-symbol"),
         ("is_var", "is-var"),
         ("isinf_math", "isinf-math"),
         ("isnan_math", "isnan-math"),
