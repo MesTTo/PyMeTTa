@@ -4,6 +4,10 @@ Guarantees:
   - get-type and get-type-space leave their argument unevaluated, so an
     effectful operation named inside one does not fire [tested
     test_get_type_does_not_run_its_arguments_effects]
+  - a get-type equation in the space leaves that so, since it adds a type
+    rule beside the builtin rather than redefining get-type [tested
+    2026-09-29T05:32:42+10:00:
+    test_a_get_type_equation_leaves_the_argument_unevaluated]
   - get-type answers a function application from its DECLARATION, which is
     what the arbiter answers [tested
     test_get_type_of_an_application_answers_the_declared_return_type]
@@ -52,6 +56,22 @@ def test_get_type_does_not_run_its_arguments_effects():
     m, fired = _counting_engine()
     m.run("!(get-type-space &self (metta-effectful))")
     assert fired == [], "get-type-space ran its argument"
+
+
+def test_a_get_type_equation_leaves_the_argument_unevaluated():
+    """A get-type equation compiles to a type rule that answers beside the
+    builtin, so the builtin's Atom mask still governs the call. Every space
+    this seat mints is a named one, and in a named space one such equation
+    read as a redefinition of get-type: the call compiled untyped and the op
+    fired [measured 2026-09-29T03:45:41+10:00: on main ddbdc6e53 the op fired
+    once after `(= (get-type (metta-rule-head $x)) MettaRuleType)`].
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    m, fired = _counting_engine()
+    m.run("(= (get-type (metta-rule-head $x)) MettaRuleType)")
+    m.run("!(get-type (metta-effectful))")
+    assert fired == [], f"get-type ran its argument {len(fired)} time(s)"
+    answers = [str(a) for group in m.run("!(get-type (metta-rule-head 1))") for a in group]
+    assert "MettaRuleType" in answers, answers
 
 
 def test_get_type_of_an_application_answers_the_declared_return_type():
