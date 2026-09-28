@@ -262,8 +262,13 @@ def signature_lines(signature: Signature, name: str, indent: str = "    ") -> li
     head = f"{indent}def {name}{generics}({signature.parameters}){answer}:"
     ignored = "  # type: ignore[" + ", ".join(signature.type_ignores) + "]" if signature.type_ignores else ""
     args = signature.node.args
-    shadowed = {arg.arg for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs)
-                if arg.arg in vars(builtins)}
+    # Ruff's A002 skips an @overload's parameters, so an overload carries no
+    # note for one that shadows a builtin, and RUF100 would refuse it
+    # [measured 2026-09-29T02:53:26+10:00: ruff 0.16.1 --select A002 flags a
+    # plain def's `type` parameter and no overloaded def's, in .py and .pyi].
+    shadowed = set() if "overload" in signature.declarations else {
+        arg.arg for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs)
+        if arg.arg in vars(builtins)}
     shadow_note = "  # noqa: A002 -- the declared public parameter spelling"
     definition_shadow = name in vars(builtins) and not indent
     if len(head) <= 100:

@@ -14,7 +14,21 @@ from typing import assert_type
 import metta
 from metta._atoms.factories import Atom, Symbol
 from metta._atoms.namespace import _Namespace
-from metta.algebra import DeclaredAlgebra
+from metta.algebra import (
+    AlgebraDeclarationError,
+    AlgebraDerivation,
+    AlgebraEvaluation,
+    AlgebraEvaluationError,
+    AlgebraLawError,
+    AlgebraOperationError,
+    AlgebraRequirementError,
+    Amplitude,
+    DeclaredAlgebra,
+    LinearEvidenceError,
+    PlanDecision,
+    RateDeclarationError,
+    TaggedAnswer,
+)
 
 assert_type(metta.S, _Namespace[Symbol])
 assert_type(metta.fn.car_atom, Symbol)
@@ -31,6 +45,8 @@ assert_type(
     DeclaredAlgebra,
 )
 assert_type(metta.algebra(type=int), Callable[[type], DeclaredAlgebra])
+assert_type(metta.algebra(int, negate="neg", saturated="sat", variable="var"), DeclaredAlgebra)
+assert_type(metta.algebra.__name__, str)
 assert_type(metta.algebra.bool, DeclaredAlgebra)
 assert_type(metta.bool, DeclaredAlgebra)
 assert_type(metta.algebra.visibility, DeclaredAlgebra)
@@ -57,5 +73,30 @@ assert_type(metta.algebra.polynomial, DeclaredAlgebra)
 assert_type(metta.polynomial, DeclaredAlgebra)
 assert_type(metta.algebra.amplitude, DeclaredAlgebra)
 assert_type(metta.amplitude, DeclaredAlgebra)
+assert_type(metta.algebra.AlgebraDeclarationError, type[AlgebraDeclarationError])
+assert_type(metta.algebra.AlgebraDerivation, type[AlgebraDerivation])
+assert_type(metta.algebra.AlgebraEvaluation, type[AlgebraEvaluation])
+assert_type(metta.algebra.AlgebraEvaluationError, type[AlgebraEvaluationError])
+assert_type(metta.algebra.AlgebraLawError, type[AlgebraLawError])
+assert_type(metta.algebra.AlgebraOperationError, type[AlgebraOperationError])
+assert_type(metta.algebra.AlgebraRequirementError, type[AlgebraRequirementError])
+assert_type(metta.algebra.Amplitude, type[Amplitude])
+assert_type(metta.algebra.DeclaredAlgebra, type[DeclaredAlgebra])
+assert_type(metta.algebra.LinearEvidenceError, type[LinearEvidenceError])
+assert_type(metta.algebra.PlanDecision, type[PlanDecision])
+assert_type(metta.algebra.RateDeclarationError, type[RateDeclarationError])
+assert_type(metta.algebra.TaggedAnswer, type[TaggedAnswer])
+
+_functions = (
+    metta.algebra.current_algebra,
+    metta.algebra.declare,
+    metta.algebra.evaluate,
+    metta.algebra.formula_variables,
+    metta.algebra.formula_witnesses,
+    metta.algebra.resolve,
+    metta.algebra.sample,
+    metta.algebra.tagged_fact,
+    metta.algebra.tagged_rule,
+)
 
 _not_an_integer: int = metta.algebra(int)  # type: ignore[assignment]

@@ -15,6 +15,15 @@ test_root_exports_and_new_carrier_reach_runtime_and_consumer].
 probe_text checks exact root and callable-algebra result types;
 Any and a non-callable module are independently rejected [tested:
 test_root_consumer_rejects_any_and_non_callable_exports; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+The `algebra` declaration is the module's runtime class: each name in
+metta.algebra's `__all__` bound to the module's own object, and the call as
+the class's own overloads, so a checker reads metta.algebra.X exactly where
+`from metta.algebra import X` reads it [tested 2026-09-29T02:54:59+10:00:
+test_root_exports_and_new_carrier_reach_runtime_and_consumer,
+test_the_algebra_declaration_is_the_module_s_own_surface; mypy-algebra-surface].
+Fails when: metta.algebra exports an overloaded function or a name no
+module-level definition or import binds, which it refuses by name: a static
+binding of an overloaded function keeps only its first overload.
 """
 
 from __future__ import annotations
@@ -22,6 +31,7 @@ from __future__ import annotations
 import argparse
 import ast
 import builtins
+import copy
 import sys
 import textwrap
 from collections.abc import Iterable
@@ -47,6 +57,8 @@ sys.path[:0] = [str(TOOLS), str(ROOT / 'extensions/python')]
 
 from artifacts import notice  # noqa: E402 -- the checkout path precedes tool imports
 from doorfaces import (  # noqa: E402 -- the checkout path precedes tool imports
+    Emitter,
+    _bindings,
     clean_imports,
     header,
     module_doors,
@@ -54,11 +66,16 @@ from doorfaces import (  # noqa: E402 -- the checkout path precedes tool imports
 )
 from doorgen import (  # noqa: E402 -- the checkout path precedes tool imports
     all_rows,
+    module_path,
     replace_region,
+    signature_lines,
 )
 from vocabgen import member_name  # noqa: E402 -- the checkout path precedes tool imports
 
 from metta import vocabularies  # noqa: E402 -- read the checkout's vocabulary
+from metta.doors import Signature  # noqa: E402 -- read the checkout's door schema
+
+ALGEBRA = 'metta.algebra'
 
 PROBE_HEADER = ('"""Purpose: type-check root exports and callable algebra carriers.\n\n'
                 + textwrap.fill(notice(PROBE_PATH), width=78)
@@ -78,44 +95,100 @@ def _carrier_names(rows: list[tuple[str, list[str]]]) -> list[str]:
     return names
 
 
-def _algebra_protocol(carriers: list[str]) -> str:
-    attributes = "\n".join(f"    {name}: _DeclaredAlgebra" for name in carriers)
-    parameters = """\
-        *,
-        plus: _Any = ...,
-        times: _Any = ...,
-        combine: _Any = ...,
-        extend: _Any = ...,
-        zero: _Any = ...,
-        one: _Any = ...,
-        laws: _Iterable[str] = ...,
-        carrier: _Iterable[_Any] = ...,
-        type: _Any = ...,
-        requires: _Iterable[str] = ...,
-        order: _SemiringOrder | None = ...,"""
-    return f"""class _AlgebraModule(_Protocol):
-{attributes}
-
-    @_overload
-    def __call__(
-        self,
-{parameters}
-    ) -> _Callable[[type], _DeclaredAlgebra]: ...
-
-    @_overload
-    def __call__(
-        self,
-        subject: _Any,
-{parameters}
-    ) -> _DeclaredAlgebra: ...
+def _decorator_name(node: ast.expr) -> str:
+    target = node.func if isinstance(node, ast.Call) else node
+    return target.attr if isinstance(target, ast.Attribute) else getattr(target, 'id', '')
 
 
-algebra: _AlgebraModule
-"""
+def _overloaded(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(_decorator_name(decorator) == 'overload' for decorator in node.decorator_list)
 
 
-def probe_text(carriers: list[str], rooted: set[str]) -> str:
-    """Render the static consumer that exercises both calls and every carrier."""
+def _definitions(module: str, root: Path) -> tuple[ast.Module, dict[str, str]]:
+    """A module's syntax tree and the kind of each name it defines at top level.
+
+    The kind decides the stub binding: a `class` is aliased, a `function`
+    aliased through staticmethod so the declaring class does not bind it as a
+    method, a `value` aliased, and an `overloaded` function refused.
+    """
+    tree = ast.parse(module_path(module, root).read_text(encoding='utf-8'))
+    kinds: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            kinds[node.name] = 'class'
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            kinds[node.name] = 'overloaded' if _overloaded(node) or kinds.get(node.name) == 'overloaded' else 'function'
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            kinds[node.target.id] = 'value'
+        elif isinstance(node, ast.Assign):
+            kinds.update((target.id, 'value') for target in node.targets if isinstance(target, ast.Name))
+    return tree, kinds
+
+
+def _kind(module: str, name: str, root: Path) -> str:
+    """What `name` is where it is defined, following the module's own imports."""
+    _, kinds = _definitions(module, root)
+    if name in kinds:
+        return kinds[name]
+    source, member = _bindings(module, root).get(name, (None, None))
+    if source is None or member is None or not source.startswith('metta.'):
+        message = f'{module}.{name} is exported and no definition or metta import binds it'
+        raise SystemExit(message)
+    return _kind(source, member, root)
+
+
+def algebra_surface(root: Path = ROOT) -> tuple[list[str], dict[str, str], list[ast.FunctionDef]]:
+    """metta.algebra's `__all__`, each name's kind, and its class's call overloads."""
+    tree, _ = _definitions(ALGEBRA, root)
+    exported = next(ast.literal_eval(node.value) for node in tree.body
+                    if isinstance(node, ast.Assign)
+                    and any(isinstance(target, ast.Name) and target.id == '__all__' for target in node.targets))
+    kinds = {name: _kind(ALGEBRA, name, root) for name in exported}
+    overloaded = sorted(name for name, kind in kinds.items() if kind == 'overloaded')
+    if overloaded:
+        message = (f'{ALGEBRA} exports overloaded functions {", ".join(overloaded)}; a static '
+                   'staticmethod binding keeps only the first overload, so declare them another way')
+        raise SystemExit(message)
+    module_class = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == '_AlgebraModule')
+    calls = [node for node in module_class.body
+             if isinstance(node, ast.FunctionDef) and node.name == '__call__' and _overloaded(node)]
+    if not calls:
+        message = f'{ALGEBRA}._AlgebraModule declares no __call__ overloads for the stub to copy'
+        raise SystemExit(message)
+    return exported, kinds, calls
+
+
+def _algebra_module(emitter: Emitter, surface: tuple[list[str], dict[str, str], list[ast.FunctionDef]]) -> str:
+    """Declare `algebra` as an instance of the module's runtime class.
+
+    The runtime replaces the module object's class with one that has
+    `__call__`, which no checker models, so the stub declares the attribute
+    as that class. Its body is the module's own surface: every `__all__` name
+    bound to the module's object and the call as the class's own overloads,
+    both read from the source, so neither is a second list to keep in step.
+    """
+    exported, kinds, calls = surface
+    lines = [f'class _AlgebraModule({emitter.qualified(("types", "ModuleType"))}):']
+    for name in exported:
+        target = emitter.qualified((ALGEBRA, name))
+        lines.append(f'    {name} = _builtins.staticmethod({target})' if kinds[name] == 'function'
+                     else f'    {name} = {target}')
+    for call in calls:
+        args = copy.deepcopy(call.args)
+        for parameter in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
+            parameter.annotation = emitter.expression(parameter.annotation, ALGEBRA)
+        args.defaults = [ast.Constant(Ellipsis) for _ in args.defaults]
+        args.kw_defaults = [None if value is None else ast.Constant(Ellipsis) for value in args.kw_defaults]
+        returns = emitter.expression(call.returns, ALGEBRA)
+        signature = Signature(parameters=ast.unparse(args),
+                              returns=ast.unparse(returns) if returns is not None else None,
+                              declarations=('overload',))
+        lines.extend(('', '    @_overload', *signature_lines(signature, '__call__'), '        ...'))
+    return '\n'.join(lines) + '\n\n\nalgebra: _AlgebraModule\n'
+
+
+def probe_text(carriers: list[str], rooted: set[str], exported: list[str], kinds: dict[str, str]) -> str:
+    """Render the static consumer that exercises both calls, every carrier and every export."""
     attributes = "\n".join(
         (
             f"assert_type(metta.algebra.{name}, DeclaredAlgebra)\n"
@@ -125,6 +198,11 @@ def probe_text(carriers: list[str], rooted: set[str]) -> str:
         )
         for name in carriers
     )
+    classes = [name for name in exported if kinds.get(name) == 'class']
+    functions = [name for name in exported if kinds.get(name) == 'function']
+    imported = ", ".join(sorted({*classes, "DeclaredAlgebra"}))
+    members = "\n".join(f"assert_type(metta.algebra.{name}, type[{name}])" for name in classes)
+    called = "".join(f"\n    metta.algebra.{name}," for name in functions)
     return f"""{PROBE_HEADER}
 from collections.abc import Callable
 from types import ModuleType
@@ -133,7 +211,7 @@ from typing import assert_type
 import metta
 from metta._atoms.factories import Atom, Symbol
 from metta._atoms.namespace import _Namespace
-from metta.algebra import DeclaredAlgebra
+from metta.algebra import {imported}
 
 assert_type(metta.S, _Namespace[Symbol])
 assert_type(metta.fn.car_atom, Symbol)
@@ -150,7 +228,13 @@ assert_type(
     DeclaredAlgebra,
 )
 assert_type(metta.algebra(type=int), Callable[[type], DeclaredAlgebra])
+assert_type(metta.algebra(int, negate="neg", saturated="sat", variable="var"), DeclaredAlgebra)
+assert_type(metta.algebra.__name__, str)
 {attributes}
+{members}
+
+_functions = ({called}
+)
 
 _not_an_integer: int = metta.algebra(int)  # type: ignore[assignment]
 """
@@ -212,11 +296,14 @@ def projections(rows=None, root: Path = ROOT) -> dict[Path, str]:
     core = root / CORE_PATH
     declaration = (core / STUB_NAME).read_text(encoding='utf-8')
     carriers = _carrier_names([('semiring', [str(value) for value in vocabularies.Semiring])])
-    imports, methods = module_tier(rows, root, stub=True)
+    emitter = Emitter(root, 'metta', 'metta')
+    surface = algebra_surface(root)
+    algebra = _algebra_module(emitter, surface)
+    imports, methods = module_tier(rows, root, stub=True, emitter=emitter)
     for start, end, content in (
         ('# begin generated root imports', '# end generated root imports', imports),
         ('# begin generated root declarations', '# end generated root declarations', methods),
-        ('# begin generated algebra declaration', '# end generated algebra declaration', _algebra_protocol(carriers)),
+        ('# begin generated algebra declaration', '# end generated algebra declaration', algebra),
     ):
         declaration = replace_region(declaration, start, end, [start, *content.splitlines(), end])
     start, end = '# begin generated root exports', '# end generated root exports'
@@ -243,7 +330,8 @@ def projections(rows=None, root: Path = ROOT) -> dict[Path, str]:
     return {
         core / STUB_NAME: declaration,
         core / SOURCE_NAME: clean_imports(runtime, core / SOURCE_NAME),
-        root / PROBE_PATH: probe_text(carriers, set(imported) & set(carriers)),
+        root / PROBE_PATH: clean_imports(probe_text(carriers, set(imported) & set(carriers), *surface[:2]),
+                                          root / PROBE_PATH),
     }
 
 

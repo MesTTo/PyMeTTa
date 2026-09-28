@@ -158,7 +158,7 @@ from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from numbers import Real
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Final, cast
+from typing import TYPE_CHECKING, Any, Final, cast, overload
 
 from metta._atoms.designation import SpaceLike
 from metta._atoms.factories import (
@@ -2589,7 +2589,53 @@ def _construct(
 
 
 class _AlgebraModule(ModuleType):
-    """A real namespace module that also constructs declared algebras."""
+    """A real namespace module that also constructs declared algebras.
+
+    The two overloads are the call's static contract, and the package stub's
+    `algebra` declaration copies them (tools/rootgen.py): called without a
+    subject it is a class decorator, called with one it declares an algebra.
+    """
+
+    @overload
+    def __call__(
+        self,
+        *,
+        plus: Any = ...,
+        times: Any = ...,
+        combine: Any = ...,
+        extend: Any = ...,
+        zero: Any = ...,
+        one: Any = ...,
+        laws: Iterable[str] = ...,
+        carrier: Iterable[Any] = ...,
+        type: Any = ...,
+        requires: Iterable[str] = ...,
+        order: SemiringOrder | None = ...,
+        negate: Any = ...,
+        saturated: Any = ...,
+        variable: Any = ...,
+    ) -> Callable[[type], DeclaredAlgebra]: ...
+
+    @overload
+    def __call__(
+        self,
+        subject: Any,
+        *,
+        plus: Any = ...,
+        times: Any = ...,
+        combine: Any = ...,
+        extend: Any = ...,
+        zero: Any = ...,
+        one: Any = ...,
+        laws: Iterable[str] = ...,
+        carrier: Iterable[Any] = ...,
+        type: Any = ...,
+        requires: Iterable[str] = ...,
+        order: SemiringOrder | None = ...,
+        negate: Any = ...,
+        saturated: Any = ...,
+        variable: Any = ...,
+    ) -> DeclaredAlgebra: ...
 
     def __call__(
         self,

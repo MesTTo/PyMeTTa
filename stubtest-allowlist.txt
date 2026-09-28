@@ -24,3 +24,16 @@ metta\.[A-Za-z_]+\..*
 #    written, and stubtest reads the pair as a disagreement. `engine` is
 #    @functools.cache, whose wrapper answers (*args, **kwargs) at run time.
 metta\.(define|op|engine)
+
+# 3. The root's callable module. The runtime replaces metta.algebra's module
+#    class with its own _AlgebraModule, which implements __call__ and carries
+#    no other static member, and the stub declares `algebra` as a ModuleType
+#    subclass whose body aliases each of the module's exports and repeats the
+#    call's overloads (tools/rootgen.py). It is a class rather than a
+#    Protocol because a Protocol member takes a declared type, not an alias:
+#    mypy 2.3.0 answered "All protocol members must have explicitly declared
+#    types" for each alias on 2026-09-29. stubtest compares the stub's class
+#    with the runtime's nominally, and the stub's exists only in the stub; its
+#    one finding on that day read "metta.algebra variable differs from runtime
+#    type metta.algebra._AlgebraModule".
+metta\.algebra

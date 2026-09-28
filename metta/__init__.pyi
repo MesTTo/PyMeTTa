@@ -6,10 +6,7 @@
 # projection drift.
 
 import builtins as _builtins
-from collections.abc import Callable as _Callable
-from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
-from typing import Protocol as _Protocol
 from typing import overload as _overload
 
 from metta._atoms.answer import Answer as Answer
@@ -77,7 +74,6 @@ from metta._spaces.context import reflection as reflection
 from metta._spaces.results import Answers as Answers
 from metta._spaces.results import Rows as Rows
 from metta._version import __version__ as __version__
-from metta.algebra import DeclaredAlgebra as _DeclaredAlgebra
 from metta.algebra import amplitude as amplitude
 from metta.algebra import bag as bag
 from metta.algebra import bool as bool  # noqa: A004 -- the public carrier names
@@ -103,12 +99,12 @@ from metta.parallel import race as race
 from metta.parallel import scope as scope
 from metta.parallel import spawn as spawn
 from metta.spaces import view as view
-from metta.vocabularies import SemiringOrder as _SemiringOrder
 
 # isort: split
 # begin generated root imports
 import collections.abc as _body_collections_abc
 import os as _body_os
+import types as _body_types
 import typing as _body_typing
 
 import metta._atoms.designation as _body_metta__atoms_designation
@@ -121,6 +117,7 @@ import metta._observe.trace as _body_metta__observe_trace
 import metta._spaces.execution as _body_metta__spaces_execution
 import metta._spaces.profile as _body_metta__spaces_profile
 import metta._spaces.scope as _body_metta__spaces_scope
+import metta.algebra as _body_metta_algebra
 import metta.doors as _body_metta_doors
 import metta.vocabularies as _body_metta_vocabularies
 from metta._atoms.designation import _P as _PARAMETER_METTA__ATOMS_DESIGNATION__P
@@ -132,55 +129,85 @@ from metta._atoms.designation import _T as _PARAMETER_METTA__ATOMS_DESIGNATION__
 
 
 # begin generated algebra declaration
-class _AlgebraModule(_Protocol):
-    bool: _DeclaredAlgebra
-    visibility: _DeclaredAlgebra
-    bag: _DeclaredAlgebra
-    counting: _DeclaredAlgebra
-    set: _DeclaredAlgebra
-    ranked: _DeclaredAlgebra
-    tropical: _DeclaredAlgebra
-    prob: _DeclaredAlgebra
-    prov: _DeclaredAlgebra
-    budget: _DeclaredAlgebra
-    formula: _DeclaredAlgebra
-    polynomial: _DeclaredAlgebra
-    amplitude: _DeclaredAlgebra
+class _AlgebraModule(_body_types.ModuleType):
+    AlgebraDeclarationError = _body_metta_algebra.AlgebraDeclarationError
+    AlgebraDerivation = _body_metta_algebra.AlgebraDerivation
+    AlgebraEvaluation = _body_metta_algebra.AlgebraEvaluation
+    AlgebraEvaluationError = _body_metta_algebra.AlgebraEvaluationError
+    AlgebraLawError = _body_metta_algebra.AlgebraLawError
+    AlgebraOperationError = _body_metta_algebra.AlgebraOperationError
+    AlgebraRequirementError = _body_metta_algebra.AlgebraRequirementError
+    Amplitude = _body_metta_algebra.Amplitude
+    DeclaredAlgebra = _body_metta_algebra.DeclaredAlgebra
+    LinearEvidenceError = _body_metta_algebra.LinearEvidenceError
+    PlanDecision = _body_metta_algebra.PlanDecision
+    RateDeclarationError = _body_metta_algebra.RateDeclarationError
+    TaggedAnswer = _body_metta_algebra.TaggedAnswer
+    amplitude = _body_metta_algebra.amplitude
+    bag = _body_metta_algebra.bag
+    bool = _body_metta_algebra.bool
+    budget = _body_metta_algebra.budget
+    counting = _body_metta_algebra.counting
+    current_algebra = _builtins.staticmethod(_body_metta_algebra.current_algebra)
+    declare = _builtins.staticmethod(_body_metta_algebra.declare)
+    evaluate = _builtins.staticmethod(_body_metta_algebra.evaluate)
+    formula = _body_metta_algebra.formula
+    formula_variables = _builtins.staticmethod(_body_metta_algebra.formula_variables)
+    formula_witnesses = _builtins.staticmethod(_body_metta_algebra.formula_witnesses)
+    polynomial = _body_metta_algebra.polynomial
+    prob = _body_metta_algebra.prob
+    prov = _body_metta_algebra.prov
+    ranked = _body_metta_algebra.ranked
+    resolve = _builtins.staticmethod(_body_metta_algebra.resolve)
+    sample = _builtins.staticmethod(_body_metta_algebra.sample)
+    set = _body_metta_algebra.set
+    tagged_fact = _builtins.staticmethod(_body_metta_algebra.tagged_fact)
+    tagged_rule = _builtins.staticmethod(_body_metta_algebra.tagged_rule)
+    tropical = _body_metta_algebra.tropical
+    visibility = _body_metta_algebra.visibility
 
     @_overload
     def __call__(
         self,
         *,
-        plus: _Any = ...,
-        times: _Any = ...,
-        combine: _Any = ...,
-        extend: _Any = ...,
-        zero: _Any = ...,
-        one: _Any = ...,
-        laws: _Iterable[str] = ...,
-        carrier: _Iterable[_Any] = ...,
-        type: _Any = ...,
-        requires: _Iterable[str] = ...,
-        order: _SemiringOrder | None = ...,
-    ) -> _Callable[[type], _DeclaredAlgebra]: ...
+        plus: _body_typing.Any=...,
+        times: _body_typing.Any=...,
+        combine: _body_typing.Any=...,
+        extend: _body_typing.Any=...,
+        zero: _body_typing.Any=...,
+        one: _body_typing.Any=...,
+        laws: _body_collections_abc.Iterable[_builtins.str]=...,
+        carrier: _body_collections_abc.Iterable[_body_typing.Any]=...,
+        type: _body_typing.Any=...,
+        requires: _body_collections_abc.Iterable[_builtins.str]=...,
+        order: _body_metta_vocabularies.SemiringOrder | None=...,
+        negate: _body_typing.Any=...,
+        saturated: _body_typing.Any=...,
+        variable: _body_typing.Any=...,
+    ) -> _body_collections_abc.Callable[[_builtins.type], _body_metta_algebra.DeclaredAlgebra]:
+        ...
 
     @_overload
     def __call__(
         self,
-        subject: _Any,
+        subject: _body_typing.Any,
         *,
-        plus: _Any = ...,
-        times: _Any = ...,
-        combine: _Any = ...,
-        extend: _Any = ...,
-        zero: _Any = ...,
-        one: _Any = ...,
-        laws: _Iterable[str] = ...,
-        carrier: _Iterable[_Any] = ...,
-        type: _Any = ...,
-        requires: _Iterable[str] = ...,
-        order: _SemiringOrder | None = ...,
-    ) -> _DeclaredAlgebra: ...
+        plus: _body_typing.Any=...,
+        times: _body_typing.Any=...,
+        combine: _body_typing.Any=...,
+        extend: _body_typing.Any=...,
+        zero: _body_typing.Any=...,
+        one: _body_typing.Any=...,
+        laws: _body_collections_abc.Iterable[_builtins.str]=...,
+        carrier: _body_collections_abc.Iterable[_body_typing.Any]=...,
+        type: _body_typing.Any=...,
+        requires: _body_collections_abc.Iterable[_builtins.str]=...,
+        order: _body_metta_vocabularies.SemiringOrder | None=...,
+        negate: _body_typing.Any=...,
+        saturated: _body_typing.Any=...,
+        variable: _body_typing.Any=...,
+    ) -> _body_metta_algebra.DeclaredAlgebra:
+        ...
 
 
 algebra: _AlgebraModule

@@ -462,8 +462,13 @@ def module_doors(rows: Iterable[Door]) -> list[tuple[str, Door]]:
             if row.owner is Owner.space and Tier.module in row.tiers]
 
 
-def module_tier(rows: Iterable[Door], root: Path, *, stub: bool = False) -> tuple[str, str]:
-    """Return imports and declarations for the default context's door face."""
-    emitter = Emitter(root, 'metta', 'metta', namespace='' if stub else '_root')
+def module_tier(rows: Iterable[Door], root: Path, *, stub: bool = False,
+                emitter: Emitter | None = None) -> tuple[str, str]:
+    """Return imports and declarations for the default context's door face.
+
+    `emitter` is one the caller has already rendered other root declarations
+    with, so the imports answered cover those too.
+    """
+    emitter = emitter or Emitter(root, 'metta', 'metta', namespace='' if stub else '_root')
     methods = ''.join(emitter.method(row, 'module', name=name, stub=stub) for name, row in module_doors(rows))
     return emitter.imports_text(stub=stub), '\n\n'.join(dict.fromkeys(emitter.protocols)) + '\n\n' + methods + emitter.imports_text(stub=stub, after=True)

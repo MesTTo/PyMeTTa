@@ -44,12 +44,48 @@ def test_source_bindings_cache_uses_the_current_source(tmp_path):
     assert doorfaces._bindings("metta._fixture", tmp_path)["Contract"] == ("collections.abc", "Sequence")
 
 
-def test_root_exports_and_new_carrier_reach_runtime_and_consumer(tmp_path, monkeypatch):
-    """A named root import and catalog member reach all their derived faces."""
-    from metta import vocabularies
+#: A stand-in metta.algebra: its `__all__` holds a class, a function and a
+#: value, and its runtime class declares the call's two overloads, which is
+#: everything the root stub's algebra declaration is read from.
+ALGEBRA_FIXTURE = '''\
+from collections.abc import Callable
+from types import ModuleType
+from typing import Any, overload
 
+__all__ = ["DeclaredAlgebra", "FixtureError", "fixture_carrier", "ship"]
+
+
+class DeclaredAlgebra:
+    pass
+
+
+class FixtureError(Exception):
+    pass
+
+
+def ship(value: int) -> int:
+    return value
+
+
+fixture_carrier: DeclaredAlgebra = DeclaredAlgebra()
+
+
+class _AlgebraModule(ModuleType):
+    @overload
+    def __call__(self, *, laws: Any = ...) -> Callable[[type], DeclaredAlgebra]: ...
+
+    @overload
+    def __call__(self, subject: Any, *, laws: Any = ...) -> DeclaredAlgebra: ...
+
+    def __call__(self, subject: Any = None, *, laws: Any = None) -> Any:
+        return subject
+'''
+
+
+def _root_fixture(tmp_path, algebra=ALGEBRA_FIXTURE):
+    """A checkout holding only the root declaration's skeleton and an algebra module."""
     core = tmp_path / "extensions/python/metta"
-    core.mkdir(parents=True)
+    (core / "algebra").mkdir(parents=True, exist_ok=True)
     stub = core / "__init__.pyi"
     stub.write_text(
         "from ._atoms.factories import Symbol as Symbol\n"
@@ -60,6 +96,15 @@ def test_root_exports_and_new_carrier_reach_runtime_and_consumer(tmp_path, monke
         "# begin generated root declarations\n# end generated root declarations\n"
         "# begin generated algebra declaration\n# end generated algebra declaration\n", encoding="utf-8",
     )
+    (core / "algebra/__init__.py").write_text(algebra, encoding="utf-8")
+    return core, stub
+
+
+def test_root_exports_and_new_carrier_reach_runtime_and_consumer(tmp_path, monkeypatch):
+    """A named root import and catalog member reach all their derived faces."""
+    from metta import vocabularies
+
+    core, stub = _root_fixture(tmp_path)
     original = rootgen.projections((), root=tmp_path)
     monkeypatch.setattr(vocabularies, "Semiring", (*vocabularies.Semiring, "fixture-carrier"))
     changed = rootgen.projections((), root=tmp_path)
@@ -71,12 +116,46 @@ def test_root_exports_and_new_carrier_reach_runtime_and_consumer(tmp_path, monke
     assert declarations["__all__"] == ["Symbol"]
     assert "__all__ = ['Symbol']" in changed[stub]
     assert declarations["__lazy_exports__"]["Symbol"] == ("metta._atoms.factories", "Symbol")
-    assert "fixture_carrier: _DeclaredAlgebra" in changed[stub]
+    # The carrier is declared because the module exports it; the vocabulary
+    # member reaches the consumer, which is where the two are held together.
+    assert "    fixture_carrier = _body_metta_algebra.fixture_carrier" in changed[stub]
     probe = tmp_path / "extensions/python/tests/typing/algebra_surface.py"
     assert "assert_type(metta.algebra.fixture_carrier, DeclaredAlgebra)" in changed[probe]
-    assert {path for path in changed if changed[path] != original[path]} == {stub, probe}
+    assert {path for path in changed if changed[path] != original[path]} == {probe}
     with pytest.raises(ValueError, match="root exports lack declarations: absent"):
         rootgen.exports("__all__ = ['absent']\n")
+
+
+def test_the_algebra_declaration_is_the_module_s_own_surface(tmp_path):
+    """Each export and each call keyword of metta.algebra reaches the stub from its source."""
+    _, stub = _root_fixture(tmp_path)
+    declared = rootgen.projections((), root=tmp_path)[stub]
+    assert "class _AlgebraModule(_body_types.ModuleType):" in declared
+    assert "    FixtureError = _body_metta_algebra.FixtureError" in declared
+    assert "    ship = _builtins.staticmethod(_body_metta_algebra.ship)" in declared
+    assert declared.count("    @_overload\n    def __call__(") == 2
+    assert "-> _body_collections_abc.Callable[[_builtins.type], _body_metta_algebra.DeclaredAlgebra]:" in declared
+
+    grown = (ALGEBRA_FIXTURE
+             .replace('"ship"]', '"ship", "late"]')
+             .replace("laws: Any = ...)", "laws: Any = ..., negate: Any = ...)")
+             + "\n\ndef late() -> None:\n    return None\n")
+    _, stub = _root_fixture(tmp_path, grown)
+    declared = rootgen.projections((), root=tmp_path)[stub]
+    assert "    late = _builtins.staticmethod(_body_metta_algebra.late)" in declared
+    assert declared.count("negate: _body_typing.Any=...") == 2
+
+    overloaded = (ALGEBRA_FIXTURE.replace('"ship"]', '"ship", "twice"]')
+                  + "\n\n@overload\ndef twice(value: int) -> int: ...\n@overload\ndef twice(value: str) -> str: ...\n"
+                  + "def twice(value):\n    return value\n")
+    _, stub = _root_fixture(tmp_path, overloaded)
+    with pytest.raises(SystemExit, match="overloaded functions twice"):
+        rootgen.projections((), root=tmp_path)
+
+    unbound = ALGEBRA_FIXTURE.replace('"ship"]', '"ship", "nowhere"]')
+    _, stub = _root_fixture(tmp_path, unbound)
+    with pytest.raises(SystemExit, match=r"metta\.algebra\.nowhere is exported and no definition"):
+        rootgen.projections((), root=tmp_path)
 
 
 def test_root_consumer_rejects_any_and_non_callable_exports(tmp_path):
