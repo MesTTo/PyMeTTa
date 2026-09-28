@@ -130,5 +130,3 @@ def test_refused_constructor_rolls_back_its_operations(metta):
         declared = algebra("refused-constructor", plus=max, times=lambda a, b: a * b,
                            zero=0, one=1, type=int)
         assert declared.extend_values(space, ground(2), ground(3)) == 6
-        space.unregister_op("refused-constructor-plus")
-        space.unregister_op("refused-constructor-times")

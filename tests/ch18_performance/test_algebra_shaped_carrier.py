@@ -84,8 +84,11 @@ def test_shaped_carrier_accepts_products_and_refuses_other_shapes(metta, door):
                 declared.extend_values(space, ground(left), ground(right))
             assert len(calls) == before + 1
         finally:
-            space.unregister_op(f"{name}-times")
-            space.unregister_op(f"{name}-plus")
+            # The operations this test registered by name; the module door's
+            # are the space's own, released when the space drops.
+            if door == "space":
+                space.unregister_op(f"{name}-times")
+                space.unregister_op(f"{name}-plus")
 
 
 @pytest.mark.usefixtures("shaped_array_protocol")
@@ -99,15 +102,11 @@ def test_shaped_finite_carrier_certifies_fresh_equal_arrays(metta):
             carrier=(np.zeros((2, 3)), np.ones((2, 3))),
             laws=("combine-associative", "extend-associative", "left-distributive"),
         )
-        try:
-            result = declared.extend_values(space, ground(np.ones((2, 3))), ground(np.ones((2, 3))))
-            np.testing.assert_array_equal(arrays.data_of(result), np.ones((2, 3)))
-            assert len(declared.laws) == 3
-            with pytest.raises(AlgebraOperationError, match="algebra_value_outside_carrier"):
-                declared.extend_values(space, ground(np.ones((1, 2, 3))), ground(np.ones((2, 3))))
-        finally:
-            space.unregister_op("finite-shaped-carrier-times")
-            space.unregister_op("finite-shaped-carrier-plus")
+        result = declared.extend_values(space, ground(np.ones((2, 3))), ground(np.ones((2, 3))))
+        np.testing.assert_array_equal(arrays.data_of(result), np.ones((2, 3)))
+        assert len(declared.laws) == 3
+        with pytest.raises(AlgebraOperationError, match="algebra_value_outside_carrier"):
+            declared.extend_values(space, ground(np.ones((1, 2, 3))), ground(np.ones((2, 3))))
 
 
 @pytest.mark.usefixtures("shaped_array_protocol")

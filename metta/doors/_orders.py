@@ -114,7 +114,7 @@ VERDICTS: Mapping[str, Verdict] = MappingProxyType({
     'space:add-tagged-rule': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
     'space:admits': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
     'space:agenda': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
-    'space:algebra': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),
+    'space:algebra': Verdict(None, open=True, dependency=True),
     'space:alpha': Verdict(None, open=True),
     'space:alpha-eq': Verdict(None, open=True),
     'space:annotations': Verdict(None, mixed=True, open=True, recursive=True, dependency=True),

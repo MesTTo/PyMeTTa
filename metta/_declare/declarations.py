@@ -205,8 +205,8 @@ def algebra(
     space: _root.Space,
     name: str,
     *,
-    combine: str,
-    extend: str,
+    combine: Any,
+    extend: Any,
     zero: Any,
     one: Any,
     laws: _abc.Iterable[str] = (),
@@ -217,6 +217,7 @@ def algebra(
     negate: Any = None,
     saturated: Any = None,
     variable: Any = None,
+    effect: EffectClass | str | None = None,
 ) -> Atom:
     """Declare operations with carrier membership and optional checked laws.
 
@@ -225,21 +226,18 @@ def algebra(
     fusion. ``carrier`` enumerates the finite domain required for exhaustive
     law checking; it may accompany ``type`` to constrain that domain.
     Use ``prov`` and ``.under()`` to reinterpret uncertified tensor traces.
-    ``negate``, ``saturated`` and ``variable`` are the three further
-    operations a carrier may claim, each a callable, a Symbol or an
-    operation name like ``combine``: the unary complement a model count
-    weighs a variable's false branch with, the test that stops a fixpoint
-    join, and the operation that mints the carrier's value for a source key
-    and its tag.
+    Every operation role, ``combine``, ``extend``, ``negate``, ``saturated``
+    and ``variable``, takes a callable, a Symbol or an operation name. A
+    callable becomes an operation this space owns, ``<space>.<name>-<role>``,
+    released when the space drops, and ``effect`` classifies those
+    operations, ``pureStructural`` unless they read something. ``negate``,
+    ``saturated`` and ``variable`` are the three further operations a
+    carrier may claim: the unary complement a model count weighs a
+    variable's false branch with, the test that stops a fixpoint join, and
+    the operation that mints the carrier's value for a source key and its
+    tag.
     """
-    algebra_api = lazy('metta.algebra')
-    named = {
-        role: None if operation is None else algebra_api._operation_name(
-            space, name, role, operation, arity=1 if role == "negate" else 2,
-        )
-        for role, operation in (("negate", negate), ("saturated", saturated), ("variable", variable))
-    }
-    return algebra_api.declare(
+    return lazy('metta.algebra').declare(
         space,
         name,
         combine=combine,
@@ -251,9 +249,10 @@ def algebra(
         type=type,
         requires=requires,
         order=order,
-        negate=named["negate"],
-        saturated=named["saturated"],
-        variable=named["variable"],
+        negate=negate,
+        saturated=saturated,
+        variable=variable,
+        effect=effect,
     )
 
 def _replace_catalog_declaration(
@@ -413,14 +412,10 @@ def add_tagged_rule(
     """
     algebra_api = lazy('metta.algebra')
     if callable(tag) and not isinstance(tag, Atom):
-        name = algebra_api._operation_name(
-            space, "rule", getattr(tag, "__name__", "label"), tag, arity=len(premises),
-        )
+        name = algebra_api._rule_operation(space, tag, arity=len(premises), role="label")
         tag = Expression((Symbol("function"), Symbol(name)))
     if callable(where) and not isinstance(where, Atom):
-        where = Symbol(algebra_api._operation_name(
-            space, "rule", getattr(where, "__name__", "guard"), where, arity=len(premises),
-        ))
+        where = Symbol(algebra_api._rule_operation(space, where, arity=len(premises), role="guard"))
     atom = algebra_api.tagged_rule(tag, head, *premises, where=where)
     space.add(atom)
     return atom

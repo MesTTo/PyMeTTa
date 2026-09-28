@@ -184,6 +184,7 @@ class _AlgebraModule(_body_types.ModuleType):
         negate: _body_typing.Any=...,
         saturated: _body_typing.Any=...,
         variable: _body_typing.Any=...,
+        effect: _body_metta_vocabularies.EffectClass | _builtins.str | None=...,
     ) -> _body_collections_abc.Callable[[_builtins.type], _body_metta_algebra.DeclaredAlgebra]:
         ...
 
@@ -206,6 +207,7 @@ class _AlgebraModule(_body_types.ModuleType):
         negate: _body_typing.Any=...,
         saturated: _body_typing.Any=...,
         variable: _body_typing.Any=...,
+        effect: _body_metta_vocabularies.EffectClass | _builtins.str | None=...,
     ) -> _body_metta_algebra.DeclaredAlgebra:
         ...
 

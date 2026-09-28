@@ -159,13 +159,16 @@ def test_a_custom_algebra_declares_saturation_and_negation(metta):
             negate=lambda a: 1 - a,
             saturated=lambda old, new: abs(old - new) < 1e-3,
         )
-        assert near.negation == "near-prob-negate"
-        assert near.saturation == "near-prob-saturated"
+        # Operations the space owns, named for it and numbered in role order
+        # (metta.algebra._owned_operation): plus 1, times 2, negate 3, saturated 4.
+        owner = str(space.name).removeprefix("&")
+        assert near.negation == f"{owner}.near-prob-negate-3"
+        assert near.saturation == f"{owner}.near-prob-saturated-4"
         claims = {
             str(row.claim): str(row.value)
             for row in metta_root.reflection[S.claim(S.semiring, S["near-prob"], V.claim, V.value)]
         }
-        assert claims == {"negation": "near-prob-negate", "saturation": "near-prob-saturated"}
+        assert claims == {"negation": f"{owner}.near-prob-negate-3", "saturation": f"{owner}.near-prob-saturated-4"}
         # A sum over the two-cycle has no fixpoint; the declared saturation stops it.
         _graph(space, CYCLE)
         stopped = evaluate(space, S.path(S.a, S.c), algebra=near, derivations=False).answers
@@ -242,9 +245,10 @@ def test_a_rule_may_label_its_instances_by_a_function_of_its_premise_tags(metta)
         def weaker(left, right):
             return min(left, right)
 
-        # A callable tag registers under its name and the rule stores (function rule-weaker).
+        # A callable tag becomes an operation the space owns, numbered by the order
+        # it was made in, and the rule stores (function <space>.rule-weaker-1).
         stored = space.add_tagged_rule(weaker, S.h(V.x), S.p(V.x), S.q(V.x))
-        assert stored.children[1] == S.function(S["rule-weaker"])
+        assert stored.children[1] == S.function(S[f"{str(space.name).removeprefix('&')}.rule-weaker-1"])
         # A MeTTa equation of the same shape is the same spelling written by hand.
         space.add(S["="](S.stronger(V.a, V.b), S.max(V.a, V.b)))
         space.add_tagged_rule(S.function(S.stronger), S.k(V.x), S.p(V.x), S.q(V.x))

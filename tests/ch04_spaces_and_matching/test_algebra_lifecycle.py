@@ -6,13 +6,26 @@ Guarantees:
   - transaction rollback restores the exact algebra mirror preimage, including
     nested declarations [tested: test_rollback_releases_an_algebra_mirror,
     test_rollback_restores_a_replaced_algebra_mirror; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - the operations an algebra makes from callables belong to its declaring
+    space: one name in two spaces keeps each space's callables, the space's
+    drop and a refused declaration's rollback release them, effect= classifies
+    them, and a row the engine refuses is an AlgebraDeclarationError, at the
+    space's door and the module call alike [tested 2026-09-29T05:09:00+10:00:
+    test_one_algebra_name_in_two_spaces_keeps_each_space_s_operations,
+    test_a_space_s_drop_and_a_refusal_release_the_operations_its_algebras_made,
+    test_effect_classifies_the_operations_an_algebra_makes,
+    test_a_declaration_the_engine_refuses_is_an_algebra_declaration_error]
 """
 import importlib
+import operator
+import uuid
 from contextlib import ExitStack
 
 import pytest
 
-from metta import S
+from metta import S, registered
+from metta._errors.errors import EngineError
+from metta.vocabularies import EffectClass
 
 
 @pytest.mark.parametrize("named", [True, False])
@@ -100,3 +113,96 @@ def test_rollback_restores_a_replaced_algebra_mirror(metta):
         assert algebra._REGISTRY[key][1] is original
         assert algebra.require(space, "replaced-carrier") is original
         assert original.type is int
+
+
+def _declare(door, space, name, **roles):
+    """Declare through the door under test: the space's own, or the module call inside `with space:`."""
+    algebra = importlib.import_module("metta.algebra")
+    if door == "space":
+        return space.algebra(name, **roles)
+    with space:
+        return algebra(name, **roles)
+
+
+def _fold(space, name):
+    """The named algebra's combine over the space's two derivations of (p), read back through prov."""
+    algebra = importlib.import_module("metta.algebra")
+    declared = algebra.resolve(space, name)
+    return [answer.under(declared).annotation for answer in space.match(S.p(), under=algebra.prov)]
+
+
+@pytest.mark.parametrize("door", ["space", "module"])
+def test_one_algebra_name_in_two_spaces_keeps_each_space_s_operations(metta, door):
+    """A second space declaring a name leaves the first space's callables where they are.
+
+    An operation an algebra makes from a callable is named for its declaring
+    space: the process registers every operation into one module every space
+    inherits, and `<algebra>-<role>` alone let the second space's `max`
+    replace the first space's `+` under the first space's row.
+    """
+    algebra = importlib.import_module("metta.algebra")
+    with ExitStack() as cleanup:
+        keep, other = (metta._at(f"&algebra-{door}-{uuid.uuid4().hex[:8]}") for _ in range(2))
+        for space in (keep, other):
+            cleanup.callback(space.drop)
+            space.add(algebra.tagged_fact(0.5, S.p()), algebra.tagged_fact(0.25, S.p()))
+        _declare(door, keep, "shared-name", combine=operator.add, extend=operator.mul, zero=0.0, one=1.0)
+        assert _fold(keep, "shared-name") == [0.75]
+        _declare(door, other, "shared-name", combine=max, extend=operator.mul, zero=0.0, one=1.0)
+        assert _fold(other, "shared-name") == [0.5]
+        assert _fold(keep, "shared-name") == [0.75]
+        qualifier = str(keep.name).removeprefix("&")
+        assert algebra.resolve(keep, "shared-name").combine == f"{qualifier}.shared-name-combine-1"
+
+
+@pytest.mark.parametrize("door", ["space", "module"])
+def test_a_space_s_drop_and_a_refusal_release_the_operations_its_algebras_made(metta, door):
+    """The operations made from callables live as long as the declaration that holds them."""
+    algebra = importlib.import_module("metta.algebra")
+    space = metta._at(f"&owned-{door}-{uuid.uuid4().hex[:8]}")
+    qualifier = str(space.name).removeprefix("&")
+    try:
+        with pytest.raises(algebra.AlgebraDeclarationError, match="algebra_value_outside_carrier"):
+            _declare(door, space, "refused", combine=max, extend=operator.mul, zero="bad", one=1, type=int)
+        assert not [name for name in registered() if name.startswith(f"{qualifier}.")]
+        _declare(door, space, "owned", combine=operator.add, extend=operator.mul, zero=0, one=1,
+                 negate=lambda value: 1 - value)
+        declared = algebra.require(space, "owned")
+        owned = {declared.combine, declared.extend, declared.negation}
+        # Each attempt takes the space's next ordinals, the refused one's too.
+        assert sorted(owned) == [f"{qualifier}.owned-{role}" for role in ("combine-3", "extend-4", "negate-5")]
+        assert owned <= set(registered())
+    finally:
+        space.drop()
+    assert not owned & set(registered())
+
+
+def test_effect_classifies_the_operations_an_algebra_makes(metta):
+    """An algebra's author says what its operations read; the default stays arithmetic."""
+    algebra = importlib.import_module("metta.algebra")
+    with ExitStack() as cleanup:
+        space = metta._at(f"&effect-{uuid.uuid4().hex[:8]}")
+        cleanup.callback(space.drop)
+        space.algebra("reads-binding", combine=operator.add, extend=operator.mul, zero=0, one=1,
+                      effect=EffectClass.readOnlyLookup)
+        space.algebra("arithmetic", combine=operator.add, extend=operator.mul, zero=0, one=1)
+        effects = {
+            name: {registered()[getattr(algebra.require(space, name), role)].effect for role in ("combine", "extend")}
+            for name in ("reads-binding", "arithmetic")
+        }
+        assert effects == {"reads-binding": {EffectClass.readOnlyLookup}, "arithmetic": {EffectClass.pureStructural}}
+        with pytest.raises(TypeError, match="effect="):
+            space.algebra("named-only", combine="+", extend="*", zero=0, one=1, effect=EffectClass.readOnlyLookup)
+
+
+@pytest.mark.parametrize("door", ["space", "module"])
+def test_a_declaration_the_engine_refuses_is_an_algebra_declaration_error(metta, door):
+    """Whatever refuses the row, a declaration refused is an AlgebraDeclarationError."""
+    algebra = importlib.import_module("metta.algebra")
+    with ExitStack() as cleanup:
+        space = metta._at(f"&refused-{door}-{uuid.uuid4().hex[:8]}")
+        cleanup.callback(space.drop)
+        with pytest.raises(algebra.AlgebraDeclarationError, match="ZeroDivisionError") as refused:
+            _declare(door, space, "raising", combine=lambda left, right: (left + right) / 0, extend=operator.mul,
+                     zero=0, one=1, carrier=(0, 1), laws=("combine-associative",))
+        assert isinstance(refused.value.__cause__, EngineError)

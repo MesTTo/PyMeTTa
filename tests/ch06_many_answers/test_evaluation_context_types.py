@@ -56,16 +56,12 @@ def typed_carrier_program(metta):
             "typed-carrier-context", plus=plus, times=times,
             zero=0, one=1, type=predicate, order="descending",
         )
-        try:
-            space.add(
-                algebra.tagged_fact(2, S.carrier_context_seed),
-                algebra.tagged_rule(3, S.carrier_context_result, S.carrier_context_seed),
-            )
-            state["record"] = True
-            yield space, declared, state, observations
-        finally:
-            space.unregister_op("typed-carrier-context-plus")
-            space.unregister_op("typed-carrier-context-times")
+        space.add(
+            algebra.tagged_fact(2, S.carrier_context_seed),
+            algebra.tagged_rule(3, S.carrier_context_result, S.carrier_context_seed),
+        )
+        state["record"] = True
+        yield space, declared, state, observations
 
 
 @pytest.mark.parametrize("inferences", [None, 1_000_000])
@@ -145,29 +141,25 @@ def test_retained_interpretation_uses_the_explicit_typed_carrier_context(metta):
                 "retained-typed-context", plus=max, times=times, zero=0, one=1,
                 type=predicate, order="descending",
             )
-        try:
-            fact = algebra.tagged_fact(2, S.retained_carrier_seed)
-            rule = algebra.tagged_rule(3, S.retained_carrier_result, S.retained_carrier_seed)
-            source.add(fact, rule)
-            answer = source.match(S.retained_carrier_result, under=prov).one()
-            source.remove(fact, rule)
-            source.algebra(
-                declared.name, combine="+", extend="+", zero="", one="", type=str,
-            )
-            recording = True
-            with source, m.under(tropical):
-                previous = _engine_context(source)
-                assert answer.under(declared).annotation == 6
-                assert m.current_algebra() == "tropical"
-                assert _engine_context(source) == previous
-            assert {kind for kind, *_ in observed} == {"predicate", "times"}
-            assert all(
-                active == declared.name and context == (declared.name, 0, "descending")
-                for _, _, active, context in observed
-            )
-        finally:
-            owner.unregister_op("retained-typed-context-plus")
-            owner.unregister_op("retained-typed-context-times")
+        fact = algebra.tagged_fact(2, S.retained_carrier_seed)
+        rule = algebra.tagged_rule(3, S.retained_carrier_result, S.retained_carrier_seed)
+        source.add(fact, rule)
+        answer = source.match(S.retained_carrier_result, under=prov).one()
+        source.remove(fact, rule)
+        source.algebra(
+            declared.name, combine="+", extend="+", zero="", one="", type=str,
+        )
+        recording = True
+        with source, m.under(tropical):
+            previous = _engine_context(source)
+            assert answer.under(declared).annotation == 6
+            assert m.current_algebra() == "tropical"
+            assert _engine_context(source) == previous
+        assert {kind for kind, *_ in observed} == {"predicate", "times"}
+        assert all(
+            active == declared.name and context == (declared.name, 0, "descending")
+            for _, _, active, context in observed
+        )
 
 
 @pytest.mark.parametrize("rejected", [None, 2, 6], ids=["accepted", "operand", "result"])

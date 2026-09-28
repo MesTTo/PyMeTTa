@@ -6,6 +6,10 @@ Guarantees:
     fixpoint alike, and a callable guard registers under its own name
     [tested: test_a_guard_keeps_only_the_instances_it_admits,
     test_a_callable_guard_registers_under_its_name; commit=49478d67a10793a114d27d01a51f09a685d5136a].
+  - a callable label or guard is an operation its space owns, numbered by
+    the order the space made it in, so two lambdas keep their own rules
+    [tested 2026-09-29T05:09:00+10:00:
+    test_two_rules_labelled_by_lambdas_keep_their_own_labels]
   - the retained derivation shows the guard that held, and a guarded
     instance is not reinterpreted under another carrier, since it exists
     because its guard held over the tags of the carrier it ran under
@@ -54,9 +58,26 @@ def test_a_callable_guard_registers_under_its_name(metta):
             return score > 0.5
 
         stored = space.add_tagged_rule(1, S.trusted(V.x), S.score(V.x), where=strong)
-        assert stored.children[4] == S.where(S["rule-strong"])
+        assert stored.children[4] == S.where(S[f"{str(space.name).removeprefix('&')}.rule-strong-1"])
         answers = evaluate(space, S.trusted(V.x), algebra="prob").answers
         assert [answer.value for answer in answers] == [S.trusted(S.a)]
+
+
+def test_two_rules_labelled_by_lambdas_keep_their_own_labels(metta):
+    """Two lambdas share the name `<lambda>`; each rule still computes with its own.
+
+    One process-wide `rule-<lambda>` let the second rule's registration
+    replace the first rule's label, so (b) read 1000.5 where 0.5 * 10 is 5.0.
+    """
+    with metta._new_space() as space:
+        space.add_tagged_fact(0.5, S.a())
+        space.add_tagged_rule(lambda tag: tag * 10, S.b(), S.a())
+        space.add_tagged_rule(lambda tag: tag + 1000, S.c(), S.a())
+        labels = {
+            str(head): [answer.annotation for answer in space.match(head, under=algebra_module.prov)]
+            for head in (S.b(), S.c())
+        }
+        assert labels == {"(b)": [5.0], "(c)": [1000.5]}
 
 
 def test_a_derivation_shows_its_guard_and_is_not_reinterpreted(metta):

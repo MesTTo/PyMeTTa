@@ -870,8 +870,8 @@ class AsyncMeTTa(AsyncMeTTaBase):
         self,
         name: _builtins.str,
         *,
-        combine: _builtins.str,
-        extend: _builtins.str,
+        combine: _body_typing.Any,
+        extend: _body_typing.Any,
         zero: _body_typing.Any,
         one: _body_typing.Any,
         laws: _body_collections.abc.Iterable[_builtins.str]=(),
@@ -882,6 +882,7 @@ class AsyncMeTTa(AsyncMeTTaBase):
         negate: _body_typing.Any=None,
         saturated: _body_typing.Any=None,
         variable: _body_typing.Any=None,
+        effect: _body_metta_vocabularies.EffectClass | _builtins.str | None=None,
     ) -> _body_metta__atoms_factories.Atom:
         """Declare operations with carrier membership and optional checked laws.
 
@@ -890,14 +891,18 @@ class AsyncMeTTa(AsyncMeTTaBase):
         fusion. ``carrier`` enumerates the finite domain required for exhaustive
         law checking; it may accompany ``type`` to constrain that domain.
         Use ``prov`` and ``.under()`` to reinterpret uncertified tensor traces.
-        ``negate``, ``saturated`` and ``variable`` are the three further
-        operations a carrier may claim, each a callable, a Symbol or an
-        operation name like ``combine``: the unary complement a model count
-        weighs a variable's false branch with, the test that stops a fixpoint
-        join, and the operation that mints the carrier's value for a source key
-        and its tag.
+        Every operation role, ``combine``, ``extend``, ``negate``, ``saturated``
+        and ``variable``, takes a callable, a Symbol or an operation name. A
+        callable becomes an operation this space owns, ``<space>.<name>-<role>``,
+        released when the space drops, and ``effect`` classifies those
+        operations, ``pureStructural`` unless they read something. ``negate``,
+        ``saturated`` and ``variable`` are the three further operations a
+        carrier may claim: the unary complement a model count weighs a
+        variable's false branch with, the test that stops a fixpoint join, and
+        the operation that mints the carrier's value for a source key and its
+        tag.
         """
-        return await self.call(lambda m: m.algebra(name, combine=combine, extend=extend, zero=zero, one=one, laws=laws, carrier=carrier, type=type, requires=requires, order=order, negate=negate, saturated=saturated, variable=variable))
+        return await self.call(lambda m: m.algebra(name, combine=combine, extend=extend, zero=zero, one=one, laws=laws, carrier=carrier, type=type, requires=requires, order=order, negate=negate, saturated=saturated, variable=variable, effect=effect))
 
     async def covers(
         self,

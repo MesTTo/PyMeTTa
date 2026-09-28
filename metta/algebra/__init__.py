@@ -96,6 +96,25 @@ Guarantees:
   - custom algebra rows and their Python mirrors have the same context
     lifetime as annotations, while shipped presets remain shared [tested:
     test_custom_algebras_are_context_owned; commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - every operation role takes a callable, a Symbol or an operation name, at
+    the space's door and at the module call alike; a callable becomes an
+    operation the declaring space owns, named `<space>.<algebra>-<role>-<n>`,
+    classified by `effect=`, released by the space's drop and by a refused
+    declaration's rollback, so one algebra name in two spaces keeps each
+    space's own callables [tested 2026-09-29T05:54:02+10:00:
+    test_one_algebra_name_in_two_spaces_keeps_each_space_s_operations,
+    test_a_space_s_drop_and_a_refusal_release_the_operations_its_algebras_made,
+    test_effect_classifies_the_operations_an_algebra_makes]
+  - a row the engine refuses is an AlgebraDeclarationError carrying the
+    engine's error; no two declaration attempts share an operation name, so
+    a refused attempt rolls back only its own
+    [tested 2026-09-29T05:54:02+10:00:
+    test_a_declaration_the_engine_refuses_is_an_algebra_declaration_error,
+    test_a_space_s_drop_and_a_refusal_release_the_operations_its_algebras_made]
+  - a rule's label or guard callable is an operation its space owns, named by
+    the order the space made it in, so two lambda-labelled rules keep their
+    own labels [tested 2026-09-29T05:54:02+10:00:
+    test_two_rules_labelled_by_lambdas_keep_their_own_labels]
   - calling the module constructor targets the ambient space rather than the
     process-default home [tested:
     test_algebra_module_constructor_targets_the_ambient_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
@@ -133,10 +152,17 @@ Owns resources:
     and transaction rollback restores their previous state [tested:
     test_drop_retires_algebra_before_redeclaration,
     test_rollback_releases_an_algebra_mirror; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - the operations a space's declarations made from callables, in _OWNED
+    until the space drops, which unregisters them [tested
+    2026-09-29T05:54:02+10:00:
+    test_a_space_s_drop_and_a_refusal_release_the_operations_its_algebras_made]
   - provider source bags and proof labels live only for one evaluate
     call and retain no provider cursor [tested:
     test_provider_proofs_reinterpret_without_requery_and_refresh_on_next_ask;
     commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
+Guarded by:
+  - _OWNED_LOCK around each read-and-update of _OWNED and _ORDINALS, which
+    declarations on several threads share.
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -152,6 +178,7 @@ import builtins
 import math
 import random
 import sys
+import threading
 import time
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -531,7 +558,7 @@ class DeclaredAlgebra:
                     return _encode(min(left_value, right_value))
                 if name == "max":
                     return _encode(max(left_value, right_value))
-        # policy-inventory-exempt: mechanism-internal; reason=the two role names a declaration coins for its own combine and extend operations, which _register_operation spells as <algebra>-<role>; evidence=extensions/python/metta/algebra/__init__.py:_operation_name
+        # policy-inventory-exempt: mechanism-internal; reason=prov's own combine and extend, whose answer is the symbolic derivation itself rather than a value; evidence=engine/spaces/catalog.pl:metta_catalog_preset/1
         if name in {"plus", "times"}:
             return Expression((Symbol(name), left, right))
         if self.name in _PRESETS:
@@ -920,6 +947,18 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
 
 _REGISTRY: dict[tuple[int, str, str], tuple[Atom, DeclaredAlgebra]] = {}
 
+#: What each space's declarations made from Python callables, by (runtime,
+#: space name): the operations it owns, which its drop unregisters, since an
+#: operation is process-global and nothing else would once the space is gone,
+#: and the ordinal its next one takes. The ordinal gives every declaration
+#: attempt names no other attempt uses, so two threads declaring one name at
+#: once share no operation, and the attempt the engine refuses rolls back its
+#: own operations and nobody else's. _OWNED_LOCK makes each read-and-update of
+#: the two one step.
+_OWNED: dict[tuple[int, str], builtins.set[str]] = {}
+_ORDINALS: dict[tuple[int, str], int] = {}
+_OWNED_LOCK = threading.Lock()
+
 
 def _record_algebra_undo(key: tuple[int, str, str]) -> None:
     """Enlist this mirror's preimage in the existing transaction undo log."""
@@ -963,12 +1002,99 @@ def _carrier_type_accepts(type_wire: Any, value_wire: Any) -> builtins.bool:
 
 
 def _forget_space(metta: Space) -> None:
-    """Release catalog mirrors when their owning Python space closes."""
+    """Release catalog mirrors, and the operations they own, when their space closes."""
+    from metta._binding.dispatch import REGISTRY  # noqa: PLC0415 -- the process-wide names
+    from metta._declare.functions import _invalidate_builtins_cache  # noqa: PLC0415
+    from metta._declare.operations import _record_registry_undo, unregister  # noqa: PLC0415
+
     prefix = id(metta._rt), _context_name(metta)
     for key in tuple(_REGISTRY):
         if key[:2] == prefix:
             _record_algebra_undo(key)
             del _REGISTRY[key]
+    with _OWNED_LOCK:
+        owned = _OWNED.pop(prefix, builtins.set())
+        ordinal = _ORDINALS.pop(prefix, None)
+    if ordinal is None:
+        return
+
+    def restore() -> None:
+        with _OWNED_LOCK:
+            _OWNED[prefix] = owned
+            _ORDINALS[prefix] = ordinal
+
+    _record_registry_undo(
+        restore, description=f"algebra-owned operations of {prefix!r}", key=("algebra-owned", prefix),
+    )
+    for name in sorted(owned):
+        if name in REGISTRY:
+            unregister(metta._rt, name)
+    _invalidate_builtins_cache(metta._rt)
+
+
+def _owned_operation(
+    space: Space, purpose: str, operation: Callable[..., Any], *, arity: int,
+    effect: EffectClass | str,
+) -> str:
+    """Register a callable a declaration holds as an operation its space owns; answer its name.
+
+    The name is `<space>.<purpose>-<n>`. The space's name, without its sigil,
+    prefixes it as `(qualified <space>)` prefixes a head, because every
+    operation lands in the one module every space inherits
+    (metta_py_register_op in _binding/operations.pl), and `<purpose>` alone
+    let a second space's callable replace the first space's under the first
+    space's row. The ordinal is the space's next, so no two attempts share a
+    name even when they declare the same thing. A name some other
+    registration holds is refused rather than replaced. A negation is the one
+    unary role; a rule's label takes one tag per premise, the one call form
+    it serves.
+    """
+    from metta._binding.dispatch import REGISTRY  # noqa: PLC0415 -- the process-wide names
+    from metta._declare.operations import _record_registry_undo  # noqa: PLC0415
+
+    prefix = id(space._rt), str(space.name)
+    with _OWNED_LOCK:
+        ordinal = _ORDINALS.get(prefix, 0) + 1
+        _ORDINALS[prefix] = ordinal
+    name = f"{str(space.name).removeprefix('&')}.{purpose}-{ordinal}"
+    if name in REGISTRY:
+        msg = f"algebra_operation_taken({name}); another registration holds that operation name"
+        raise AlgebraDeclarationError(msg)
+
+    def binary(left: Any, right: Any) -> Any:
+        return operation(left, right)
+
+    def unary(value: Any) -> Any:
+        return operation(value)
+
+    def labelled(*values: Any) -> Any:
+        return operation(*values)
+
+    if arity == 1:
+        space.op(unary, name=name, effect=effect)
+    elif arity == 2:
+        space.op(binary, name=name, effect=effect)
+    else:
+        space.op(labelled, name=name, effect=effect, arities=[arity])
+    with _OWNED_LOCK:
+        _OWNED.setdefault(prefix, builtins.set()).add(name)
+
+    def disown() -> None:
+        with _OWNED_LOCK:
+            _OWNED.get(prefix, builtins.set()).discard(name)
+
+    _record_registry_undo(disown, description=f"algebra-owned operation {name!r}", key=("algebra-owned", name))
+    return name
+
+
+def _rule_operation(space: Space, operation: Callable[..., Any], *, arity: int, role: str) -> str:
+    """Register a rule's label or guard callable as an operation its space owns.
+
+    Named `<space>.rule-<the callable's name>-<n>`: the name reads in the
+    stored rule, and the ordinal keeps two lambdas, both `<lambda>`, apart.
+    """
+    label = getattr(operation, "__name__", role)
+    return _owned_operation(space, f"rule-{label}", operation, arity=arity, effect=EffectClass.pureStructural)
 
 
 def _context_name(metta: Space) -> str:
@@ -1292,8 +1418,8 @@ def declare(
     metta: Space,
     name: str,
     *,
-    combine: str,
-    extend: str,
+    combine: Any,
+    extend: Any,
     zero: Any,
     one: Any,
     laws: Iterable[str] = (),
@@ -1301,11 +1427,20 @@ def declare(
     type: Any = None,  # noqa: A002 -- the public carrier concept is a type
     requires: Iterable[str] = (),
     order: SemiringOrder | None = None,
-    negate: str | None = None,
-    saturated: str | None = None,
-    variable: str | None = None,
+    negate: Any = None,
+    saturated: Any = None,
+    variable: Any = None,
+    effect: EffectClass | str | None = None,
 ) -> Atom:
     """Check and add one algebra catalog atom, without replacing an old one.
+
+    Every operation role, `combine`, `extend`, `negate`, `saturated` and
+    `variable`, takes an operation name, a Symbol or a Python callable. A
+    callable becomes an operation the declaring space owns, named
+    `<space>.<name>-<role>-<n>` with the space's next ordinal, classified by
+    `effect` (pureStructural unless the operations read something, a
+    parameter binding say) and unregistered when the space drops; `effect`
+    with no callable role classifies nothing and is refused.
 
     `order`, `negate`, `saturated` and `variable` land as the semiring claims
     the engine reads beside the row: the direction that counts as best, the
@@ -1313,45 +1448,101 @@ def declare(
     test that stops a fixpoint join, and the binary operation that mints the
     carrier's value for a source key and its tag.
 
+    The operations, the row and its claims are one transaction, and the
+    engine admits the row or refuses it; a refusal is an
+    AlgebraDeclarationError whose cause is the engine's error, and it rolls
+    back this attempt's operations, which no other attempt shares.
+
     metta may be a context or a space.
     """
     home = metta.self
+    roles = {
+        "combine": combine, "extend": extend,
+        "negate": negate, "saturated": saturated, "variable": variable,
+    }
+    if effect is not None and not any(_makes_operation(operation) for operation in roles.values()):
+        msg = (
+            "effect= classifies the operations a declaration makes from callables, "
+            "and every role here names an operation that already exists"
+        )
+        raise TypeError(msg)
+    return home.transaction(lambda: _declare(
+        home, name, roles, zero=zero, one=one, laws=laws, carrier=carrier, declared_type=type,
+        requires=requires, order=order,
+        effect=EffectClass.pureStructural if effect is None else effect,
+    ))
+
+
+def _makes_operation(operation: Any) -> builtins.bool:
+    """Whether a role's value is a callable the declaration makes an operation from."""
+    return callable(operation) and not isinstance(operation, (str, Atom))
+
+
+def _operation_name(
+    metta: Space, algebra_name: str, role: str, operation: Any, *, effect: EffectClass | str,
+) -> str:
+    """The operation one role names: its own name, or one made from a callable."""
+    if isinstance(operation, Symbol):
+        return operation.name
+    if isinstance(operation, str) and operation:
+        return operation
+    if not _makes_operation(operation):
+        msg = f"algebra_operation_invalid({algebra_name}, {role})"
+        raise AlgebraDeclarationError(msg)
+    return _owned_operation(
+        metta, f"{algebra_name}-{role}", operation, arity=1 if role == "negate" else 2, effect=effect,
+    )
+
+
+def _declare(
+    home: Space,
+    name: str,
+    roles: Mapping[str, Any],
+    *,
+    zero: Any,
+    one: Any,
+    laws: Iterable[str],
+    carrier: Iterable[Any],
+    declared_type: Any,
+    requires: Iterable[str],
+    order: SemiringOrder | None,
+    effect: EffectClass | str,
+) -> Atom:
+    """One declaration, inside the transaction declare() opens."""
     if not name or not isinstance(name, str):
         msg = "algebra_name_must_be_a_nonempty_symbol"
         raise AlgebraDeclarationError(msg)
     if name in _PRESETS or get(home, name) is not None:
         msg = f"algebra_already_declared({name})"
         raise AlgebraDeclarationError(msg)
-    if not combine or not isinstance(combine, str):
-        msg = f"algebra_operation_invalid({name}, combine)"
-        raise AlgebraDeclarationError(msg)
-    if not extend or not isinstance(extend, str):
-        msg = f"algebra_operation_invalid({name}, extend)"
-        raise AlgebraDeclarationError(msg)
+    for role in ("combine", "extend"):
+        if roles[role] is None:
+            msg = f"algebra_operation_invalid({name}, {role})"
+            raise AlgebraDeclarationError(msg)
     if order is not None and order not in builtins.set(SemiringOrder):
         msg = f"algebra_order_invalid({name}, {order!r})"
         raise AlgebraDeclarationError(msg)
-    if type is not None and not isinstance(type, (Symbol, Expression, builtins.type)) and not callable(type):
+    if declared_type is not None and not isinstance(declared_type, (Symbol, Expression, type)) and not callable(declared_type):
         msg = "algebra type= needs a Python type, a MeTTa type atom, or a callable predicate; use carrier= for a finite enumeration"
         raise AlgebraDeclarationError(msg)
-    for role, operation in (("negate", negate), ("saturated", saturated), ("variable", variable)):
-        if operation is not None and (not operation or not isinstance(operation, str)):
-            msg = f"algebra_operation_invalid({name}, {role})"
-            raise AlgebraDeclarationError(msg)
-    if isinstance(type, Atom) and type.vars:
+    if isinstance(declared_type, Atom) and declared_type.vars:
         msg = "algebra type= must be ground; bind its type variables before declaring it"
         raise AlgebraDeclarationError(msg)
+    named = {
+        role: None if operation is None else _operation_name(home, name, role, operation, effect=effect)
+        for role, operation in roles.items()
+    }
     # Atom classes spell their engine metatypes; Python strings remain text.
-    carrier_type = type
-    if type is str:
+    carrier_type = declared_type
+    if declared_type is str:
         carrier_type = Symbol("String")
-    elif isinstance(type, builtins.type) and issubclass(type, Atom):
+    elif isinstance(declared_type, type) and issubclass(declared_type, Atom):
         from metta._catalog.annotations import type_atom_for  # noqa: PLC0415
-        carrier_type = type_atom_for(type)
+        carrier_type = type_atom_for(declared_type)
     declaration = DeclaredAlgebra(
         name=name,
-        combine=combine,
-        extend=extend,
+        combine=cast("str", named["combine"]),
+        extend=cast("str", named["extend"]),
         zero=_encode(zero),
         one=_encode(one),
         laws=_canonical_laws(home, laws),
@@ -1359,17 +1550,17 @@ def declare(
         requires=frozenset(requires),
         order=order,
         type=carrier_type,
-        negation=negate,
-        saturation=saturated,
-        variable=variable,
+        negation=named["negate"],
+        saturation=named["saturated"],
+        variable=named["variable"],
     )
     context = _context_name(home)
     atom = Expression(
         (
             Symbol("algebra"),
             Symbol(name),
-            Symbol(combine),
-            Symbol(extend),
+            Symbol(declaration.combine),
+            Symbol(declaration.extend),
             declaration.zero,
             declaration.one,
             _symbol_list("laws", sorted(declaration.laws)),
@@ -1378,37 +1569,32 @@ def declare(
             Symbol(context),
         )
     )
-    try:
-        home.runtime.do_must(
-            "metta_py_declare_algebra", home.name, atom.to_wire()
-        )
-    except EngineError as error:
-        if str(error).startswith(
-            (
-                "algebra_carrier_not_closed",
-                "algebra_law_uncheckable",
-                "algebra_law_violation",
-            )
-        ):
-            raise AlgebraLawError(str(error)) from error
-        if str(error).startswith(("algebra_value_outside_carrier", "algebra_type_predicate")) or "algebra type predicate" in str(error):
-            raise AlgebraDeclarationError(str(error)) from error
-        raise
     # The claims beside the row, through the same door: the engine reads them
     # by name where it needs a per-carrier fact.
     claims = (
         ("ordered", None if order is None else Symbol(getattr(order, "value", order))),
-        ("negation", None if negate is None else Symbol(negate)),
-        ("saturation", None if saturated is None else Symbol(saturated)),
-        ("variable", None if variable is None else Symbol(variable)),
+        ("negation", None if declaration.negation is None else Symbol(declaration.negation)),
+        ("saturation", None if declaration.saturation is None else Symbol(declaration.saturation)),
+        ("variable", None if declaration.variable is None else Symbol(declaration.variable)),
     )
-    for claim, value in claims:
-        if value is None:
-            continue
-        home.runtime.do_must(
-            "metta_py_declare_algebra", home.name,
-            Expression((Symbol("claim"), Symbol("semiring"), Symbol(name), Symbol(claim), value)).to_wire(),
-        )
+    rows = [atom] + [
+        Expression((Symbol("claim"), Symbol("semiring"), Symbol(name), Symbol(claim), value))
+        for claim, value in claims
+        if value is not None
+    ]
+    try:
+        for row in rows:
+            home.runtime.do_must("metta_py_declare_algebra", home.name, row.to_wire())
+    except EngineError as error:
+        message = str(error)
+        if message.startswith(("algebra_carrier_not_closed", "algebra_law_uncheckable", "algebra_law_violation")):
+            raise AlgebraLawError(message) from error
+        # The declaration door's own refusal, whatever raised it: the row's
+        # kind check, a law check's operation, a type predicate. A resource
+        # limit or an interrupt is its own subclass and passes as itself.
+        if type(error) is EngineError:
+            raise AlgebraDeclarationError(message) from error
+        raise
     key = _key(home, context, name)
     _record_algebra_undo(key)
     _REGISTRY[key] = (atom, declaration)
@@ -2474,45 +2660,6 @@ def _algebra_name(value: Any) -> str:
     return _carrier_name(value)
 
 
-def _operation_name(
-    metta: Space, algebra_name: str, role: str, operation: Any, *, arity: int = 2
-) -> str:
-    if isinstance(operation, Symbol):
-        return operation.name
-    if isinstance(operation, str):
-        return operation
-    if not callable(operation):
-        msg = (
-            f"{role} must be a callable, Symbol, or operation name, "
-            f"not {type(operation).__name__}"
-        )
-        raise TypeError(msg)
-    name = f"{algebra_name}-{role}"
-
-    def binary(left: Any, right: Any) -> Any:
-        return operation(left, right)
-
-    def unary(value: Any) -> Any:
-        return operation(value)
-
-    def labelled(*values: Any) -> Any:
-        return operation(*values)
-
-    # An algebra's operations are arithmetic over carrier values: they read
-    # nothing and write nothing, which is rank 0. The declaration is required
-    # at registration, and a semiring whose operator claimed a higher rank
-    # would make every annotation join that used it look effectful to the
-    # plan join. A negation is the one unary role; a rule's label function
-    # takes one tag per premise, which is the one call form it serves.
-    if arity == 1:
-        metta.op(unary, name=name, effect=EffectClass.pureStructural)
-    elif arity == 2:
-        metta.op(binary, name=name, effect=EffectClass.pureStructural)
-    else:
-        metta.op(labelled, name=name, effect=EffectClass.pureStructural, arities=[arity])
-    return name
-
-
 def _construct(
     subject: Any,
     *,
@@ -2530,8 +2677,14 @@ def _construct(
     negate: Any = None,
     saturated: Any = None,
     variable: Any = None,
+    effect: EffectClass | str | None = None,
 ) -> DeclaredAlgebra:
-    """Implement the functional and class-decorator constructor forms."""
+    """The functional and class-decorator forms: declare() into the current space.
+
+    A class supplies each keyword as an attribute of the same name, and
+    `plus` and `times` are the semiring's own words for `combine` and
+    `extend`; declare() does the rest, the space's door being the same call.
+    """
     # The module-level `current_space`, the one `current_algebra` reads too,
     # rather than the root door of the same name: the root's own spelling adds
     # only the implementation-module rehide, and importing it here would shadow
@@ -2554,6 +2707,7 @@ def _construct(
         negate = getattr(subject, "negate", negate)
         saturated = getattr(subject, "saturated", saturated)
         variable = getattr(subject, "variable", variable)
+        effect = getattr(subject, "effect", effect)
     combine = plus if combine is None else combine
     extend = times if extend is None else extend
     if algebra_name in _PRESETS:
@@ -2564,28 +2718,24 @@ def _construct(
     if zero is _CONSTRUCTOR_MISSING or one is _CONSTRUCTOR_MISSING:
         msg = "algebra() needs both zero= and one="
         raise TypeError(msg)
-    def install() -> DeclaredAlgebra:
-        combine_name = _operation_name(target, algebra_name, "plus", combine)
-        extend_name = _operation_name(target, algebra_name, "times", extend)
-        declare(
-            target,
-            algebra_name,
-            combine=combine_name,
-            extend=extend_name,
-            zero=zero,
-            one=one,
-            laws=laws,
-            carrier=carrier,
-            type=carrier_type,
-            requires=requires,
-            order=order,
-            negate=None if negate is None else _operation_name(target, algebra_name, "negate", negate, arity=1),
-            saturated=None if saturated is None else _operation_name(target, algebra_name, "saturated", saturated),
-            variable=None if variable is None else _operation_name(target, algebra_name, "variable", variable),
-        )
-        return require(target, algebra_name)
-
-    return target.transaction(install)
+    declare(
+        target,
+        algebra_name,
+        combine=combine,
+        extend=extend,
+        zero=zero,
+        one=one,
+        laws=laws,
+        carrier=carrier,
+        type=carrier_type,
+        requires=requires,
+        order=order,
+        negate=negate,
+        saturated=saturated,
+        variable=variable,
+        effect=effect,
+    )
+    return require(target, algebra_name)
 
 
 class _AlgebraModule(ModuleType):
@@ -2614,6 +2764,7 @@ class _AlgebraModule(ModuleType):
         negate: Any = ...,
         saturated: Any = ...,
         variable: Any = ...,
+        effect: EffectClass | str | None = ...,
     ) -> Callable[[type], DeclaredAlgebra]: ...
 
     @overload
@@ -2635,6 +2786,7 @@ class _AlgebraModule(ModuleType):
         negate: Any = ...,
         saturated: Any = ...,
         variable: Any = ...,
+        effect: EffectClass | str | None = ...,
     ) -> DeclaredAlgebra: ...
 
     def __call__(
@@ -2655,6 +2807,7 @@ class _AlgebraModule(ModuleType):
         negate: Any = None,
         saturated: Any = None,
         variable: Any = None,
+        effect: EffectClass | str | None = None,
     ) -> Any:
         if subject is None:
             def decorate(cls: type) -> DeclaredAlgebra:
@@ -2674,6 +2827,7 @@ class _AlgebraModule(ModuleType):
                     negate=negate,
                     saturated=saturated,
                     variable=variable,
+                    effect=effect,
                 )
 
             return decorate
@@ -2693,6 +2847,7 @@ class _AlgebraModule(ModuleType):
             negate=negate,
             saturated=saturated,
             variable=variable,
+            effect=effect,
         )
 
 
