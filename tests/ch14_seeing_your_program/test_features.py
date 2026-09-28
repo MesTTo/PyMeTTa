@@ -33,6 +33,9 @@ Guarantees:
     test_tagged_algebra_debits_inferences_across_operations,
     test_an_ordered_algebra_view_is_bounded_by_its_timeout;
     commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
+  - a cancelled future's block reads one integer wherever the schedule had
+    put its task [tested 2026-09-28T18:39:23+10:00:
+    test_a_cancelled_future_is_not_charged]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1131,8 +1134,9 @@ def test_a_cancelled_future_is_not_charged(m):
 
     A future cancelled while it spins brings none of its spin into the
     block's count, where the credited partial spin once varied by tens of
-    thousands of inferences with the schedule, so two such blocks read one
-    integer.
+    thousands of inferences with the schedule, and none of the work the
+    cancel spent stopping it, which varied with where the schedule had put
+    the task, so two such blocks read one integer.
     """
     m += lib.thread
 
@@ -1142,41 +1146,26 @@ def test_a_cancelled_future_is_not_charged(m):
         # name, because the session space is shared and another test defines `spin`.
         return cancelled_spin(n - 1) if n > 0 else S.done
 
-    # lib_thread's own record that a carrier is running the task.
-    running = (
-        "lib_thread:metta_future(Space, scheduler(Task), _), "
-        "lib_thread:metta_scheduler_task(Task, _, _, _, _, running(_, _))"
-    )
-
     def measured() -> int:
-        with m.stats() as spawned, m:
+        # Spawn and cancel in one block, so the cancel finds its task wherever
+        # the schedule has put it: still queued, which the cancel disposes of
+        # itself, or on a carrier, which it signals and settles with, reading
+        # the completion if the carrier recorded it first. Each place cost the
+        # cancel different work, so one program read 6,987 inferences in 23 of
+        # 400 consecutive blocks and 6,960 in the rest [measured
+        # 2026-09-28T18:18:09+10:00: one process on swipl-patched.8], until the
+        # cancel discarded what it spends stopping the task, when all 400 read
+        # 6,923 [measured 2026-09-28T18:29:12+10:00: the same readings with the
+        # discard].
+        with m.stats() as s, m:
             future = spawn(S.cancelled_spin(300000))
-        # Each cancel finds its task on a carrier, spinning. A cancel that
-        # finds it still queued disposes of the engine itself, 27 inferences
-        # more than stopping a running one, as often as the schedule lets it:
-        # the cancel's own bookkeeping, not the spin [measured
-        # 2026-09-25T23:34:56+10:00: 2000 consecutive readings of spawn and
-        # cancel in one block on 3d66db04c at load 33, each cancel's branch
-        # noted, 1877 finding the task running and 121 still queued]. The
-        # wait sits between the two blocks, so its polls are charged to
-        # neither, and every cancel then takes the running branch [measured
-        # 2026-09-26T00:25:27+10:00: 2000 consecutive readings of this shape
-        # on cba7f041e at load 30 to 44, all at one value].
-        # Known issue: a cancel on the running branch still reads 12
-        # inferences fewer when the carrier records its completion before the
-        # cancel looks for it [measured 2026-09-26T00:22:02+10:00: one of 2000
-        # cancels after this wait on 3d66db04c at load 97]; a cancel whose
-        # bookkeeping charges every branch alike, or nothing, closes both.
-        while not m.runtime.once(running, Space=str(future.name)):
-            time.sleep(0.0005)
-        with m.stats() as cancelled, m:
             future.cancel()
-        return spawned.inferences + cancelled.inferences
+        return s.inferences
 
-    # The first block pays first-use costs, 10,810 inferences in a fresh
-    # process against the 6,959 every later block reads [measured
-    # 2026-09-26T00:25:40+10:00: two fresh processes, 401 blocks after the
-    # first]; the claim is about the blocks after the two warm-ups.
+    # The first block pays first-use costs, 10,886 inferences in a fresh
+    # process against the 6,923 every later block reads [measured
+    # 2026-09-28T18:29:12+10:00: the warm-up blocks of the readings above];
+    # the claim is about the blocks after the two warm-ups.
     measured(), measured()
     first, second = measured(), measured()
     assert first == second
