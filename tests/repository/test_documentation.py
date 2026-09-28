@@ -46,6 +46,10 @@ Guarantees:
     not been built [tested:
     test_every_run_fence_runs_the_corpus_file_it_names,
     test_the_site_build_refuses_without_the_browser_kit; commit=a8b50dae12518adb626bf2594258eeaaf4a7f76d]
+  - the site build refuses a browser kit whose runtime.json names no
+    THIRD-PARTY-NOTICES beside the wasm before it removes or copies anything,
+    so the site never serves the host's binary without them
+    [tested 2026-09-28T14:01:04+10:00: test_the_site_build_refuses_a_kit_without_its_notices]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -862,6 +866,52 @@ def test_the_site_build_refuses_without_the_browser_kit(tmp_path):
     assert finished.returncode == 1, finished.stdout + finished.stderr
     assert "npm run build:browser --prefix extensions/node" in finished.stderr
     assert not any(tmp_path.iterdir()), "the refusal wrote into the directory it refused"
+
+
+def _listing(root):
+    """Each file under `root` with its size and modification time, none when it is absent."""
+    return sorted(
+        (str(path.relative_to(root)), path.stat().st_size, path.stat().st_mtime_ns)
+        for path in root.rglob("*")
+        if path.is_file()
+    )
+
+
+def test_the_site_build_refuses_a_kit_without_its_notices(tmp_path):
+    """A kit built before the host's notices existed is refused, and nothing is copied.
+
+    Its runtime.json names no THIRD-PARTY-NOTICES beside the wasm, so serving it
+    would publish the host's binary without the notices it owes. The refusal
+    comes before the site's served copy is removed or replaced, and names the
+    command that rebuilds the kit.
+    """
+    if shutil.which("node") is None:
+        pytest.skip("node is not installed; the site's bundling script needs it")
+    kit = tmp_path / "kit"
+    for asset in (
+        "browser/index.js",
+        "_runtime/wasm/swipl-web.wasm",
+        "_runtime/wasm/swipl-web.data",
+        "_runtime/LICENSE",
+    ):
+        (kit / asset).parent.mkdir(parents=True, exist_ok=True)
+        (kit / asset).write_text(asset, encoding="utf-8")
+    (kit / "_runtime" / "runtime.json").write_text('{"licenses": ["LICENSE"]}', encoding="utf-8")
+    served = _SITE / "public" / "metta"
+    kit_before, served_before = _listing(kit), _listing(served)
+    finished = subprocess.run(
+        ["node", "scripts/bundle-browser.mjs", str(kit)],
+        cwd=_SITE,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    assert finished.returncode == 1, finished.stdout + finished.stderr
+    assert "names no THIRD-PARTY-NOTICES beside the wasm" in finished.stderr
+    assert "npm run build:browser --prefix extensions/node" in finished.stderr
+    assert _listing(kit) == kit_before, "the refusal wrote into the kit it refused"
+    assert _listing(served) == served_before, "the refusal changed the copy the site serves"
 
 
 def test_a_registered_head_is_counted_in_the_reference(tmp_path, monkeypatch):
