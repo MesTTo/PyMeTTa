@@ -90,10 +90,8 @@ Fails when: the Standard's markup moves out from under a reader (a table, a
   RefusalTests.test_each_moved_shape_refuses]; and where HTML is not SGML: a
   custom element's name, an attribute written without a value that is neither
   Boolean nor hidden, an entity reference in an attribute value (SWI folds its
-  case in the html5 dialect), an end tag of a raw or escapable raw text element
-  with white space before its '>' (SWI's scanner ends such an element only at
-  the bare end tag, parser.c S_ECDATA2), and the tree builder's repairs are
-  outside what a DTD can say.
+  case in the html5 dialect) and the tree builder's repairs are outside what a
+  DTD can say.
 Decides: an absent checkout refuses, exit 1, wherever the check runs, naming
   every place it looked; WHATWG_HTML_OPTIONAL=1 turns that into a skip, 125,
   off CI only (docs/journal/2026-09-24-a-skip-is-a-verdict-about-nothing.md)
