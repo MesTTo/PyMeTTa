@@ -943,9 +943,13 @@ test = ["pytest>=8.4.2"]
 {distribution} = "{module}:register"
 
 [tool.setuptools]
-py-modules = ["{module}"]
+packages = ["{module}"]
 ''',
-        f"{module}.py": f'''"""Purpose: declare the {module} extension namespace.
+        # A package rather than a single file, because PEP 561 marks only a
+        # package typed: its py.typed is what lets a type checker read the
+        # annotations below from an installed wheel.
+        f"{module}/py.typed": "",
+        f"{module}/__init__.py": f'''"""Purpose: declare the {module} extension namespace.
 
 {origin}
 """

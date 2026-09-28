@@ -168,6 +168,12 @@ def suite_files(command: Command) -> int:
                 if target.startswith("@root/")})
 
 
+#: Where a workspace distribution's door marks may sit: a top-level module
+#: file, or any module of a package it ships, which is how a member's own
+#: module is laid out (tests/checks/check_layering.py holds it to one).
+EXT_MODULES = ("ext/metta-*/*.py", "ext/metta-*/metta_*/**/*.py")
+
+
 ARTIFACTS = (
     Artifact(
         "artifact-sync", ("extensions/python/tools/artifacts.py",), tool("artifacts", "--write"),
@@ -224,7 +230,7 @@ ARTIFACTS = (
         depends=("vocab-sync", "protocol-sync"), requires=("engine",),
     ),
     Artifact(
-        "aio-mirror", (SEAT + "**/*.py", "ext/metta-*/*.py"), tool("aiogen", "--write"),
+        "aio-mirror", (SEAT + "**/*.py", *EXT_MODULES), tool("aiogen", "--write"),
         (Output(SEAT + "_faces/space.py"), Output(SEAT + "_faces/metta.py"), Output(SEAT + "aio/_mirror.py")),
         tool("aiogen"), (suite("tests/repository/test_async_mirror.py"),),
         depends=("layer-sync", "vocab-sync", "protocol-sync"),
@@ -256,7 +262,7 @@ ARTIFACTS = (
         requires=("SWI-Prolog and Janus for operator-aware source reading",),
     ),
     Artifact(
-        "door-sync", (SEAT + "**/*.py", "ext/metta-*/*.py",
+        "door-sync", (SEAT + "**/*.py", *EXT_MODULES,
                       "extensions/python/tools/prologmacros.py"), tool("doorgen", "--write"),
         (Output(SEAT + "doors/_namespaces.py"),
          Output(SEAT + "_binding/options.py"), Output(SEAT + "_binding/options.pl"),

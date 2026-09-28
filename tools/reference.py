@@ -201,6 +201,17 @@ class SourceModules(griffe.Extension):
             self.modules[mod.path] = mod
 
 
+def member_module(path: pathlib.PurePath) -> str:
+    """The import name of a module file, given its path under its distribution.
+
+    Python's own rule: the directories are packages, and a package's
+    `__init__.py` is the package itself, so `metta_arrays/__init__.py` is
+    `metta_arrays` and `metta_arrays_doors.py` is `metta_arrays_doors`.
+    """
+    parts = path.with_suffix("").parts
+    return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
+
+
 class SourceGraph:
     """One fresh, engine-free API graph for a complete generation."""
 
@@ -220,8 +231,10 @@ class SourceGraph:
             # A path comparison, not a substring: the distributions are a
             # top-level component now, so their sources START with `ext/`
             # and no longer contain `/ext/` for a substring to find.
-            if match and pathlib.PurePosixPath(match[1]).is_relative_to("ext"):
-                self.loader.load(pathlib.Path(match[1]).stem, try_relative_path=False)
+            source = pathlib.PurePosixPath(match[1]) if match else None
+            if source is not None and source.is_relative_to("ext"):
+                self.loader.load(member_module(pathlib.PurePosixPath(*source.parts[2:])),
+                                 try_relative_path=False)
         # A callable module may be annotated as a Protocol in __init__.pyi.
         # Restore the loader's source modules before resolving their exports.
         # Griffe's hook and object model are documented in release 2.3.0:

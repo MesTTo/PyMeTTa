@@ -24,13 +24,14 @@ def test_scaffold_projects_normalized_names_into_all_sources(name):
     files = _extension_files(name)
     manifest = tomllib.loads(files["pyproject.toml"])
     project = manifest["project"]
-    (module,) = manifest["tool"]["setuptools"]["py-modules"]
+    (module,) = manifest["tool"]["setuptools"]["packages"]
     assert project["entry-points"]["metta.extensions"] == {project["name"]: module + ":register"}
-    assert module + ".py" in files
+    # PEP 561 marks only a package typed, so the module ships as one.
+    assert files[module + "/py.typed"] == ""
     for path, source in files.items():
         if path.endswith(".py"):
             ast.parse(source, filename=path)
-    assert f'Provider("{project["name"]}", "{module}")' in files[module + ".py"]
+    assert f'Provider("{project["name"]}", "{module}")' in files[module + "/__init__.py"]
     assert f"context.{module}.echo(42)" in files[f"tests/test_{module}.py"]
 
 
@@ -102,4 +103,5 @@ def test_scaffold_writes_every_documented_member_part(tmp_path, monkeypatch):
     target = tmp_path / "Aurora-Beam"
     files = {str(path.relative_to(target)): path.read_text() for path in target.rglob("*") if path.is_file()}
     assert files == _extension_files("Aurora-Beam")
-    assert {"pyproject.toml", "aurora_beam.py", "README.md", "MANIFEST.in", "tests/test_aurora_beam.py", "examples/echo.py", "benchmarks/echo.py"} == files.keys()
+    assert {"pyproject.toml", "aurora_beam/__init__.py", "aurora_beam/py.typed", "README.md", "MANIFEST.in",
+            "tests/test_aurora_beam.py", "examples/echo.py", "benchmarks/echo.py"} == files.keys()

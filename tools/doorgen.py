@@ -24,6 +24,7 @@ import inspect
 import os
 import subprocess
 import sys
+import tomllib
 from collections import Counter
 from collections.abc import Iterable
 from dataclasses import fields, replace
@@ -39,7 +40,7 @@ CORE = SEAT / "metta"
 sys.path[:0] = [str(SEAT), str(TOOLS)]
 
 from prologmacros import scoped_goal_expansions  # noqa: E402
-from reference import quote, split_top_level  # noqa: E402
+from reference import member_module, quote, split_top_level  # noqa: E402
 
 from metta import doors, vocabularies  # noqa: E402 -- the engine-free row grammar
 from metta._errors.refusals import REFUSALS  # noqa: E402
@@ -67,17 +68,36 @@ def module_path(name: str, root: Path = ROOT) -> Path:
             return package
     # The distributions are a sibling of `extensions/`, not inside the seat: the seat
     # must work without them, so it cannot be where they are looked up.
-    found = [path for path in (root / "ext").glob("metta-*/*.py") if path.stem == name]
-    if len(found) != 1:
-        msg = f"door implementation module {name!r} has {len(found)} source files"
+    found = ext_modules(root).get(name)
+    if found is None:
+        msg = f"door implementation module {name!r} is shipped by no workspace distribution"
         raise ValueError(msg)
-    return found[0]
+    return found
+
+
+def ext_modules(root: Path = ROOT) -> dict[str, Path]:
+    """Every module a workspace distribution ships, by import name, from its manifest.
+
+    A member ships what its `pyproject.toml` names, as setuptools builds it:
+    each `py-modules` entry is its file, and each `packages` entry every
+    module under its directory, the package itself being its `__init__.py`.
+    """
+    found: dict[str, Path] = {}
+    for manifest in sorted((root / "ext").glob("metta-*/pyproject.toml")):
+        member = manifest.parent
+        declared = tomllib.loads(manifest.read_text(encoding="utf-8")).get("tool", {}).get("setuptools", {})
+        for module in declared.get("py-modules", ()):
+            found[module] = member / f"{module}.py"
+        for package in declared.get("packages", ()):
+            for path in sorted((member / package.replace(".", "/")).rglob("*.py")):
+                found[member_module(path.relative_to(member))] = path
+    return found
 
 
 def package_rows(root: Path = ROOT) -> tuple[Door, ...]:
     """Read extension marks with the same source reader used by core discovery."""
-    return tuple(row for path in sorted((root / "ext").glob("metta-*/*.py"))
-                 for row in scan(path, path.stem))
+    return tuple(row for module, path in sorted(ext_modules(root).items())
+                 for row in scan(path, module))
 
 
 def all_rows(root: Path = ROOT) -> tuple[Door, ...]:

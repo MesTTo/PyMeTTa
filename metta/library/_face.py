@@ -368,13 +368,13 @@ class Face:
     def _effect(self, name: Name, forms: _collections_abc.Mapping[int, CallForm]) -> str:
         """The effect class one head declares, derived unless the face reviews it.
 
-        The rule is `arrays.py`'s, read off the signature: a result that
+        The rule is `metta_arrays.install`'s, read off the signature: a result that
         crosses as MeTTa data is a lookup, a result that is a live foreign
         object is a write, a call made for what it does is a write, and a name
         whose result nothing declares is `oracleIO`, the top, exactly what the
         bridge declares for `py-call` itself
-        [source: ext/metta-arrays/metta_arrays.py:install;
-        extensions/python/metta/_binding/surface.pl:743, seam:extension_builtin('py-call', oracleIO); commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+        [source 2026-09-29T03:25:44+10:00: ext/metta-arrays/metta_arrays/__init__.py:install;
+        extensions/python/metta/_binding/provides/declaration.pl:22, seam:extension_builtin('py-call', oracleIO)].
         """
         derived = _derived_effect(forms)
         review = self._manifest.declared_effect(name.local)
