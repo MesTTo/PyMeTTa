@@ -3290,6 +3290,18 @@ def main() -> int:
             print(f"{example}: no twin at {twin_for(example)}", file=sys.stderr)
             return 2
     examples = named or written()
+    # Nothing twinned is the lane reading nothing, which returned 0 and read
+    # `ok` as "0 findings over 0 twinned examples". This lane has no
+    # prerequisite to be missing, and only a missing prerequisite exits 125
+    # (tools/check.sh's header), so an empty corpus is a failure naming what
+    # the lane expected to compare.
+    if not examples:
+        print(
+            f"twins: no example under {REPO / 'examples'} has a twin in "
+            f"{twins_root(REPO)}, so the lane compared nothing",
+            file=sys.stderr,
+        )
+        return 1
 
     if arguments.observe:
         if named:

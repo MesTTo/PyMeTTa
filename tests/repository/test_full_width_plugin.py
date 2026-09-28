@@ -18,7 +18,10 @@ from metta._roots import seat, workspace
 SEAT = seat()
 ROOT = workspace()
 LIBRARY = ROOT / "tools" / "full_width.sh"
-REFUSED = 125
+#: A runner's refused invocation, where a claim's is 125: a runner in a gate
+#: lane exits 125 only for a prerequisite the machine lacks
+#: (tests/checks/full_width.py, RUNNER_REFUSED).
+REFUSED = 1
 
 
 def _world(directory: Path, files: int, body: str = "def test_it():\n    pass\n",
@@ -85,7 +88,7 @@ def test_a_run_below_one_share_holds_nothing(tmp_path):
 
 
 def test_a_run_beside_a_holder_runs_no_test(tmp_path):
-    """A full-width run while another holds the machine ends 125, naming it, with no test run.
+    """A full-width run while another holds the machine ends 1, naming it, with no test run.
 
     The holder's PID is read from its record: this suite starts children
     through bounded.sh, so the process Popen names is the wrapper around it.

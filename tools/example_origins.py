@@ -288,7 +288,7 @@ def main(argv: list[str] | None = None) -> int:
             # 125 is the gate's word for a run that compared nothing, which it
             # reads as skipped rather than ok; 0 here reported this lane as
             # passing wherever no clone could be found.
-            print("no upstream clone, so nothing was compared; set METTA_UPSTREAM to check the attribution")
+            print("SKIPPED: no upstream clone, so nothing was compared; set METTA_UPSTREAM to check the attribution")
             return 125
         rows = derived(root)
     except MissingCommitError as missing:

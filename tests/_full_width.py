@@ -15,14 +15,16 @@ Without xdist the run is one process, and it is full-width only when it
 measures: under `--memray`, or with pytest-benchmark timing a test that asks
 for its `benchmark` fixture.
 
-A run refused exits 125 before any test, with the holder named on stderr.
+A run refused exits 1 before any test, with the holder named on stderr: a
+pytest run is a runner, and a runner in a gate lane exits 125 only for a
+prerequisite the machine lacks (tests/checks/full_width.py, RUNNER_REFUSED).
 
 Assumes: tests/checks/full_width.py in the workspace this seat sits in, and
   the Linux the lock itself assumes.
 Guarantees:
   - an xdist run decides once, from its workers and its scheduler's own units,
-    before the first test is scheduled, and a refused one ends 125 with no
-    test run [tested 2026-09-27T02:16:58+10:00: tests/repository/test_full_width_plugin.py].
+    before the first test is scheduled, and a refused one ends 1 with no
+    test run [tested 2026-09-28T18:35:41+10:00: tests/repository/test_full_width_plugin.py].
   - a run without xdist claims only when it measures
     [tested 2026-09-27T02:16:58+10:00: tests/repository/test_full_width_plugin.py].
 """
@@ -52,7 +54,7 @@ def _decide(width: int | str) -> None:
         full_width.invocation(width)
     except SystemExit as stopped:
         pytest.exit("refused: another full-width run holds this machine"
-                    if stopped.code == full_width.REFUSED
+                    if stopped.code == full_width.RUNNER_REFUSED
                     else f"the full-width decision failed, exit {stopped.code}",
                     returncode=stopped.code)
 

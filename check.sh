@@ -266,15 +266,16 @@ run GATE   twins-selftest "$PY" "$HERE/tests/checks/check_twin_coverage_selftest
 # space_server.ts, because checking would need the bundler this deliberately
 # does not have.
 #
-# Same skip protocol the seats use: a box without node announces the missing
-# step and the lane passes
+# Same skip protocol the seats use: a box without node says SKIPPED with the
+# missing step and exits 125, which check.sh's run() reports as skipped rather
+# than as the pass a return of 0 read as
 # [measured 2026-09-07: 15 cases, 0 failures, min 1.58 s over three runs at
 # loadavg 97, and 0.92 s on a quieter one; no network].
 check_typescript_space() {
     command -v node >/dev/null 2>&1 || {
-        echo "note: node not found, the TypeScript space example's suite will \
+        echo "SKIPPED: node not found, the TypeScript space example's suite will \
 not run" >&2
-        return 0
+        return 125
     }
     ( cd "$PYDIR/examples/integration/typescript_space" &&
         bounded node --test space_server.test.js )
@@ -529,8 +530,11 @@ run GATE   interrogate in_py "$PY" -m interrogate metta
 # the four workers.
 check_coverage() {
     if ! [ -f "$PYDIR/.coverage" ]; then
-        echo "coverage: no data file; the pytest lane did not run in this invocation"
-        return 0
+        # 125, where 0 printed a report of nothing as a finished lane: the data
+        # is the pytest lane's, and a run without it has nothing to render.
+        echo "SKIPPED: coverage has no data file, since the pytest lane did not \
+run in this invocation; run them together to render it"
+        return 125
     fi
     in_py "$PY" -m coverage report --show-missing --skip-covered
 }
@@ -676,9 +680,9 @@ run_solo REPORT mutation    check_mutation
 # test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind.
 check_memray() {
     if ! bounded "$PY" -c 'import pytest_memray' >/dev/null 2>&1; then
-        echo "memray: pytest-memray is not installed here, and memray builds \
+        echo "SKIPPED: pytest-memray is not installed here, and memray builds \
 for Linux and macOS only; install pymetta[checks] to run this lane" >&2
-        return 0
+        return 125
     fi
     metta_memray_status=0
     in_py "$PY" -m pytest --memray -q -p no:benchmark -p no:cacheprovider -n 0 --rootdir=. -c pyproject.toml \

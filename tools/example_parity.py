@@ -685,6 +685,16 @@ def main() -> int:
     if args.count:
         print(len(paths))
         return 0
+    # An empty corpus compared nothing and printed "0/0 examples agree" with
+    # exit 0, which reads `ok`. This lane has no prerequisite to be missing,
+    # and only a missing prerequisite exits 125 (tools/check.sh's header).
+    if not paths:
+        print(
+            f"parity: {REPO / 'examples'} holds no example to run, so the two "
+            "configurations compared nothing",
+            file=sys.stderr,
+        )
+        return 1
 
     sys.path.insert(0, str(REPO / "extensions" / "python"))
     started = os.getloadavg()[0]
