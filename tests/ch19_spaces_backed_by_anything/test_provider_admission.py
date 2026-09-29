@@ -6,14 +6,24 @@ rollback. A close stops new admission first, waits for the admitted uses, then
 removes the engine row and closes the backing outside the bookkeeping lock; a
 close requested from inside an admitted use of the same provider hands its
 physical steps to the last release and reports closing until then.
+Guarantees:
+  - a use ends for the thread that admitted it, so a stream closed from
+    another thread leaves that thread outside every use and a close it asks
+    for later waits for another thread's pull [tested 2026-09-30T09:09:35+10:00:
+    test_a_use_ended_on_another_thread_leaves_its_admitting_thread_outside_every_use]
+  - an evaluation abandoned while it holds a provider releases the admission
+    at the next crossing, not from the collector [tested 2026-09-30T09:09:35+10:00:
+    test_an_evaluation_abandoned_over_a_provider_releases_it_outside_the_collector]
 """
 
+import gc
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
 from metta import MeTTa, S, V
+from metta._binding import runtime as _runtime
 from metta._binding.runtime import engine_thread
 from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider, admitted, closing, has_provider, unregister_provider
@@ -94,6 +104,99 @@ def test_a_close_waits_for_an_admitted_pull_and_refuses_new_admission():
         assert outcome == [[1, 2, 3]]
         assert not has_provider("&admission-wait")
         assert admitted("&admission-wait") == 0 and not closing("&admission-wait")
+
+
+def test_a_use_ended_on_another_thread_leaves_its_admitting_thread_outside_every_use():
+    """A stream admitted on one thread and closed from another releases the thread that admitted it.
+
+    The release counted the thread that ended the use, so the admitting thread
+    stayed a holder after its stream was gone, and a close it asked for later
+    took the self-retirement path: it returned at once and left the space
+    pending, where a close from outside every use waits for another thread's
+    pull, as this one must.
+    """
+    with MeTTa() as context:
+        provider = GatedListSpace([ROW(1), ROW(2), ROW(3)])
+        space = context.space("&admission-holder", provider)
+        opened, asked = threading.Event(), threading.Event()
+        cursors, outcome = [], []
+
+        def admit_then_close_later():
+            with engine_thread():
+                cursor = space.stream(ROW(V.x))
+                assert next(cursor).x == 1
+                cursors.append(cursor)
+                opened.set()
+                assert asked.wait(10)
+                try:
+                    space.drop()
+                    outcome.append(space.dropped)
+                except BaseException as error:
+                    outcome.append(error)
+
+        admitter = threading.Thread(target=admit_then_close_later)
+        admitter.start()
+        assert opened.wait(10)
+        cursors.pop().close()
+        assert admitted("&admission-holder") == 0
+        puller, finished, pulled = _held_pull(space, provider)
+        try:
+            asked.set()
+            deadline = threading.Event()
+            for _ in range(200):
+                if closing("&admission-holder"):
+                    break
+                deadline.wait(0.01)
+            assert closing("&admission-holder")
+            admitter.join(0.5)
+            assert admitter.is_alive(), "the close returned while another thread's pull held the provider"
+            assert not space.dropped
+        finally:
+            provider.gate.set()
+        admitter.join(10)
+        puller.join(10)
+        assert finished.is_set() and pulled == [[1, 2, 3]]
+        assert outcome == [True]
+        assert admitted("&admission-holder") == 0 and not closing("&admission-holder")
+
+
+@pytest.mark.parametrize("abandoned", ["by its last reference", "in a cycle"])
+def test_an_evaluation_abandoned_over_a_provider_releases_it_outside_the_collector(abandoned):
+    """The admission an abandoned evaluation holds is released by the next crossing.
+
+    Its release takes the admission's locks and can run a close's teardown,
+    so it must not run from the collector. Before finalisers stopped crossing
+    into the engine, the collector closed such a view's cursor itself, and the
+    release ran inside the collection; now the close is handed to the next
+    crossing, and the release with it.
+    """
+    with MeTTa() as context:
+        name = "&admission-abandoned"
+        provider = GatedListSpace([ROW(1), ROW(2), ROW(3)])
+        space = context.space(name, provider)
+        marker = (_runtime._CALL_PREDICATE, "true", ())
+        gc.collect()
+        gc.disable()
+        try:
+            view = context.self.answers(S.match(S[name], ROW(V.x), V.x))
+            next(iter(view))
+            assert admitted(name) == 1
+            _runtime._DEFERRED_WORK.append(marker)
+            if abandoned == "in a cycle":
+                cycle = [view]
+                cycle.append(cycle)
+                del cycle
+            del view
+        finally:
+            gc.enable()
+        gc.collect()
+        assert any(item is marker for item in _runtime._DEFERRED_WORK), (
+            "the collector crossed into the engine and drained the queue"
+        )
+        assert admitted(name) == 1, "the admission was released from the collector"
+        context.runtime.do("true")
+        assert admitted(name) == 0
+        space.drop()
 
 
 class TransactionalListSpace(GatedListSpace):

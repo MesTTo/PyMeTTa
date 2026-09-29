@@ -44,6 +44,14 @@ Guarantees:
     test_an_older_snapshot_cannot_invoke_a_closed_provider,
     test_a_close_requested_inside_an_admitted_use_completes_at_the_last_release,
     test_an_enlisted_participant_is_held_from_begin_to_commit; commit=b2cc373103e31b4e42da5c51d7d4d209e55f13f0]
+  - a use ends for the thread that admitted it, whichever thread ends it, so
+    a stream closed from another thread leaves its admitting thread outside
+    every use and a close that thread asks for later waits like any other,
+    and an abandoned use's release runs where its cursor's handed-over close
+    runs, the next crossing, never from the collector
+    [tested 2026-09-30T09:09:35+10:00:
+    test_a_use_ended_on_another_thread_leaves_its_admitting_thread_outside_every_use,
+    test_an_evaluation_abandoned_over_a_provider_releases_it_outside_the_collector]
   - a provider's own refusal sentence reaches the caller, and "implements it
     and declines it" reads differently from "does not have it" [tested
     test_a_provider_states_its_own_refusal,
@@ -108,7 +116,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sized
 from contextlib import contextmanager
 from functools import cache
-from typing import Any, ClassVar, Protocol, cast, runtime_checkable
+from typing import Any, ClassVar, NamedTuple, Protocol, cast, runtime_checkable
 
 from metta._atoms.answer import Answer
 from metta._atoms.factories import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _encode
@@ -604,11 +612,26 @@ class Admission:
 _Admission = Admission
 
 
+class _Use(NamedTuple):
+    """One admitted use: its registration's record and the thread that admitted it.
+
+    The release takes the use rather than the record, so it decrements the
+    holder the admission counted whichever thread ends the use. A stream is
+    often ended on another thread than the one that admitted it, by a cursor
+    closed there or by a handed-over close another thread's crossing drains,
+    and counting the ending thread left the admitting one a holder with no
+    use, which held_by_caller then read as a close requested from inside one.
+    """
+
+    record: Admission
+    holder: int
+
+
 _ADMISSIONS: dict[str, _Admission] = {}
 _ADMISSIONS_LOCK = threading.Lock()
 
 
-def _admit(space: str) -> _Admission:
+def _admit(space: str) -> _Use:
     """Hold ``space``'s provider for one use; ``_release`` ends it."""
     with _ADMISSIONS_LOCK:
         record = _ADMISSIONS.get(space)
@@ -639,18 +662,23 @@ def _admit(space: str) -> _Admission:
                 f"close waits for the uses it already admitted"
             )
             raise MettaError(msg, space=space)
+        holder = threading.get_ident()
         record.count += 1
-        record.holders[threading.get_ident()] += 1
-    return record
+        record.holders[holder] += 1
+    return _Use(record, holder)
 
 
-def _release(record: _Admission) -> None:
-    ident = threading.get_ident()
+def _release(use: _Use) -> None:
+    # Read by field, not unpacked: tools/doororder.py types a NamedTuple's
+    # fields but not an unpacking, and without the record's type it lost the
+    # retained teardown this call can run, and with it space:__len__'s
+    # recursive verdict.
+    record = use.record
     with record.condition:
         record.count -= 1
-        record.holders[ident] -= 1
-        if record.holders[ident] <= 0:
-            del record.holders[ident]
+        record.holders[use.holder] -= 1
+        if record.holders[use.holder] <= 0:
+            del record.holders[use.holder]
         pending = None
         last = record.count == 0
         if last:
@@ -667,19 +695,19 @@ def _release(record: _Admission) -> None:
 @contextmanager
 def _admitted(space: str) -> Iterator[SpaceProvider]:
     """One synchronous use of ``space``'s provider."""
-    record = _admit(space)
+    use = _admit(space)
     try:
-        yield record.provider
+        yield use.record.provider
     finally:
-        _release(record)
+        _release(use)
 
 
-def _admitted_stream(record: _Admission, stream: Iterable[Any]) -> Iterator[Any]:
+def _admitted_stream(use: _Use, stream: Iterable[Any]) -> Iterator[Any]:
     """Hold the admission until the stream is exhausted, closed or collected."""
     try:
         yield from stream
     finally:
-        _release(record)
+        _release(use)
 
 
 def admitted(space: str) -> int:
@@ -1133,15 +1161,15 @@ def foreign_match(
     failure crosses as data. `metta._errors.errors.stream_failure` has the
     measurements.
     """
-    record = _admit(space)
-    provider = record.provider
+    use = _admit(space)
+    provider = use.record.provider
     try:
         stream = _match_stream(provider, space, pattern_wire, limit, mode)
     except BaseException:
-        _release(record)
+        _release(use)
         raise
     return guarded(
-        _admitted_stream(record, stream),
+        _admitted_stream(use, stream),
         lambda error: _provider_failure(error, space, "match", provider),
     )
 
@@ -1173,29 +1201,29 @@ def _match_stream(
 
 def foreign_atoms(space: str):
     """The shim's py_iter enumerates this; see foreign_match on ordering."""
-    record = _admit(space)
-    provider = record.provider
+    use = _admit(space)
+    provider = use.record.provider
     try:
         _require_provider(provider, space, "enumerate", "get-atoms")
         stream = _wire_stream(iter(cast(Enumerable, provider).atoms()), answers=False)
     except BaseException:
-        _release(record)
+        _release(use)
         raise
     return guarded(
-        _admitted_stream(record, stream),
+        _admitted_stream(use, stream),
         lambda error: _provider_failure(error, space, "get-atoms", provider),
     )
 
 
 def foreign_tokens(space: str, pattern_wire: list):
     """Serve stable occurrence pairs through the existing guarded wire stream."""
-    record = _admit(space)
-    provider = record.provider
+    use = _admit(space)
+    provider = use.record.provider
     try:
         pattern = _atom_from_wire(pattern_wire)
         _require_provider(provider, space, "tokens", "blame", pattern=pattern)
     except BaseException:
-        _release(record)
+        _release(use)
         raise
 
     def rows():
@@ -1211,7 +1239,7 @@ def foreign_tokens(space: str, pattern_wire: list):
                 close()
 
     return guarded(
-        _admitted_stream(record, rows()),
+        _admitted_stream(use, rows()),
         lambda error: _provider_failure(error, space, "blame", provider),
     )
 
@@ -1247,7 +1275,7 @@ def foreign_participant(space: str, provider: SpaceProvider) -> list[Callable[[]
         operations = [provider.begin, provider.commit, provider.rollback]
         if all(map(callable, operations)):
             begin, commit, rollback = operations
-            held: list[_Admission] = []
+            held: list[_Use] = []
 
             def admitted_begin() -> Any:
                 held.append(_admit(space))
