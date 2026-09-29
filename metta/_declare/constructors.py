@@ -23,6 +23,10 @@ Guarantees:
   - initialization retains its lexical class when deferred annotations are
     resolved [tested: test_class_declaration_resolves_its_deferred_annotation_namespace;
     commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
+  - a constructor's compiler names what its closer reads, the receiver or
+    every stored field of a value, so a branch join or a loop in the body
+    carries them into its own equation [tested 2026-09-29T17:49:42+10:00:
+    test_constructors_keep_their_receiver_and_fields_across_branches_and_loops]
 """
 
 from __future__ import annotations
@@ -113,6 +117,12 @@ def _compiler(plan: Any, fn: types.FunctionType | None, params: dict[str, str], 
         class_dependencies=plan.dependencies, construction=(plan, receiver),
     )
     compiler.constructor_return = closer
+    # What the closer reads and no statement spells, a value's field bindings
+    # or the receiver, so a loop or a branch join in the body carries them
+    # into its own equation.
+    compiler.closer_names = (
+        [field_key(field.name) for field in plan.stored_fields] if plan.grain == "value" else [receiver]
+    )
     for name, parameter in plan.signature.parameters.items():
         if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
             compiler.container_locals[name] = "tuple"

@@ -984,6 +984,7 @@ class _Compiler(
         returns_bool: Callable[[str], bool] | None = None,
         aux: list | None = None,
         lifted: dict | None = None,
+        liveness: dict | None = None,
         closer: Callable[[_Compiler], Atom] | None = None,
         pyname: str | None = None,
         host: Callable[[str], bool] | None = None,
@@ -1055,6 +1056,12 @@ class _Compiler(
         # for inner defs; a call site prepends the lifted names' CURRENT
         # variables, which is Python's own late binding, resolved per call.
         self.lifted: dict[str, tuple[str, list[str], bool]] = _provided(lifted, {})
+        # The names live into each statement suffix the definition asked
+        # about and those it binds, shared by every compiler of it (see
+        # _suffix_names).
+        self.liveness: dict[
+            tuple[int, int, int, frozenset[str]], tuple[frozenset[str], frozenset[str]]
+        ] = _provided(liveness, {})
         # What a block falling off its end means: an absent closer returns
         # the Python None value; a loop body's closer
         # builds the recursive call from the scope at that point.
@@ -1245,6 +1252,7 @@ class _Compiler(
             returns_bool=self.returns_bool,
             aux=self.aux,
             lifted=self.lifted,
+            liveness=self.liveness,
             closer=closer,
             pyname=self.pyname,
             host=self.host,

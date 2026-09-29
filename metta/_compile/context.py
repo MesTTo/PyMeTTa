@@ -216,6 +216,10 @@ class CompilerContext(ABC):
     used: set[str]
     aux: list[Expression]
     lifted: dict[str, tuple[str, list[str], bool]]
+    # The names live into a statement suffix and the names it binds, keyed
+    # by its first and last statement, its length and what is live after it;
+    # one per definition.
+    liveness: dict[tuple[int, int, int, frozenset[str]], tuple[frozenset[str], frozenset[str]]]
     closer: Callable[[Any], Atom] | None
     closer_names: list[str]
     function: Any

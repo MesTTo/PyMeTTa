@@ -139,7 +139,7 @@ class LoopCompilerMixin(CompilerContext):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         target = _name_of(node.target, node.lineno)
         rest = node.orelse.copy() + rest
-        if target in _generator_live_names(rest, set(self.closer_names)):
+        if target in _generator_live_names(rest, set(self.closer_names), self.liveness):
             msg = (
                 f"{target!r} is read after the loop, where Python would hold "
                 f"the last element; bind that value to its own name inside "

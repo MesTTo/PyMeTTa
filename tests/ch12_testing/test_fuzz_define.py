@@ -26,6 +26,19 @@ Guarantees:
     an integer cannot convert to binary64 [tested:
     test_the_define_twin_preserves_python_overflow_past_the_float_range;
     commit=e3787593132a7ece2d300397045f7415709847c9]
+  - arms that fall through are generated, an if, an elif chain and a match
+    among them and one inside a for, and the compiled equations agree with
+    the same function run natively on its answer and every effect it
+    records, in order [tested 2026-09-29T17:49:42+10:00:
+    test_arms_that_fall_through_agree_with_native_python,
+    test_the_fuzzer_reaches_arms_that_fall_through]
+  - that generator catches a lowering whose arms do not join: against main
+    c122ab1f6's compiler, test_arms_that_fall_through_agree_with_native_python
+    fails with four distinct errors, two refusals of statements after a
+    branch and two answers or effect lists unlike Python's
+    [measured 2026-09-29T17:00:24+10:00: this file run against that
+    compiler; command=sh extensions/python/test.sh
+    tests/ch12_testing/test_fuzz_define.py -n 0]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -380,6 +393,195 @@ def collection_programs(draw):
     return name, f"def {name}(xs):\n    return {expression}\n"
 
 
+# ------------------------------------------------------ arms that fall through
+#
+# An arm that does not return continues into the statements after its
+# branch, in Python and in the compiled equations alike. These programs nest
+# if/elif/else, match and for, each arm returning or falling through at
+# random, and record their steps in a target space, so the differential
+# compares the effects, in order, beside the answer, against the same function
+# run natively.
+
+# The deepest nesting of branches and loops, which bounds flow_block's
+# recursion by the depth argument rather than by a coin.
+MAX_FLOW_DEPTH = 3
+
+
+@st.composite
+def flow_block(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[str], bool]:
+    """Statements, and whether every path through them returns.
+
+    Nothing follows a statement that returns on every path: Python never runs
+    it and the compiler refuses it as unreachable. A name an arm, a case or a
+    loop body binds first stays inside it, so every name read is bound on
+    every path that reaches the read, which a join's parameters require
+    exactly as Python's UnboundLocalError does.
+    """
+    lines: list[str] = []
+    nested = ("if", "match", "for") if depth < MAX_FLOW_DEPTH else ()
+    for _ in range(draw(st.integers(1, 3))):
+        kind = draw(st.sampled_from(("effect", "assign", "return", *nested)))
+        if kind == "effect":
+            lines.append(f"{indent}target += S.Seen({next(sites)}, {draw(st.sampled_from(tuple(scope)))})")
+        elif kind == "assign":
+            lines.extend(draw(assignments(scope, indent, 1)))
+        elif kind == "return":
+            lines.append(f"{indent}return {draw(int_expr(tuple(scope)))}")
+            return lines, True
+        else:
+            construct = {"if": flow_if, "match": flow_match, "for": flow_for}[kind]
+            branch, closes = draw(construct(scope, indent, depth, sites))
+            lines.extend(branch)
+            if closes:
+                return lines, True
+    return lines, False
+
+
+@st.composite
+def flow_if(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[str], bool]:
+    """An if with up to two elifs and an optional else, returning on every
+    path only when it has an else and every arm returns.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    lines: list[str] = []
+    closes = True
+    for head in ("if", *("elif",) * draw(st.integers(0, 2))):
+        lines.append(f"{indent}{head} {draw(bool_expr(tuple(scope)))}:")
+        arm, arm_closes = draw(flow_block(list(scope), indent + "    ", depth + 1, sites))
+        lines.extend(arm)
+        closes = closes and arm_closes
+    if not draw(st.booleans()):
+        return lines, False
+    lines.append(f"{indent}else:")
+    arm, arm_closes = draw(flow_block(list(scope), indent + "    ", depth + 1, sites))
+    lines.extend(arm)
+    return lines, closes and arm_closes
+
+
+@st.composite
+def flow_match(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[str], bool]:
+    """A match over a small integer: literal, alternative and guarded capture
+    cases, and an optional `case _` last, returning on every path only when
+    that case exists and every arm returns. A capture takes a fresh name,
+    since Python binds it even when its guard fails and a compiled arm binds
+    it only inside the arm, so the two agree only while nothing after the
+    match reads it.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    inner = indent + "    "
+    lines = [f"{indent}match ({draw(int_expr(tuple(scope)))}) % 4:"]
+    closes = True
+    for _ in range(draw(st.integers(1, 3))):
+        arm_scope = list(scope)
+        shape = draw(st.sampled_from(("literal", "alternatives", "capture")))
+        if shape == "literal":
+            pattern = str(draw(st.integers(0, 3)))
+        elif shape == "alternatives":
+            pattern = " | ".join(map(str, sorted(draw(st.sets(st.integers(0, 3), min_size=2, max_size=3)))))
+        else:
+            pattern = f"n{next(sites)}"
+            arm_scope.append(pattern)
+        guarded = shape == "capture" or draw(st.booleans())
+        guard = f" if {draw(bool_expr(tuple(arm_scope)))}" if guarded else ""
+        lines.append(f"{inner}case {pattern}{guard}:")
+        arm, arm_closes = draw(flow_block(arm_scope, inner + "    ", depth + 1, sites))
+        lines.extend(arm)
+        closes = closes and arm_closes
+    if not draw(st.booleans()):
+        return lines, False
+    lines.append(f"{inner}case _:")
+    arm, arm_closes = draw(flow_block(list(scope), inner + "    ", depth + 1, sites))
+    lines.extend(arm)
+    return lines, closes and arm_closes
+
+
+@st.composite
+def flow_for(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[str], bool]:
+    """A for over a literal tuple whose body branches. It may run no round,
+    so it never returns on every path, and its target stays inside the body,
+    where the compiler refuses a read after the loop.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    target = f"i{next(sites)}"
+    lines = [f"{indent}for {target} in {_tuple_literal(draw, 0, 3)}:"]
+    body, _returns = draw(flow_block([*scope, target], indent + "    ", depth + 1, sites))
+    lines.extend(body)
+    return lines, False
+
+
+@st.composite
+def flow_programs(draw):
+    """A function over a target space and two integers whose arms may fall through.
+
+    A body that can fall off its end is followed by one more statement, a
+    return or an effect, so every branch has something after it. A match
+    with nothing after it at all is MeTTa's case, where an unmatched subject
+    answers nothing rather than Python's None [tested 2026-09-29T17:49:42+10:00:
+    test_an_unmatched_subject_falls_through_to_what_follows_and_otherwise_answers_nothing],
+    and the native oracle does not model that.
+    """
+    name = f"fz{next(_COUNTER)}"
+    scope = ["a", "b"]
+    sites = itertools.count(1)
+    body, returns = draw(flow_block(scope, "    ", 0, sites))
+    if not returns:
+        if draw(st.booleans()):
+            body.append(f"    return {draw(int_expr(tuple(scope)))}")
+        else:
+            body.append(f"    target += S.Seen({next(sites)}, {draw(st.sampled_from(tuple(scope)))})")
+    source = f"from metta import S, Space\n\n\ndef {name}(target: Space, a, b):\n" + "\n".join(body) + "\n"
+    return name, source
+
+
+def _fallthrough_shapes(source: str) -> set[str]:
+    """The branch shapes a program holds whose arm falls into a statement
+    after the branch: `if`, `elif`, `match`, and any of them inside a `for`.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    shapes: set[str] = set()
+
+    def falls(arm: list[ast.stmt]) -> bool:
+        return not arm or not isinstance(arm[-1], ast.Return)
+
+    def visit(block: list[ast.stmt], *, in_loop: bool) -> None:
+        for index, statement in enumerate(block):
+            followed = index + 1 < len(block)
+            if isinstance(statement, ast.If):
+                if followed and (falls(statement.body) or falls(statement.orelse)):
+                    shapes.add("elif" if len(statement.orelse) == 1 and isinstance(statement.orelse[0], ast.If) else "if")
+                    if in_loop:
+                        shapes.add("for")
+                visit(statement.body, in_loop=in_loop)
+                visit(statement.orelse, in_loop=in_loop)
+            elif isinstance(statement, ast.Match):
+                if followed and any(falls(case.body) for case in statement.cases):
+                    shapes.add("match")
+                    if in_loop:
+                        shapes.add("for")
+                for case in statement.cases:
+                    visit(case.body, in_loop=in_loop)
+            elif isinstance(statement, ast.For):
+                visit(statement.body, in_loop=True)
+
+    function = ast.parse(source).body[-1]
+    assert isinstance(function, ast.FunctionDef)
+    visit(function.body, in_loop=False)
+    return shapes
+
+
+def _flows_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
+    """The compiled equations against the same function run natively, on
+    `rounds` fresh input pairs: the answer, and every effect in order.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    name, source = program
+    fn = _load(tmp_path_factory, source, name)
+    defined = metta.define(fn)
+    for _ in range(rounds):
+        a = data.draw(st.integers(-9, 9))
+        b = data.draw(st.integers(-9, 9))
+        with metta._new_space() as native, metta._new_space() as compiled:
+            expected = fn(native, a, b)
+            answers = defined(compiled, a, b)
+            assert [_normalize(answer) for answer in answers] == [_normalize(expected)], source
+            assert [str(atom) for atom in compiled.atoms()] == [str(atom) for atom in native.atoms()], source
+
+
 def _answers_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
     """The differential itself: one two-parameter program, its equations on
     the engine and its Python twin on the same ground inputs, `rounds` fresh
@@ -429,6 +631,30 @@ def test_the_fuzzer_reaches_a_loop_inside_a_loop():
         find(
             nested_loop_programs(),
             lambda program, kind=kind: kind in _nested_loop_kinds(program[1]),
+            settings=reachable,
+        )
+
+
+@settings(max_examples=60, suppress_health_check=[HealthCheck.too_slow])
+@given(program=flow_programs(), data=st.data())
+def test_arms_that_fall_through_agree_with_native_python(metta, tmp_path_factory, program, data):
+    """Random nestings of if/elif/else, match and for whose arms return or
+    fall through, the same function run natively as the oracle: its answer
+    and every effect it records, in order.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    _flows_agree(metta, tmp_path_factory, program, data, rounds=3)
+
+
+def test_the_fuzzer_reaches_arms_that_fall_through():
+    """Each shape the join exists for, asserted rather than hoped for: an if,
+    an elif chain and a match whose arm falls into a statement after it, and
+    one of them inside a for body.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    reachable = settings(max_examples=300, phases=[Phase.generate])
+    for shape in ("if", "elif", "match", "for"):
+        find(
+            flow_programs(),
+            lambda program, shape=shape: shape in _fallthrough_shapes(program[1]),
             settings=reachable,
         )
 

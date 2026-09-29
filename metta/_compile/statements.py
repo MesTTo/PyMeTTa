@@ -99,11 +99,38 @@ Guarantees:
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
     commit=6a695598aaf5951530cb8efe9afe46977afe541c]
+  - an if, elif or match whose arm falls through continues into the
+    statements after it, in a function body and a generator body alike;
+    those statements compile in place when one arm reaches them and once, as
+    a helper equation the arms share, when several do, so a chain of
+    branches grows linearly [tested 2026-09-29T17:49:42+10:00:
+    test_the_reports_if_else_runs_the_statement_after_it,
+    test_an_elif_chain_and_a_loop_body_continue_past_their_branch,
+    test_one_arm_reaching_the_rest_compiles_it_in_place,
+    test_emitted_size_is_linear_across_sequential_branches,
+    test_arms_that_fall_through_agree_with_native_python]
+  - statements no arm reaches are refused, a name read after a branch is
+    bound on every path reaching it, and an unmatched subject continues into
+    what follows its match, answering nothing only where nothing follows
+    [tested 2026-09-29T17:49:42+10:00:
+    test_statements_no_arm_reaches_are_refused_as_unreachable,
+    test_a_value_read_after_a_branch_is_bound_on_every_path,
+    test_an_unmatched_subject_falls_through_to_what_follows_and_otherwise_answers_nothing]
   - a try's continuation carries a name the statements after it augment, and
     a lifted def's parameters shed every proof about the names they shadow
     [tested 2026-09-29T17:49:42+10:00:
     test_a_space_written_in_a_loop_body_or_after_a_try_keeps_its_writes,
     test_a_nested_def_parameter_sheds_the_outer_bindings_proofs]
+  - a chain of k branches costs the compiler Theta(k): early-return guards
+    compile at the per-guard cost of the else-less lowering they replaced,
+    and if/else branches whose arms fall through fill their holes in 78 node
+    visits a branch and compile at k=200, the depth the guards reach
+    [measured 2026-09-29T17:49:10+10:00: 50, 100 and 200 guards retire
+    8.42, 8.70 and 9.45 G instructions:u, one process each, against 8.32,
+    8.64 and 9.34 G at seat 3016ff13b, and walk 99, 199 and 399 statements'
+    liveness; 25 to 200 if/else branches take 1954 to 15604 hole-filling
+    visits; command=perf stat -e instructions:u over a probe defining each
+    chain in one MeTTa context]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -114,6 +141,7 @@ from __future__ import annotations
 
 import ast
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from metta._atoms.factories import Atom, Expression, Grounded, Handle, Symbol, Variable
 from metta._atoms.names import binding_name
@@ -276,10 +304,12 @@ def _is_generator(node: ast.FunctionDef) -> bool:
 class StatementCompilerMixin(CompilerContext):
     def block(self, statements: list[ast.stmt]) -> Atom:
         """A statement list folded into one term: assignments become let*
-        bindings around what follows, if/return close the branch, and a loop
-        becomes its own tail-recursive equation whose parameters are the
-        loop state, with everything after the loop living in the equation's
-        exit branch, Appel's blocks-as-functions.
+        bindings around what follows, return and raise close their path, an
+        if or match continues each arm that falls through into the
+        statements after it (see _Join), and a loop becomes its own
+        tail-recursive equation whose parameters are the loop state, with
+        everything after the loop living in the equation's exit branch,
+        Appel's blocks-as-functions.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         statements = [s for s in statements if not _is_docstring(s)]
         if not statements:
@@ -1356,13 +1386,13 @@ class StatementCompilerMixin(CompilerContext):
         rest: list[ast.stmt],
     ) -> Atom:
         if isinstance(head, ast.If):
-            return self.if_statement(head, rest, lambda compiler, body: compiler.block(body))
+            return self._if_statement(head, rest, _VALUE)
         if isinstance(head, ast.While):
             return self._while_statement(head, rest)
         if isinstance(head, ast.For):
             return self._for_statement(head, rest)
         if isinstance(head, ast.Match):
-            return self._match_statement(head, rest)
+            return self._match_statement(head, rest, _VALUE)
         if isinstance(head, ast.With):
             managed = _records.context_manager(self, head)
             if managed is not None:
@@ -1372,14 +1402,17 @@ class StatementCompilerMixin(CompilerContext):
         return self.block(rest)
 
     def _match_statement(
-        self, node: ast.Match, rest: list[ast.stmt], *, yielding: bool = False
+        self, node: ast.Match, rest: list[ast.stmt], body: _Body
     ) -> Atom:
         """Compile ordered Python patterns into engine ``case`` rows.
 
         Each arm owns a forked SSA scope. Guard failure jumps to the first
         row after the whole arm, so an OR-pattern never retries another
         alternative after its guard has already run. An outer case catches
-        absence before any binding can discard it.
+        absence before any binding can discard it. An arm that falls through
+        and a subject no case matches both continue into the statements after
+        the match; with nothing after it and no enclosing continuation, an
+        unmatched subject answers nothing, as MeTTa's case does.
         """
         subject_name = self._temp("match-subject")
         subject = Variable(subject_name)
@@ -1387,22 +1420,17 @@ class StatementCompilerMixin(CompilerContext):
 
         last_case = node.cases[-1]
         exhaustive = _is_irrefutable(last_case.pattern) and last_case.guard is None
-        if rest and exhaustive and not yielding:
-            msg = "statements after an exhaustive match are unreachable"
-            raise CompileError(msg, construct="match", line=rest[0].lineno)
-        continue_generator = _GeneratorContinuation(self, node, rest) if yielding else None
-        if continue_generator is not None:
-            fallback = (
-                Expression([Symbol("empty")])
-                if exhaustive
-                else continue_generator(self._fork())
-            )
-        elif rest:
-            fallback = self._fork().block(rest)
-        elif self.closer is not None:
-            fallback = self.closer(self._fork())
-        else:
-            fallback = Expression([Symbol("empty")])
+        join = _Join(self, node, rest, body)
+        # A subject no case matches falls through, into the statements after
+        # the match or else the enclosing continuation, and with neither it
+        # answers nothing, as MeTTa's case does. An irrefutable last case
+        # leaves no such subject, so its fallback reaches nothing.
+        continuation = join if rest else self.closer
+        fallback: Atom = (
+            Expression([Symbol("empty")])
+            if exhaustive or continuation is None
+            else continuation(self._fork())
+        )
 
         empty_fallback = fallback
         empty_branch: Atom | None = None
@@ -1419,18 +1447,12 @@ class StatementCompilerMixin(CompilerContext):
                 else [case.pattern]
             )
             for pattern_node in reversed(alternatives):
-                compiler = self._fork()
+                compiler = join.arm()
                 pattern_scope = _StatementPattern(compiler)
                 pattern = pattern_scope.pattern(pattern_node)
                 flat = flat and not pattern_scope.as_bindings
                 guard = compiler._truthy(case.guard) if case.guard is not None else None
-                arm: Atom
-                if continue_generator is not None:
-                    compiler.closer = continue_generator
-                    compiler.closer_names = continue_generator.params.copy()
-                    arm = _superpose(compiler.yield_answers(case.body))
-                else:
-                    arm = compiler.block(case.body)
+                arm = body.term(compiler, case.body)
                 if guard is not None:
                     rejected = after_empty if pattern == Symbol("Empty") else after_arm
                     arm = Expression([Symbol("if"), guard, arm, rejected])
@@ -1443,9 +1465,6 @@ class StatementCompilerMixin(CompilerContext):
                     flat_rows.append(Expression([pattern, arm]))
                     fallback = pattern_scope.case_row(subject, pattern, arm, fallback)
 
-        if continue_generator is not None:
-            continue_generator.finish()
-
         if flat:
             # The engine's case already selects the first matching row and
             # extracts Empty before evaluating the key. Guards and additional
@@ -1453,10 +1472,10 @@ class StatementCompilerMixin(CompilerContext):
             rows = list(reversed(flat_rows))
             if not exhaustive and empty_fallback != Expression([Symbol("empty")]):
                 rows.append(Expression([Variable("_"), empty_fallback]))
-            return Expression([Symbol("case"), subject_value, Expression(rows)])
+            return join.finish(Expression([Symbol("case"), subject_value, Expression(rows)]))
 
         if empty_branch is not None:
-            return Expression(
+            return join.finish(Expression(
                 [
                     Symbol("case"),
                     subject_value,
@@ -1464,15 +1483,15 @@ class StatementCompilerMixin(CompilerContext):
                         [Expression([Symbol("Empty"), empty_branch]), Expression([subject, fallback])]
                     ),
                 ]
-            )
+            ))
 
-        return Expression(
+        return join.finish(Expression(
             [
                 Symbol("let*"),
                 Expression([Expression([subject, subject_value])]),
                 fallback,
             ]
-        )
+        ))
 
     def _limits_statement(self, node: ast.With, rest: list[ast.stmt]) -> Atom:
         """Lower a final Space.limits block to the engine's scoped pragma."""
@@ -1730,29 +1749,19 @@ class StatementCompilerMixin(CompilerContext):
             return None
         return cell, target
 
-    def if_statement(self, node: ast.If, rest: list[ast.stmt], continue_with) -> Atom:
+    def _if_statement(self, node: ast.If, rest: list[ast.stmt], body: _Body) -> Atom:
+        """Python's if: the test picks an arm, and an arm that falls through
+        continues into the statements after the if, exactly as Python's does,
+        in a function body and a generator body alike.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         test = self._truthy(node.test)
+        join = _Join(self, node, rest, body)
         # Each arm compiles in its own forked scope: a rebind inside one arm
-        # must not rename what the other arm, or anything after, reads.
-        then = continue_with(self._fork(), node.body)
-        if node.orelse:
-            otherwise = continue_with(self._fork(), node.orelse)
-            if rest:
-                msg = "statements after an if/else where both branches close are unreachable"
-                raise CompileError(
-                    msg,
-                    construct="if",
-                    line=rest[0].lineno,
-                )
-        elif rest:
-            # `if c: return a` followed by more statements: the rest is the
-            # else branch, Python's own early-return shape.
-            otherwise = continue_with(self._fork(), rest)
-        else:
-            # The enclosing block decides whether fallthrough continues a
-            # loop or finishes the function with None.
-            otherwise = continue_with(self._fork(), [])
-        return Expression([Symbol("if"), test, then, otherwise])
+        # must not rename what the other arm, or anything after, reads. A
+        # missing else is an arm that falls straight through.
+        then = body.term(join.arm(), node.body)
+        otherwise = body.term(join.arm(), node.orelse)
+        return join.finish(Expression([Symbol("if"), test, then, otherwise]))
 
     def _lift_definition(self, node: ast.FunctionDef) -> None:
         """A nested def, lambda-lifted (Johnsson): its free outer names
@@ -1799,10 +1808,10 @@ class StatementCompilerMixin(CompilerContext):
             return self._yield_binding(head, rest)
 
         if isinstance(head, ast.If):
-            return self._yield_if(head, rest)
+            return [self._if_statement(head, rest, _ANSWERS)]
 
         if isinstance(head, ast.Match):
-            return [self._match_statement(head, rest, yielding=True)]
+            return [self._match_statement(head, rest, _ANSWERS)]
 
         if isinstance(head, ast.Pass):
             return self._yield_tail(rest)
@@ -1878,26 +1887,6 @@ class StatementCompilerMixin(CompilerContext):
         pattern, value = self._binding(head)
         tail = _superpose(self.yield_answers(rest))
         return [self._binding_continuation(pattern, value, tail)]
-
-    def _yield_if(self, head: ast.If, rest: list[ast.stmt]) -> list[Atom]:
-        # A raising branch CLOSES the generator, so the statements after
-        # the if belong only to the branches that fall through, which is
-        # Python's own order: yields before a raise stay delivered and
-        # nothing after it runs.
-        then_closes = bool(head.body) and isinstance(head.body[-1], ast.Raise)
-        else_closes = bool(head.orelse) and isinstance(head.orelse[-1], ast.Raise)
-        if then_closes and else_closes and rest:
-            msg = "statements after an if whose branches both raise are unreachable"
-            raise CompileError(msg, construct="if", line=rest[0].lineno)
-        continuation = _GeneratorContinuation(self, head, rest)
-        then_compiler, else_compiler = self._fork(), self._fork()
-        then_compiler.closer = else_compiler.closer = continuation
-        then_compiler.closer_names = continuation.params.copy()
-        else_compiler.closer_names = continuation.params.copy()
-        then = _superpose(then_compiler.yield_answers(head.body))
-        otherwise = _superpose(else_compiler.yield_answers(head.orelse))
-        continuation.finish()
-        return [Expression([Symbol("if"), self._truthy(head.test), then, otherwise])]
 
     def _yield_for(self, head: ast.For, rest: list[ast.stmt]) -> list[Atom]:
         # `for x in e: <yields>` is iteration as nondeterminism: bind x to
@@ -2006,7 +1995,11 @@ def _generator_bound_names(node: ast.AST) -> set[str]:
     return names
 
 
-def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> set[str]:
+def _generator_live_names(
+    statements: list[ast.stmt],
+    following: set[str],
+    memo: dict[tuple[int, int, int, frozenset[str]], tuple[frozenset[str], frozenset[str]]],
+) -> set[str]:
     """Backward liveness: a write kills its previous value; branch inputs join.
 
     Lambdas and comprehensions bind their own parameters. A raising or
@@ -2021,8 +2014,41 @@ def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> se
     killed none, so `j = 0` before `while j < n` in a later loop still left a
     finished for's `j` live.
     """
-    live = following.copy()
-    for node in reversed(statements):
+    return _suffix_names(statements, following, memo)[0]
+
+
+def _suffix_names(
+    statements: list[ast.stmt],
+    following: set[str],
+    memo: dict[tuple[int, int, int, frozenset[str]], tuple[frozenset[str], frozenset[str]]],
+) -> tuple[set[str], frozenset[str]]:
+    """The names live into the statements, and every name they bind.
+
+    Liveness is _generator_live_names', given the names live after the
+    statements. Every suffix's pair is kept in memo, keyed by its first and last
+    statement, its length and what is live after it; a statement sits at one
+    position of one list, so that key names the suffix. The joins of a chain
+    of k branches each ask about the statements after their own branch, and
+    the memo answers each from the last one's walk: Theta(k) statement visits
+    for the chain, where asking afresh made Theta(k^2).
+    """
+    after = frozenset(following)
+    last_id = id(statements[-1]) if statements else 0
+    total = len(statements)
+
+    def key(position: int) -> tuple[int, int, int, frozenset[str]]:
+        return (id(statements[position]), last_id, total - position, after)
+
+    # The longest suffix already known, looked for from the front: the next
+    # branch of a chain asks about exactly the suffix the last walk stored.
+    start = next((position for position in range(total) if key(position) in memo), total)
+    if start < total:
+        known, bound = memo[key(start)]
+        live = set(known)
+    else:
+        live, bound = following.copy(), frozenset()
+    for position in range(start - 1, -1, -1):
+        node = statements[position]
         reader = _GeneratorReads()
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             if node.value is not None:
@@ -2036,7 +2062,7 @@ def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> se
             reader.visit(node.target)
             live.update(_generator_bound_names(node.target))
         elif isinstance(node, ast.If):
-            live = _generator_live_names(node.body, live) | _generator_live_names(node.orelse, live)
+            live = _generator_live_names(node.body, live, memo) | _generator_live_names(node.orelse, live, memo)
             reader.visit(node.test)
         elif isinstance(node, ast.Match):
             last = node.cases[-1]
@@ -2045,7 +2071,7 @@ def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> se
             )
             for case in node.cases:
                 captures = _generator_bound_names(case.pattern)
-                body = _generator_live_names(case.body, live)
+                body = _generator_live_names(case.body, live, memo)
                 guard_reads = _GeneratorReads()
                 if case.guard is not None:
                     guard_reads.visit(case.guard)
@@ -2054,11 +2080,11 @@ def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> se
             live = arms
             reader.visit(node.subject)
         elif isinstance(node, ast.For):
-            body = _generator_live_names(node.body, set())
-            live = _generator_live_names(node.orelse, live) | (body - _generator_bound_names(node.target))
+            body = _generator_live_names(node.body, set(), memo)
+            live = _generator_live_names(node.orelse, live, memo) | (body - _generator_bound_names(node.target))
             reader.visit(node.iter)
         elif isinstance(node, ast.While):
-            live = _generator_live_names(node.orelse, live) | _generator_live_names(node.body, set())
+            live = _generator_live_names(node.orelse, live, memo) | _generator_live_names(node.body, set(), memo)
             reader.visit(node.test)
         elif isinstance(node, (ast.Raise, ast.Return)):
             live = set()
@@ -2067,73 +2093,174 @@ def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> se
             reader.visit(node)
         live.difference_update(reader.bound)
         live.update(reader.reads)
-    return live
+        bound = bound | _generator_bound_names(node)
+        memo[key(position)] = (frozenset(live), bound)
+    return live, bound
 
 
-class _GeneratorContinuation:
-    """One shared block with live SSA arguments and proofs from every incoming edge.
+@dataclass(frozen=True, slots=True)
+class _Body:
+    """What a statement list compiles to: a function's one value, or a
+    generator's superposition of answers.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
+    # The statements as one term, in a compiler whose closer says what
+    # falling off their end continues into. A function's is block itself,
+    # so a chain of branches costs the Python stack no frame more than the
+    # else-less lowering did.
+    term: Callable[..., Atom]
+    # The word in the name of a helper several arms share.
+    label: str
+
+
+def _answers(compiler: CompilerContext, statements: list[ast.stmt]) -> Atom:
+    return _superpose(compiler.yield_answers(statements))
+
+
+_VALUE = _Body(StatementCompilerMixin.block, "after-branch")
+_ANSWERS = _Body(_answers, "after-yield")
+
+
+class _Join:
+    """The statements after an if or match, reached from every arm that falls through.
 
     Naming the continuation once avoids exponential CPS duplication. This is
     the T_c conditional conversion in this pinned Scheme compiler:
     https://github.com/edu-ucsd-cse-231/fa12-schemec/blob/755992dbb38ee73abb608d2ff4f8c2c59428fa16/schemec/cps.py
-    The helper is compiled after its incoming edges, so its value proofs are
-    their intersection rather than whichever arm happened to compile first.
+    An arm that falls through records its scope and answers a hole, which
+    `finish` fills once every arm has compiled. Reached from one arm, the
+    join is that arm's own straight-line code and the statements compile in
+    place there, as GHC inlines a binding that occurs once in one branch,
+    join points included:
+    https://github.com/ghc/ghc/blob/9f48a5b908f572847bc8ba4657c9f5a5d4284556/compiler/GHC/Core/SimpleOpt.hs#L748-L753
+    Reached from several, they share one helper equation over the names live
+    after the branch, compiled after its incoming arms, so its value proofs
+    are their intersection rather than whichever arm happened to compile
+    first. With nothing after the branch there is no join: an arm continues
+    into whatever the enclosing block continues into, so a nested match still
+    tells an enclosing continuation from none.
+
+    Time: filling the holes is one pass over the branch's term and the
+    equations its arms added, Theta(their size); the statements after the
+    branch compile after that bound is taken and are never passed over, so a
+    chain of k branches costs Theta(k) passes of constant size, and a node
+    nested in d branches is passed over d times. What is live after each
+    branch, and bound there, comes from one walk the definition's memo
+    shares (_suffix_names), Theta(k) statement visits for the chain. Space:
+    one hole and one scope fork per arm that falls through.
     """
 
-    def __init__(self, compiler: CompilerContext, node: ast.stmt, rest: list[ast.stmt]):
+    def __init__(self, compiler: CompilerContext, node: ast.If | ast.Match, rest: list[ast.stmt], body: _Body):
         self.compiler = compiler
         self.node = node
+        self.construct = "if" if isinstance(node, ast.If) else "match"
         self.rest = rest
-        self.incoming: list[CompilerContext] = []
-        self.helper = f"{compiler.name}--after-yield-{next_aux_serial()}" if rest else None
+        self.body = body
+        self.edges: list[tuple[CompilerContext, Variable]] = []
+        # A hole can land in an equation an arm appends, a loop's exit or a
+        # nested join's helper, so filling rereads the equations the arms add.
+        self.aux_start = len(compiler.aux)
+        self.live: set[str] = set()
+        self.local: set[str] = set()
+        self.carried: list[str] = []
         if rest:
-            locals_ = set(compiler.scope) | _generator_bound_names(node)
-            for statement in rest:
-                locals_.update(_generator_bound_names(statement))
-            live = _generator_live_names(rest, set(compiler.closer_names))
-            self.params = sorted(live & locals_)
-        else:
-            self.params = compiler.closer_names.copy()
+            self.live, bound = _suffix_names(rest, set(compiler.closer_names), compiler.liveness)
+            self.local = set(compiler.scope) | _generator_bound_names(node) | bound
+            # What an arm must keep for the statements after the branch: a
+            # loop or try inside it carries these into its own equation. The
+            # enclosing closer's names can be bound first inside an arm and
+            # spelled by no statement, a constructor's fields for one.
+            self.carried = sorted(self.live & (self.local | set(compiler.closer_names)))
+
+    def arm(self) -> CompilerContext:
+        """A compiler for one arm, whose falling through reaches the statements after the branch."""
+        arm = self.compiler._fork()
+        if self.rest:
+            arm.closer = self
+            arm.closer_names = self.carried.copy()
+        return arm
 
     def __call__(self, compiler: CompilerContext) -> Atom:
-        if self.helper is None:
-            if self.compiler.closer is not None:
-                return self.compiler.closer(compiler)
-            return Expression([Symbol("empty")])
-        arguments: list[Atom] = []
-        for name in self.params:
-            if name not in compiler.scope:
-                msg = (
-                    f"{name!r} is read after a generator branch but is not bound on "
-                    "every path reaching that read; bind it before the branch or in every arm"
-                )
-                raise CompileError(msg, construct="generator continuation", line=self.node.lineno)
-            arguments.append(Variable(compiler.scope[name]))
-        self.incoming.append(compiler._fork())
-        return Expression([Symbol(self.helper), *arguments])
+        # The name is outside Python's identifier grammar and unique to this
+        # join and edge, so no binding can capture it before `finish` fills it.
+        hole = Variable(f"join-{id(self):x}-{len(self.edges)}")
+        self.edges.append((compiler._fork(), hole))
+        return hole
 
-    def finish(self) -> None:
-        if self.helper is None or not self.incoming:
-            return
-        compiler = self.compiler._equation_compiler(self.params)
+    def finish(self, term: Atom) -> Atom:
+        """The branch's term, with every arm that fell through continuing into the statements after it."""
+        if not self.rest:
+            return term
+        # Every hole is in the term or an equation an arm added; the
+        # statements compiled below continue into the enclosing closer and
+        # hold none of them.
+        arms_end = len(self.compiler.aux)
+        if not self.edges:
+            msg = (
+                f"statements after this {self.construct} are unreachable, since every arm "
+                f"returns or raises, and have no equation; remove them, or let an arm fall "
+                f"through to them"
+            )
+            raise CompileError(msg, construct=self.construct, line=self.rest[0].lineno)
+        if len(self.edges) == 1:
+            ((edge, hole),) = self.edges
+            edge.closer = self.compiler.closer
+            edge.closer_names = self.compiler.closer_names.copy()
+            filled: dict[Atom, Atom] = {hole: self.body.term(edge, self.rest)}
+        else:
+            helper, compiler, params = self._helper()
+            # Compiled here rather than in _helper, so a chain of branches
+            # costs the Python stack the same frames a branch on either path.
+            body = self.body.term(compiler, self.rest)
+            head = Expression([Symbol(helper), *(Variable(binding_name(name)) for name in params)])
+            self.compiler.aux.append(Expression([Symbol("="), head, body]))
+            filled = {
+                hole: Expression([Symbol(helper), *(Variable(edge.scope[name]) for name in params)])
+                for edge, hole in self.edges
+            }
+        aux = self.compiler.aux
+        for index in range(self.aux_start, arms_end):
+            equation = aux[index].subs(filled)
+            assert isinstance(equation, Expression)  # nosec B101 # a hole is one variable, never a whole equation
+            aux[index] = equation
+        return term.subs(filled)
+
+    def _helper(self) -> tuple[str, CompilerContext, list[str]]:
+        """The helper every arm calls with its own bindings of the names live
+        after the branch: its name, the compiler its body compiles in, holding
+        the proofs every arm agrees on, and its parameters.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        edges = [edge for edge, _hole in self.edges]
+        bound = set().union(*(edge.scope for edge in edges))
+        params = sorted(self.live & (self.local | bound))
+        for edge in edges:
+            missing = next((name for name in params if name not in edge.scope), None)
+            if missing is not None:
+                msg = (
+                    f"{missing!r} is read after this {self.construct} but is not bound on every "
+                    f"path reaching that read; bind it before the {self.construct} or in every arm"
+                )
+                raise CompileError(msg, construct=self.construct, line=self.node.lineno)
+        helper = f"{self.compiler.name}--{self.body.label}-{next_aux_serial()}"
+        compiler = self.compiler._equation_compiler(params)
         compiler.closer = self.compiler.closer
         compiler.closer_names = self.compiler.closer_names.copy()
-        compiler.number_locals = set.intersection(*(edge.number_locals for edge in self.incoming))
+        compiler.number_locals = set.intersection(*(edge.number_locals for edge in edges))
         compiler.space_locals = set()
         compiler.dict_locals = set()
         compiler.container_locals = {}
-        for name in self.params:
+        for name in params:
             representations = {
                 (edge.container_locals.get(name), name in edge.space_locals, name in edge.dict_locals)
-                for edge in self.incoming
+                for edge in edges
             }
             if len(representations) != 1:
                 msg = (
-                    f"{name!r} crosses a generator join with incompatible representation "
-                    "proofs; bind the same container or space kind in every arm, or move "
-                    "the operations that depend on its kind into those arms"
+                    f"{name!r} crosses the join after this {self.construct} with incompatible "
+                    "representation proofs; bind the same container or space kind in every "
+                    "arm, or move the operations that depend on its kind into those arms"
                 )
-                raise CompileError(msg, construct="generator continuation", line=self.node.lineno)
+                raise CompileError(msg, construct=self.construct, line=self.node.lineno)
             kind, space, dictionary = representations.pop()
             if kind is not None:
                 compiler.container_locals[name] = kind
@@ -2141,9 +2268,7 @@ class _GeneratorContinuation:
                 compiler.space_locals.add(name)
             if dictionary:
                 compiler.dict_locals.add(name)
-        body = _superpose(compiler.yield_answers(self.rest))
-        head = Expression([Symbol(self.helper), *(Variable(binding_name(name)) for name in self.params)])
-        self.compiler.aux.append(Expression([Symbol("="), head, body]))
+        return helper, compiler, params
 
 
 def _superpose(answers: list[Atom]) -> Expression:
