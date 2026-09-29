@@ -340,8 +340,13 @@ def test_expanded_definition_contracts_keep_distinct_lexical_homes():
 
         assert expanded(left, (3,), {"right": 4}).one() == 34
         assert expanded(right, (3,), {"back": 4}).one() == 304
-        first_context.self.remove(S["="](S["scoped-expanded"](V.left, V.right), V.body))
-        first_context.self.add(S["="](S["scoped-expanded"](V.left, V.right), 73))
+        # The parameter row is the definition's, so the body changes through
+        # its own define; an equation written in its place by value has no
+        # Python parameters to bind a keyword to.
+        def first(left: int, right: int) -> int:  # noqa: ARG001 -- the redefinition is the contract
+            return 73
+
+        first_context.self.define(first, name="scoped-expanded")
         assert expanded(left, (3,), {"right": 4}).one() == 73
         assert expanded(right, (3,), {"back": 4}).one() == 304
 

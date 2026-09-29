@@ -21,7 +21,7 @@ Guarantees:
     test_an_accepted_identity_step_still_wakes_its_waiter; commit=438506a1688c78a383499973b6a89fa6bb559629]
   - removing everything tells a removal subscriber of each atom that left,
     once, and of nothing else
-    [tested 2026-09-29T23:46:26+10:00: test_removing_everything_tells_each_atom_that_left_once]
+    [tested 2026-09-30T08:34:03+10:00: test_removing_everything_tells_each_atom_that_left_once]
 Open Obligations:
   To Do: None
   Hacks: None

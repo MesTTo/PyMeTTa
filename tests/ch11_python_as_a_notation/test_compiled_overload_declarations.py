@@ -5,7 +5,8 @@ from typing import overload
 import pytest
 
 from metta import Expression, S, V, arrow, fn, typed
-from metta._errors.errors import CompileError
+from metta._atoms.wire import _atom_from_wire
+from metta._errors.errors import CompileError, EngineError
 
 
 def test_stored_control_builders_include_nested_arguments(scratch_space):
@@ -101,29 +102,37 @@ def test_failed_overload_publication_rolls_back_all_arrows(
     def identity(value):
         return value
 
-    real_add = type(m).add
-    declarations_seen = 0
-    failure_message = "forced overload publication failure"
+    runtime_type = type(m.runtime)
+    real_do = runtime_type.do
 
-    def failing_add(space, *atoms, **kwargs):
-        nonlocal declarations_seen
-        if space is m:
-            for atom in atoms:
-                if isinstance(atom, Expression) and atom.children[0] == S[":"]:
-                    declarations_seen += 1
-                    if fail_at == "second declaration" and declarations_seen == 2:
-                        raise RuntimeError(failure_message)
-                if (
-                    fail_at == "equation"
-                    and isinstance(atom, Expression)
-                    and atom.children[0] == S["="]
-                ):
-                    raise RuntimeError(failure_message)
-        return real_add(space, *atoms, **kwargs)
+    def failing_at(writes):
+        """The index of the write the publication fails at."""
+        declarations_seen = 0
+        for index, (_verb, space, wires) in enumerate(writes):
+            if space != m.name:
+                continue
+            heads = [_atom_from_wire(wire).children[0] for wire in wires]
+            if S[":"] in heads:
+                declarations_seen += 1
+                if fail_at == "second declaration" and declarations_seen == 2:
+                    return index
+            if fail_at == "equation" and S["="] in heads:
+                return index
+        msg = f"the publication has no {fail_at} write"
+        raise AssertionError(msg)
+
+    def failing_publication(runtime, predicate, *inputs):
+        # A define's writes are one crossing, so the failure is a write that
+        # fails inside it, just before the chosen one.
+        if predicate == "metta_py_publish_definition":
+            writes, watches = inputs
+            index = failing_at(writes)
+            inputs = ([*writes[:index], ["refuse", m.name, []], *writes[index:]], watches)
+        return real_do(runtime, predicate, *inputs)
 
     with monkeypatch.context() as patch:
-        patch.setattr(type(m), "add", failing_add)
-        with pytest.raises(RuntimeError, match="forced overload publication failure"):
+        patch.setattr(runtime_type, "do", failing_publication)
+        with pytest.raises(EngineError, match="metta_py_publish_definition"):
             m.define(identity)
     assert not m.is_function_here("identity")
     assert m.eval(fn.match(m, typed(S.identity, V.t), V.t)) == []

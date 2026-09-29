@@ -212,11 +212,8 @@ metta_py_register_foreign_(Space, Provider, Capabilities, Delivery) :-
 % Registration publishes the shared pattern explicitly. A concrete or changed
 % declaration matching its query is not the same source contract.
 metta_py_provider_schema :-
-    metta_py_provider_declaration(_, Declaration), copy_term(Declaration, Query),
-    (   spaces:metta_native_pair('&metta', Query, _, Ref),
-        spaces:metta_owned_clause(Ref, _:Head),
-        native_storage_functor('&metta', Functor),
-        metta_storage_term(Functor, Stored, _, Head), Stored =@= Declaration
+    metta_py_provider_declaration(_, Declaration),
+    (   metta_py_stored_variant('&metta', Declaration, _)
     ->  true
     ;   'add-atom'('&metta', Declaration, _)
     ).

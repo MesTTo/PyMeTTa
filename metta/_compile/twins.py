@@ -17,6 +17,15 @@ Guarantees:
     space leaves retained twins with their previous clauses [tested:
     test_pure_compilation_does_not_publish_twin_bindings,
     test_clear_starts_a_new_twin_family; commit=54ca898ed3ce78464a4f2648b1ce92a985ec3db8]
+  - a family holds the twins of exactly the clauses its space still holds, in
+    definition order: a define over a family a removal thinned publishes a
+    successor carrying the survivors, a removal retires or succeeds it, an add
+    that brings retired clauses back reinstates the retired family with its
+    sources, and every change answers the inverse that restores families,
+    sources and references, so a rolled-back transaction leaves no twin behind
+    [tested 2026-09-30T08:34:03+10:00: test_a_removed_definition_starts_a_new_twin_family,
+    test_a_rolled_back_redefinition_restores_the_twin,
+    test_a_definition_brought_back_is_reflected_again]
   - twin dispatch skips clauses whose callable arity cannot accept the call
     [tested: test_define_supports_one_name_at_multiple_arities;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -44,7 +53,7 @@ from __future__ import annotations
 import inspect
 import threading
 import types
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Any
 
@@ -153,6 +162,12 @@ _TWIN_LOCK = threading.RLock()
 type _TwinBindings = list[tuple[types.FunctionType, Callable[[Callable[..., Any]], None]]]
 
 
+def _same_clauses(held: Sequence[Callable[..., Any]], clauses: Sequence[Callable[..., Any]]) -> bool:
+    return len(held) == len(clauses) and all(
+        left is right for left, right in zip(held, clauses, strict=True)
+    )
+
+
 class TwinNamespace:
     """Python reference bindings owned by one native definition space."""
 
@@ -161,14 +176,36 @@ class TwinNamespace:
         self._families: dict[str, TwinDispatcher] = {}
         self._sources: dict[types.FunctionType, TwinDispatcher] = {}
         self._bindings: dict[types.FunctionType, list[Callable[[Callable[..., Any]], None]]] = {}
+        # The family a removal retired under each name, with the sources it
+        # held, which an add bringing its clauses back reinstates.
+        self._retired: dict[str, tuple[TwinDispatcher, frozenset[types.FunctionType]]] = {}
 
-    def dispatcher(self, fn: types.FunctionType, name: str) -> TwinDispatcher:
-        """Select the native family while preserving Python-name collisions."""
+    def dispatcher(
+        self,
+        fn: types.FunctionType,
+        name: str,
+        clauses: Sequence[Callable[..., Any]] = (),
+    ) -> TwinDispatcher:
+        """The family a define of ``fn`` extends.
+
+        ``clauses`` are the twins of the clauses the space still holds under
+        ``name``, in definition order. The published family is reused when it
+        holds exactly those and a function of this Python name published it;
+        otherwise a new dispatcher holds them and is published only with the
+        define, so a family a removal thinned stays with whoever holds it, the
+        way a clear leaves one.
+        """
         with _TWIN_LOCK:
             family = self._families.get(name)
-            if family is not None and family.name == fn.__name__:
+            if (
+                family is not None
+                and family.name == fn.__name__
+                and _same_clauses(family._clauses, clauses)
+            ):
                 return family
-        return TwinDispatcher(fn.__name__)
+        successor = TwinDispatcher(fn.__name__)
+        successor._clauses = list(clauses)
+        return successor
 
     def prepare(
         self, fn: types.FunctionType, dispatcher: TwinDispatcher,
@@ -223,22 +260,136 @@ class TwinNamespace:
     def publish(
         self, fn: types.FunctionType, name: str, dispatcher: TwinDispatcher,
         clause: Callable[..., Any], *, bindings: _TwinBindings, replaced: int | None,
-    ) -> None:
-        """Publish the clause and its exact function references together."""
+    ) -> Callable[[], None]:
+        """Publish the clause and its exact function references together.
+
+        Answers the inverse, which puts the family, every source and every
+        reference back as they were.
+        """
         with _TWIN_LOCK:
+            restore = self._succeed(name, dispatcher, fn)
+            clauses_before = list(dispatcher._clauses)
             if replaced is None:
                 dispatcher._clauses.append(clause)
             else:
                 dispatcher._clauses[replaced] = clause
-            self._families[name] = dispatcher
-            self._sources[fn] = dispatcher
+            lengths = {source: len(self._bindings.get(source, ())) for source, _ in bindings}
             for source, assign in bindings:
                 self._bindings.setdefault(source, []).append(assign)
                 target = self._sources.get(source)
                 if target is not None:
                     assign(target)
-            for assign in self._bindings.get(fn, ()):
-                assign(dispatcher)
+
+        def inverse() -> None:
+            with _TWIN_LOCK:
+                for source, length in lengths.items():
+                    held = self._bindings.get(source, [])
+                    del held[length:]
+                    if not held:
+                        self._bindings.pop(source, None)
+                dispatcher._clauses[:] = clauses_before
+                restore()
+
+        return inverse
+
+    def succeed(self, name: str, clauses: Sequence[Callable[..., Any]]) -> Callable[[], None]:
+        """Hand the published family of ``name`` to exactly ``clauses``.
+
+        A write the space made is the caller: no clause left retires the
+        family, whose references keep pointing at it as a clear leaves them;
+        survivors get a successor that every source and reference of the old
+        family follows; clauses back under a retired family reinstate it, the
+        retired dispatcher itself when they are exactly its own. Answers the
+        inverse.
+        """
+        with _TWIN_LOCK:
+            family = self._families.get(name)
+            if family is None:
+                retired = self._retired.get(name)
+                if retired is None or not clauses:
+                    return lambda: None
+                held, sources = retired
+                if _same_clauses(held._clauses, clauses):
+                    return self._succeed(name, held, None, sources)
+                successor = TwinDispatcher(held.name)
+                successor._clauses = list(clauses)
+                return self._succeed(name, successor, None, sources)
+            if _same_clauses(family._clauses, clauses):
+                return lambda: None
+            if not clauses:
+                return self._succeed(name, None, None)
+            successor = TwinDispatcher(family.name)
+            successor._clauses = list(clauses)
+            return self._succeed(name, successor, None)
+
+    def _succeed(
+        self,
+        name: str,
+        dispatcher: TwinDispatcher | None,
+        fn: types.FunctionType | None,
+        sources: frozenset[types.FunctionType] = frozenset(),
+    ) -> Callable[[], None]:
+        """Make ``dispatcher`` the family of ``name``, moving the old family's
+        sources, ``fn`` and ``sources`` to it and pointing their references at
+        it; None retires the family, remembering it with its sources, and
+        leaves its references where they are. Called under _TWIN_LOCK; answers
+        the inverse.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        previous = self._families.get(name)
+        retired_before = self._retired.get(name)
+        moved = {
+            source for source, family in self._sources.items()
+            if previous is not None and family is previous
+        } | sources
+        if fn is not None:
+            moved.add(fn)
+        sources_before = {source: self._sources.get(source) for source in moved}
+        # What each moved source's references point at now, which the inverse
+        # restores: its published family, else the retired family that kept
+        # them, else the source function itself, which is what a reference to
+        # a function nothing published holds.
+        references_before: dict[types.FunctionType, Callable[..., Any]] = {}
+        for source, target in sources_before.items():
+            if target is not None:
+                references_before[source] = target
+            elif retired_before is not None and source in retired_before[1]:
+                references_before[source] = retired_before[0]
+            else:
+                references_before[source] = source
+        if dispatcher is None:
+            self._families.pop(name, None)
+            for source in moved:
+                self._sources.pop(source, None)
+            if previous is not None:
+                self._retired[name] = (previous, frozenset(moved))
+        else:
+            self._families[name] = dispatcher
+            self._retired.pop(name, None)
+            for source in moved:
+                self._sources[source] = dispatcher
+                for assign in self._bindings.get(source, ()):
+                    assign(dispatcher)
+
+        def inverse() -> None:
+            with _TWIN_LOCK:
+                if previous is None:
+                    self._families.pop(name, None)
+                else:
+                    self._families[name] = previous
+                if retired_before is None:
+                    self._retired.pop(name, None)
+                else:
+                    self._retired[name] = retired_before
+                for source, target in sources_before.items():
+                    if target is None:
+                        self._sources.pop(source, None)
+                    else:
+                        self._sources[source] = target
+                    if dispatcher is not None:
+                        for assign in self._bindings.get(source, ()):
+                            assign(references_before[source])
+
+        return inverse
 
 
 def hazard_twin(
@@ -325,13 +476,3 @@ def _guard_twin(
     setattr(guarded, "__wrapped__", twin)  # noqa: B010 -- mypyc rejects this non-standard function attribute as direct assignment
     guarded.__signature__ = signature  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
     return guarded
-
-
-def dispatcher_owns_clause(dispatcher: TwinDispatcher, position: int) -> bool:
-    """Whether this dispatcher installed the clause at the given position.
-
-    A different Python name claiming an installed head gets a fresh dispatcher.
-    The installer preserves its explicit collision refusal before publication.
-    """
-    with _TWIN_LOCK:
-        return 0 <= position < len(dispatcher._clauses)

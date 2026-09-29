@@ -146,39 +146,29 @@ def test_a_declared_output_type_takes_effect_through_the_decorator_door(metta):
     assert space.eval(S["p14_surface_output_typed"](argument)) == [S["+"](2, 42)]
 
 
-def test_failed_equation_publication_rolls_back_its_early_declaration(
-    metta, monkeypatch
-):
+def test_failed_equation_publication_rolls_back_its_early_declaration(metta):
     """An early declaration cannot outlive the equation it was meant to type."""
     space = metta._new_space()
-    runtime_type = type(metta.runtime)
-    real_do_must = runtime_type.do_must
-    target_adds = 0
-
-    def fail_equation(runtime, goal, *inputs):
-        nonlocal target_adds
-        if (
-            goal == "metta_py_add"
-            and inputs[0] == space.name
-        ):
-            target_adds += 1
-            if target_adds == 2:
-                msg = "forced equation publication failure"
-                raise EngineError(msg)
-        return real_do_must(runtime, goal, *inputs)
-
-    monkeypatch.setattr(runtime_type, "do_must", fail_equation)
+    # The space refuses the equation after the declaration went in; the judge
+    # reads the offered equation as data, an Atom parameter under unify.
+    space.run(
+        "(: p14-surface-judge (-> Atom %Undefined%)) "
+        "(= (p14-surface-judge $atom) (unify $atom (= (p14-surface-failed $value) $body) "
+        "(Refuse \"forced equation publication failure\") (Accept)))"
+    )
+    space.run(f"!(declare-pre-add! {space.name} p14-surface-judge)")
 
     def p14_surface_failed(value: int) -> int:
         return value + 1
 
-    with pytest.raises(EngineError, match="forced equation publication failure"):
-        space.define(p14_surface_failed)
+    try:
+        with pytest.raises(EngineError, match="forced equation publication failure"):
+            space.define(p14_surface_failed)
+    finally:
+        space.run(f"!(undeclare-pre-add! {space.name})")
 
-    declaration = S[":"](
-        S["p14_surface_failed"],
-        S["->"](S.Number, S.Number),
-    )
+    # The implicit name maps the Python name's underscores to hyphens.
+    declaration = S[":"](S["p14-surface-failed"], S["->"](S.Number, S.Number))
     assert declaration not in space
 
 

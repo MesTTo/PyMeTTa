@@ -111,6 +111,7 @@ __all__ = [
     "MettaResultError",
     "MettaSyntaxError",
     "NotReducible",
+    "PartialWriteError",
     "PlatformCapabilityError",
     "RegistrationError",
     "Remedy",
@@ -1015,6 +1016,36 @@ class SubscriberError(MettaError):
         super().__init__(message, atom=atom, space=space, ground=ground, remedy=remedy)
         self.subscription = subscription
         self.action = action
+
+
+class PartialWriteError(MettaError):
+    """A write failed after a provider outside the engine's transactions took
+    part of it.
+
+    The engine's own state rolled back and the provider's did not: its
+    storage keeps what it takes whatever a transaction does, since it
+    declares no transactional writes, so it is the one place a failed
+    define or removal of a Defined leaves a trace. `space` is that
+    provider's space, `capability` the "transactional" it lacks, `kept` the
+    atoms of the failed write it still holds and `lost` those the write took
+    that it no longer holds, one entry per occurrence, and `__cause__` is
+    the failure itself. Removing `kept` and adding `lost` back leaves the
+    space as it was: both are counted against what the space held before
+    the write began, so neither names an occurrence that was already there.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        space: str,
+        kept: tuple[Any, ...],
+        lost: tuple[Any, ...],
+    ):
+        """Carry the provider's space and what it kept and lost as data."""
+        super().__init__(message, space=space, capability="transactional")
+        self.kept = kept
+        self.lost = lost
 
 
 class ResourceLimitError(EngineError):

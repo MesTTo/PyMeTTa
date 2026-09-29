@@ -92,6 +92,10 @@ Guarantees:
     holds the lock, and the table's next operation expunges the entry
     [tested: test_a_weak_table_callback_takes_no_lock_and_its_owner_expunges;
     commit=874fed30ee5d909920c30c322c3b425ed0c62c5b]
+  - work an engine callback hands to a safe point runs at the next crossing
+    made with no engine callback open, never at one made inside a callback,
+    and again at each later one until it answers done [tested 2026-09-30T08:34:03+10:00:
+    test_safe_point_work_runs_outside_every_callback_until_done]
 """
 
 import ast
@@ -108,12 +112,14 @@ from typing import Any, NamedTuple
 import pytest
 
 import metta._atoms.model as _model
+import metta._binding.callbacks as _callbacks
 import metta._binding.host as _host
 import metta._binding.runtime as _engine
 from metta import S, Space, V
 from metta._binding.runtime import bridge
 from metta._errors.errors import MettaError
 from metta._roots import workspace
+from metta.vocabularies import EffectClass
 
 _NAMES = itertools.count()
 
@@ -285,6 +291,34 @@ def test_a_failing_deferred_call_does_not_fail_the_crossing_that_drains_it(metta
 
     assert metta.runtime.once("X is 2+3")["X"] == 5
     assert not _engine._DEFERRED_WORK, "the failing item was requeued"
+
+
+def test_safe_point_work_runs_outside_every_callback_until_done(metta):
+    """Work handed to a safe point runs at crossings made with no engine
+    callback open, never at one an operation makes inside the engine, and
+    again until it answers done.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    seen: list[bool] = []
+
+    def work() -> bool:
+        seen.append(_callbacks.entered())
+        return len(seen) == 2
+
+    def probe() -> int:
+        metta.runtime.once("true")
+        return 1
+
+    metta.op(probe, name="safe-point-probe", effect=EffectClass.oracleIO)
+    try:
+        _engine.at_safe_point(work)
+        metta.run("!(safe-point-probe)")
+        assert seen == [False], "the work ran inside the operation's callback or not at all"
+        metta.runtime.once("true")
+        metta.runtime.once("true")
+        assert seen == [False, False]
+        assert work not in _engine._SAFE_POINT_WORK
+    finally:
+        metta.unregister_op("safe-point-probe")
 
 
 def test_a_view_dropped_in_a_cycle_defers_its_cursor_close(metta):

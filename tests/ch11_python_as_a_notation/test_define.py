@@ -281,21 +281,21 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
         return value + 1
 
     runtime_type = type(m.runtime)
-    real_must = runtime_type.must
-    failed = False
+    real_do = runtime_type.do
 
-    def fail_reflection(runtime, goal, **inputs):
-        nonlocal failed
-        if not failed and goal == "metta_py_add(Space, W)" and inputs.get("Space") == "&metta":
-            failed = True
-            msg = "forced definition-fact failure"
-            raise EngineError(msg)
-        return real_must(runtime, goal, **inputs)
+    def fail_reflection(runtime, predicate, *inputs):
+        # The whole publication is one crossing, so a write that fails right
+        # after its first reflection row fails it part way.
+        if predicate == "metta_py_publish_definition":
+            writes, watches = inputs
+            first = next(index for index, write in enumerate(writes) if write[1] == "&metta")
+            inputs = ([*writes[:first + 1], ["refuse", "&metta", []], *writes[first + 1:]], watches)
+        return real_do(runtime, predicate, *inputs)
 
-    monkeypatch.setattr(runtime_type, "must", fail_reflection)
-    with pytest.raises(EngineError, match="forced definition-fact failure"):
+    monkeypatch.setattr(runtime_type, "do", fail_reflection)
+    with pytest.raises(EngineError, match="metta_py_publish_definition"):
         m.define(ast_observed)
-    monkeypatch.setattr(runtime_type, "must", real_must)
+    monkeypatch.setattr(runtime_type, "do", real_do)
     assert (
         list(reflection.match(parse("(source-span $space ast-observed $path $sl $sc $el $ec)")))
         == old_source

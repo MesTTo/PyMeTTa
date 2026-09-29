@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from metta import G, MeTTa, S, V, lib
+from metta._declare.define import PrologBacked
 from metta._errors.errors import EngineError, RegistrationError, SourceNotFound
 from metta._spaces.results import Answers, Rows
 
@@ -37,6 +38,10 @@ def _two_argument_judge(atom, _other):
     pytest.param(lambda m: m.self.saga(None), id="space:saga"),
     pytest.param(lambda m: m.self.subscribe(S.fact, where=object()), id="space:subscribe"),
     pytest.param(lambda m: m.self.define(), id="space:define"),
+    pytest.param(
+        lambda m: m.self.remove(PrologBacked("door-prolog", [], lambda: None, m.self, "door.pl")),
+        id="space:remove",
+    ),
     pytest.param(lambda m: m.self.pre_add(_two_argument_judge), id="space:pre-add"),
     pytest.param(lambda m: m.self.reacts(S.fact, S.fact, priority=True), id="space:reacts"),
     pytest.param(lambda m: m.self.args, id="space:args"),

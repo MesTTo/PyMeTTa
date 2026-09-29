@@ -609,6 +609,28 @@ class MeTTa(MeTTaBase):
         gives it, each atom leaving through its own proper path, equations
         and their compiled clauses included.
 
+        A Defined, what ``define`` answered, is one definition, and removing it
+        takes the definition out whole: every equation it published, helper
+        equations included, its declarations and its doc, each through this same
+        door, with the Python record of it, in one transaction, and the answer
+        says whether the space held anything of it; a provider no transaction
+        reaches answers a removal failing part way with PartialWriteError,
+        naming what it no longer holds. That is the inverse of
+        ``define``, and a later ``define`` publishes the definition afresh:
+
+            def stable():
+                return 7
+
+            defined = m.define(stable)
+            m.remove(defined)           # True
+            m.eval(S.stable())          # [(stable)]
+            m.define(stable)            # published again, [7]
+
+        Removing any of its equations by value, through this door or any other, a
+        program's `remove-atom` included, retires them from its reflection rows,
+        twin family and lint evidence, and a re-define publishes what a removal
+        took.
+
         Runs against this context's self space.
         """  # noqa: D205 -- preserve the declared documentation
         return self.self.remove(atom, *more)
@@ -836,6 +858,14 @@ class MeTTa(MeTTaBase):
         filter-atom, and match(Pattern(x, y), template) to a match against
         the running space, lowercase free names in the pattern binding as
         variables.
+
+        A define is all or nothing wherever a transaction reaches the space's
+        storage, a native space's and that of a provider declaring
+        transactional writes, which rolls back with it. A provider whose
+        storage no transaction reaches keeps what a failed define wrote to it,
+        so that failure is raised as metta._errors.errors.PartialWriteError,
+        whose kept and lost are the atoms to remove and add back, with the
+        failure itself as its cause.
 
         Runs against this context's self space.
         """

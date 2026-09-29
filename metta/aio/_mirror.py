@@ -704,6 +704,28 @@ class AsyncMeTTa(AsyncMeTTaBase):
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations
         and their compiled clauses included.
+
+        A Defined, what ``define`` answered, is one definition, and removing it
+        takes the definition out whole: every equation it published, helper
+        equations included, its declarations and its doc, each through this same
+        door, with the Python record of it, in one transaction, and the answer
+        says whether the space held anything of it; a provider no transaction
+        reaches answers a removal failing part way with PartialWriteError,
+        naming what it no longer holds. That is the inverse of
+        ``define``, and a later ``define`` publishes the definition afresh:
+
+            def stable():
+                return 7
+
+            defined = m.define(stable)
+            m.remove(defined)           # True
+            m.eval(S.stable())          # [(stable)]
+            m.define(stable)            # published again, [7]
+
+        Removing any of its equations by value, through this door or any other, a
+        program's `remove-atom` included, retires them from its reflection rows,
+        twin family and lint evidence, and a re-define publishes what a removal
+        took.
         """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.remove(atom, *more))
 

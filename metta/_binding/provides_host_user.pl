@@ -7,6 +7,8 @@
 
 :- multifile seam:effect_operation_name/3.
 
+:- multifile seam:equation_changed/2.
+
 :- multifile seam:foreign_add/2.
 
 :- multifile seam:foreign_add_many/2.

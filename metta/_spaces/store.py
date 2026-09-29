@@ -2,9 +2,13 @@
 
 Guarantees: from_ adds an ordinary live reference row through the existing
 write door [tested: test_from_is_a_live_stored_row; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+Guarantees: a Defined given to remove or -= is its whole definition, taken out
+through the same removal door [tested 2026-09-30T08:34:03+10:00:
+test_removing_a_defined_takes_its_whole_definition,
+test_removing_a_stacked_defined_takes_every_clause].
 Guarantees: -= crosses through the execution-policy wrapper as remove does, so
 inside speculative() its removal is discarded and inside atomic() it is one
-transaction [tested 2026-09-29T23:46:26+10:00:
+transaction [tested 2026-09-30T08:34:03+10:00:
 test_every_public_write_door_honours_the_execution_scopes[isub],
 test_every_public_write_door_honours_the_execution_scopes[isub-many]].
 """
@@ -192,9 +196,10 @@ def from_(space: _root.Space, source: Any, map: Any = None) -> None:  # noqa: A0
     effect=_doors.EffectClass.oracleIO,
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.async_, _doors.Tier.module, _doors.Tier.context),
-    evidence=('extensions/python/tests/ch03_atoms_and_expressions/test_structures.py::test_matchindex_routes_and_removes', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_atoms_count_contains_remove_clear', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_delitem_removes_every_unifying_occurrence'),
+    evidence=('extensions/python/tests/ch03_atoms_and_expressions/test_structures.py::test_matchindex_routes_and_removes', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_atoms_count_contains_remove_clear', 'extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_delitem_removes_every_unifying_occurrence', 'extensions/python/tests/ch11_python_as_a_notation/test_definition_standing.py::test_removing_a_defined_takes_its_whole_definition'),
     alias='remove',
     binding=_doors.Binding('metta_py_remove_many', _doors.Wire.goal),
+    refuses=(_doors.Refusal(_doors.RefusalKind.type, 'extensions/python/tests/repository/test_door_refusals.py::test_door_type_refusals[space:remove]'),),
 )
 def remove(space: _root.Space, atom: Any, *more: Any) -> bool | int:
     """Remove ONE unifying occurrence and say whether one was there,
@@ -225,8 +230,32 @@ def remove(space: _root.Space, atom: Any, *more: Any) -> bool | int:
     A bare variable is the remove-everything reading a multiset space
     gives it, each atom leaving through its own proper path, equations
     and their compiled clauses included.
+
+    A Defined, what ``define`` answered, is one definition, and removing it
+    takes the definition out whole: every equation it published, helper
+    equations included, its declarations and its doc, each through this same
+    door, with the Python record of it, in one transaction, and the answer
+    says whether the space held anything of it; a provider no transaction
+    reaches answers a removal failing part way with PartialWriteError,
+    naming what it no longer holds. That is the inverse of
+    ``define``, and a later ``define`` publishes the definition afresh:
+
+        def stable():
+            return 7
+
+        defined = m.define(stable)
+        m.remove(defined)           # True
+        m.eval(S.stable())          # [(stable)]
+        m.define(stable)            # published again, [7]
+
+    Removing any of its equations by value, through this door or any other, a
+    program's `remove-atom` included, retires them from its reflection rows,
+    twin family and lint evidence, and a re-define publishes what a removal
+    took.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     _spaces_scope_module._refuse_in_batch(space._space, "remove")
+    if any(isinstance(each, lazy('metta._declare.define').Defined) for each in (atom, *more)):
+        return _remove_definitions(space, (atom, *more))
     if more:
         wires = [_to_atom(each).to_wire() for each in (atom, *more)]
         found = _spaces_execution_module.run_write(space._rt, "metta_py_remove_many", space._space, wires)
@@ -246,6 +275,27 @@ def remove(space: _root.Space, atom: Any, *more: Any) -> bool | int:
     result = _atom_from_wire(removed)
     lazy('metta._declare.functions')._invalidate_builtins_cache(space._rt)
     return bool(getattr(result, "value", True))
+
+def _remove_definitions(space: _root.Space, operands: tuple[Any, ...]) -> bool | int:
+    """remove()'s reading of operands among which a Defined names a definition.
+
+    One transaction for all of them, the variadic door's promise, each
+    Defined through the definition door and each atom through remove, the
+    answer counting the operands that were there.
+    """
+    definitions = lazy('metta._declare.definitions')
+    defined = lazy('metta._declare.define').Defined
+
+    def each() -> int:
+        return sum(
+            bool(definitions.remove_definition(space, operand))
+            if isinstance(operand, defined)
+            else bool(space.remove(operand))
+            for operand in operands
+        )
+
+    found = each() if len(operands) == 1 else space.transaction(each)
+    return bool(found) if len(operands) == 1 else int(found)
 
 @_doors.door(
     kind=_doors.Kind.write,
@@ -587,7 +637,10 @@ def clear(space: _root.Space) -> None:
     """Remove everything stored here, compiled equations included."""
     _spaces_scope_module._refuse_in_batch(space._space, "clear")
     lazy('metta._declare.definitions').clear_definitions(space)
-    _spaces_intents_module.clear(space)
+    # The lint evidence describes the definitions the clear takes, so it is
+    # held back with their registry while a speculative scope discards it.
+    if not _spaces_execution_module.speculative_enabled():
+        _spaces_intents_module.clear(space)
     lazy('metta._declare.functions')._invalidate_builtins_cache(space._rt)
 
 @_doors.door(
@@ -662,7 +715,7 @@ def _install_relative_write_declaration(space: _root.Space, atom: Any) -> bool:
     effect=_doors.EffectClass.oracleIO,
     determinism=_doors.Determinism.det,
     tiers=(_doors.Tier.sync, _doors.Tier.context),
-    evidence=('extensions/python/tests/repository/test_door_rows.py::test_generated_space_protocols_preserve_storage_and_identity',),
+    evidence=('extensions/python/tests/ch11_python_as_a_notation/test_definition_standing.py::test_removing_a_stacked_defined_takes_every_clause', 'extensions/python/tests/repository/test_door_rows.py::test_generated_space_protocols_preserve_storage_and_identity'),
     context_inplace=True,
 )
 def __isub__(space: _SpaceT, atom: Any) -> _SpaceT:  # noqa: N807 -- the marked body preserves its Python protocol name
@@ -683,6 +736,9 @@ def __isub__(space: _SpaceT, atom: Any) -> _SpaceT:  # noqa: N807 -- the marked 
     # "succeeded" over an unchanged space.
     """Read Space.__isub__."""
     _spaces_scope_module._refuse_in_batch(space._space, "remove")
+    if isinstance(atom, lazy('metta._declare.define').Defined):
+        space.remove(atom)
+        return space
     stream = _fact_stream(atom)
     if stream is None:
         # One element is already atomic, so it takes the single-item call.
@@ -695,7 +751,11 @@ def __isub__(space: _SpaceT, atom: Any) -> _SpaceT:  # noqa: N807 -- the marked 
             space._rt, "metta_py_remove", space._space, _to_atom(atom).to_wire()
         )
     else:
-        wires = [_to_atom(row).to_wire() for row in stream]
+        rows = list(stream)
+        if any(isinstance(row, lazy('metta._declare.define').Defined) for row in rows):
+            space.remove(*rows)
+            return space
+        wires = [_to_atom(row).to_wire() for row in rows]
         _spaces_execution_module.run_write(
             space._rt, "metta_py_remove_many", space._space, wires
         )

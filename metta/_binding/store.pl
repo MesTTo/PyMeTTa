@@ -2,7 +2,28 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: transfer lands the stored occurrence metta_host_subtract/4
 %   answers, never the wire instantiated by the subtraction's match
-%   [tested 2026-09-29T23:46:26+10:00: test_transfer_lands_the_occurrence_that_left].
+%   [tested 2026-09-30T08:34:03+10:00: test_transfer_lands_the_occurrence_that_left].
+% Guarantees: metta_py_held/3 answers in one crossing which recorded atoms the
+%   space holds as stored variants, one stored occurrence per wire
+%   [tested 2026-09-30T08:34:03+10:00: test_definition_caches_agree_with_the_space,
+%   test_definition_caches_follow_atoms_given_back].
+% Guarantees: metta_py_publish_definition/2 makes every write of a define, and
+%   of the door that removes a Defined, one transaction, so a define failing
+%   at any write leaves every space whose storage the transaction reaches as it
+%   was, a native space and a provider declaring transactional writes, which
+%   it enlists, and no subscriber hears any of its writes; a provider that
+%   declares nothing about its writes takes a definition and gives it back,
+%   and what one whose storage no transaction reaches kept and lost of a
+%   failed publication is counted against what it held before and left for
+%   the define's error (metta_py_publication_residue/1)
+%   [tested 2026-09-30T08:34:03+10:00: test_a_define_failing_at_any_write_changes_nothing,
+%   test_a_define_failing_part_way_leaves_an_equal_equation_standing,
+%   test_a_definition_publishes_into_and_leaves_a_provider_that_declares_nothing,
+%   test_a_define_into_a_transactional_provider_rolls_it_back,
+%   test_a_define_failing_in_a_provider_outside_the_engine_names_what_it_kept,
+%   test_a_removal_failing_in_a_provider_outside_the_engine_names_what_it_lost,
+%   test_a_define_failing_in_the_foreign_rules_provider_leaves_it_as_it_was,
+%   test_a_provider_unreadable_after_a_failed_define_is_named_not_hidden].
 
 %%%%%%%%%% Space operations %%%%%%%%%%
 %
@@ -182,6 +203,211 @@ metta_py_remove_each([Wire|Wires], Space, Count0, Count) :-
     ( Verdict == true -> Count1 is Count0 + 1 ; Count1 = Count0 ),
     metta_py_remove_each(Wires, Space, Count1, Count).
 
+%A Python definition's publication in ONE transaction: every write it makes,
+%in the order given, reflection rows, declarations, the equations it retires
+%and the ones it adds, and its doc, with the definition's watch on its
+%equations' heads (subscriptions.pl, metta_py_watch/1) lapsed while they run
+%and set to its new heads after, so the definition never hears its own writes.
+%The door that removes a Defined publishes its removals the same way, with an
+%empty watch. A failure part way rolls every write back, so nothing has to
+%find by value an atom the space may also hold an equal copy of: the cleanup
+%this replaced removed an added batch by value when the add failed part way,
+%taking a user's own equal equation with it
+%[tested 2026-09-30T08:34:03+10:00: test_a_define_failing_part_way_leaves_an_equal_equation_standing].
+%The transaction is the engine's internal form, SWI's transaction/1, which
+%its rule registrations and repairs run in and metta_py_declare_handles/3
+%already uses, entered holding the typing-policy mutex, never the user's
+%(transaction ...) form: metta_transaction/1 guards every foreign write for a
+%rollback of its own, so it refused a define into a provider that declares
+%nothing about its writes, which the foreign rules example publishes into
+%(engine/metta/space_hooks.pl,
+%metta_in_user_transaction/0) [tested 2026-09-30T08:34:03+10:00:
+%test_a_definition_publishes_into_and_leaves_a_provider_that_declares_nothing],
+%and its outer commit walks every clause update the transaction made through
+%the owned-record and retirement checks [source 2026-09-30T04:48:53+10:00:
+%engine/spaces/owned_records.pl, metta_prepare_owned_records/1, and
+%engine/spaces/lifecycle.pl, metta_prepare_retirements/1]. A define inside
+%the user's transaction or speculative() nests in it and meets its rules.
+%How far the transaction reaches a written space's storage decides the rest
+%(metta_py_storage_reach/2): a native space's storage is the engine's
+%database; a provider declaring transactional writes is enlisted, which only
+%the engine's coordinator does, so a publication writing to one runs in
+%metta_transaction/1 and the provider rolls back with it
+%[tested 2026-09-30T08:34:03+10:00: test_a_define_into_a_transactional_provider_rolls_it_back];
+%any other provider keeps what it takes whatever the transaction does, so
+%the publication counts each atom it writes there before it starts and,
+%when it fails, leaves what the provider kept and lost for the define's
+%error to name (metta_py_publication_residue/1) [tested 2026-09-30T08:34:03+10:00:
+%test_a_define_failing_in_a_provider_outside_the_engine_names_what_it_kept,
+%test_a_define_failing_in_the_foreign_rules_provider_leaves_it_as_it_was].
+%The mutex comes first, as
+%the engine's own writers take it: a clause compiled inside a transaction
+%that opened before it keeps every dynamic type check, since the snapshot the
+%transaction reads may be older than a typing policy another owner has
+%published since [source 2026-09-30T06:12:17+10:00: engine/type_rules.pl,
+%with_typing_policy_stable/1 and typing_policy_shortcuts_allowed/1], and
+%then a Number argument paid the whole check on every call where number/1
+%decides it [tested 2026-09-30T08:34:03+10:00:
+%test_a_defined_function_keeps_its_static_type_shortcuts].
+%The frame is the user form's own (ext_points.pl, observation_begin/0):
+%it holds the writes' events until the transaction commits and drops them
+%when it does not [tested 2026-09-30T08:34:03+10:00: test_a_define_failing_at_any_write_changes_nothing].
+%Each write is [add, Space, Wires] or [remove, Space, Wires]. An add of one
+%atom crosses the one-atom door and of several the batch door, as Space.add
+%chooses, so the equations still arrive as one definition batch; a remove
+%takes one occurrence of each atom, as Space.remove's variadic door does.
+metta_py_publish_definition(Writes, Watches) :-
+    Publication = metta_py_publication(Writes, Watches),
+    (   member([_, Written, _], Writes), seam:foreign_space(Written)
+    ->  metta_py_foreign_plan(Writes, Publication, Transaction, Before)
+    ;   Transaction = transaction(Publication), Before = []
+    ),
+    nb_setval('$metta_py_publication_residue', []),
+    seam:observation_begin,
+    catch((   type_rules:with_typing_policy_stable(Transaction)
+          ->  Outcome = commit
+          ;   Outcome = discard
+          ),
+          Error,
+          Outcome = error(Error)),
+    metta_py_publication_finished(Outcome, Before).
+
+metta_py_publication(Writes, Watches) :-
+    maplist(metta_py_unwatch, Watches),
+    maplist(metta_py_definition_write, Writes),
+    metta_py_watch(Watches).
+
+%A publication writing to a foreign space: the coordinator's transaction when
+%a provider it writes enlists, and, for each provider that keeps what it
+%takes, the atoms it writes there with how many equal occurrences it holds
+%before the transaction starts.
+metta_py_foreign_plan(Writes, Publication, Transaction, Before) :-
+    findall(Space, member([_, Space, _], Writes), Spaces0),
+    sort(Spaces0, Spaces),
+    maplist(metta_py_storage_reach, Spaces, Reaches),
+    (   memberchk(enlisted, Reaches)
+    ->  Transaction = metta_transaction(Publication)
+    ;   Transaction = transaction(Publication)
+    ),
+    findall(Space-Counted,
+            ( nth1(I, Spaces, Space), nth1(I, Reaches, provider),
+              metta_py_written_counts(Writes, Space, Counted) ),
+            Before).
+
+metta_py_publication_finished(commit, _) :- !,
+    seam:observation_commit.
+%A publication that did not commit drops its frame, then notes what each
+%provider outside the transaction kept, whatever the frame's rollback
+%callbacks answered: a failing one still fails the publication, as a failed
+%discard always has, but only after the residue is noted, so it cannot hide
+%what a provider kept.
+metta_py_publication_finished(Outcome, Before) :-
+    (   seam:observation_discard -> Discarded = true ; Discarded = false ),
+    (   Outcome = error(Cause) -> true ; Cause = failed ),
+    metta_py_note_residue(Before, Cause),
+    Discarded == true,
+    Outcome = error(Error),
+    throw(Error).
+
+%How far a transaction opened here reaches a space's storage: engine for a
+%native space, whose storage is the engine's database; enlisted for a
+%provider declaring (writes Space transactional), which the engine's
+%coordinator begins, commits and rolls back with it (engine/spaces/foreign.pl,
+%foreign_write/3); provider for any other, whose storage keeps what it takes.
+metta_py_storage_reach(Space, Reach) :-
+    (   \+ seam:foreign_space(Space)
+    ->  Reach = engine
+    ;   metta_writes(Space, transactional)
+    ->  Reach = enlisted
+    ;   Reach = provider
+    ).
+
+%Each distinct atom the writes add to or remove from Space, with how many
+%occurrences equal to it Space holds now.
+metta_py_written_counts(Writes, Space, Counted) :-
+    findall(Term,
+            ( member([_, Written, Wires], Writes), Written == Space,
+              member(Wire, Wires), metta_py_decode_for_add(Wire, Term) ),
+            Terms),
+    foldl(metta_py_distinct_variant, Terms, [], Distinct),
+    findall(Term-Count,
+            ( member(Term, Distinct), metta_py_stored_count(Space, Term, Count) ),
+            Counted).
+
+metta_py_distinct_variant(Term, Seen, Seen) :-
+    member(Earlier, Seen), Earlier =@= Term, !.
+metta_py_distinct_variant(Term, Seen, [Term|Seen]).
+
+%The occurrences equal to Term a space holds, through the space's own match,
+%so a foreign space answers from its provider; a more general stored atom
+%that merely unifies with Term is not one of them.
+metta_py_stored_count(Space, Term, Count) :-
+    aggregate_all(count,
+                  ( copy_term(Term, Probe),
+                    match_stored(Space, Probe, Probe, _),
+                    Probe =@= Term ),
+                  Count).
+
+%What each provider kept and lost of a failed publication, counted against
+%what it held before, so an occurrence it held before is never named. A
+%provider that cannot be read back is an error of its own, naming the cause:
+%what it kept is then unknown, and saying nothing would hide that.
+metta_py_note_residue(Before, Cause) :-
+    foldl(metta_py_space_residue(Cause), Before, [], Residue),
+    nb_setval('$metta_py_publication_residue', Residue).
+
+metta_py_space_residue(Cause, Space-Counted, Residue0, Residue) :-
+    catch(metta_py_count_moves(Space, Counted, Kept, Lost), ReadError,
+          throw(error(metta_py_provider_unread(Space, ReadError, Cause), none))),
+    (   Kept == [], Lost == []
+    ->  Residue = Residue0
+    ;   metta_py_encode(Space, SpaceWire),
+        append(Residue0, [[SpaceWire, Kept, Lost]], Residue)
+    ).
+
+metta_py_count_moves(Space, Counted, Kept, Lost) :-
+    foldl(metta_py_count_move(Space), Counted, []-[], Kept-Lost).
+
+metta_py_count_move(Space, Term-Before, Kept0-Lost0, Kept-Lost) :-
+    metta_py_stored_count(Space, Term, After),
+    metta_py_encode(Term, Wire),
+    (   After > Before
+    ->  N is After - Before, length(Copies, N), maplist(=(Wire), Copies),
+        append(Kept0, Copies, Kept), Lost = Lost0
+    ;   After < Before
+    ->  N is Before - After, length(Copies, N), maplist(=(Wire), Copies),
+        append(Lost0, Copies, Lost), Kept = Kept0
+    ;   Kept = Kept0, Lost = Lost0
+    ).
+
+%The residue the last failed publication on this thread left, taken once:
+%[SpaceWire, KeptWires, LostWires] for each provider that kept or lost part
+%of it, empty when every space it wrote rolled back.
+metta_py_publication_residue(Residue) :-
+    (   nb_current('$metta_py_publication_residue', Residue0)
+    ->  Residue = Residue0
+    ;   Residue = []
+    ),
+    nb_setval('$metta_py_publication_residue', []).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(metta_py_provider_unread(Space, ReadError, Cause)) -->
+    [ 'a define writing to ~w failed, and ~w\'s provider, which keeps what it \c
+       takes whatever a transaction does, could not be read back to say \c
+       what it kept: ~q. The define failed with: ~q'-[Space, Space, ReadError,
+                                                     Cause] ].
+
+%The unit-answering face, as metta_py_add/3 is to metta_py_add/2.
+metta_py_publish_definition(Writes, Watches, true) :-
+    metta_py_publish_definition(Writes, Watches).
+
+metta_py_definition_write([add, Space, [Wire]]) :- !,
+    metta_py_add(Space, Wire).
+metta_py_definition_write([add, Space, Wires]) :-
+    metta_py_add_many(Space, Wires).
+metta_py_definition_write([remove, Space, Wires]) :-
+    metta_py_remove_each(Wires, Space, 0, _).
+
 %The `del space[pattern]` door: remove-atom drains EVERY unifying occurrence
 %in ONE crossing, upstream's law, and the verdict says whether anything was
 %there so the caller can raise KeyError the way `del d[k]` does. The door used
@@ -203,6 +429,47 @@ metta_py_drain(Space, Wire, Removed) :-
 
 metta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), metta_py_encode(P, E)), Encoded).
+
+%An occurrence of EXACTLY Term in a native space, variables renamed apart,
+%one solution per stored copy. The probe unifies, so the stored clause is
+%decoded and compared as a variant: a more general sibling such as
+%(= (f $x) $y) unifies with (= (f $x) (g $x)) and is not an occurrence of it,
+%which is why match/4, the containment door's test, cannot answer this.
+metta_py_stored_variant(Space, Term, Token) :-
+    copy_term(Term, Probe),
+    spaces:metta_native_pair(Space, Probe, Token, Ref),
+    spaces:metta_owned_clause(Ref, _:Head),
+    native_storage_functor(Space, Functor),
+    metta_storage_term(Functor, Stored, _, Head),
+    Stored =@= Term.
+
+%Which of these atoms the space holds, one 1 or 0 per wire, each stored
+%occurrence answering one wire, so an atom published twice needs two copies.
+%A Python definition asks this of the space before it trusts what it once
+%published (extensions/python/metta/_declare/definitions.py, _standing): the
+%space is the authority, and the registry only remembers what it wrote.
+%Time: one indexed probe per wire plus one variant test per stored atom that
+%unifies with it; a foreign space pays one enumeration of its provider.
+metta_py_held(Space, Wires, Held) :-
+    maplist(metta_py_decode_for_add, Wires, Terms),
+    (   seam:foreign_space(Space)
+    ->  findall(Atom, 'get-atoms'(Space, Atom), Pool),
+        foldl(metta_py_held_pooled, Terms, Held, Pool, _)
+    ;   foldl(metta_py_held_native(Space), Terms, Held, [], _)
+    ).
+
+metta_py_held_native(Space, Term, Flag, Taken0, Taken) :-
+    (   metta_py_stored_variant(Space, Term, Token),
+        \+ memberchk(Token, Taken0)
+    ->  Flag = 1, Taken = [Token|Taken0]
+    ;   Flag = 0, Taken = Taken0
+    ).
+
+metta_py_held_pooled(Term, Flag, Pool0, Pool) :-
+    (   select(Atom, Pool0, Rest), Atom =@= Term
+    ->  Flag = 1, Pool = Rest
+    ;   Flag = 0, Pool = Pool0
+    ).
 
 %One initial future snapshot and the change-stream position that follows it.
 %The dedicated answer mutex makes the two fields one observation rather than a

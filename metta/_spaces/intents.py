@@ -31,6 +31,16 @@ Guarantees:
     runs at collection time [tested:
     test_a_collection_inside_the_position_store_does_not_deadlock;
     commit=1ae276864217e62c9a061685d651ebf0be65b76f]
+  - the three mirrors of reflected lint facts (owned events, transient events,
+    file intents) change only by replacing one space's entry whole, after its
+    preimage is enlisted in the caller's ``registry_undo`` frame, since a
+    rolled-back transaction takes the facts back out of ``&metta`` but cannot
+    reach these dicts; a definition's owned evidence follows its clauses,
+    filed while the space holds a clause and withdrawn while it does not
+    [tested 2026-09-30T08:34:03+10:00:
+    test_a_removed_definition_withdraws_its_lint_evidence,
+    test_a_rolled_back_definition_leaves_no_lint_evidence,
+    test_a_definition_brought_back_is_reflected_again]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
   - ``_POSITION_LOCK`` serializes the bounded weak call-site cache, and no
@@ -49,7 +59,7 @@ import threading
 import tokenize
 import weakref
 from collections import OrderedDict
-from collections.abc import Hashable
+from collections.abc import Hashable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from types import CodeType, FrameType, FunctionType
@@ -57,6 +67,7 @@ from typing import Any, NamedTuple
 
 from metta._atoms.factories import Atom, Expression, Grounded, Symbol
 from metta._binding.dispatch import live_registration
+from metta._lazy import lazy
 
 # These are the adopted authorities, not implementation folklore. Keeping the
 # row IDs with every emitted kind lets a finding answer which ruling it applies.
@@ -207,8 +218,8 @@ class LintInvocation:
 
 
 _OWNER_EVENTS: dict[str, dict[Hashable, frozenset[LintEvent]]] = {}
-_TRANSIENT_EVENTS: dict[str, set[LintEvent]] = {}
-_INTENTS: dict[str, set[LintIntent]] = {}
+_TRANSIENT_EVENTS: dict[str, frozenset[LintEvent]] = {}
+_INTENTS: dict[str, frozenset[LintIntent]] = {}
 _RUNTIMES: dict[str, Any] = {}
 _PARSED_FILES: dict[str, tuple[int, int, tuple[LintIntent, ...]]] = {}
 _SOURCE_CALLS: dict[str, tuple[int, int, dict[int, tuple[ast.Call, ...]]]] = {}
@@ -251,7 +262,17 @@ def _release(runtime: Any, fact: Expression) -> None:
 
 def _all_events(space: str) -> set[LintEvent]:
     owned = _OWNER_EVENTS.get(space, {})
-    return set().union(*owned.values(), _TRANSIENT_EVENTS.get(space, set()))
+    return set().union(*owned.values(), _TRANSIENT_EVENTS.get(space, frozenset()))
+
+
+def _replace(registry: dict[str, Any], name: str, value: Any) -> None:
+    """Replace one space's mirror entry whole, None removing it, after
+    enlisting its preimage: the engine transaction restores the reflected
+    facts themselves, and this puts the mirror describing them back.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    lazy('metta._declare.operations')._replace_entry(
+        registry, name, value, description=f"lint evidence of {name}"
+    )
 
 
 def _replace_owner(
@@ -261,7 +282,12 @@ def _replace_owner(
     with _LOCK:
         _RUNTIMES[name] = runtime
         before = _all_events(name)
-        _OWNER_EVENTS.setdefault(name, {})[owner] = frozenset(current)
+        owned = dict(_OWNER_EVENTS.get(name, {}))
+        if current:
+            owned[owner] = frozenset(current)
+        else:
+            owned.pop(owner, None)
+        _replace(_OWNER_EVENTS, name, owned)
         after = _all_events(name)
         for event in before - after:
             _release(runtime, event.fact(name))
@@ -269,26 +295,26 @@ def _replace_owner(
             _retain(runtime, event.fact(name))
 
 
+def _add_transient(name: str, runtime: Any, event: LintEvent) -> None:
+    events = _TRANSIENT_EVENTS.get(name, frozenset())
+    if event in events or event in _all_events(name):
+        return
+    _replace(_TRANSIENT_EVENTS, name, events | {event})
+    _retain(runtime, event.fact(name))
+
+
 def _record(space: Any, event: LintEvent) -> None:
     name, runtime = _space_parts(space)
     with _LOCK:
         _RUNTIMES[name] = runtime
-        events = _TRANSIENT_EVENTS.setdefault(name, set())
-        if event in events or event in _all_events(name):
-            return
-        events.add(event)
-        _retain(runtime, event.fact(name))
+        _add_transient(name, runtime, event)
 
 
 def _record_for_name(space: str, event: LintEvent) -> None:
     runtime = _runtime_for_name(space)
     with _LOCK:
         _RUNTIMES[space] = runtime
-        events = _TRANSIENT_EVENTS.setdefault(space, set())
-        if event in events or event in _all_events(space):
-            return
-        events.add(event)
-        _retain(runtime, event.fact(space))
+        _add_transient(space, runtime, event)
 
 
 def _position(frame: FrameType) -> tuple[str, int, int]:
@@ -508,10 +534,11 @@ def _retain_file_intents(
     )
     with _LOCK:
         _RUNTIMES[name] = runtime
-        recorded = _INTENTS.setdefault(name, set())
+        recorded = _INTENTS.get(name, frozenset())
         for intent in selected:
             if intent not in recorded:
-                recorded.add(intent)
+                recorded = recorded | {intent}
+                _replace(_INTENTS, name, recorded)
                 _retain(runtime, intent.fact(name))
 
 
@@ -680,10 +707,8 @@ def clear(space: Any) -> None:
             _release(runtime, event.fact(name))
         for intent in _INTENTS.get(name, set()):
             _release(runtime, intent.fact(name))
-        _OWNER_EVENTS.pop(name, None)
-        _TRANSIENT_EVENTS.pop(name, None)
-        _INTENTS.pop(name, None)
-        _RUNTIMES.pop(name, None)
+        for registry in (_OWNER_EVENTS, _TRANSIENT_EVENTS, _INTENTS, _RUNTIMES):
+            _replace(registry, name, None)
 
 
 class _LoopCrossings(ast.NodeVisitor):
@@ -790,8 +815,13 @@ class _LoopCrossings(ast.NodeVisitor):
 
 def register_definition_crossings(
     space: Any, fn: FunctionType, atom: Atom, metta_name: str
-) -> None:
-    """Replace one definition source's loop-crossing evidence."""
+) -> tuple[Hashable, frozenset[LintEvent]] | None:
+    """Replace one definition source's loop-crossing evidence.
+
+    Answers the owner the evidence is filed under with the events filed,
+    which is what file_definition_crossings files again or takes back, or
+    None when the source cannot be read and nothing was filed.
+    """
     try:
         lines, first_line = inspect.getsourcelines(fn)
         source = textwrap.dedent("".join(lines))
@@ -804,7 +834,7 @@ def register_definition_crossings(
         )
         path = inspect.getsourcefile(fn) or inspect.getfile(fn)
     except (OSError, TypeError, SyntaxError, StopIteration):
-        return
+        return None
     if not (path.startswith("<") and path.endswith(">")):
         path = str(Path(path).resolve())
     visitor = _LoopCrossings(fn, path, first_line, atom)
@@ -813,7 +843,22 @@ def register_definition_crossings(
     targets = tuple((event.kind, event.line) for event in visitor.events)
     _retain_file_intents(space, path, targets=targets)
     owner = ("define", metta_name, path, first_line)
-    _replace_owner(space, owner, visitor.events)
+    events = frozenset(visitor.events)
+    _replace_owner(space, owner, events)
+    return owner, events
+
+
+def file_definition_crossings(
+    space: Any, filings: Iterable[tuple[Hashable, frozenset[LintEvent]]]
+) -> None:
+    """File each owner's loop-crossing evidence as given, an empty set withdrawing it.
+
+    A definition files its clauses' own events while the space holds them and
+    nothing for the ones it lost, so a clause a removal took and a later add
+    brought back is evidenced again.
+    """
+    for owner, events in filings:
+        _replace_owner(space, owner, events)
 
 
 def register_rule_events(space: Any, bundle: Any) -> None:

@@ -14,11 +14,11 @@ Guarantees:
     test_isub_subtracts_one_occurrence_and_inverts_iadd; commit=c6a40460b1db341198a6150e3600f502831a6e83]
   - transfer lands the occurrence that left as the source stored it, never
     the named atom instantiated by the match, which for an equation that
-    unifies only cyclically is a rational tree [tested 2026-09-29T23:46:26+10:00:
+    unifies only cyclically is a rational tree [tested 2026-09-30T08:34:03+10:00:
     test_transfer_lands_the_occurrence_that_left]
   - `-=` takes an occurrence equal to its operand before an older one that
     only unifies with it, so `+=` then `-=` leaves the space it found over
-    atoms with variables too [tested 2026-09-29T23:46:26+10:00:
+    atoms with variables too [tested 2026-09-30T08:34:03+10:00:
     test_isub_takes_the_equal_occurrence_before_an_older_unifier]
   - eval's variadic face answers one group per term, run()'s grouping,
     with one bind scope over the whole batch [tested:

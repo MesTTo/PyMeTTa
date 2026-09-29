@@ -27,3 +27,5 @@ provided_template(atom_added, (seam:atom_added(Space, Term) :- metta_py_notify_a
 provided_template(atom_removed, (seam:atom_removed(Space, Term) :- metta_py_notify_atom_removed(Space, Term))).
 
 provided_template(segment_committed, (seam:segment_committed(Spaces) :- metta_py_notify_segment_committed(Spaces))).
+
+provided_template(equation_changed, (seam:equation_changed(Space, _Head) :- metta_py_notify_equation_changed(Space, _Name))).

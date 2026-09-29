@@ -263,6 +263,16 @@ class _HashableSpaceTerm(list[Any]):
     __setitem__ = __delitem__ = __iadd__ = __imul__ = _immutable
     append = clear = extend = insert = pop = remove = reverse = sort = _immutable
 
+def space_wire(name: str | _HashableSpaceTerm) -> list:
+    """The portable operand for the space an engine name names: a parametric
+    space's expression, any other space's name under the space tag. A handle's
+    ``to_wire`` is this of its name, and so is a Python definition's home heard
+    from an engine notice, which has a name and no handle.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    if isinstance(name, _HashableSpaceTerm):
+        return name.__metta__().to_wire()
+    return ["p", str(name)]
+
 class SpaceHandle(Handle):
     """A space bound to the engine: the way in from Python.
 
@@ -979,9 +989,7 @@ class SpaceHandle(Handle):
     )
     def to_wire(self) -> list:
         """Encode the live engine reference as a portable space operand."""
-        if isinstance(self._name_atom, Expression):
-            return self._name_atom.to_wire()
-        return ["p", str(self._space)]
+        return space_wire(self._space)
 
     @property
     @_doors.door(

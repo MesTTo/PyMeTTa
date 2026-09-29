@@ -63,6 +63,7 @@ _CALLBACKS = {
     'dispatch': ('metta._binding.dispatch', 'dispatch'),
     'drop_completed': ('metta._spaces.handle', 'drop_completed'),
     'engine_message': ('metta._binding.runtime', 'engine_message'),
+    'equation_changed': ('metta._declare.definitions', 'equation_changed'),
     'foreign_add': ('metta.foreign', 'foreign_add'),
     'foreign_add_many': ('metta.foreign', 'foreign_add_many'),
     'foreign_add_token': ('metta.foreign', 'foreign_add_token'),
@@ -106,6 +107,7 @@ construct_token: _Any
 dispatch: _Any
 drop_completed: _Any
 engine_message: _Any
+equation_changed: _Any
 foreign_add: _Any
 foreign_add_many: _Any
 foreign_add_token: _Any
@@ -149,6 +151,7 @@ __all__ = [
     'dispatch',
     'drop_completed',
     'engine_message',
+    'equation_changed',
     'foreign_add',
     'foreign_add_many',
     'foreign_add_token',

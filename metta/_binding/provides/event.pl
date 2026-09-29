@@ -18,6 +18,8 @@ provides_declaration(host, user, atom_removed/2).
 
 provides_declaration(host, user, segment_committed/1).
 
+provides_declaration(host, user, equation_changed/2).
+
 provides_declaration(host, user, space_released/1).
 
 provides(host, user, (
@@ -34,4 +36,8 @@ seam:atom_removed(Space, Term) :- metta_py_notify_atom_removed(Space, Term)
 
 provides_template(host, user, segment_committed, (
 seam:segment_committed(Spaces) :- metta_py_notify_segment_committed(Spaces)
+)).
+
+provides_template(host, user, equation_changed, (
+seam:equation_changed(Space, _Head) :- metta_py_notify_equation_changed(Space, _Name)
 )).

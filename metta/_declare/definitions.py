@@ -95,6 +95,91 @@ Guarantees:
     test_override_is_refused_when_nothing_is_shadowed,
     test_a_shadowing_definition_without_the_decorator_is_unchanged;
     commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
+  - the space is the authority on a definition: one record per space and
+    name remembers what define published, and whether it still stands is
+    asked of the space, so a clause is a duplicate only while the space holds
+    an equation its head answers through, and a re-define restores whatever
+    a removal took, equations, helpers, declarations and doc, and clears what
+    a partial removal left behind [tested 2026-09-30T08:34:03+10:00:
+    test_redefining_after_an_equation_removal_publishes_again,
+    test_a_redefinition_restores_a_removed_declaration_and_doc,
+    test_a_redefinition_restores_only_what_a_removal_took]
+  - remove_definition, the body of m.remove(<Defined>), takes every atom a
+    definition published, every stacked clause, through the ordinary removal
+    door in the one transaction define publishes through and retires its
+    record, reflection rows, twin family and lint evidence, leaving an older
+    atom that merely unifies with one of them; the name-collision refusal
+    names that door
+    [tested 2026-09-30T08:34:03+10:00: test_removing_a_defined_takes_its_whole_definition,
+    test_removing_a_stacked_defined_takes_every_clause,
+    test_the_door_leaves_an_older_equation_that_unifies_with_its_own,
+    test_the_collision_refusal_names_the_definition_door]
+  - every committed change to one of a definition's equations, through any
+    door, a program's remove-atom and add-atom as much as a Python one, moves
+    its reflection rows, twin family and lint evidence to the clauses the
+    space still answers through: the engine tells it through
+    seam:equation_changed/2 once the outermost transaction commits, and the
+    notice, which can arrive while its writer holds an engine lock, is only
+    recorded there and reconciled at the next crossing made with no engine
+    callback open; a rolled-back or speculative write is never heard, a
+    definition never hears its own writes, and a write to a head no
+    definition publishes crosses to no Python [tested 2026-09-30T08:34:03+10:00:
+    test_a_program_removing_and_restoring_an_equation_moves_the_definition,
+    test_a_rolled_back_program_removal_changes_nothing,
+    test_a_program_removal_is_heard_once_its_transaction_commits,
+    test_a_speculative_program_removal_commits_nothing,
+    test_an_unwatched_equation_write_crosses_to_no_python,
+    test_a_notice_neither_locks_nor_crosses,
+    test_a_definition_brought_back_is_reflected_again,
+    test_definition_caches_follow_atoms_given_back]
+  - every engine write of a define, its reflection rows, declarations,
+    equations and doc, rides one transaction (metta_py_publish_definition/2),
+    so a define failing at any of them leaves the reflection rows, the record,
+    the twin family and every space whose storage the transaction reaches as
+    they were, an equal equation the space held before included, and tells
+    no subscriber of any of them; a provider declaring transactional writes
+    is enlisted and rolls back with it; a provider that declares nothing
+    about its writes takes a definition and gives it back, as the engine's
+    own rule registration does, and one whose storage no transaction reaches
+    keeps what it took, which the failure raises as a PartialWriteError
+    naming exactly the atoms it kept and lost, from the failure itself;
+    a watcher raising on a define's or a removal's
+    committed writes leaves them recorded before its SubscriberError reaches
+    the caller; its clauses keep the static type shortcuts a define outside
+    any transaction compiles with; and a define inside its own space's batch
+    is refused
+    [tested 2026-09-30T08:34:03+10:00: test_a_define_failing_part_way_leaves_an_equal_equation_standing,
+    test_a_define_failing_at_any_write_changes_nothing,
+    test_a_definition_publishes_into_and_leaves_a_provider_that_declares_nothing,
+    test_a_define_into_a_transactional_provider_rolls_it_back,
+    test_a_define_failing_in_a_provider_outside_the_engine_names_what_it_kept,
+    test_a_removal_failing_in_a_provider_outside_the_engine_names_what_it_lost,
+    test_a_provider_unreadable_after_a_failed_define_is_named_not_hidden,
+    test_a_watcher_failing_after_a_definition_commits_leaves_it_recorded,
+    test_a_defined_function_keeps_its_static_type_shortcuts,
+    test_failed_equation_publication_rolls_back_its_early_declaration,
+    test_failed_overload_publication_rolls_back_all_arrows]
+  - every registry change enlists its Python preimage, so a transaction's
+    rollback restores the record, twin family and reflection counts with the
+    atoms, and inside speculative() nothing is committed while the snapshot
+    discards the writes; after any interleaving of define, re-define, removal
+    and clear in any of those scopes the caches agree with the space, and so
+    they do with atoms returned by add and transfer too [tested
+    2026-09-30T08:34:03+10:00: test_an_equation_removal_follows_its_transaction,
+    test_the_door_follows_its_transaction,
+    test_a_rolled_back_redefinition_restores_the_twin,
+    test_a_rolled_back_clear_keeps_its_definitions,
+    test_a_speculative_define_and_removal_leave_no_trace,
+    test_definition_caches_agree_with_the_space,
+    test_definition_caches_follow_atoms_given_back]
+  - Time: a first define reads nothing and writes everything in one
+    crossing; a define of a name this space records, a removal of a Defined,
+    and each committed write to a head a definition publishes read the
+    definition back in one crossing of W = its physical atoms + declarations
+    + doc, so stacking K disjoint two-equation clauses reads K(K-1) atoms
+    beside its K writes of 2K atoms; a write to any other head reads nothing
+    [source 2026-09-30T03:13:08+10:00: _standing, equation_changed, and metta_py_held/3
+    and metta_py_publish_definition/2 in extensions/python/metta/_binding/store.pl]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -113,13 +198,17 @@ import os
 import threading
 import types
 import typing as _typing
-from collections.abc import Callable, Iterable, Sequence
+from collections import deque
+from collections.abc import Callable, Hashable, MutableMapping, Sequence
+from dataclasses import dataclass
+from dataclasses import replace as _replace
 from functools import partial
 from typing import TYPE_CHECKING, Any, dataclass_transform, overload
 
 import metta._declare.define as _declare_define_module
 import metta._declare.operations as _declare_operations_module
 import metta._declare.rules as _declare_rules_module
+import metta._spaces.scope as _spaces_scope_module
 import metta.doors as _doors
 from metta._atoms.designation import _P, _R, _T
 from metta._atoms.factories import (
@@ -135,39 +224,117 @@ from metta._atoms.factories import (
 )
 from metta._atoms.names import attribute_name, binding_name
 from metta._binding.dispatch import REGISTRY
+from metta._binding.runtime import at_safe_point, runtime
 from metta._catalog import call_signatures
 from metta._catalog.declarations import inferred
 from metta._catalog.documentation import documentation_atom
 from metta._compile.twins import (
     TwinNamespace,
-    dispatcher_owns_clause,
     select_clause_twin,
 )
 from metta._declare import call_syntax, classes
 from metta._declare import functions as _space_functions
-from metta._errors.errors import CompileError, EngineError, Remedy
+from metta._errors.errors import (
+    CompileError,
+    EngineError,
+    PartialWriteError,
+    Remedy,
+    SubscriberError,
+)
 from metta._lazy import lazy
-from metta._spaces.execution import run_void_write
+from metta._spaces.execution import run_void_write, speculative_enabled
+from metta._spaces.handle import space_wire
 from metta.vocabularies import EffectClass
 
-_DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
+
+@dataclass(frozen=True, slots=True)
+class _Definition:
+    """What define published under one name in one space, never whether the
+    space still holds it: that is the space's answer, read by _standing
+    whenever it decides anything, so a removal through any door, a rollback
+    and a discarded scope need no entry of their own here.
+
+    ``clauses`` are the clause records the last define published, in
+    definition order, each carrying its materialised physical equations,
+    helpers, twin and Python owner; a removal leaves them recorded, so the
+    atoms a partial removal left behind are still known and the next define
+    or removal takes them;
+    ``declared`` and ``documented`` the declarations and the doc atom this
+    definition added; ``reflected`` the facts it retained in ``&metta``.
+    Replaced whole, never mutated, so a preimage is the object itself.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
+    clauses: tuple[dict[str, Any], ...] = ()
+    declared: tuple[Expression, ...] = ()
+    documented: Expression | None = None
+    reflected: tuple[Expression, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class _Standing:
+    """The space's answer about one definition."""
+
+    #: The clause records the space still answers through, in definition
+    #: order: it holds one of the equations the clause's head owns, or, for a
+    #: member of a merged case component, the owner's case equation.
+    live: tuple[dict[str, Any], ...]
+    #: Every recorded physical atom the space holds, a partial removal's
+    #: debris included, which is the "previous" of a publication's difference.
+    held: tuple[Expression, ...]
+    #: The recorded or asked-about declarations the space holds.
+    declared: tuple[Expression, ...]
+    #: Whether the space holds the recorded doc atom.
+    documented: bool
+
+
+_UNRECORDED = _Definition()
+
+_DEFINITIONS: dict[tuple[str, str], _Definition] = {}
 _DEFINE_TWINS: dict[str, TwinNamespace] = {}
-
-_DECLARED_DEFINES: dict[tuple[str, str], list[Expression]] = {}
-
-
-
-_DEFINED_GENERATORS: set[tuple[str, str]] = set()
-
-_DEFINE_DOCUMENTATION: dict[tuple[str, str], Expression] = {}
-
-_DEFINE_REFLECTION: dict[tuple[str, str], tuple[Expression, ...]] = {}
 
 _DEFINE_FACT_REFS: dict[str, int] = {}
 
-_DEFINED_FUNCTION_NAMES: dict[tuple[str, types.FunctionType], set[str]] = {}
+_DEFINED_FUNCTION_NAMES: dict[tuple[str, types.FunctionType], frozenset[str]] = {}
 
-_DEFINE_LOCK = threading.RLock()
+class _DefineLock:
+    """A re-entrant lock that can say whether this thread holds it, which
+    threading.RLock cannot be asked: the reconciliation a notice asks for
+    (_settle_noticed) must wait while this thread is inside a definitions
+    critical section, whose own write is still under way.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
+    __slots__ = ("_depth", "_lock")
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._depth = threading.local()
+
+    def __enter__(self) -> None:
+        self._lock.acquire()
+        self._depth.value = getattr(self._depth, "value", 0) + 1
+
+    def __exit__(self, *_exc: object) -> None:
+        self._depth.value -= 1
+        self._lock.release()
+
+    def held(self) -> bool:
+        """Whether this thread is inside a critical section of this lock."""
+        return getattr(self._depth, "value", 0) > 0
+
+
+_DEFINE_LOCK = _DefineLock()
+
+# The definitions engine notices named (equation_changed), waiting for a safe
+# point. A notice can reach Python while its writer holds an engine lock, the
+# typing policy's around a single equation added outside any transaction, and
+# a define waits for engine locks while it holds _DEFINE_LOCK, so the notice
+# only appends here and the reconciliation runs where no engine callback is
+# open (_binding/runtime.py, at_safe_point).
+_NOTICED: deque[tuple[list[Any], str]] = deque()
+
+def _put(mapping: MutableMapping[Any, Any], key: Hashable, value: Any, what: str) -> None:
+    """Change one registry entry, None removing it, after enlisting its preimage."""
+    _declare_operations_module._replace_entry(mapping, key, value, description=what)
 
 def clear_definitions(space: Any) -> None:
     """Clear one space and the process state describing its definitions.
@@ -179,12 +346,6 @@ def clear_definitions(space: Any) -> None:
     described a space that still holds its definitions
     [tested: test_every_public_write_door_honours_the_execution_scopes].
     """
-    # Deferred because _space_execution reaches _space_objects, which imports
-    # call_parameter_names from this module; a module-level import closes that
-    # cycle. Clearing a space is not a hot door.
-    # definition hooks run after execution and library initialization
-    from metta._spaces.execution import speculative_enabled  # noqa: PLC0415
-
     with _DEFINE_LOCK:
         run_void_write(space.runtime, "metta_py_clear", space.name)
     if not speculative_enabled():
@@ -201,23 +362,20 @@ def release_definitions(space: Any) -> None:
     reflection rows included, WITHOUT clearing the space's own store: the
     half a dying space needs, since the engine's release clears the store
     itself under its muting flag and the funnel must not run twice
-    [tested: test_reflection_facts_follow_a_dropped_space].
+    [tested 2026-09-30T08:34:03+10:00: test_reflection_facts_follow_a_dropped_space]. Every entry it
+    drops enlists its preimage, so a clear a transaction rolls back leaves its
+    definitions described [tested 2026-09-30T08:34:03+10:00: test_a_rolled_back_clear_keeps_its_definitions].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     with _DEFINE_LOCK:
-        for key in [key for key in _DEFINE_REFLECTION if key[0] == space.name]:
-            for fact in _DEFINE_REFLECTION.pop(key):
-                _release_definition_fact(space, fact)
-        for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES, _DEFINE_DOCUMENTATION):
-            for key in [key for key in registry if key[0] == space.name]:
-                del registry[key]
-        _DEFINE_TWINS.pop(space.name, None)
-        _DEFINED_GENERATORS.difference_update(
-            {key for key in _DEFINED_GENERATORS if key[0] == space.name}
-        )
-        for defined_key in [
-            key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name
-        ]:
-            del _DEFINED_FUNCTION_NAMES[defined_key]
+        keys = [key for key in _DEFINITIONS if key[0] == space.name]
+        for key in keys:
+            _sync_definition_facts(space, _DEFINITIONS[key].reflected, ())
+            _put(_DEFINITIONS, key, None, f"definition {key[1]!r} in {key[0]}")
+        if keys:
+            _watch(space, [(name, ()) for _, name in keys])
+        _put(_DEFINE_TWINS, space.name, None, f"twin namespace of {space.name}")
+        for defined_key in [key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name]:
+            _put(_DEFINED_FUNCTION_NAMES, defined_key, None, f"installed names in {space.name}")
         classes.home_retired(space.name)
 
 def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):
@@ -277,11 +435,19 @@ def _refuse_mismatched_twin_arity(
         )
 
 def _is_nondeterministic(space: Any, called: str) -> bool:
-    """Whether a registered operation or compiled definition has many answers."""
+    """Whether a registered operation or compiled definition has many answers.
+
+    A generator clause counts only while the space still holds it, so the
+    space is asked only when the definition recorded one.
+    """
     operation = REGISTRY.get(called)
     if operation is not None and operation.kind in ("many", "raw_many"):
         return True
-    return (space.name, called) in _DEFINED_GENERATORS
+    with _DEFINE_LOCK:
+        definition = _DEFINITIONS.get((space.name, called))
+        if definition is None or not any(clause["generator"] for clause in definition.clauses):
+            return False
+        return any(clause["generator"] for clause in _standing(space, definition).live)
 
 def _operation_effect(space: Any, called: str) -> EffectClass:
     """The callee's declared effect, conservatively top when unclassified."""
@@ -306,13 +472,20 @@ def _returns_bool(space: Any, called: str) -> bool:
     )
 
 def call_parameter_names(space: Any, called: str, arity: int) -> tuple[str, ...] | None:
-    """Return one exact parameter roster, or None when placement is ambiguous."""
+    """Return one exact parameter roster, or None when placement is ambiguous.
+
+    A definition's roster counts only while the space still holds its clause,
+    so the space is asked only when the definition recorded one at this arity.
+    """
     with _DEFINE_LOCK:
-        clause_names = {
-            tuple(clause["params"])
-            for clause in _DEFINE_CLAUSES.get((space.name, called), ())
-            if clause["arity"] == arity
-        }
+        definition = _DEFINITIONS.get((space.name, called), _UNRECORDED)
+        clause_names: set[tuple[str, ...]] = set()
+        if any(clause["arity"] == arity for clause in definition.clauses):
+            clause_names = {
+                tuple(clause["params"])
+                for clause in _standing(space, definition).live
+                if clause["arity"] == arity
+            }
     if len(clause_names) == 1:
         return next(iter(clause_names))
     operation = REGISTRY.get(called)
@@ -323,7 +496,10 @@ def call_parameter_names(space: Any, called: str, arity: int) -> tuple[str, ...]
 
 def _remember_defined_callable(space: Any, fn: types.FunctionType, name: str) -> None:
     """Record the exact installed name carried by one source function."""
-    _DEFINED_FUNCTION_NAMES.setdefault((space.name, fn), set()).add(name)
+    key = (space.name, fn)
+    names = _DEFINED_FUNCTION_NAMES.get(key, frozenset())
+    if name not in names:
+        _put(_DEFINED_FUNCTION_NAMES, key, names | {name}, f"installed names of {fn.__name__}")
 
 def _installed_callable_name(space: Any, value: object) -> str | None:
     """Resolve the exact live name carried by a bound definition or operation."""
@@ -333,7 +509,7 @@ def _installed_callable_name(space: Any, value: object) -> str | None:
             return operation.name
     if not isinstance(value, types.FunctionType):
         return None
-    names = _DEFINED_FUNCTION_NAMES.get((space.name, value), set())
+    names = _DEFINED_FUNCTION_NAMES.get((space.name, value), frozenset())
     live = sorted(name for name in names if space.is_function(name))
     if len(live) <= 1:
         return live[0] if live else None
@@ -482,40 +658,6 @@ def _defined_result(
         bodies=bodies,
     )
 
-def _store_clause(
-    space: Any,
-    earlier: list[dict[str, Any]],
-    *,
-    name: str,
-    patterns: dict[str, Atom],
-    equations: tuple[Expression, ...],
-    compiled: _declare_define_module.Compiled,
-    publish_twin: Callable[[], None],
-    replaced: int | None,
-) -> None:
-    record = _clause_record(patterns, equations, compiled)
-    prospective = earlier.copy()
-    if replaced is None:
-        prospective.append(record)
-    else:
-        prospective[replaced] = record
-    prospective = _materialize_clause_equations(name, prospective)
-
-    previous_atoms = _physical_atoms(earlier)
-    next_atoms = _physical_atoms(prospective)
-    removed, added = _alpha_multiset_delta(previous_atoms, next_atoms)
-    if removed:
-        space.remove(removed[0], *removed[1:])
-    try:
-        space.add(*added)
-    except BaseException:
-        if added:
-            space.remove(added[0], *added[1:])
-        space.add(*removed)
-        raise
-    earlier[:] = prospective
-    publish_twin()
-
 def _physical_atoms(clauses: Sequence[dict[str, Any]]) -> list[Expression]:
     """Flatten the helper and materialized equations stored for clauses."""
     return [
@@ -523,6 +665,76 @@ def _physical_atoms(clauses: Sequence[dict[str, Any]]) -> list[Expression]:
         for clause in clauses
         for atom in (*clause.get("aux", ()), *clause["equations"])
     ]
+
+def _standing(
+    space: Any, definition: _Definition, asked: Sequence[Expression] = ()
+) -> _Standing:
+    """Ask the space which of this definition's atoms it still holds.
+
+    One crossing, metta_py_held/3, for every recorded physical atom, recorded
+    declaration and the recorded doc, plus ``asked``: the declarations a
+    define is about to publish. Each answer is an exact stored occurrence,
+    one per atom asked, so a clause published twice needs two copies. A
+    clause stands while the space holds one of the equations its head
+    answers through, its own or, inside a merged case component, the
+    owner's case equation; a helper or a sibling yield it lost is debris the
+    next define restores, and a clause whose head the space no longer
+    answers through is gone, so its name is free for another function.
+    Time: one crossing carrying the definition's recorded atoms and
+    ``asked``; none when both are empty.
+    """
+    physical = _physical_atoms(definition.clauses)
+    declarations = tuple(dict.fromkeys((*definition.declared, *asked)))
+    documented = () if definition.documented is None else (definition.documented,)
+    atoms = (*physical, *declarations, *documented)
+    if not atoms:
+        return _Standing((), (), (), documented=False)
+    flags = [
+        bool(flag)
+        for flag in space.runtime.apply_must(
+            "metta_py_held", space.name, [atom.to_wire() for atom in atoms]
+        )
+    ]
+    answering: list[bool] = []
+    position = 0
+    for clause in definition.clauses:
+        helpers = len(clause.get("aux", ()))
+        heads = len(clause["equations"])
+        answering.append(any(flags[position + helpers:position + helpers + heads]))
+        position += helpers + heads
+    owners = _component_owners(definition.clauses)
+    live = tuple(
+        clause
+        for index, clause in enumerate(definition.clauses)
+        if answering[owners[index]]
+    )
+    counted = len(physical)
+    return _Standing(
+        live,
+        tuple(atom for atom, flag in zip(physical, flags, strict=False) if flag),
+        tuple(
+            declaration
+            for declaration, flag in zip(declarations, flags[counted:], strict=False)
+            if flag
+        ),
+        documented=bool(documented) and flags[-1],
+    )
+
+def _component_owners(clauses: Sequence[dict[str, Any]]) -> list[int]:
+    """The position whose record holds each clause's physical equations.
+
+    _materialize_clause_equations gives a merged component's case equation to
+    its first member and nothing to the rest, by the same overlap components.
+    """
+    owners = list(range(len(clauses)))
+    by_arity: dict[int, list[int]] = {}
+    for position, clause in enumerate(clauses):
+        by_arity.setdefault(clause["arity"], []).append(position)
+    for positions in by_arity.values():
+        for component in _overlap_components(list(clauses), positions):
+            for position in component:
+                owners[position] = component[0]
+    return owners
 
 def _alpha_multiset_delta(
     previous: Sequence[Expression], current: Sequence[Expression]
@@ -548,7 +760,11 @@ def _alpha_multiset_delta(
     return removed, added
 
 def _clause_record(
-    patterns: dict[str, Atom], equations: tuple[Expression, ...], compiled: _declare_define_module.Compiled
+    fn: types.FunctionType,
+    patterns: dict[str, Atom],
+    equations: tuple[Expression, ...],
+    compiled: _declare_define_module.Compiled,
+    twin: Callable[..., Any],
 ) -> dict[str, Any]:
     return {
         "arity": len(compiled.params),
@@ -560,6 +776,12 @@ def _clause_record(
         "aux": tuple(compiled.aux),
         "facts": compiled.facts,
         "generator": compiled.generator,
+        # The Python name that owns the clause, which is what the collision
+        # refusal compares, and the clause's twin and its lint owner with the
+        # events filed under it, which follow the clause out and back in.
+        "owner": fn.__name__,
+        "twin": twin,
+        "crossings": None,
     }
 
 def _materialize_clause_equations(name: str, clauses: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -721,78 +943,71 @@ def _definition_facts(
     facts.append(Expression([Symbol("effect"), Symbol(name), Symbol(effect.value)]))
     return tuple(dict.fromkeys(facts))
 
-def _retain_definition_fact(space: Any, fact: Expression) -> None:
-    key = str(fact)
-    count = _DEFINE_FACT_REFS.get(key, 0)
-    if count == 0:
-        space.runtime.must(
-            "metta_py_add(Space, W)",
-            Space=_declare_operations_module._REFLECTION_SPACE,
-            W=fact.to_wire(),
-        )
-    _DEFINE_FACT_REFS[key] = count + 1
+def _reflection_moves(
+    previous: tuple[Expression, ...], current: tuple[Expression, ...]
+) -> tuple[dict[str, int], list[Expression], list[Expression]]:
+    """What moving a definition's reflected facts from ``previous`` to
+    ``current`` changes: the reference count it leaves for each fact it moves,
+    0 where one reaches zero, the facts whose count leaves zero, which the
+    reflection space gains, and the facts whose count reaches zero, which it
+    loses. Definitions share a fact by counting it, so the space holds one
+    copy however many reflect it.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    counts: dict[str, int] = {}
+    gained: list[Expression] = []
+    lost: list[Expression] = []
+    for fact in current:
+        if fact not in previous:
+            key = str(fact)
+            count = counts.get(key, _DEFINE_FACT_REFS.get(key, 0))
+            if count == 0:
+                gained.append(fact)
+            counts[key] = count + 1
+    for fact in previous:
+        if fact not in current:
+            key = str(fact)
+            count = counts.get(key, _DEFINE_FACT_REFS.get(key, 0))
+            if count <= 1:
+                lost.append(fact)
+            counts[key] = max(count - 1, 0)
+    return counts, gained, lost
 
-def _release_definition_fact(space: Any, fact: Expression) -> None:
-    key = str(fact)
-    count = _DEFINE_FACT_REFS.get(key, 0)
-    if count <= 1:
-        _DEFINE_FACT_REFS.pop(key, None)
-        space.runtime.once(
-            "metta_py_remove(Space, W, _)",
-            Space=_declare_operations_module._REFLECTION_SPACE,
-            W=fact.to_wire(),
-        )
-    else:
-        _DEFINE_FACT_REFS[key] = count - 1
+def _count_reflection(counts: dict[str, int]) -> None:
+    """Record the reference counts a reflection move left, each preimage enlisted."""
+    for key, count in counts.items():
+        _put(_DEFINE_FACT_REFS, key, count or None, f"reflection count of {key}")
 
-def _sync_definition_facts(space: Any, name: str, clauses: list[dict[str, Any]]) -> None:
-    """Replace a definition's reflected facts, restoring the old set on error."""
-    key = (space.name, name)
-    previous = _DEFINE_REFLECTION.get(key, ())
-    current = _definition_facts(space, name, clauses)
-    retained: list[Expression] = []
-    released: list[Expression] = []
+def _sync_definition_facts(
+    space: Any, previous: tuple[Expression, ...], current: tuple[Expression, ...]
+) -> None:
+    """Move a definition's reflected facts from ``previous`` to ``current``, one
+    crossing per fact the reflection space gains or loses, and take back every
+    one of those writes when a later one fails: each inverse undoes a write this
+    move made, so it never touches another owner's copy.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    counts, gained, lost = _reflection_moves(previous, current)
+    reflection = _declare_operations_module._REFLECTION_SPACE
+    add = partial(space.runtime.must, "metta_py_add(Space, W)", Space=reflection)
+    remove = partial(space.runtime.once, "metta_py_remove(Space, W, _)", Space=reflection)
+    undo: list[Callable[[], Any]] = []
     try:
-        for fact in current:
-            if fact not in previous:
-                _retain_definition_fact(space, fact)
-                retained.append(fact)
-        for fact in previous:
-            if fact not in current:
-                _release_definition_fact(space, fact)
-                released.append(fact)
-    except BaseException:
-        for fact in reversed(released):
-            _retain_definition_fact(space, fact)
-        for fact in reversed(retained):
-            _release_definition_fact(space, fact)
+        for fact in gained:
+            add(W=fact.to_wire())
+            undo.append(partial(remove, W=fact.to_wire()))
+        for fact in lost:
+            remove(W=fact.to_wire())
+            undo.append(partial(add, W=fact.to_wire()))
+    except BaseException as error:
+        _unwind(undo, error)
         raise
-    _DEFINE_REFLECTION[key] = current
+    _count_reflection(counts)
 
-def _document_definition(space: Any, name: str, dispatcher: Any) -> None:
-    """Publish the dispatcher's canonical first-clause documentation."""
-    key = (space.name, name)
-    previous = _DEFINE_DOCUMENTATION.get(key)
-    current = documentation_atom(name, dispatcher, kind="function")
-    if current == previous:
-        return
-    if current is not None:
-        space.add(current)
-        _DEFINE_DOCUMENTATION[key] = current
-    else:
-        _DEFINE_DOCUMENTATION.pop(key, None)
-    if previous is not None:
-        space.remove(previous)
-
-def _declare_definition(
-    space: Any,
-    fn: types.FunctionType,
-    name: str,
-    params: list[str],
+def _definition_declarations(
+    fn: types.FunctionType, name: str, params: list[str]
 ) -> tuple[Expression, ...]:
+    """The (: ...) declarations one clause's annotations and overloads state."""
     annotated = _declare_operations_module.resolved_annotations(fn)
     overloads = _typing.get_overloads(fn)
-    key = (space.name, name)
     if not overloads and not any(label != "return" for label in annotated):
         return ()
     for signature in overloads:
@@ -810,43 +1025,14 @@ def _declare_definition(
                 "clauses for different arities"
             )
             raise CompileError(msg, construct="overload signature")
-    declarations = _declare_operations_module._type_declarations(
+    return tuple(_declare_operations_module._type_declarations(
         name,
         list(_inspect.signature(fn).parameters.values()),
         None,
         [len(params)],
         fn,
         include_annotation_claims=False,
-    )
-    # What this name has ALREADY declared here, so a second clause adds the
-    # arrow its own signature states rather than being suppressed whole, and a
-    # clause repeating a signature adds nothing twice. One boolean per name
-    # recorded only WHETHER it had declared anything, which is a different
-    # question: a MeTTa name may carry several declarations, and the second
-    # clause of `sized` published none of its own.
-    published = _DECLARED_DEFINES.setdefault(key, [])
-    added: list[Expression] = []
-    try:
-        for declaration in declarations:
-            if declaration in published:
-                continue
-            space.add(declaration)
-            added.append(declaration)
-            published.append(declaration)
-    except BaseException:
-        _retract_declarations(space, key, added)
-        raise
-    return tuple(added)
-
-def _retract_declarations(
-    space: Any, key: tuple[str, str], declared: Iterable[Expression]
-) -> None:
-    """Remove exactly the declarations one install added, and forget them."""
-    published = _DECLARED_DEFINES.get(key, [])
-    for declaration in reversed(list(declared)):
-        space.remove(declaration)
-        if declaration in published:
-            published.remove(declaration)
+    ))
 
 def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None = None):
     """Compile a Python function into MeTTa equations, decorator-style.
@@ -907,11 +1093,32 @@ def _defined_twin(value: object) -> Callable[..., Any] | None:
 
 
 def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any) -> Any:
-    """Publish a compiled clause together with any class declarations it uses."""
+    """Publish a compiled clause together with any class declarations it uses.
+
+    The space decides what the definition still holds (_standing): a clause
+    is a duplicate only while its equations are stored, and the equation
+    writes are the difference between what was recorded and is still held
+    and what the definition needs now, kubectl apply's three-way reading of
+    last-applied, live and desired state [source 2026-09-29T17:39:13+10:00:
+    https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/#how-apply-calculates-differences-and-merges-changes],
+    so a re-define restores what a removal took and clears its debris, and
+    its declarations and doc come back the same way. Every engine write, the
+    reflection rows, declarations, equations and doc, rides one transaction
+    (metta_py_publish_definition/2), so a failure part way leaves the space as
+    it was; the twin publishes before it, since the doc reads the family it
+    joins, and is taken back when the writes fail. The records change only
+    once the writes stand, and never inside ``with m.speculative():``, whose
+    snapshot discards the writes; the twin is built in a namespace of its own
+    there, so ``.py`` still runs.
+    """
     from metta._declare.classes import (  # noqa: PLC0415 -- class declarations share this installer
         owner_of,
     )
 
+    # Every write of a define rides one engine transaction, which the adds a
+    # batch holds back cannot join, so a define inside its own space's batch is
+    # refused as remove and declare are.
+    _spaces_scope_module._refuse_in_batch(space.name, "define")
     for cls in sorted(compiled.class_dependencies, key=lambda cls: cls.__qualname__):
         install_type(space, cls)
     class_owner = owner_of(space)
@@ -930,9 +1137,14 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
         for library_name in sorted(compiled.libraries):
             import_library(space, getattr(lib, library_name))
     params, patterns = compiled.params, compiled.patterns
-    # Clause stacking is per (space, name), process-wide: equations live
-    # in the space, not in whichever MeTTa instance happened to add them.
-    earlier = _DEFINE_CLAUSES.setdefault((space.name, name), [])
+    # Clause stacking is per (space, name), process-wide: equations live in
+    # the space, not in whichever MeTTa instance happened to add them. What
+    # stacks on is what the space still holds of the recorded clauses.
+    key = (space.name, name)
+    definition = _DEFINITIONS.get(key, _UNRECORDED)
+    declarations = _definition_declarations(fn, name, params)
+    standing = _standing(space, definition, () if definition is _UNRECORDED else declarations)
+    earlier = list(standing.live)
     _validate_clause_order(space, name, patterns, len(params), earlier)
     _validate_override_declaration(space, fn, name, earlier)
     # The materializer below turns overlapping heads into one ordered case
@@ -941,8 +1153,6 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
     bodies = compiled.equation_bodies
     head = Expression([Symbol(name), *(patterns.get(p, Variable(binding_name(p))) for p in params)])
     equations = tuple(Expression([Symbol("="), head, body]) for body in bodies)
-    namespace = _DEFINE_TWINS.setdefault(space.name, TwinNamespace(_defined_twin))
-    dispatcher = namespace.dispatcher(fn, name)
     # Idempotence compares the main equation and all helper equations with
     # auxiliary names canonicalized. A loop-body-only or lifted-body-only
     # change must replace the old clause and its old helpers.
@@ -950,76 +1160,395 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
     duplicate, replaced = _locate_clause(
         earlier, patterns, len(params), canonical, name
     )
-    if replaced is not None and not dispatcher_owns_clause(dispatcher, replaced):
-        msg = (
-            f"{name!r} is already defined here by a different Python "
-            f"function; re-run that function to change the definition, "
-            f"remove it first, or put the extra clauses under the one "
-            f"function, where pattern= clauses and generator bodies "
-            f"store one equation each"
-        )
-        raise CompileError(
-            msg,
-            construct="name collision",
-        )
+    if replaced is not None and earlier[replaced]["owner"] != fn.__name__:
+        _refuse_collision(name, earlier[replaced]["owner"])
+    stands = not speculative_enabled()
+    namespace = _DEFINE_TWINS.get(space.name) or TwinNamespace(_defined_twin)
+    home = namespace if stands else TwinNamespace(_defined_twin)
+    dispatcher = home.dispatcher(fn, name, [clause["twin"] for clause in earlier])
     twin, bindings = namespace.prepare(fn, dispatcher, patterns)
     clause_twin = select_clause_twin(name, twin, compiled.hazards, patterns, params)
     clause_twin.__doc__ = compiled.facts.doc
-    publish_twin = partial(
-        namespace.publish, fn, name, dispatcher, clause_twin,
-        bindings=bindings, replaced=replaced,
-    )
+    prospective = earlier.copy()
     if duplicate:
         # A re-run cell or module reload must not duplicate answers.
         if replaced is None:
             msg = "a duplicate clause has no replacement index"
             raise RuntimeError(msg)
-        prospective = earlier.copy()
-        prospective[replaced] = earlier[replaced] | {
-            "facts": compiled.facts,
-        }
-        _sync_definition_facts(space, name, prospective)
-        earlier[replaced]["facts"] = compiled.facts
-        publish_twin()
-        _document_definition(space, name, dispatcher)
+        prospective[replaced] = earlier[replaced] | {"facts": compiled.facts, "twin": clause_twin}
+    else:
+        record = _clause_record(fn, patterns, equations, compiled, clause_twin)
+        if replaced is None:
+            prospective.append(record)
+        else:
+            prospective[replaced] = record
+    prospective = _materialize_clause_equations(name, prospective)
+    removed, added = _alpha_multiset_delta(standing.held, _physical_atoms(prospective))
+    # What this name has ALREADY declared here, so a second clause adds the
+    # arrow its own signature states rather than being suppressed whole, and
+    # a clause repeating a signature adds nothing twice; asked of the space,
+    # so a declaration a removal took is published again.
+    declare = [declaration for declaration in declarations if declaration not in standing.declared]
+    facts = _definition_facts(space, name, prospective) if stands else definition.reflected
+    counts, gained, lost = _reflection_moves(definition.reflected, facts)
+    # The twin publishes first because the doc atom reads the family it joins,
+    # and it is the only thing a failed write has to take back: every engine
+    # write rides one transaction, so a failure part way leaves the space as it
+    # was with no inverse of its own, where removing an added batch by value
+    # after a failed add took a user's equal equation with it
+    # [tested 2026-09-30T08:34:03+10:00: test_a_define_failing_part_way_leaves_an_equal_equation_standing].
+    publication = home.publish(
+        fn, name, dispatcher, clause_twin, bindings=bindings, replaced=replaced,
+    )
+    try:
+        documentation = documentation_atom(name, dispatcher, kind="function")
+        # The recorded doc atom the space still holds, if it holds it.
+        held_doc = definition.documented if standing.documented else None
+        reflection = _declare_operations_module._REFLECTION_SPACE
+        writes: list[list[Any]] = [["add", reflection, [fact.to_wire()]] for fact in gained]
+        writes += [["remove", reflection, [fact.to_wire()]] for fact in lost]
+        writes += [["add", space.name, [declaration.to_wire()]] for declaration in declare]
+        if removed:
+            writes.append(["remove", space.name, [atom.to_wire() for atom in removed]])
+        if added:
+            writes.append(["add", space.name, [atom.to_wire() for atom in added]])
+        if documentation is not None and documentation != held_doc:
+            writes.append(["add", space.name, [documentation.to_wire()]])
+        if held_doc is not None and documentation != held_doc:
+            writes.append(["remove", space.name, [held_doc.to_wire()]])
+        # The watch lapses while the writes run and returns with them, so the
+        # definition never hears its own writes, whichever transaction they
+        # commit in (_binding/store.pl, metta_py_publish_definition/2).
+        watches = _watches(space, [(name, _watched_heads(prospective))]) if stands else []
+        applied = _publish(space, writes, watches)
+    except BaseException:
+        publication()
+        raise
+    if stands:
+        _count_reflection(counts)
+        _declare_operations_module._record_registry_undo(
+            publication, description=f"twin family of {name!r} in {space.name}"
+        )
+        if space.name not in _DEFINE_TWINS:
+            _put(_DEFINE_TWINS, space.name, namespace, f"twin namespace of {space.name}")
+        held = tuple(declaration for declaration in definition.declared if declaration in standing.declared)
+        recorded = _Definition(tuple(prospective), (*held, *declare), documentation, facts)
+        _put(_DEFINITIONS, key, recorded, f"definition {name!r} in {space.name}")
         _remember_defined_callable(space, fn, name)
-        _importlib.import_module('metta._spaces.intents').register_definition_crossings(
+        crossings = _importlib.import_module('metta._spaces.intents').register_definition_crossings(
             space, fn, equations[0], name
         )
-        return _defined_result(space, name, compiled, bodies, dispatcher)
-    prospective = earlier.copy()
-    record = _clause_record(patterns, equations, compiled)
-    if replaced is None:
-        prospective.append(record)
-    else:
-        prospective[replaced] = record
-    _sync_definition_facts(space, name, prospective)
-    declared: tuple[Expression, ...] = ()
-    try:
-        declared = _declare_definition(space, fn, name, params)
-        _store_clause(
-            space,
-            earlier,
-            name=name,
-            patterns=patterns,
-            equations=equations,
-            compiled=compiled,
-            publish_twin=publish_twin,
-            replaced=replaced,
-        )
-    except BaseException:
-        _retract_declarations(space, (space.name, name), declared)
-        _sync_definition_facts(space, name, earlier)
-        raise
-    defined = _defined_result(space, name, compiled, bodies, dispatcher)
-    _document_definition(space, name, dispatcher)
-    if compiled.generator:
-        _DEFINED_GENERATORS.add((space.name, name))
-    _remember_defined_callable(space, fn, name)
-    _importlib.import_module('metta._spaces.intents').register_definition_crossings(
-        space, fn, equations[0], name
+        position = len(prospective) - 1 if replaced is None else replaced
+        if crossings is not None and prospective[position]["crossings"] != crossings:
+            prospective[position] = prospective[position] | {"crossings": crossings}
+            _put(_DEFINITIONS, key, _replace(recorded, clauses=tuple(prospective)),
+                 f"definition {name!r} in {space.name}")
+    if applied is not None:
+        raise applied
+    return _defined_result(space, name, compiled, bodies, dispatcher)
+
+def _refuse_collision(name: str, owner: str) -> _typing.NoReturn:
+    """Refuse a clause whose head another Python function's definition holds."""
+    msg = (
+        f"{name!r} is already defined here by a different Python function, "
+        f"{owner}; re-run {owner} to change the definition, remove the "
+        f"definition first with m.remove({owner}), the Defined @m.define "
+        f"bound to that name, or put the extra clauses under the one "
+        f"function, where pattern= clauses and generator bodies store one "
+        f"equation each"
     )
-    return defined
+    raise CompileError(
+        msg,
+        construct="name collision",
+        remedy=Remedy(
+            "remove the other function's definition first",
+            "quickfix",
+            "prose",
+            python=f"m.remove({owner})",
+        ),
+    )
+
+def _unwind(undo: list[Callable[[], Any]], error: BaseException) -> None:
+    """Undo a failed publication's engine writes newest first, every one.
+
+    The failure stays the exception; an inverse that fails too is a note on
+    it and never stops the rest.
+    """
+    for inverse in reversed(undo):
+        try:
+            inverse()
+        except BaseException as undo_error:  # noqa: BLE001  -- every remaining inverse must run even when one cleanup fails
+            BaseException.add_note(
+                error, f"undoing a failed definition write failed: {undo_error!r}"
+            )
+
+def remove_definition(space: Any, defined: Any) -> bool:
+    """Take one definition back out of the space: the body of
+    ``m.remove(<Defined>)`` and ``m -= <Defined>``.
+
+    A Defined names its whole definition: every stacked clause of that name
+    in its space. Every atom it published that the space still holds, its
+    equations, helper equations, declarations and doc, leaves through the
+    ordinary removal door, which reaches subtract-atom and with it the
+    engine's one equation funnel, remove_equation/6, all inside the one
+    transaction define publishes through (metta_py_publish_definition/2);
+    its record, reflection rows, twin family and lint evidence retire with
+    them, so a later define of the name starts fresh. Answers whether the
+    space held anything of it. A Defined of another space names nothing
+    here, and a Prolog-backed one publishes no equations to remove.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    if isinstance(defined, _declare_define_module.PrologBacked):
+        msg = (
+            f"{defined.name} is registered from {defined.origin}, not published "
+            f"as equations, so there is no definition to remove; "
+            f"m.unregister_prolog(<extension>) releases the extension that "
+            f"file declares, every name it registered with it"
+        )
+        raise TypeError(msg)
+    if defined.space.name != space.name:
+        return False
+    return _withdraw_definition(space, defined.name)
+
+def _withdraw_definition(space: Any, name: str) -> bool:
+    with _DEFINE_LOCK:
+        key = (space.name, name)
+        definition = _DEFINITIONS.get(key)
+        if definition is None:
+            return False
+        standing = _standing(space, definition)
+        atoms = [
+            *standing.held,
+            *standing.declared,
+            *((definition.documented,) if standing.documented else ()),
+        ]
+        stands = not speculative_enabled()
+        counts, _, lost = _reflection_moves(definition.reflected if stands else (), ())
+        reflection = _declare_operations_module._REFLECTION_SPACE
+        writes: list[list[Any]] = [["remove", reflection, [fact.to_wire()]] for fact in lost]
+        if atoms:
+            writes.append(["remove", space.name, [atom.to_wire() for atom in atoms]])
+        # This door retires the definition itself, so its watch ends with the
+        # removals, which raise no notice of their own; inside speculative()
+        # the snapshot discards the removals and nothing else moves.
+        watches = _watches(space, [(name, ())]) if stands else []
+        applied = _publish(space, writes, watches)
+        if stands:
+            _count_reflection(counts)
+            _retire(space, key, definition.clauses)
+            _put(_DEFINITIONS, key, None, f"definition {name!r} in {space.name}")
+            for defined_key in [k for k in _DEFINED_FUNCTION_NAMES if k[0] == space.name]:
+                names = _DEFINED_FUNCTION_NAMES[defined_key]
+                if name in names:
+                    _put(_DEFINED_FUNCTION_NAMES, defined_key, (names - {name}) or None,
+                         f"installed names of {defined_key[1].__name__}")
+        if applied is not None:
+            raise applied
+        return bool(atoms)
+
+def _publish(space: Any, writes: list[list[Any]], watches: list[list[Any]]) -> BaseException | None:
+    """Run a definition's writes and watch in one transaction
+    (metta_py_publish_definition/2), and answer the error a watcher raised
+    once they committed, which the caller raises after its records follow
+    what stands: a SubscriberError, alone or grouped, says its write is
+    applied, and a definition that dropped its record then would leave the
+    space answering a head no record describes, which a later define of the
+    name refuses [tested 2026-09-30T08:34:03+10:00:
+    test_a_watcher_failing_after_a_definition_commits_leaves_it_recorded].
+    Any other error propagates with the writes rolled back.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    try:
+        run_void_write(space.runtime, "metta_py_publish_definition", writes, watches)
+    except BaseException as error:
+        if not _applied(error):
+            _raise_what_providers_kept(space, error)
+            raise
+        applied: BaseException | None = error
+    else:
+        applied = None
+    _space_functions._invalidate_builtins_cache(space.runtime)
+    return applied
+
+def _raise_what_providers_kept(space: Any, error: BaseException) -> None:
+    """Raise PartialWriteError from ``error`` when a provider outside the
+    engine's transactions kept or lost part of the failed publication, as
+    metta_py_publication_residue/1 counted it; return when every space the
+    publication wrote rolled back with it. A residue that cannot be read
+    leaves a note on ``error`` rather than hiding it.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    try:
+        row = space.runtime.once("metta_py_publication_residue(Residue)")
+    except Exception as unread:  # noqa: BLE001  -- the failure being raised outranks the residue; the note keeps both
+        error.add_note(f"what a provider kept of this write could not be read: {unread}")
+        return
+    for home_wire, kept_wires, lost_wires in (row or {}).get("Residue") or ():
+        name = str(_atom_from_wire(home_wire))
+        kept = tuple(_atom_from_wire(wire) for wire in kept_wires)
+        lost = tuple(_atom_from_wire(wire) for wire in lost_wires)
+        held = []
+        if kept:
+            held.append(f"still holds the {len(kept)} it received: {', '.join(map(str, kept))}")
+        if lost:
+            held.append(f"no longer holds the {len(lost)} it gave up: {', '.join(map(str, lost))}")
+        repair = "remove what it kept" + (" and add back what it lost" if lost else "")
+        msg = (
+            f"the write failed after {name}'s provider took part of it, and {name} "
+            f"is not transactional: the engine's own state rolled back and the "
+            f"provider's did not, so it {' and '.join(held)}. To leave {name} as "
+            f"it was, {repair}, which this error's kept and lost carry as atoms; "
+            f"the failure is its cause: {error}"
+        )
+        raise PartialWriteError(msg, space=name, kept=kept, lost=lost) from error
+
+def _applied(error: BaseException) -> bool:
+    """Whether an error is a watcher's, raised on a write that committed."""
+    if isinstance(error, BaseExceptionGroup):
+        return all(_applied(inner) for inner in error.exceptions)
+    return isinstance(error, SubscriberError)
+
+def _retire(
+    space: Any,
+    key: tuple[str, str],
+    lost: Sequence[dict[str, Any]],
+    *,
+    live: Sequence[dict[str, Any]] = (),
+) -> None:
+    """Retire what the space no longer holds of one definition on the Python
+    side, its reflection rows having moved already: hand its twin family to
+    the ``live`` clauses, and file the lint evidence of the live ones,
+    withdrawing the ``lost`` ones'. Every change enlists its Python preimage
+    in the caller's transaction frame.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    namespace = _DEFINE_TWINS.get(space.name)
+    if namespace is not None:
+        _declare_operations_module._record_registry_undo(
+            namespace.succeed(key[1], [clause["twin"] for clause in live]),
+            description=f"twin family of {key[1]!r} in {space.name}",
+        )
+    gone = [clause["crossings"] for clause in lost if clause["crossings"] is not None]
+    kept = [clause["crossings"] for clause in live if clause["crossings"] is not None]
+    _importlib.import_module('metta._spaces.intents').file_definition_crossings(
+        space, [*((owner, frozenset()) for owner, _events in gone), *kept]
+    )
+
+def equation_changed(space: list[Any], name: str) -> bool:
+    """The engine's notice that an equation of a head the definition ``name``
+    publishes entered or left ``space`` in a committed write, through any door,
+    a program's ``remove-atom`` or ``add-atom`` as much as a Python removal
+    (engine/ext_points.pl, seam:equation_changed/2, delivered by
+    _binding/subscriptions.pl): the definition's reflection rows, twin family
+    and lint evidence move to the clauses the space still answers through,
+    which brings them back with an equation that returns. ``space`` is the
+    space's wire, the name of an atom space or the expression of a parametric
+    one. A definition's own writes raise no notice, since define and the
+    door that removes a Defined end its watch while they write and record the
+    definition themselves, and a rolled-back or speculative write is never
+    heard. The notice is only recorded here and reconciled at the next
+    crossing made with no engine callback open (_settle_noticed), since it can
+    arrive while its writer holds an engine lock a define waits for while it
+    holds _DEFINE_LOCK [tested 2026-09-30T08:34:03+10:00:
+    test_an_unwatched_equation_write_crosses_to_no_python].
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    _NOTICED.append((space, name))
+    at_safe_point(_settle_noticed)
+    return True
+
+def _settle_noticed() -> bool:
+    """Reconcile every definition the recorded notices name, in order; each
+    reconciliation reads the space again, so a name noticed twice settles
+    once to what the space holds. Answers False, to run again at a later safe
+    point, on a thread inside a definitions critical section.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    if _DEFINE_LOCK.held():
+        return False
+    with _DEFINE_LOCK:
+        while True:
+            try:
+                space, name = _NOTICED.popleft()
+            except IndexError:
+                return True
+            home = _noticed_space(space)
+            if home is not None:
+                _reconcile(home, (home.name, name))
+
+@dataclass(frozen=True, slots=True)
+class _NoticedSpace:
+    """A definition's space as an engine notice names it, with what _reconcile
+    reads of a handle: the registry's key for it, the runtime and its wire. A
+    handle is not made, since inside an engine callback each read of a handle's
+    name asks the engine for its scope (metta._spaces.lifetime.current).
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
+    name: Any
+    runtime: Any
+
+    def to_wire(self) -> list[Any]:
+        """The wire the space's handle gives."""
+        return space_wire(self.name)
+
+def _noticed_space(wire: list[Any]) -> _NoticedSpace | None:
+    """The registry's key for the space a notice's wire names. An atom space's
+    key is its name; a parametric space's is the exact carrier its handle made,
+    found by its expression, which keeps every native field kind apart where
+    a plain list would merge them [source 2026-09-30T02:38:50+10:00:
+    docs/journal/2026-09-14-parametric-space-transport.md]. None when no
+    recorded definition lives there any more.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    engine = runtime()
+    if wire[0] in ("p", "s"):
+        return _NoticedSpace(wire[1], engine)
+    expression = _atom_from_wire(wire)
+    for recorded, _name in _DEFINITIONS:
+        image = getattr(recorded, "__metta__", None)
+        if image is not None and image() == expression:
+            return _NoticedSpace(recorded, engine)
+    return None
+
+def _watched_heads(clauses: Sequence[dict[str, Any]]) -> tuple[str, ...]:
+    """Every head the clauses' physical equations define, the definition's own
+    name and each helper's, sorted and distinct: what the definition hears. A
+    local type alias publishes a scalar equation, (= Items (List Number)),
+    whose head is the symbol itself.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    names: set[str] = set()
+    for atom in _physical_atoms(clauses):
+        head = atom.children[1]
+        functor = head.children[0] if isinstance(head, Expression) else head
+        if not isinstance(functor, Symbol):
+            msg = f"a published equation's head names no function: {atom}"
+            raise TypeError(msg)
+        names.add(functor.name)
+    return tuple(sorted(names))
+
+def _watches(space: Any, heads: Sequence[tuple[str, Sequence[str]]]) -> list[list[Any]]:
+    """metta_py_watch/1's argument: each named definition hears exactly these
+    heads in the space, and no heads ends its watch.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    return [[space.name, name, list(watched)] for name, watched in heads]
+
+def _watch(space: Any, heads: Sequence[tuple[str, Sequence[str]]]) -> None:
+    """Set which heads the named definitions hear (_binding/subscriptions.pl)."""
+    space.runtime.must("metta_py_watch(W)", W=_watches(space, heads))
+
+def _reconcile(space: Any, key: tuple[str, str]) -> None:
+    """Move the reflection rows, twin family and lint evidence to the clauses
+    the space still answers through. The clause records stay as published:
+    what a partial removal left behind is still theirs to take.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    definition = _DEFINITIONS.get(key)
+    if definition is None:
+        return
+    standing = _standing(space, definition)
+    facts = _definition_facts(space, key[1], list(standing.live))
+    if len(standing.live) == len(definition.clauses) and facts == definition.reflected:
+        return
+    lost = [clause for clause in definition.clauses if not any(clause is kept for kept in standing.live)]
+    _sync_definition_facts(space, definition.reflected, facts)
+    _retire(space, key, lost, live=standing.live)
+    if facts != definition.reflected:
+        _put(
+            _DEFINITIONS, key, _replace(definition, reflected=facts),
+            f"definition {key[1]!r} in {space.name}",
+        )
 
 def install_type(
     space: Any,
@@ -1167,6 +1696,14 @@ def define(
     filter-atom, and match(Pattern(x, y), template) to a match against
     the running space, lowercase free names in the pattern binding as
     variables.
+
+    A define is all or nothing wherever a transaction reaches the space's
+    storage, a native space's and that of a provider declaring
+    transactional writes, which rolls back with it. A provider whose
+    storage no transaction reaches keeps what a failed define wrote to it,
+    so that failure is raised as metta._errors.errors.PartialWriteError,
+    whose kept and lost are the atoms to remove and add back, with the
+    failure itself as its cause.
     """
     if isinstance(fn, _builtins.type):
         if prolog is not None or name is not None:

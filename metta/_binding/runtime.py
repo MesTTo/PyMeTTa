@@ -8,6 +8,10 @@ Assumes:
     [source 2026-08-14:
     https://www.swi-prolog.org/pldoc/man?section=janus-thread-call-prolog]
 Guarantees:
+  - work handed to at_safe_point runs at the next crossing a thread makes
+    with no engine callback open, never at one made inside a callback, and
+    again at each later one until it answers done [tested 2026-09-30T08:34:03+10:00:
+    test_safe_point_work_runs_outside_every_callback_until_done]
   - Runtime.builtins carries the supplied native space identity into the
     catalogue query [tested:
     test_a_parametric_namespace_lists_resolves_and_inherits_native_functions;
@@ -165,7 +169,7 @@ import sys
 import threading
 import traceback
 from collections import deque
-from collections.abc import Hashable, Iterator, Mapping
+from collections.abc import Callable, Hashable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager, nullcontext, suppress
 from importlib import resources
 from pathlib import Path
@@ -179,6 +183,7 @@ if TYPE_CHECKING:
 else:
     _scope = lazy('metta._spaces.lifetime')
 
+import metta._binding.callbacks as _callbacks
 from metta._atoms.model import Atom
 from metta._atoms.wire import _atom_from_wire
 from metta._catalog.bounds import Config, config
@@ -650,6 +655,24 @@ _ERASE_RECORD = "erase"
 _CALL_PREDICATE = "call"
 _DEFERRED_WORK: deque[tuple[Any, ...]] = deque()
 _DRAINING = threading.local()
+
+# Work that must run in ordinary Python with no engine callback open, handed
+# over by code that ran inside one. An engine event can reach Python while its
+# writer holds an engine lock, and work that waits there on a Python lock
+# closes a lock-order cycle with any thread holding that Python lock while it
+# waits for the engine one; the repository's rule for such callbacks is to
+# append and let an owner drain (a-rlock-inbox, metta/_atoms/model.py). Each
+# entry answers whether it is done and stays armed until it is; the next
+# crossing a thread makes from ordinary Python runs it before taking its lock.
+# A dict, so arming is one atomic store and an entry is armed at most once.
+_SAFE_POINT_WORK: dict[Callable[[], bool], None] = {}
+
+
+def at_safe_point(work: Callable[[], bool]) -> None:
+    """Run ``work`` at the next crossing made with no engine callback open,
+    and again at each one after until it answers that it is done.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    _SAFE_POINT_WORK[work] = None
 
 
 def defer_engine_call(
@@ -1478,6 +1501,8 @@ class Runtime:
         # through _relational_lock. Draining here rather than at each of the
         # four is one place a new crossing cannot forget.
         self._drain_deferred()
+        if _SAFE_POINT_WORK:
+            self._run_safe_point_work()
         if threading.current_thread() is self._home_thread:
             return _LOCK
         if _CALL_LOCKS.lock is _NULL_LOCK:
@@ -1545,6 +1570,32 @@ class Runtime:
                     logger.debug("deferred engine work failed", exc_info=True)
         finally:
             _DRAINING.active = False
+
+    def _run_safe_point_work(self) -> None:
+        """Run the work handed to a safe point (at_safe_point), unless a
+        callback is open on this thread or this thread is already running it.
+
+        Each entry leaves the table before it runs and returns when it answers
+        that it is not done, so an entry armed again while it runs is not lost.
+        A failure has no caller to answer to here, as a deferred call's has
+        none, and it must not fail the unrelated crossing that ran it: it is
+        logged as a warning, since the work it stood for did not happen.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if getattr(_DRAINING, "safe_point", False) or _callbacks.entered():
+            return
+        _DRAINING.safe_point = True
+        try:
+            for work in list(_SAFE_POINT_WORK):
+                _SAFE_POINT_WORK.pop(work, None)
+                try:
+                    done = work()
+                except Exception:
+                    logger.warning("work handed to a safe point failed", exc_info=True)
+                    continue
+                if not done:
+                    _SAFE_POINT_WORK[work] = None
+        finally:
+            _DRAINING.safe_point = False
 
     def apply(self, predicate: str, *inputs: Any) -> Any:
         """Run a shim predicate through janus's functional convention:

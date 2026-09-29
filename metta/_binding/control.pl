@@ -95,6 +95,9 @@ metta_py_wrappable(metta_py_remove_many).
 metta_py_wrappable(metta_py_remove_everything).
 metta_py_wrappable(metta_py_drain).
 metta_py_wrappable(metta_py_transfer).
+%A Python definition's whole publication is one write call, so a scope covers
+%it as it covers the doors above (store.pl, metta_py_publish_definition/2).
+metta_py_wrappable(metta_py_publish_definition).
 
 metta_py_fast_load_unit(File, Space, []) :-
     metta_py_fast_load(File, Space).

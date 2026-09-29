@@ -119,7 +119,7 @@ import functools
 import importlib as _importlib
 import inspect
 import typing
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Hashable, Iterable, Iterator, MutableMapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -265,37 +265,49 @@ def _record_seam_undo(
 
 _seam.on_registration(_record_seam_undo)
 
-def _record_undo(name: str) -> None:
-    """Remember what the registry held for one name before this frame changed it."""
-    previous = REGISTRY.get(name)
+def _record_entry_undo(
+    mapping: MutableMapping[Any, Any], key: Hashable, *, description: str, undo_key: Hashable,
+) -> None:
+    """Remember one registry entry, its absence included, before this frame changes it.
+
+    A value is replaced whole rather than mutated in place, so the preimage is
+    the object itself, and ``undo_key`` keeps only the frame's first one.
+    """
+    present = key in mapping
+    previous = mapping.get(key)
 
     def restore() -> None:
-        if previous is None:
-            REGISTRY.pop(name, None)
+        if present:
+            mapping[key] = previous
         else:
-            REGISTRY[name] = previous
+            mapping.pop(key, None)
 
-    _record_registry_undo(
-        restore,
+    _record_registry_undo(restore, description=description, key=undo_key)
+
+def _replace_entry(
+    mapping: MutableMapping[Any, Any], key: Hashable, value: Any, *, description: str,
+) -> None:
+    """Replace one registry entry, None removing it, after remembering its preimage."""
+    _record_entry_undo(mapping, key, description=description, undo_key=(id(mapping), key))
+    if value is None:
+        mapping.pop(key, None)
+    else:
+        mapping[key] = value
+
+def _record_undo(name: str) -> None:
+    """Remember what the registry held for one name before this frame changed it."""
+    _record_entry_undo(
+        REGISTRY, name,
         description=f"operation registry entry {name!r}",
-        key=("operation", name),
+        undo_key=("operation", name),
     )
 
 def _record_declaration_undo(key: tuple[str, str]) -> None:
     """Remember one declaration ownership count before changing it."""
-    present = key in _DECLARATION_REFS
-    previous = _DECLARATION_REFS.get(key, 0)
-
-    def restore() -> None:
-        if present:
-            _DECLARATION_REFS[key] = previous
-        else:
-            _DECLARATION_REFS.pop(key, None)
-
-    _record_registry_undo(
-        restore,
+    _record_entry_undo(
+        _DECLARATION_REFS, key,
         description=f"declaration ownership count {key!r}",
-        key=("declaration", key),
+        undo_key=("declaration", key),
     )
 
 @contextmanager

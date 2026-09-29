@@ -44,10 +44,10 @@ Guarantees:
     from a foreign provider, the pattern it was asked for; over ground
     answers it takes a removal off without a read, a pattern removal
     included, and re-reads once it holds an answer with variables
-    [tested 2026-09-29T23:46:26+10:00: test_liveview_mirrors_the_space,
+    [tested 2026-09-30T08:34:03+10:00: test_liveview_mirrors_the_space,
     test_a_ground_removal_costs_the_view_nothing_that_grows]
   - LiveView is metta.live's Live with the pattern strategy, read through
-    its atoms, so the two cannot drift [tested 2026-09-29T23:46:26+10:00:
+    its atoms, so the two cannot drift [tested 2026-09-30T08:34:03+10:00:
     test_liveview_mirrors_the_space,
     test_a_ground_removal_costs_the_view_nothing_that_grows]
 Decides:

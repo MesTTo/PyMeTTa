@@ -24,6 +24,7 @@ CALLBACK_GROUPS: dict[str, tuple[Export, ...]] = {
         ("async_prepare", "prepare"), ("async_start", "start"),
     ),
     "metta.events": ("atom_added", "atom_removed", "segment_committed"),
+    "metta._declare.definitions": ("equation_changed",),
     "metta._binding.task_context": (
         ("capture_context", "snapshot"), ("capture_contexts", "snapshot_many"),
         ("fork_context", "fork"), ("fork_contexts", "fork_many"),
