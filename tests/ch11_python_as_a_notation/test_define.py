@@ -170,12 +170,8 @@ def test_early_return_reads_as_else(m):  # noqa: D103  -- pytest discovers or in
 
 
 def test_bindings_become_let_star(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # A body calls engine functions by the name it writes, and Python cannot
-    # spell a hyphen, so the engine's sqrt-math is reached through an alias
-    # the body CAN write. Explicit, one line, and visible in the space; the
-    # compiler no longer retries a hyphenated spelling behind the author.
-    m.run("(= (sqrt_math $x) (sqrt-math $x))")
-
+    # A called engine function's Python spelling maps to its MeTTa name, the
+    # underscore a hyphen, so `sqrt_math` reaches `sqrt-math` with no alias.
     @m.define
     def dhyp(a, b):
         aa = a * a
@@ -183,6 +179,7 @@ def test_bindings_become_let_star(m):  # noqa: D103  -- pytest discovers or inje
         return sqrt_math(aa + bb)  # noqa: F821  engine function
 
     assert m.run("!(dhyp 3 4)") == [[5.0]]
+    assert "(sqrt-math " in str(dhyp.body)
     assert dhyp.py.__name__ == "dhyp"
 
 
@@ -385,6 +382,26 @@ def test_the_implicit_name_is_mapped_and_name_is_exact(m):
     assert m.run("!(add_two 5)") == [[7]]
     assert m.run("!(add-two 5)") == [[S["add-two"](5)]]
     assert add_two.py(5) == 7
+
+
+def test_the_guide_states_the_naming_map_the_code_applies(capsys):
+    """llms() teaches what define, op and a compiled call do with a Python
+    name, each claim executed by its own test here: an underscore is MeTTa's
+    hyphen, and name= and the bracket keep the exact spelling.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    import metta
+
+    metta.llms()
+    guide = " ".join(capsys.readouterr().out.split())
+    for claim in (
+        "`def add_one` under `@m.define` installs `add-one`",  # test_the_implicit_name_is_mapped_and_name_is_exact
+        "`@m.op` registers `def p_digit` as `p-digit`",  # test_op_uses_the_define_name_ladder
+        "`sqrt_math(x)` stores `(sqrt-math $x)`",  # test_bindings_become_let_star
+        '`name="add_one"` on `define` or `op`',
+        '`S["add_one"]` names the head as written',
+    ):
+        assert claim in guide
+    assert "The Python name is the MeTTa name" not in guide
 
 
 def test_comprehension_is_map_atom(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

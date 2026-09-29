@@ -652,8 +652,8 @@ def compile_function(
     a host value. `nondet` answers whether a name is known to answer
     nondeterministically, which decides how `for` and `yield from` iterate
     a call to it. `metta_name` is the equation's own name; it defaults to
-    the Python name verbatim, since nothing here rewrites a name the
-    author wrote.
+    the Python name as spelled, and `define` passes its implicit name mapped
+    to MeTTa's hyphens, or the exact `name=`.
 
     `native_result_types` is the result contract the caller will publish.
     Parameter entry work uses its Atom mask to execute allocation while
