@@ -12,7 +12,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from metta import Expression, Grounded, S, V, Variable, lib, match, py, superpose
+from metta import Expression, Grounded, S, V, Variable, fn, lib, match, py, superpose
 from metta._errors.errors import CompileError
 
 
@@ -87,6 +87,37 @@ def test_list_collects_matching_answers_without_splicing_their_terms(m):
         return list(match(S.edge(V.x, V.y), (V.x, V.y)))
 
     assert list(collect()) == [Expression([S.a(S.b), S.a(S.c)])]
+
+
+def test_fn_special_forms_compile_in_a_body_and_keep_every_answer(m):
+    """Syntropy's program: fn.collapse in a body is the special form the
+    catalogue lists, and it keeps every answer, duplicates included, exactly
+    as list() and S.collapse do; fn.superpose spreads its elements.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    assert "collapse" in m.builtins()
+    assert m.fn["collapse"] is not None
+    m.add(S.Item(1), S.Item(2), S.Item(2))
+
+    @m.define
+    def collected():
+        return fn.collapse(match(S.Item(V.value), V.value))
+
+    @m.define
+    def listed():
+        return list(match(S.Item(V.value), V.value))
+
+    @m.define
+    def symbolic():
+        return S.collapse(match(S.Item(V.value), V.value))
+
+    @m.define
+    def spread():
+        return fn.superpose((1, 2, 2))
+
+    assert "(collapse (match " in collected.source()
+    bag = [Expression([1, 2, 2])]
+    assert list(collected()) == list(listed()) == list(symbolic()) == bag
+    assert sorted(spread()) == [1, 2, 2]
 
 
 def test_structural_assignments_share_pattern_binding_and_ssa(m):
