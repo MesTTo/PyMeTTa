@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import pytest
 
 from metta import Expression, S, Space
-from metta._errors.errors import CompileError
+from metta._errors.errors import CompileError, MettaResultError
 
 
 def _atom_size(atom):
@@ -197,36 +197,125 @@ def test_one_arm_reaching_the_rest_compiles_it_in_place(scratch_space):
     assert calls == 2
 
 
-def _chain(tmp_path, count):
-    name = f"value_chain_{count}"
-    source = [f"def {name}(flag, value: int):"]
+def _branch_chain(count):
+    """Sequential if/else branches whose arms both fall through."""
+    source = [f"def branch_chain_{count}(x):", "    value = 0"]
     for _ in range(count):
-        source.extend([
-            "    if flag:",
-            "        value = value + 1",
-            "    else:",
-            "        value = value + 2",
-        ])
-    source.append("    return value")
-    path = tmp_path / f"{name}.py"
-    path.write_text("\n".join(source) + "\n")
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return getattr(module, name)
+        source += ["    if x > 0:", "        value = value + 1", "    else:", "        value = value + 2"]
+    return [*source, "    return value"]
 
 
-def test_emitted_size_is_linear_across_sequential_branches(scratch_space, tmp_path):
-    """Count every stored helper too, so moving duplication cannot hide it."""
+def _guarded_cases(count):
+    """Guarded cases of two alternatives each, then a case that falls through."""
+    source = [f"def guarded_cases_{count}(x):", "    match x:"]
+    for case in range(1, count + 1):
+        source += [f"        case {case} | {case + 100} if x > {case - 1}:", f"            return {case}"]
+    return [*source, "        case _:", "            x = x * 2", "    return x"]
+
+
+def _nested_alternatives(count):
+    """Nested matches whose arm of two alternatives falls through at every level."""
+    source = [f"def nested_alternatives_{count}(x):", "    total = 0"]
+    indent = "    "
+    for level in range(1, count + 1):
+        source += [f"{indent}match x % 3:", f"{indent}    case 1 | 2:", f"{indent}        total = total + {level}"]
+        indent += "        "
+    return [*source, f"{indent}total = total + x", "    return total"]
+
+
+@pytest.mark.parametrize("shape", [_branch_chain, _guarded_cases, _nested_alternatives])
+def test_emitted_size_is_linear_in_branches_guarded_cases_and_alternatives(scratch_space, tmp_path, shape):
+    """Count every stored helper too, so moving duplication cannot hide it: a
+    guard places the later cases twice and alternatives share one arm, and
+    neither multiplies what follows.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
     m = scratch_space
+    inputs = (-1, 0, 1, 2, 3, 101)
     sizes = []
     for count in (1, 2, 4, 8):
-        function = m.define(_chain(tmp_path, count))
+        source = shape(count)
+        name = source[0].removeprefix("def ").split("(")[0]
+        path = tmp_path / f"{name}.py"
+        path.write_text("\n".join(source) + "\n")
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        native = getattr(module, name)
+        function = m.define(native)
         sizes.append(sum(map(_atom_size, _equations(m, function.name))))
-        assert function(flag=False, value=0).one() == 2 * count
-        assert function(flag=True, value=0).one() == count
+        assert [list(function(x)) for x in inputs] == [[native(x)] for x in inputs]
     step = sizes[1] - sizes[0]
     assert [sizes[2] - sizes[1], sizes[3] - sizes[2]] == [2 * step, 4 * step]
+
+
+def test_alternatives_share_one_body_with_their_own_bindings(scratch_space):
+    """Each alternative binds the pattern's names in its own positions and
+    calls the one body, so a loop in that body compiles once; alternatives
+    that prove different things about a name each keep their own body.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    m = scratch_space
+
+    @m.define
+    def positions(pair):
+        total = 0
+        match pair:
+            case (a, 1) | (1, a):
+                total = a * 10
+        return total + 1
+
+    @m.define
+    def looped(x):
+        total = 0
+        match x:
+            case 1 | 2 | 3:
+                for k in (1, 2):
+                    total = total + k * x
+            case _:
+                total = -1
+        return total
+
+    @m.define
+    def extended(pair):
+        match pair:
+            case (2, rest) | (1, *rest):
+                return rest + (9,)  # noqa: RUF005 -- concatenation is the operation whose operand kind is under test
+        return ()
+
+    assert [positions(pair).one() for pair in ((5, 1), (1, 7), (2, 2))] == [51, 71, 1]
+    assert [looped(x).one() for x in (1, 2, 3, 4)] == [looped.py(x) for x in (1, 2, 3, 4)] == [3, 6, 9, -1]
+    assert [len(_equations(m, f"looped--{label}-")) for label in ("case-body", "each")] == [1, 1]
+    # Python's rest is the tuple (5, 6) in the first alternative and the list
+    # [5, 6] in the second, which a tuple cannot extend.
+    assert extended((2, (5, 6))).one() == Expression([5, 6, 9])
+    with pytest.raises(MettaResultError, match="can only concatenate list"):
+        extended((1, 5, 6)).one()
+
+
+def test_a_small_default_and_a_small_shared_body_stay_in_place(scratch_space):
+    """Sharing costs a call at each place and an equation, so a term smaller
+    than that is copied: the common guarded case followed by a default, and
+    an alternative pattern's short body, keep their code inline.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    m = scratch_space
+
+    @m.define
+    def signed(x):
+        match x:
+            case n if n > 0:
+                return 1
+            case _:
+                return 0
+
+    @m.define
+    def small(x):
+        match x:
+            case 1 | 2:
+                return 0
+        return x
+
+    assert [signed(x).one() for x in (5, -5)] == [signed.py(x) for x in (5, -5)] == [1, 0]
+    assert [small(x).one() for x in (1, 2, 3)] == [small.py(x) for x in (1, 2, 3)] == [0, 0, 3]
+    assert [len(_equations(m, name)) for name in ("signed", "small")] == [1, 1]
 
 
 def test_statements_no_arm_reaches_are_refused_as_unreachable(scratch_space):

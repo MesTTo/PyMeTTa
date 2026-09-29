@@ -29,7 +29,7 @@ Guarantees:
   - arms that fall through are generated, an if, an elif chain and a match
     among them and one inside a for, and the compiled equations agree with
     the same function run natively on its answer and every effect it
-    records, in order [tested 2026-09-29T17:49:42+10:00:
+    records, in order [tested 2026-09-29T20:59:32+10:00:
     test_arms_that_fall_through_agree_with_native_python,
     test_the_fuzzer_reaches_arms_that_fall_through]
   - that generator catches a lowering whose arms do not join: against main
@@ -513,7 +513,7 @@ def flow_programs(draw):
     A body that can fall off its end is followed by one more statement, a
     return or an effect, so every branch has something after it. A match
     with nothing after it at all is MeTTa's case, where an unmatched subject
-    answers nothing rather than Python's None [tested 2026-09-29T17:49:42+10:00:
+    answers nothing rather than Python's None [tested 2026-09-29T20:59:32+10:00:
     test_an_unmatched_subject_falls_through_to_what_follows_and_otherwise_answers_nothing],
     and the native oracle does not model that.
     """

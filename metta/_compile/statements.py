@@ -101,18 +101,26 @@ Guarantees:
     commit=6a695598aaf5951530cb8efe9afe46977afe541c]
   - an if, elif or match whose arm falls through continues into the
     statements after it, in a function body and a generator body alike;
-    those statements compile in place when one arm reaches them and once, as
-    a helper equation the arms share, when several do, so a chain of
-    branches grows linearly [tested 2026-09-29T17:49:42+10:00:
+    those statements compile once, in place when their continuation occurs
+    once in the emitted terms and otherwise as a helper equation every
+    occurrence calls [tested 2026-09-29T20:59:32+10:00:
     test_the_reports_if_else_runs_the_statement_after_it,
     test_an_elif_chain_and_a_loop_body_continue_past_their_branch,
     test_one_arm_reaching_the_rest_compiles_it_in_place,
-    test_emitted_size_is_linear_across_sequential_branches,
     test_arms_that_fall_through_agree_with_native_python]
+  - a match places no compiled term in several positions where one equation
+    called from each is smaller: the cases after a guarded case, and a
+    case's body for the alternatives whose patterns prove the same things,
+    become one equation each place calls, while a smaller term stays a
+    copy, so emitted size grows linearly in branches, guarded cases and
+    nested alternatives [tested 2026-09-29T20:59:32+10:00:
+    test_emitted_size_is_linear_in_branches_guarded_cases_and_alternatives,
+    test_alternatives_share_one_body_with_their_own_bindings,
+    test_a_small_default_and_a_small_shared_body_stay_in_place]
   - statements no arm reaches are refused, a name read after a branch is
     bound on every path reaching it, and an unmatched subject continues into
     what follows its match, answering nothing only where nothing follows
-    [tested 2026-09-29T17:49:42+10:00:
+    [tested 2026-09-29T20:59:32+10:00:
     test_statements_no_arm_reaches_are_refused_as_unreachable,
     test_a_value_read_after_a_branch_is_bound_on_every_path,
     test_an_unmatched_subject_falls_through_to_what_follows_and_otherwise_answers_nothing]
@@ -125,9 +133,9 @@ Guarantees:
     compile at the per-guard cost of the else-less lowering they replaced,
     and if/else branches whose arms fall through fill their holes in 78 node
     visits a branch and compile at k=200, the depth the guards reach
-    [measured 2026-09-29T17:49:10+10:00: 50, 100 and 200 guards retire
-    8.42, 8.70 and 9.45 G instructions:u, one process each, against 8.32,
-    8.64 and 9.34 G at seat 3016ff13b, and walk 99, 199 and 399 statements'
+    [measured 2026-09-29T19:00:43+10:00: 50, 100 and 200 guards retire
+    8.42, 8.76 and 9.45 G instructions:u, one process each, against 8.32,
+    8.66 and 9.39 G at seat 3016ff13b, and walk 99, 199 and 399 statements'
     liveness; 25 to 200 if/else branches take 1954 to 15604 hole-filling
     visits; command=perf stat -e instructions:u over a probe defining each
     chain in one MeTTa context]
@@ -140,6 +148,7 @@ Open Obligations:
 from __future__ import annotations
 
 import ast
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -1437,22 +1446,32 @@ class StatementCompilerMixin(CompilerContext):
         flat = all(case.guard is None for case in node.cases)
         flat_rows: list[Expression] = []
         for case in reversed(node.cases):
-            after_arm = fallback
-            after_empty = (
-                empty_branch if empty_branch is not None else empty_fallback
-            )
             alternatives = (
                 list(case.pattern.patterns)
                 if isinstance(case.pattern, ast.MatchOr)
                 else [case.pattern]
             )
+            if case.guard is not None:
+                # The guard places the rows after this case where it fails in
+                # each alternative, and once more where no alternative matches.
+                fallback = self._one_placement("next-case", fallback, [subject], len(alternatives) + 1)
+            after_arm = fallback
+            after_empty = (
+                empty_branch if empty_branch is not None else empty_fallback
+            )
+            prepared = []
             for pattern_node in reversed(alternatives):
                 compiler = join.arm()
                 pattern_scope = _StatementPattern(compiler)
                 pattern = pattern_scope.pattern(pattern_node)
                 flat = flat and not pattern_scope.as_bindings
                 guard = compiler._truthy(case.guard) if case.guard is not None else None
-                arm = body.term(compiler, case.body)
+                prepared.append((compiler, pattern_scope, pattern, guard))
+            # Every alternative runs the same body, compiled once for the
+            # alternatives whose patterns prove the same things.
+            case_body = _CaseBody(self, case.body, body, [compiler for compiler, *_ in prepared])
+            for compiler, pattern_scope, pattern, guard in prepared:
+                arm = case_body.term(compiler)
                 if guard is not None:
                     rejected = after_empty if pattern == Symbol("Empty") else after_arm
                     arm = Expression([Symbol("if"), guard, arm, rejected])
@@ -1492,6 +1511,31 @@ class StatementCompilerMixin(CompilerContext):
                 fallback,
             ]
         ))
+
+    def _one_placement(self, label: str, term: Atom, leading: list[Variable], placements: int) -> Atom:
+        """The term the lowering places in `placements` positions, as one
+        equation each position calls, or the term itself where copying it
+        is smaller (see _cheaper_to_share).
+
+        The equation takes `leading` and every variable the scope binds.
+        Every compiler of the term forks from this scope, so that is a
+        superset of what it reads, the statements its holes receive
+        included, whichever path fills them. Copying it instead multiplies
+        what follows by each placement: a guarded case of m alternatives
+        placed every later case m + 1 times, so k guarded two-alternative
+        cases emitted Theta(3^k) atoms [measured 2026-09-29T18:59:30+10:00:
+        59, 197, 611, 1853 and 5579 atoms for k = 1 to 5 at seat 3016ff13b;
+        command=a probe defining each k's match in one MeTTa context and
+        summing the atoms of every equation it stored]. GHC's desugarer
+        binds a pattern match's failure expression the same way:
+        https://github.com/ghc/ghc/blob/9f48a5b908f572847bc8ba4657c9f5a5d4284556/compiler/GHC/HsToCore/Utils.hs#L888-L911
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        arguments = [*leading, *_scope_variables(self)]
+        if not _cheaper_to_share([term], placements, len(arguments) + 2):
+            return term
+        head = Expression([Symbol(f"{self.name}--{label}-{next_aux_serial()}"), *arguments])
+        self.aux.append(Expression([Symbol("="), head, term]))
+        return head
 
     def _limits_statement(self, node: ast.With, rest: list[ast.stmt]) -> Atom:
         """Lower a final Space.limits block to the engine's scoped pragma."""
@@ -2121,6 +2165,138 @@ _VALUE = _Body(StatementCompilerMixin.block, "after-branch")
 _ANSWERS = _Body(_answers, "after-yield")
 
 
+def _scope_variables(compiler: CompilerContext) -> list[Variable]:
+    """Every variable the compiler's scope binds, once each, in binding order."""
+    return [Variable(name) for name in dict.fromkeys(compiler.scope.values())]
+
+
+def _occurrences(atoms: list[Atom], variable: Variable) -> int:
+    """How often the variable occurs across the atoms. Iterative, so depth is data."""
+    count = 0
+    stack = list(atoms)
+    while stack:
+        atom = stack.pop()
+        if isinstance(atom, Expression):
+            stack.extend(atom.children)
+        elif isinstance(atom, Variable) and atom == variable:
+            count += 1
+    return count
+
+
+def _atoms_exceed(atoms: list[Atom], limit: int) -> bool:
+    """Whether the atoms hold more than `limit` nodes, counting only until they do.
+
+    Time: O(min(limit, their size)) nodes visited, so the decision a size
+    makes never costs a pass over the whole term.
+    """
+    count = 0
+    stack = list(atoms)
+    while stack:
+        count += 1
+        if count > limit:
+            return True
+        atom = stack.pop()
+        if isinstance(atom, Expression):
+            stack.extend(atom.children)
+    return False
+
+
+def _cheaper_to_share(atoms: list[Atom], placements: int, call_size: int) -> bool:
+    """Whether one equation holding the atoms, called from each placement, is smaller than a copy at each.
+
+    Copies cost placements * S nodes for atoms of S nodes; sharing costs a
+    call of `call_size` nodes at each placement plus the equation, 2 + call
+    + S, so it is smaller exactly when (placements - 1) * S exceeds
+    (placements + 1) * call + 2. A copy small enough to lose that comparison
+    stays in place, so a guarded case followed by `case _: return default`
+    keeps its default inline, as GHC's simplifier inlines the small join
+    points its desugarer made, while anything larger is shared, so what
+    follows a case never grows faster than the case adds.
+    """
+    if placements < 2:
+        return False
+    return _atoms_exceed(atoms, ((placements + 1) * call_size + 2) // (placements - 1))
+
+
+def _proofs(compiler: CompilerContext) -> tuple[frozenset, ...]:
+    """What a compiler knows about its names' values, which decides how a body compiles."""
+    return (
+        frozenset(compiler.number_locals),
+        frozenset(compiler.space_locals),
+        frozenset(compiler.dict_locals),
+        frozenset(compiler.container_locals.items()),
+        frozenset(compiler.record_locals.items()),
+    )
+
+
+class _CaseBody:
+    """A case's body, compiled once for the alternatives whose patterns prove the same things.
+
+    Alternatives whose patterns leave the same value proofs compile the body
+    identically up to the variables their patterns bound, so the first of
+    them compiles it, and when the body and the equations its compile added
+    outweigh the calls (see _cheaper_to_share) stores it as an equation over
+    every variable the match's scope binds and the names that alternative's
+    pattern bound; every one of them calls it with its own bindings of those
+    names, which Python requires all alternatives to bind. Otherwise, and
+    for an alternative alone in its proofs, each compiles the body in place:
+    `case (2, rest) | (1, *rest):` binds
+    `rest` as whatever the subject holds or as a list, and a body sharing
+    either proof answers one alternative unlike Python
+    [tested 2026-09-29T20:59:32+10:00:
+    test_alternatives_share_one_body_with_their_own_bindings]. A case of one
+    pattern is the alternative alone. Compiled per alternative instead, each
+    level of nested matches whose arm had two alternatives doubled what it held
+    [measured 2026-09-29T18:59:21+10:00: 76, 170, 358, 734 and 1486 atoms
+    for 1 to 5 levels at seat 3016ff13b; command=a probe defining each
+    depth's function in one MeTTa context and summing the atoms of every
+    equation it stored]. OCaml's matcher shares an or-pattern's action the
+    same way: each alternative raises one static exit carrying the variables
+    the pattern bound and the action reads,
+    https://github.com/ocaml/ocaml/blob/74a76cc2f2588eb18a443a60918f040838292ac7/lambda/matching.ml#L1643-L1655
+    and one handler takes them as its parameters,
+    https://github.com/ocaml/ocaml/blob/74a76cc2f2588eb18a443a60918f040838292ac7/lambda/matching.ml#L3222-L3244
+    """
+
+    def __init__(
+        self, compiler: CompilerContext, statements: list[ast.stmt], body: _Body, arms: list[CompilerContext]
+    ):
+        self.compiler = compiler
+        self.statements = statements
+        self.body = body
+        self.alternatives = Counter(map(_proofs, arms))
+        # Per proofs whose first alternative has compiled the body: None to
+        # compile it in each, or the equation's name and the names a pattern binds.
+        self.decided: dict[tuple[frozenset, ...], tuple[str, list[str]] | None] = {}
+
+    def term(self, arm: CompilerContext) -> Atom:
+        """What this alternative's row runs: the body in place, or a call to the one it shares."""
+        proofs = _proofs(arm)
+        if proofs in self.decided:
+            shared = self.decided[proofs]
+            return self.body.term(arm, self.statements) if shared is None else self._call(arm, *shared)
+        bound = sorted(name for name, variable in arm.scope.items() if self.compiler.scope.get(name) != variable)
+        # The pattern's own bindings, taken before the body can rebind them.
+        arguments = self._arguments(arm, bound)
+        start = len(self.compiler.aux)
+        term = self.body.term(arm, self.statements)
+        added = self.compiler.aux[start:]
+        if not _cheaper_to_share([term, *added], self.alternatives[proofs], len(arguments) + 2):
+            self.decided[proofs] = None
+            return term
+        helper = f"{self.compiler.name}--case-body-{next_aux_serial()}"
+        self.decided[proofs] = (helper, bound)
+        head = Expression([Symbol(helper), *arguments])
+        self.compiler.aux.append(Expression([Symbol("="), head, term]))
+        return head
+
+    def _call(self, arm: CompilerContext, helper: str, bound: list[str]) -> Expression:
+        return Expression([Symbol(helper), *self._arguments(arm, bound)])
+
+    def _arguments(self, arm: CompilerContext, bound: list[str]) -> list[Variable]:
+        return [*_scope_variables(self.compiler), *(Variable(arm.scope[name]) for name in bound)]
+
+
 class _Join:
     """The statements after an if or match, reached from every arm that falls through.
 
@@ -2128,26 +2304,29 @@ class _Join:
     the T_c conditional conversion in this pinned Scheme compiler:
     https://github.com/edu-ucsd-cse-231/fa12-schemec/blob/755992dbb38ee73abb608d2ff4f8c2c59428fa16/schemec/cps.py
     An arm that falls through records its scope and answers a hole, which
-    `finish` fills once every arm has compiled. Reached from one arm, the
-    join is that arm's own straight-line code and the statements compile in
-    place there, as GHC inlines a binding that occurs once in one branch,
-    join points included:
+    `finish` fills once every arm has compiled. Reached from one place in
+    the emitted terms, the join is that path's own straight-line code and
+    the statements compile in place there, as GHC inlines a binding that
+    occurs once in one branch, join points included:
     https://github.com/ghc/ghc/blob/9f48a5b908f572847bc8ba4657c9f5a5d4284556/compiler/GHC/Core/SimpleOpt.hs#L748-L753
-    Reached from several, they share one helper equation over the names live
-    after the branch, compiled after its incoming arms, so its value proofs
-    are their intersection rather than whichever arm happened to compile
-    first. With nothing after the branch there is no join: an arm continues
-    into whatever the enclosing block continues into, so a nested match still
+    The count is of the hole's occurrences, not of the arms that recorded
+    one, since a lowering can place one arm's term in two positions. Reached
+    from several, they share one helper equation over the names live after
+    the branch, compiled after its incoming arms, so its value proofs are
+    their intersection rather than whichever arm happened to compile first.
+    With nothing after the branch there is no join: an arm continues into
+    whatever the enclosing block continues into, so a nested match still
     tells an enclosing continuation from none.
 
     Time: filling the holes is one pass over the branch's term and the
-    equations its arms added, Theta(their size); the statements after the
-    branch compile after that bound is taken and are never passed over, so a
-    chain of k branches costs Theta(k) passes of constant size, and a node
-    nested in d branches is passed over d times. What is live after each
-    branch, and bound there, comes from one walk the definition's memo
-    shares (_suffix_names), Theta(k) statement visits for the chain. Space:
-    one hole and one scope fork per arm that falls through.
+    equations its arms added, Theta(their size), and counting a lone hole's
+    occurrences is one more; the statements after the branch compile after
+    that bound is taken and are never passed over, so a chain of k branches
+    costs Theta(k) passes of constant size, and a node nested in d branches
+    is passed over 2d times at most. What is live after each branch, and
+    bound there, comes from one walk the definition's memo shares
+    (_suffix_names), Theta(k) statement visits for the chain. Space: one hole
+    and one scope fork per arm that falls through.
     """
 
     def __init__(self, compiler: CompilerContext, node: ast.If | ast.Match, rest: list[ast.stmt], body: _Body):
@@ -2202,7 +2381,8 @@ class _Join:
                 f"through to them"
             )
             raise CompileError(msg, construct=self.construct, line=self.rest[0].lineno)
-        if len(self.edges) == 1:
+        aux = self.compiler.aux
+        if len(self.edges) == 1 and _occurrences([term, *aux[self.aux_start:arms_end]], self.edges[0][1]) == 1:
             ((edge, hole),) = self.edges
             edge.closer = self.compiler.closer
             edge.closer_names = self.compiler.closer_names.copy()
@@ -2218,7 +2398,6 @@ class _Join:
                 hole: Expression([Symbol(helper), *(Variable(edge.scope[name]) for name in params)])
                 for edge, hole in self.edges
             }
-        aux = self.compiler.aux
         for index in range(self.aux_start, arms_end):
             equation = aux[index].subs(filled)
             assert isinstance(equation, Expression)  # nosec B101 # a hole is one variable, never a whole equation
