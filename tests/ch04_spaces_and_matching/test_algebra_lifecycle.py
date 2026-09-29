@@ -15,16 +15,27 @@ Guarantees:
     test_a_space_s_drop_and_a_refusal_release_the_operations_its_algebras_made,
     test_effect_classifies_the_operations_an_algebra_makes,
     test_a_declaration_the_engine_refuses_is_an_algebra_declaration_error]
+  - the engine's key alone refuses a name the space already declares, as the
+    row lands or as the transaction commits: the door answers
+    algebra_already_declared(<name>) with the IntegrityError as its cause,
+    whose key is the row's (name space) Expression, four racing workers
+    leave one row and the winner's operations, and a commit the caller owns
+    meets the IntegrityError itself [tested
+    2026-09-29T06:01:28+10:00:
+    test_a_name_the_space_declares_is_refused_by_the_engine_s_key,
+    test_racing_declarations_of_one_name_leave_one_row_and_refuse_the_rest,
+    test_a_declaration_refused_at_the_caller_s_commit_reaches_the_caller_as_the_integrity_error]
 """
 import importlib
 import operator
+import threading
 import uuid
 from contextlib import ExitStack
 
 import pytest
 
-from metta import S, registered
-from metta._errors.errors import EngineError
+from metta import Expression, S, V, registered
+from metta._errors.errors import EngineError, IntegrityError
 from metta.vocabularies import EffectClass
 
 
@@ -206,3 +217,114 @@ def test_a_declaration_the_engine_refuses_is_an_algebra_declaration_error(metta,
             _declare(door, space, "raising", combine=lambda left, right: (left + right) / 0, extend=operator.mul,
                      zero=0, one=1, carrier=(0, 1), laws=("combine-associative",))
         assert isinstance(refused.value.__cause__, EngineError)
+
+
+def _algebra_key(key, name, space):
+    """Whether an IntegrityError's key is an algebra row's: an Expression of its name, then its space."""
+    return isinstance(key, Expression) and key.children[0] == S[name] and str(key) == f"({name} {space.name})"
+
+
+@pytest.mark.parametrize("door", ["space", "module"])
+def test_a_name_the_space_declares_is_refused_by_the_engine_s_key(metta, door):
+    """A second declaration of one name in one space is refused by the row's key and leaves the first standing."""
+    algebra = importlib.import_module("metta.algebra")
+    with ExitStack() as cleanup:
+        space = metta._at(f"&twice-{door}-{uuid.uuid4().hex[:8]}")
+        cleanup.callback(space.drop)
+        qualifier = str(space.name).removeprefix("&")
+        _declare(door, space, "twice", combine=operator.add, extend=operator.mul, zero=0, one=1)
+        with pytest.raises(algebra.AlgebraDeclarationError) as refused:
+            _declare(door, space, "twice", combine=max, extend=operator.mul, zero=0, one=1)
+        assert str(refused.value) == "algebra_already_declared(twice)"
+        taken = refused.value.__cause__
+        assert isinstance(taken, IntegrityError)
+        assert taken.head == "algebra"
+        assert _algebra_key(taken.key, "twice", space)
+        first = [f"{qualifier}.twice-combine-1", f"{qualifier}.twice-extend-2"]
+        declared = algebra.require(space, "twice")
+        assert [declared.combine, declared.extend] == first
+        # The refused attempt made twice-combine-3 and twice-extend-4 and rolled them back.
+        assert sorted(name for name in registered() if name.startswith(f"{qualifier}.")) == first
+
+
+def test_racing_declarations_of_one_name_leave_one_row_and_refuse_the_rest(metta, monkeypatch):
+    """Pool workers declaring one name at once: one declares, every other is refused by the key.
+
+    Each worker is held after the engine admits its row into its own
+    transaction and before that transaction commits, until all four are
+    there, so every row passes the check as it lands, in a view holding no
+    other, and the key decides at the commits: the interleaving that let
+    several declarations each publish a row (the MeTTa-PC integration's
+    ledger measured three rows from four workers).
+    """
+    algebra = importlib.import_module("metta.algebra")
+    everyone = threading.Barrier(4, timeout=10)
+    admitted = algebra._record_algebra_undo
+
+    def held(key):
+        everyone.wait()
+        return admitted(key)
+
+    with ExitStack() as cleanup:
+        shared = metta._at(f"&race-{uuid.uuid4().hex[:8]}")
+        cleanup.callback(shared.drop)
+        # Registered after the drop so it runs first: the drop's own mirror
+        # release goes through the held hook, which would wait for workers.
+        monkeypatch.setattr(algebra, "_record_algebra_undo", held)
+        cleanup.callback(monkeypatch.undo)
+        qualifier = str(shared.name).removeprefix("&")
+
+        def declare(_worker: int) -> tuple[object, ...]:
+            try:
+                shared.algebra("race", combine=operator.add, extend=operator.mul, zero=0, one=1)
+            except algebra.AlgebraDeclarationError as refusal:
+                taken = refusal.__cause__
+                return str(refusal), type(taken).__name__, getattr(taken, "head", None), getattr(taken, "key", None)
+            return ("declared",)
+
+        with shared.pool(workers=4) as pool:
+            outcomes = list(pool.map(declare, range(4)))
+        monkeypatch.undo()
+        refused = [outcome for outcome in outcomes if outcome[0] != "declared"]
+        assert len(outcomes) - len(refused) == 1
+        assert [outcome[:3] for outcome in refused] == [("algebra_already_declared(race)", "IntegrityError", "algebra")] * 3
+        assert all(_algebra_key(outcome[3], "race", shared) for outcome in refused)
+        rows = metta._at("&metta").match(S.algebra(S.race, *(V[f"slot{index}"] for index in range(8))))
+        assert len([row for row in rows if str(row["slot7"]) == str(shared.name)]) == 1
+        # Each attempt made its own operations; the three refused rolled theirs
+        # back, and the name resolves to the operations of the row that stands.
+        owned = {name for name in registered() if name.startswith(f"{qualifier}.race-")}
+        declared = algebra.require(shared, "race")
+        assert len(owned) == 2
+        assert {declared.combine, declared.extend} == owned
+
+
+def test_a_declaration_refused_at_the_caller_s_commit_reaches_the_caller_as_the_integrity_error(metta):
+    """Inside a transaction of the caller's own, the key's answer at the commit is the caller's to meet.
+
+    Two workers each declare one name inside their own transaction and wait
+    for each other before committing, so each row lands in a view holding
+    neither and the key decides at the commits, outside the declaration door.
+    """
+    both_written = threading.Barrier(2, timeout=10)
+    with ExitStack() as cleanup:
+        shared = metta._at(f"&commit-race-{uuid.uuid4().hex[:8]}")
+        cleanup.callback(shared.drop)
+
+        def declare_then_commit(_worker: int) -> tuple[object, ...]:
+            def body() -> None:
+                shared.algebra("contested", combine="+", extend="*", zero=0, one=1)
+                both_written.wait()
+
+            try:
+                shared.transaction(body)
+            except IntegrityError as taken:
+                return taken.head, taken.key
+            return ("committed",)
+
+        with shared.pool(workers=2) as pool:
+            outcomes = list(pool.map(declare_then_commit, range(2)))
+        refused = [outcome for outcome in outcomes if outcome != ("committed",)]
+        assert len(refused) == 1
+        assert refused[0][0] == "algebra"
+        assert _algebra_key(refused[0][1], "contested", shared)

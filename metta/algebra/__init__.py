@@ -111,6 +111,16 @@ Guarantees:
     [tested 2026-09-29T05:54:02+10:00:
     test_a_declaration_the_engine_refuses_is_an_algebra_declaration_error,
     test_a_space_s_drop_and_a_refusal_release_the_operations_its_algebras_made]
+  - a name the space already declares is refused as
+    algebra_already_declared(<name>), caused by the engine's IntegrityError
+    for the row's key, whether the key is taken as the row lands or as the
+    declaration's transaction commits, so of declarations racing for one
+    name exactly one stands; inside a caller's own transaction the commit's
+    refusal reaches the caller as that IntegrityError [tested
+    2026-09-29T06:01:28+10:00:
+    test_a_name_the_space_declares_is_refused_by_the_engine_s_key,
+    test_racing_declarations_of_one_name_leave_one_row_and_refuse_the_rest,
+    test_a_declaration_refused_at_the_caller_s_commit_reaches_the_caller_as_the_integrity_error]
   - a rule's label or guard callable is an operation its space owns, named by
     the order the space made it in, so two lambda-labelled rules keep their
     own labels [tested 2026-09-29T05:54:02+10:00:
@@ -208,6 +218,7 @@ from metta._binding.runtime import active_runtime
 from metta._errors.errors import (
     EngineError,
     InferenceLimitError,
+    IntegrityError,
     MettaError,
     ResourceLimitError,
     TimeLimitError,
@@ -1453,6 +1464,14 @@ def declare(
     AlgebraDeclarationError whose cause is the engine's error, and it rolls
     back this attempt's operations, which no other attempt shares.
 
+    A name the space already declares is refused as
+    algebra_already_declared(<name>), caused by the engine's IntegrityError
+    for the algebra row's key, the name and the space: the engine asks as the
+    row lands and again as the transaction commits, so of declarations
+    racing for one name exactly one stands. Inside a transaction of the
+    caller's own the commit is the caller's, and a refusal it meets there
+    reaches the caller as that IntegrityError.
+
     metta may be a context or a space.
     """
     home = metta.self
@@ -1466,11 +1485,24 @@ def declare(
             "and every role here names an operation that already exists"
         )
         raise TypeError(msg)
-    return home.transaction(lambda: _declare(
-        home, name, roles, zero=zero, one=one, laws=laws, carrier=carrier, declared_type=type,
-        requires=requires, order=order,
-        effect=EffectClass.pureStructural if effect is None else effect,
-    ))
+    try:
+        return home.transaction(lambda: _declare(
+            home, name, roles, zero=zero, one=one, laws=laws, carrier=carrier, declared_type=type,
+            requires=requires, order=order,
+            effect=EffectClass.pureStructural if effect is None else effect,
+        ))
+    except IntegrityError as taken:
+        # Taken around the transaction rather than the row insert, since a
+        # commit's refusal arrives here too, as Django's get_or_create catches
+        # IntegrityError outside its atomic block [source 2026-09-29T06:12:53+10:00:
+        # https://github.com/django/django/blob/9332b163a67eabe5bdbf8066b1c5da394be9aa9c/django/db/models/query.py#L1104-L1107].
+        # The key is the row's own tuple, `(<name> <space>)` for an algebra
+        # row, so the name is its first element.
+        key = taken.key if taken.head == "algebra" else None
+        if not isinstance(key, Expression) or not key.children:
+            raise
+        msg = f"algebra_already_declared({key.children[0]})"
+        raise AlgebraDeclarationError(msg) from taken
 
 
 def _makes_operation(operation: Any) -> builtins.bool:
@@ -1508,11 +1540,18 @@ def _declare(
     order: SemiringOrder | None,
     effect: EffectClass | str,
 ) -> Atom:
-    """One declaration, inside the transaction declare() opens."""
+    """One declaration, inside the transaction declare() opens.
+
+    Whether the space already declares the name is the engine's to say,
+    atomically, when it admits the row and again at the commit: a check here
+    first would be a second answer that races the first. A shipped preset
+    is the exception, since its row belongs to no context the engine would
+    compare.
+    """
     if not name or not isinstance(name, str):
         msg = "algebra_name_must_be_a_nonempty_symbol"
         raise AlgebraDeclarationError(msg)
-    if name in _PRESETS or get(home, name) is not None:
+    if name in _PRESETS:
         msg = f"algebra_already_declared({name})"
         raise AlgebraDeclarationError(msg)
     for role in ("combine", "extend"):
