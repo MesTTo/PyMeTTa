@@ -13,6 +13,10 @@ Guarantees:
   - a builtin's .compiled lists its clauses where they are defined, as a
     defined head's does [tested 2026-09-25T23:30:47+10:00:
     test_compiled_lists_a_builtin_where_its_clauses_are_defined]
+  - a function another space defines under a special form's name leaves the
+    special form resolvable and callable from every other space [tested
+    2026-09-30T09:16:46+10:00:
+    test_a_function_another_space_defines_leaves_a_special_form_of_its_name_callable_here]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,7 +29,7 @@ import pydoc
 
 import pytest
 
-from metta import MettaError
+from metta import MettaError, S, lib
 from metta._declare import functions as _space_functions
 
 
@@ -207,3 +211,20 @@ def test_a_namespace_lists_and_resolves_only_what_its_space_can_call(metta):
             assert "fp_dbl" in dir(child.fn), "an inherited head is callable here"
             assert child.fn.fp_dbl.__name__ == "fp-dbl"
             assert "fp_crowd_5" not in dir(child.fn)
+
+
+def test_a_function_another_space_defines_leaves_a_special_form_of_its_name_callable_here(metta):
+    """A special form stays callable where another space's function of its name is not.
+
+    lib_derived defines ``once`` as an equation, and while any space held it
+    every other space's namespace refused ``once`` and suggested ``once``: the
+    membership probe asked ``fun/1`` first and never reached the special form,
+    while the list it stands for, and the translator, still had it.
+    test_testing_lib failed that way in one recorded order.
+    """
+    with metta._new_space() as holder, metta._new_space() as here:
+        holder += lib.derived
+        assert here.is_function("once"), "the function this case needs registered somewhere"
+        assert not here.is_function_here("once")
+        assert "once" in dir(here.fn)
+        assert here.fn.once(S.superpose((1, 2, 3))) == [1]

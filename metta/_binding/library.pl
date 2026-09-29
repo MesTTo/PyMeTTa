@@ -203,12 +203,19 @@ metta_py_is_function(Name0) :-
 %resolution, and the full read it replaces measured 1,347 inferences on the
 %first access after any definition where this probe is double digits
 %[measured 2026-08-24; consumer _FunctionNamespace._known].
+%The special-form test is the fallback of the whole function test, not of
+%fun/1 alone: a function another space defines under a special form's name
+%(lib_derived's (= (once $expr) ...)) is not callable here, and the special
+%form still is, so the list names it and a call made here compiles it
+%[tested 2026-09-30T09:16:46+10:00:
+%test_a_function_another_space_defines_leaves_a_special_form_of_its_name_callable_here].
 metta_py_catalogue_member(Space0, Name0) :-
     metta_py_space_atom(Space0, Space),
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    (   fun(Name)
-    ->  metta_py_module(Space, Module),
+    (   fun(Name),
+        metta_py_module(Space, Module),
         metta_host_function_callable_from(Module, Name)
+    ->  true
     ;   once(metta_special_form_head(Name))
     ).
 
