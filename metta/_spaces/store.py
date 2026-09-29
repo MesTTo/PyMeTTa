@@ -4,7 +4,7 @@ Guarantees: from_ adds an ordinary live reference row through the existing
 write door [tested: test_from_is_a_live_stored_row; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 Guarantees: -= crosses through the execution-policy wrapper as remove does, so
 inside speculative() its removal is discarded and inside atomic() it is one
-transaction [tested 2026-09-29T21:42:02+10:00:
+transaction [tested 2026-09-29T23:46:26+10:00:
 test_every_public_write_door_honours_the_execution_scopes[isub],
 test_every_public_write_door_honours_the_execution_scopes[isub-many]].
 """
@@ -257,6 +257,11 @@ def remove(space: _root.Space, atom: Any, *more: Any) -> bool | int:
 )
 def transfer(space: _root.Space, *atoms: Any, to: _root.Space) -> int:
     """Move ONE unifying occurrence of each atom into another space.
+
+    The occurrence is the one ``remove`` takes, and what lands is that
+    atom as the source stored it, never the given atom instantiated by
+    the match: moving ``S.edge(1, V.z)`` out of a space holding
+    ``(edge $y 2)`` lands ``(edge $y 2)``.
 
     Variadic and atomic: however many atoms ride the call, one engine
     transaction moves them in one crossing, so a mid-move failure

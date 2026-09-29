@@ -12,6 +12,14 @@ Guarantees:
     so it inverts `+=`; `del space[pattern]` is the drain and remove()
     the door that reports absence [tested:
     test_isub_subtracts_one_occurrence_and_inverts_iadd; commit=c6a40460b1db341198a6150e3600f502831a6e83]
+  - transfer lands the occurrence that left as the source stored it, never
+    the named atom instantiated by the match, which for an equation that
+    unifies only cyclically is a rational tree [tested 2026-09-29T23:46:26+10:00:
+    test_transfer_lands_the_occurrence_that_left]
+  - `-=` takes an occurrence equal to its operand before an older one that
+    only unifies with it, so `+=` then `-=` leaves the space it found over
+    atoms with variables too [tested 2026-09-29T23:46:26+10:00:
+    test_isub_takes_the_equal_occurrence_before_an_older_unifier]
   - eval's variadic face answers one group per term, run()'s grouping,
     with one bind scope over the whole batch [tested:
     test_eval_batches_with_one_bind_scope; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
@@ -43,11 +51,12 @@ Open Obligations:
 from __future__ import annotations
 
 import gc
+import re
 import warnings
 
 import pytest
 
-from metta import G, MeTTa, S, V
+from metta import G, MeTTa, S, V, parse
 
 
 @pytest.fixture
@@ -72,6 +81,54 @@ def test_transfer_moves_a_batch_atomically(context):
     # The one-atom call reads as the truth value remove reads as.
     assert source.transfer(S.r(3), to=target) == 1
     assert source.transfer(S.r(3), to=target) == 0
+
+
+def _shapes(space) -> list[str]:
+    """Stored atoms as text with each variable renamed by first appearance."""
+
+    def renamed(text: str) -> str:
+        names: dict[str, str] = {}
+        return re.sub(r"\$[\w-]+", lambda v: names.setdefault(v.group(0), f"$v{len(names)}"), text)
+
+    return sorted(renamed(str(atom)) for atom in space)
+
+
+def test_transfer_lands_the_occurrence_that_left(context):
+    """What lands is the stored atom that left, not the named atom's instance."""
+    source = context.space("&land-src")
+    target = context.space("&land-dst")
+    source.add(S.edge(V.y, 2))
+    assert source.transfer(S.edge(1, V.z), to=target) == 1
+    assert _shapes(source) == []
+    assert _shapes(target) == ["(edge $v0 2)"]
+
+    source.add(parse("(= (moved $y) $y)"), parse("(= (moved $x) (+ $x 10))"))
+    assert source.transfer(parse("(= (moved $x) (+ $x 10))"), to=target) == 1
+    assert source.eval(S.moved(1)) == [1]
+    assert target.eval(S.moved(1)) == [11]
+
+    # The only occurrence unifies with the named equation through a rational
+    # tree; the move lands that occurrence rather than dying on the tree.
+    source.add(parse("(= (cycled $y) $y)"))
+    assert source.transfer(parse("(= (cycled $x) (+ $x 10))"), to=target) == 1
+    assert "(= (cycled $v0) $v0)" in _shapes(target)
+
+
+def test_isub_takes_the_equal_occurrence_before_an_older_unifier(context):
+    """`+=` then `-=` leaves the space it found when an older atom unifies."""
+    space = context.space("&subtract-equal")
+    space.add(S.pair(V.y, V.y))
+    before = _shapes(space)
+    space += S.pair(1, V.z)
+    space -= S.pair(1, V.z)
+    assert _shapes(space) == before
+
+    space.add(parse("(= (pick $y) $y)"))
+    before = _shapes(space)
+    space += parse("(= (pick $x) (+ $x 10))")
+    space -= parse("(= (pick $x) (+ $x 10))")
+    assert _shapes(space) == before
+    assert space.eval(S.pick(1)) == [1]
 
 
 def test_remove_batches_and_takes_every_added_shape(context):

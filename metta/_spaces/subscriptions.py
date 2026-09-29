@@ -136,14 +136,15 @@ def subscribe(
     than discarding the oldest event: nobody draining is a bug in the
     consumer, and a silently shortened history is how it stays hidden.
     A removal event fires only when something was removed, and carries
-    the pattern that was asked for rather than the occurrence that
-    left. The two are the same atom for a ground removal and differ
-    for a pattern one: removal is multiset subtraction, so
-    `remove(S.alert(V.q))` takes one of the alerts and the event
-    cannot say which. Re-read the space when you need to know;
-    `m.live(pattern)` is the worked instance, and it is the rung above
-    this one: a view is this subscription maintaining what a match would
-    have answered.
+    the atom that left, as the space stored it: removal is multiset
+    subtraction, so `remove(S.alert(V.q))` takes one of the alerts, and
+    the event's bindings say which one. `del m[pattern]` reports every
+    atom it took. Two removals report what they were given instead:
+    `take` reports the atom it answered, and a foreign provider, which
+    chooses the occurrence itself, reports the pattern it was asked for,
+    so re-read the space when that difference matters.
+    `m.live(pattern)` is the rung above this one: a view is this
+    subscription maintaining what a match would have answered.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     subscriptions = lazy('metta.subscribe')
     guard = None if where is None else _spaces_cursor_module.guard_atom(where)

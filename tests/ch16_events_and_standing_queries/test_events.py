@@ -19,6 +19,9 @@ Guarantees:
     accepted identity-preserving step does [tested:
     test_a_rejected_guard_event_does_not_end_a_blocking_stream,
     test_an_accepted_identity_step_still_wakes_its_waiter; commit=438506a1688c78a383499973b6a89fa6bb559629]
+  - removing everything tells a removal subscriber of each atom that left,
+    once, and of nothing else
+    [tested 2026-09-29T23:46:26+10:00: test_removing_everything_tells_each_atom_that_left_once]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -169,6 +172,28 @@ def test_a_native_space_needs_no_declaration_to_be_watched(metta):
         }
         assert str(explained["events"].children[1]) == "per-write-exactly"
         assert str(explained["events"].children[2]) == "ordered"
+    finally:
+        subscription.cancel()
+
+
+def test_removing_everything_tells_each_atom_that_left_once(metta):
+    """A drain's removal events are the atoms that left, one each.
+
+    `space.remove` of a variable takes every atom, and a subscriber to every
+    removal hears each of them once and nothing else. It also heard the
+    variable itself, after the atoms, because the drain passed through the
+    engine's one-occurrence removal door as one more removal.
+    """
+    space = metta._new_space()
+    atoms = [S.drained(1), S.drained(2), S.kept(S.one)]
+    for atom in atoms:
+        space.add(atom)
+    seen: list = []
+    subscription = space.subscribe(V.x, seen.append, on="remove")
+    try:
+        assert space.remove(V.anything)
+        assert sorted(str(event.bindings["x"]) for event in seen) == sorted(map(str, atoms))
+        assert list(space.atoms()) == []
     finally:
         subscription.cancel()
 

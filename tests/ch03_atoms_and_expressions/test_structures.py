@@ -271,14 +271,18 @@ def test_liveview_mirrors_the_space(metta):  # noqa: D103  -- pytest discovers o
 def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
     """The re-read is paid only where the event cannot resolve the removal.
 
-    A ground removal names the occurrence that left, so the view decrements
-    locally and its cost does not move with how much it holds; a pattern
-    removal re-reads and its cost does. Measured 2026-08-19 over views of 10,
-    100 and 1000: 64 inferences flat against 211, 1200 and 11100.
+    A removal event names the atom that left, so while every answer the view
+    holds is ground the view decrements locally, whether the removal named a
+    ground atom or a pattern, and its cost does not move with how much it
+    holds; once it holds an answer with variables, the atom that left could be
+    what that answer stands for too, so it re-reads and its cost does.
+    Measured 2026-08-19 over views of 10, 100 and 1000: 64 inferences flat
+    against 211, 1200 and 11100, when a pattern removal's event carried the
+    pattern and re-read.
     """
     from metta.structures import LiveView
 
-    def removal_cost(size, atom, *, watched=True):
+    def removal_cost(size, atom, *, watched=True, varied=False):
         # Minimum of three, the repository's own measurement rule: the
         # session-scoped engine carries whatever state earlier files in the
         # xdist worker left, and a one-off transition wobbled a single
@@ -288,10 +292,12 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
         for _ in range(3):
             with metta._new_space() as sp:
                 sp.add(*[S.alert(S.red) for _ in range(size)])
+                if varied:
+                    sp.add(S.alert(V.any))
                 if watched:
                     with LiveView(sp, S.alert(V.level)) as view, metta.stats() as spent:
                         sp.remove(atom)
-                    assert len(view) == size - 1
+                    assert len(view) == size - 1 + varied
                 else:
                     with metta.stats() as spent:
                         sp.remove(atom)
@@ -300,12 +306,17 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
 
     # Token-ordered subtraction scans the matching occurrences in either arm.
     # Subtract that shared storage cost to measure the view's own maintenance.
-    def view_cost(size, atom):
-        return removal_cost(size, atom) - removal_cost(size, atom, watched=False)
+    def view_cost(size, atom, *, varied=False):
+        return removal_cost(size, atom, varied=varied) - removal_cost(
+            size, atom, watched=False, varied=varied
+        )
 
     small, large = view_cost(10, S.alert(S.red)), view_cost(200, S.alert(S.red))
     assert small == large, "a ground removal adds no growing view cost"
-    assert view_cost(200, S.alert(V.q)) > large, "a pattern removal re-reads"
+    assert view_cost(200, S.alert(V.q)) == large, "a pattern removal's event names the atom"
+    assert view_cost(200, S.alert(S.red), varied=True) > view_cost(
+        10, S.alert(S.red), varied=True
+    ), "an answer with variables makes the view re-read"
 
 
 def test_closureview_terminates_and_stays_fresh(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

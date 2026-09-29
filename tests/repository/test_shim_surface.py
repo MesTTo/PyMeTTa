@@ -246,6 +246,14 @@ HOST_SERVICES = {
     "metta_host_forget_function/1",
     "metta_host_stored/2",
     "metta_host_remove_reported/3",
+    # One grown row with its reason. Space.transfer lands what it subtracted,
+    # and the landed atom has to be the occurrence that left: the subtracted
+    # pattern as the removal's unification instantiated it was narrower than
+    # that occurrence, or a rational tree assertz refused. subtract-atom's own
+    # removal answers the occurrence, and subtract-atom/3 is its projection,
+    # so the moving door and the removing doors share one selection instead
+    # of the transport choosing an occurrence of its own.
+    "metta_host_subtract/4",
     "metta_host_native_fact/4",
     "metta_host_explain_match/3",
     "metta_host_operation_error/5",
@@ -525,6 +533,7 @@ FLOOR_REASONS = {
     "metta_host_read_forms/2": "host-orchestration",
     "metta_host_register_reader_token/2": "door",
     "metta_host_remove_reported/3": "host-orchestration",
+    "metta_host_subtract/4": "door",
     "metta_host_run_source/4": "host-orchestration",
     "metta_host_run_source_status/3": "host-orchestration",
     "metta_host_with_stack_limit/2": "door",

@@ -860,14 +860,14 @@ class Live:
                     )
                 )
             return
-        # A removal event carries the PATTERN asked for, not the occurrence
-        # that left, because removal is multiset subtraction and
-        # `remove(S.alert(V.q))` takes one of the alerts without saying which.
-        # It does say which when that pattern is GROUND and every answer the
-        # view holds is ground too: nothing else stored can then unify with
-        # it, so exactly one copy of it left and the decrement is local.
-        # Anything else re-reads, which is what a handler needing more than
-        # the event carries is asked to do.
+        # A removal event names the atom that left for the space's own
+        # doors, but a foreign provider's names the pattern it was asked
+        # for, and `take` the atom it answered, which is narrower than a
+        # stored atom with variables. A GROUND event atom while every answer
+        # the view holds is ground is exact either way: nothing else stored
+        # can then unify with it, so exactly one copy of it left and the
+        # decrement is local. Anything else re-reads, which is what a
+        # handler needing more than the event carries is asked to do.
         key, _ground = _live_row(
             event.bindings.get(name, Variable(name)) for name in self._columns
         )

@@ -40,12 +40,16 @@ Guarantees:
     test_two_crossings_of_one_carried_term_are_one_atom_up_to_renaming;
     commit=5b0b9227428b0a43bd4a7a3c2c164305704112ad]
   - LiveView holds exactly what the space holds for its pattern, through
-    adds and through removals whose event cannot say which occurrence left
-    [tested test_liveview_mirrors_the_space]
+    adds and removals, whether a removal event names the atom that left or,
+    from a foreign provider, the pattern it was asked for; over ground
+    answers it takes a removal off without a read, a pattern removal
+    included, and re-reads once it holds an answer with variables
+    [tested 2026-09-29T23:46:26+10:00: test_liveview_mirrors_the_space,
+    test_a_ground_removal_costs_the_view_nothing_that_grows]
   - LiveView is metta.live's Live with the pattern strategy, read through
-    its atoms, so the two cannot drift [tested:
+    its atoms, so the two cannot drift [tested 2026-09-29T23:46:26+10:00:
     test_liveview_mirrors_the_space,
-    test_a_ground_removal_costs_the_view_nothing_that_grows; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
+    test_a_ground_removal_costs_the_view_nothing_that_grows]
 Decides:
   - source text is NOT parsed here, because parsing needs the engine and
     this module's contract is engine-freedom; parse() first, or build

@@ -710,6 +710,11 @@ class AsyncMeTTa(AsyncMeTTaBase):
     async def transfer(self, *atoms: _body_typing.Any, to: _body_metta.Space) -> _builtins.int:
         """Move ONE unifying occurrence of each atom into another space.
 
+        The occurrence is the one ``remove`` takes, and what lands is that
+        atom as the source stored it, never the given atom instantiated by
+        the match: moving ``S.edge(1, V.z)`` out of a space holding
+        ``(edge $y 2)`` lands ``(edge $y 2)``.
+
         Variadic and atomic: however many atoms ride the call, one engine
         transaction moves them in one crossing, so a mid-move failure
         rolls every side back and nothing is lost between the spaces. The

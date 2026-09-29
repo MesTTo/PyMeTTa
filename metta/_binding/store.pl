@@ -1,12 +1,17 @@
 % Purpose: read and mutate atom bags through the engine storage doors.
 % Assumes: loaded through _binding/shim.pl in its host module.
+% Guarantees: transfer lands the stored occurrence metta_host_subtract/4
+%   answers, never the wire instantiated by the subtraction's match
+%   [tested 2026-09-29T23:46:26+10:00: test_transfer_lands_the_occurrence_that_left].
 
 %%%%%%%%%% Space operations %%%%%%%%%%
 %
-% Writes go through MeTTa's own 'add-atom'/3 and 'remove-atom'/3, so an
-% equation takes the engine's function path (register_fun, arity,
-% translate_clause, invalidation) exactly as one read from a file does, and
-% removal keeps the engine's own semantics (a plain atom removal is retractall).
+% Writes go through MeTTa's own 'add-atom'/3, so an equation takes the
+% engine's function path (register_fun, arity, translate_clause, invalidation)
+% exactly as one read from a file does, and removals through the engine's own
+% doors: one occurrence through 'subtract-atom'/3, or its reporting face
+% metta_host_subtract/4 where the occurrence itself is wanted, and the drain
+% through remove-atom.
 
 metta_py_add(Space, Tagged) :-
     metta_py_decode_shared(Tagged, Term, _),
@@ -83,15 +88,27 @@ metta_py_add_many(Space, TaggedList, true) :-
     metta_py_add_many(Space, TaggedList).
 
 %ONE LAW, ONE IMPLEMENTATION. Every one-occurrence door in this seat asks the
-%engine's own 'subtract-atom'/3 rather than the private service beneath it, so
-%the unbound-term guard is written once and remove(), its variadic face, the
-%`-=` operator and transfer cannot disagree about what one occurrence means.
+%engine's own subtraction rather than the private service beneath it:
+%'subtract-atom'/3 for remove(), its variadic face and the `-=` operator, and
+%for transfer, which lands what it took, the reporting face
+%metta_host_subtract/4, which shares subtract-atom's refusals and selection.
+%So the unbound-term guard is written once and the four doors cannot disagree
+%about what one occurrence means, while a removing door leaves the read to
+%the engine, which makes it only while a removal handler exists or the
+%pattern needs the occurrence to say how it leaves.
 %Reaching past the head is what made them disagree: remove(V.x) read the
 %variable as the whole space and DRAINED it while answering True, and
 %transfer(V.x, to=b) died on an opaque instantiation error, its transaction
 %rolling the source back [measured 2026-09-01].
 metta_py_subtract(Space, Term, Verdict) :-
     'subtract-atom'(Space, Term, Result),
+    metta_py_subtract_verdict(Result, Verdict).
+
+metta_py_subtract(Space, Term, Verdict, Occurrence) :-
+    metta_host_subtract(Space, Term, Result, Occurrence),
+    metta_py_subtract_verdict(Result, Verdict).
+
+metta_py_subtract_verdict(Result, Verdict) :-
     (   Result == true
     ->  Verdict = true
     ;   Result == false
@@ -127,21 +144,27 @@ metta_py_remove_everything(Space, Removed) :-
     metta_host_remove_reported(Space, _Anything, Verdict),
     metta_py_encode(Verdict, Removed).
 
-%One crossing MOVES a batch: each wire removes one reported occurrence from
-%the source and, when found, lands in the target, all inside one engine
-%transaction, so a mid-move failure rolls every side back and an atom is
-%never lost between spaces. The count answers how many moved; an absent
-%member moves nothing and counts nothing, the found-reporting grain of the
-%one-occurrence remove door.
+%One crossing MOVES a batch: each wire subtracts one occurrence from the
+%source and, when one was there, lands THAT occurrence in the target, all
+%inside one engine transaction, so a mid-move failure rolls every side back
+%and an atom is never lost between spaces. What lands is the stored atom that
+%left, never the wire as the subtraction's unification instantiated it: over
+%a stored (= (subject $y) $y), that instantiation of (= (subject $x)
+%(+ $x 10)) is a rational tree, and landing it raised cyclic_term out of
+%assertz and rolled the whole move back [measured 2026-09-29T23:29:54+10:00:
+%spaces_tokens:a_subtraction_binds_nothing_of_its_pattern, failing at
+%c122ab1f6 where the subtraction binds the wire]. The count answers how many
+%moved; an absent member moves nothing and counts nothing, the
+%found-reporting grain of the one-occurrence remove door.
 metta_py_transfer(From, To, Wires, Count) :-
     metta_transaction(metta_py_transfer_each(Wires, From, To, 0, Count)).
 
 metta_py_transfer_each([], _, _, Count, Count).
 metta_py_transfer_each([Wire|Wires], From, To, Count0, Count) :-
     metta_py_decode_shared(Wire, Term, _),
-    metta_py_subtract(From, Term, Verdict),
+    metta_py_subtract(From, Term, Verdict, Occurrence),
     (   Verdict == true
-    ->  'add-atom'(To, Term, _),
+    ->  'add-atom'(To, Occurrence, _),
         Count1 is Count0 + 1
     ;   Count1 = Count0
     ),
