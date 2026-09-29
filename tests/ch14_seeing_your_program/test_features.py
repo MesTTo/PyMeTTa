@@ -1644,6 +1644,8 @@ WRITE_DOORS = (
     ("equation", lambda s: s.add(parse("(= (write-mark-fn) 9)")), ()),
     ("remove", lambda s: s.remove(S["write-mark"](1)), (1, 2)),
     ("remove-many", lambda s: s.remove(S["write-mark"](1), S["write-mark"](2)), (1, 2)),
+    ("isub", lambda s: s.__isub__(S["write-mark"](1)), (1, 2)),
+    ("isub-many", lambda s: s.__isub__([S["write-mark"](1), S["write-mark"](2)]), (1, 2)),
     ("remove-everything", lambda s: s.remove(V.anything), (1, 2)),
     ("delitem", lambda s: s.__delitem__(S["write-mark"](V.n)), (1, 2)),
     ("clear", lambda s: s.clear(), (1, 2)),

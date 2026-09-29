@@ -2,6 +2,11 @@
 
 Guarantees: from_ adds an ordinary live reference row through the existing
 write door [tested: test_from_is_a_live_stored_row; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+Guarantees: -= crosses through the execution-policy wrapper as remove does, so
+inside speculative() its removal is discarded and inside atomic() it is one
+transaction [tested 2026-09-29T21:42:02+10:00:
+test_every_public_write_door_honours_the_execution_scopes[isub],
+test_every_public_write_door_honours_the_execution_scopes[isub-many]].
 """
 
 from __future__ import annotations
@@ -681,12 +686,14 @@ def __isub__(space: _SpaceT, atom: Any) -> _SpaceT:  # noqa: N807 -- the marked 
         # writes refuses one it did not ask for: the C-store example's
         # `store -= atom` failed that way the moment a single removal
         # borrowed the batch path [measured 2026-09-01].
-        space._rt.apply_must(
-            "metta_py_remove", space._space, _to_atom(atom).to_wire()
+        _spaces_execution_module.run_write(
+            space._rt, "metta_py_remove", space._space, _to_atom(atom).to_wire()
         )
     else:
         wires = [_to_atom(row).to_wire() for row in stream]
-        space._rt.apply_must("metta_py_remove_many", space._space, wires)
+        _spaces_execution_module.run_write(
+            space._rt, "metta_py_remove_many", space._space, wires
+        )
     lazy('metta._declare.functions')._invalidate_builtins_cache(space._rt)
     return space
 
