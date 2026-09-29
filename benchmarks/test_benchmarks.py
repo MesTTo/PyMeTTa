@@ -590,11 +590,23 @@ _ROWS = 2_000
 # size and mode before this commit and with it, read on one battery path at
 # the landing's HEAD; command=python -c "import benchmarks.test_benchmarks as
 # t; print(t._automatic_tabling_observations())" from extensions/python].
+# Re-pinned 2026-09-30: automatic +7 at n = 12, plain +3 at n = 12, automatic
+# +7 at n = 15, plain +3 at n = 15, automatic +7 at n = 18, plain +3 at n =
+# 18, automatic +7 at n = 20, plain +3 at n = 20, a module takes a name over
+# only when the name's equations compile to a predicate of that name
+# (engine/metta/registration.pl, fun_overrides_in/2), so each reader that
+# asked fun_in/2 whether a module took a name over now also asks
+# compiled_function_name/2 when the module registers the name, one call per
+# such lookup of a module's own name. [measured 2026-09-30T03:36:15+10:00: min
+# of three observations per size and mode before this commit and with it, read
+# on one battery path at the landing's HEAD; command=python -c "import
+# benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
+# from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_295, "automatic": 17_755},
-    15: {"plain": 953_783, "automatic": 19_009},
-    18: {"plain": 7_605_687, "automatic": 20_263},
-    20: {"plain": 30_412_215, "automatic": 21_099},
+    12: {"plain": 122_298, "automatic": 17_762},
+    15: {"plain": 953_786, "automatic": 19_016},
+    18: {"plain": 7_605_690, "automatic": 20_270},
+    20: {"plain": 30_412_218, "automatic": 21_106},
 }
 
 
