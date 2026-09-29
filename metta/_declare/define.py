@@ -122,6 +122,11 @@ Guarantees:
     before it reads a function's source, so the third host door is auditable
     with the other two [tested: test_the_compile_door_raises_its_event;
     commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+  - every compiler child, a branch's fork or a new equation's, copies all
+    four representation proofs, and a nested binder's parameters shed the
+    ones their names shadow [tested 2026-09-29T17:49:42+10:00:
+    test_a_space_written_in_a_loop_body_or_after_a_try_keeps_its_writes,
+    test_a_nested_def_parameter_sheds_the_outer_bindings_proofs]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1179,12 +1184,7 @@ class _Compiler(
         return self._nested_compiler(self.scope.copy())
 
     def _nested_compiler(self, scope: dict[str, str]) -> _Compiler:
-        nested = self._child_compiler(
-            scope,
-            used=self.used,
-            closer=self.closer,
-            space_locals=self.space_locals.copy(),
-        )
+        nested = self._child_compiler(scope, used=self.used, closer=self.closer)
         nested.closer_names = self.closer_names.copy()
         return nested
 
@@ -1194,18 +1194,31 @@ class _Compiler(
         the whole term, so a shadow must not reuse the outer variable.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         nested = self._nested_compiler(self.scope.copy())
-        nested.number_locals.difference_update(extra)
-        nested.space_locals.difference_update(extra)
-        nested.dict_locals.difference_update(extra)
+        nested._shadow(extra)
         for name in extra:
             nested._bind(name)
-            nested.container_locals.pop(name, None)
-            nested.record_locals.pop(name, None)
         return nested
+
+    def _shadow(self, names: list[str]) -> None:
+        """Forget every proof about the values of names a new binder shadows:
+        a parameter holds whatever its caller passes, whatever the outer
+        binding of the same name was known to be [source 2026-09-29T16:53:20+10:00:
+        docs/journal/2026-09-14-python-binding-identity.md, "A new parameter
+        also discards the outer value's number, container, dictionary, space
+        and record proofs"].
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        self.number_locals.difference_update(names)
+        self.space_locals.difference_update(names)
+        self.dict_locals.difference_update(names)
+        for name in names:
+            self.container_locals.pop(name, None)
+            self.record_locals.pop(name, None)
 
     def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:
         """A compiler for a NEW equation (a loop helper, a lifted def):
-        fresh variable namespace, shared aux and lifted registries.
+        fresh variable namespace, shared aux and lifted registries, and the
+        representation proofs this compiler holds, which a parameter carrying
+        the same name's value keeps.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._child_compiler(params, used=None, closer=closer)
 
@@ -1215,12 +1228,14 @@ class _Compiler(
         *,
         used: set[str] | None,
         closer: Callable[[_Compiler], Atom] | None,
-        space_locals: set[str] | None = None,
-        dict_locals: set[str] | None = None,
-        container_locals: dict[str, str] | None = None,
-        number_locals: set[str] | None = None,
     ) -> _Compiler:
-        """Propagate shared definition context into every compiler child."""
+        """Propagate shared definition context into every compiler child.
+
+        Every representation proof copies alike. Space proofs once started
+        empty in a new equation, so a Space parameter written inside a loop
+        body compiled as Python's in-place add on the handle and stored
+        nothing [tested 2026-09-29T17:49:42+10:00: test_a_space_written_in_a_loop_body_or_after_a_try_keeps_its_writes].
+        """
         return _Compiler(
             self.name,
             params,
@@ -1243,7 +1258,7 @@ class _Compiler(
             annotation_resolver=self._annotation_resolver,
             annotation_alternatives=self._annotation_alternatives,
             annotation_value=self._annotation_value,
-            space_locals=space_locals,
+            space_locals=self.space_locals.copy(),
             function=self.function,
             source=self.source,
             source_path=self.source_path,
@@ -1254,11 +1269,9 @@ class _Compiler(
             type_aliases=self.type_aliases,
             pragma_globals=self.pragma_globals,
             libraries=self.libraries,
-            dict_locals=dict_locals if dict_locals is not None else self.dict_locals.copy(),
-            container_locals=container_locals
-            if container_locals is not None
-            else self.container_locals.copy(),
-            number_locals=number_locals if number_locals is not None else self.number_locals.copy(),
+            dict_locals=self.dict_locals.copy(),
+            container_locals=self.container_locals.copy(),
+            number_locals=self.number_locals.copy(),
             number_return=self.number_return,
             record_locals=self.record_locals.copy(),
             class_context=self.class_context,

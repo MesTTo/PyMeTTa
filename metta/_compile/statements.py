@@ -99,6 +99,11 @@ Guarantees:
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
     commit=6a695598aaf5951530cb8efe9afe46977afe541c]
+  - a try's continuation carries a name the statements after it augment, and
+    a lifted def's parameters shed every proof about the names they shadow
+    [tested 2026-09-29T17:49:42+10:00:
+    test_a_space_written_in_a_loop_body_or_after_a_try_keeps_its_writes,
+    test_a_nested_def_parameter_sheds_the_outer_bindings_proofs]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -560,13 +565,16 @@ class StatementCompilerMixin(CompilerContext):
         def collect(pieces: list[ast.stmt], bound: set[str]) -> None:
             for statement in pieces:
                 for sub in ast.walk(statement):
-                    if (
-                        isinstance(sub, ast.Name)
-                        and isinstance(sub.ctx, ast.Load)
-                        and (sub.id in self.scope or sub.id in bound)
-                        and sub.id not in carried
-                    ):
-                        carried.append(sub.id)
+                    # An augmented assignment reads its target, as a loop's
+                    # free reads count it (loops.py, _free_reads).
+                    if isinstance(sub, ast.AugAssign) and isinstance(sub.target, ast.Name):
+                        name = sub.target.id
+                    elif isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load):
+                        name = sub.id
+                    else:
+                        continue
+                    if (name in self.scope or name in bound) and name not in carried:
+                        carried.append(name)
 
         # The else arm runs in the success destructure, so what it reads
         # of the BODY's bindings must ride the tag; its own bindings are
@@ -1760,6 +1768,7 @@ class StatementCompilerMixin(CompilerContext):
         self.lifted[node.name] = (mangled, lifted, generator)
 
         inner = self._equation_compiler(lifted + params)
+        inner._shadow(params)
         body: Atom = (
             _superpose(inner.yield_answers(node.body)) if generator else inner.block(node.body)
         )

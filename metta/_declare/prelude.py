@@ -47,6 +47,10 @@ Guarantees:
     and accept native set and dictionary images as operands [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
     commit=fb170a48db042c9a002e06f6cb47389af7fd66fc]
+  - error classification reads a grounded child's value through getattr, so
+    a handle, which has no value slot, passes through a compiled try's
+    handler test [tested 2026-09-29T17:49:42+10:00:
+    test_a_space_written_in_a_loop_body_or_after_a_try_keeps_its_writes]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -203,8 +207,12 @@ def _error_class(error: Any) -> BaseException | type[BaseException] | str | None
     if not isinstance(error, Expression):
         return None
     for child in error.children[1:]:
-        if isinstance(child, Grounded) and isinstance(child.value, BaseException):
-            return child.value
+        # A handle has no value slot, so its read is guarded, the Handle
+        # contract: a compiled try's success tag carries a Space and passes
+        # through here [tested 2026-09-29T17:49:42+10:00: test_a_space_written_in_a_loop_body_or_after_a_try_keeps_its_writes].
+        value = getattr(child, "value", None)
+        if isinstance(child, Grounded) and isinstance(value, BaseException):
+            return value
         if isinstance(child, Expression) and child.children:
             head = child.children[0]
             if isinstance(head, Symbol):
@@ -246,7 +254,7 @@ def _described_exception(error: Any) -> tuple[str | None, str | None]:
                     (
                         part.value
                         for part in child.children[1:]
-                        if isinstance(part, Grounded) and isinstance(part.value, str)
+                        if isinstance(part, Grounded) and isinstance(getattr(part, "value", None), str)
                     ),
                     None,
                 )

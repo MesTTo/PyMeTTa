@@ -409,3 +409,30 @@ def test_alpha_is_the_equality_family_spelling(m):
     assert list(same_shape(S.f(1), S.f(2))) == [False]
     assert str(V.x.alpha(0)) == "(=alpha $x 0)"
     assert str(fn["=alpha"]) == "=alpha"
+
+
+def test_a_space_written_in_a_loop_body_or_after_a_try_keeps_its_writes(m):
+    """A loop's and a try's continuation equations keep a Space parameter a
+    space, and an augmented write after a try reads the name it writes.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+
+    @m.define
+    def logged_loop(log: Space, a):
+        for step in (1, 2):
+            log += S.visited(step, a)
+        return a
+
+    @m.define
+    def logged_after_try(log: Space, a):
+        try:
+            b = 10 // a
+        except ZeroDivisionError:
+            b = 0
+        log += S.visited(9, b)
+        return b
+
+    for function, a in ((logged_loop, 3), (logged_after_try, 5), (logged_after_try, 0)):
+        native = m.fn["new-space"]()[0]
+        compiled = m.fn["new-space"]()[0]
+        assert list(function(compiled, a)) == [function.py(native, a)]
+        assert sorted(str(atom) for atom in compiled) == sorted(str(atom) for atom in native)

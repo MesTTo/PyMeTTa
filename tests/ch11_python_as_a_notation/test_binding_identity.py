@@ -269,3 +269,25 @@ def test_class_underscore_fields_receivers_and_packed_parameters(scratch_space, 
     assert value.positional(2, 3) == value.positional.py(2, 3) == 12
     assert value.keyword(bonus=4) == value.keyword.py(bonus=4) == 11
     assert all("_host-" not in getattr(value, name).source() for name in ("read", "positional", "keyword"))
+
+
+def test_a_nested_def_parameter_sheds_the_outer_bindings_proofs(scratch_space):
+    """A lifted def's parameter holds what its caller passes, as a lambda's does,
+    whatever the enclosing binding of the same name was known to be.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    @scratch_space.define
+    def doubled_text(x: int):  # noqa: ARG001 -- the outer binding whose proof the nested parameter must not inherit
+        def twice(x):
+            return x * 2
+        return twice("ab")
+
+    @scratch_space.define
+    def bumped(target: Space):  # noqa: ARG001 -- the outer binding whose proof the nested parameter must not inherit
+        def bump(target):
+            target += 1
+            return target
+        return bump(41)
+
+    assert doubled_text(1).one() == doubled_text.py(1) == "abab"
+    with scratch_space._new_space() as target:
+        assert bumped(target).one() == bumped.py(target) == 42

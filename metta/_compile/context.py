@@ -295,6 +295,10 @@ class CompilerContext(ABC):
         ...
 
     @abstractmethod
+    def _shadow(self, names: list[str]) -> None:
+        ...
+
+    @abstractmethod
     def _python_resolvable(self, identifier: str) -> bool:
         ...
 
