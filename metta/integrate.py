@@ -55,6 +55,10 @@ Guarantees:
     test_prolog_integration_aliases_keep_fully_qualified_module_names,
     test_an_explicitly_shared_library_alias_keeps_all_directories;
     commit=a6681e54ded570684ba0e2969f2893ae016a841a]
+  - module_ops names an implicit callable through attribute_name, the map
+    @m.op and a face's heads apply, and keeps a rename entry and the prefix
+    exact [tested 2026-09-29T18:25:13+10:00:
+    test_module_ops_maps_an_implicit_name_and_keeps_a_rename_exact]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space and a containing
@@ -101,6 +105,7 @@ from metta._atoms.factories import (
     ground,
 )
 from metta._atoms.fields import field_names as _field_names
+from metta._atoms.names import attribute_name
 from metta._declare.operations import _record_registry_undo
 from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider
@@ -475,7 +480,13 @@ def _require_callable(module: Any, pyname: str) -> Callable:
 
 
 def _operation_name(pyname: str, prefix: str | None, rename: dict[str, str]) -> str:
-    name = rename.get(pyname, pyname)
+    """The MeTTa name one module callable registers under.
+
+    An implicit name goes through attribute_name, the map `@m.op` and a
+    face's heads apply, so `is_not` registers `is-not`. A rename entry and the
+    prefix are authored MeTTa text and stay exact.
+    """
+    name = rename[pyname] if pyname in rename else attribute_name(pyname)
     return f"{prefix}{name}" if prefix else name
 
 
@@ -532,8 +543,10 @@ def module_ops(
         )
         m.run("!(sqrt 16.0)")
 
-    Underscores read as hyphens, a prefix namespaces the lot, and rename
-    overrides per function. Callables only; anything else named raises.
+    An implicit name maps its underscores to hyphens, as `@m.op` names a
+    function, so `operator.is_not` registers `is-not`. A prefix namespaces
+    the lot and a rename entry overrides one name, both kept exactly as
+    written. Callables only; anything else named raises.
     """
     if names is None:
         names = _module_callable_names(module)

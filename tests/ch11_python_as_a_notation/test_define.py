@@ -385,9 +385,10 @@ def test_the_implicit_name_is_mapped_and_name_is_exact(m):
 
 
 def test_the_guide_states_the_naming_map_the_code_applies(capsys):
-    """llms() teaches what define, op and a compiled call do with a Python
-    name, each claim executed by its own test here: an underscore is MeTTa's
-    hyphen, and name= and the bracket keep the exact spelling.
+    """llms() teaches what define, op, module_ops and a compiled call do with a
+    Python name, each claim executed by the test named beside it: an
+    underscore is MeTTa's hyphen, and name=, a rename entry and the bracket
+    keep the exact spelling.
     """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
     import metta
 
@@ -396,9 +397,11 @@ def test_the_guide_states_the_naming_map_the_code_applies(capsys):
     for claim in (
         "`def add_one` under `@m.define` installs `add-one`",  # test_the_implicit_name_is_mapped_and_name_is_exact
         "`@m.op` registers `def p_digit` as `p-digit`",  # test_op_uses_the_define_name_ladder
+        "`integrate.module_ops` reads a module's underscores as hyphens",  # test_module_ops_maps_an_implicit_name_and_keeps_a_rename_exact
         "`sqrt_math(x)` stores `(sqrt-math $x)`",  # test_bindings_become_let_star
-        '`name="add_one"` on `define` or `op`',
-        '`S["add_one"]` names the head as written',
+        '`name="add_one"` on `define` or `op`',  # test_the_implicit_name_is_mapped_and_name_is_exact, test_op_uses_the_define_name_ladder
+        "a `rename=` entry on `integrate.module_ops` keep every character",  # test_module_ops_maps_an_implicit_name_and_keeps_a_rename_exact
+        '`S["add_one"]` names the head as written',  # test_the_implicit_name_is_mapped_and_name_is_exact
     ):
         assert claim in guide
     assert "The Python name is the MeTTa name" not in guide

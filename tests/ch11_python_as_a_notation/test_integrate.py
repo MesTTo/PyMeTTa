@@ -21,6 +21,9 @@ Guarantees:
   - module operations use one transport selector and infer declarations from
     annotations [tested: test_module_ops_bulk_registers_a_stdlib_module;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - module_ops maps an implicit name's underscores to hyphens and keeps a
+    rename entry and the prefix exact [tested 2026-09-29T18:25:13+10:00:
+    test_module_ops_maps_an_implicit_name_and_keeps_a_rename_exact]
   - Prolog-only integrations preserve distinct dotted module names as library
     aliases, while callers may still compose several directories under one
     explicit alias [tested:
@@ -67,6 +70,35 @@ def test_module_ops_bulk_registers_a_stdlib_module(metta):  # noqa: D103  -- pyt
     assert metta.run("!(sqrt 16.0)") == [[4.0]]
     assert metta.run("!(gcd 12 18)") == [[6]]
     assert metta.run("!(comb 5 2)") == [[10]]
+
+
+def test_module_ops_maps_an_implicit_name_and_keeps_a_rename_exact(metta):
+    """An underscore in a module callable's name is MeTTa's hyphen, as `@m.op`
+    maps it, while a rename entry and the prefix are kept as written.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+
+    def add_one(value):
+        return value + 1
+
+    def add_two(value):
+        return value + 2
+
+    module = types.SimpleNamespace(__name__="naming", add_one=add_one, add_two=add_two)
+    names = pi.module_ops(
+        metta,
+        module,
+        ["add_one", "add_two"],
+        effect="pureStructural",
+        rename={"add_two": "add_two"},
+    )
+    try:
+        names += pi.module_ops(metta, module, ["add_one"], effect="pureStructural", prefix="my_")
+        assert names == ["add-one", "add_two", "my_add-one"]
+        assert [metta.run(f"!({name} 1)") for name in names] == [[[2]], [[3]], [[2]]]
+        assert metta.run("!(add_one 1)") == [[S["add_one"](1)]]
+    finally:
+        for name in names:
+            metta.unregister_op(name)
 
 
 def test_uninspectable_callable_errors_are_classified(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
