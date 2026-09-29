@@ -541,11 +541,48 @@ _ROWS = 2_000
 # one battery path at the landing's HEAD; command=python -c "import
 # benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
 # from extensions/python].
+# Re-pinned 2026-09-29: automatic -1 at n = 12 (a call site forces the
+# function it names before deciding the call's shape, so a call of a waiting
+# function builds the application protocol an eager load builds, and the
+# protocol's marker test around a value the translation already holds is
+# decided at compile time (-1)), plain -11 at n = 12 (a call site forces the
+# function it names before deciding the call's shape, so a call of a waiting
+# function builds the application protocol an eager load builds, and the
+# protocol's marker test around a value the translation already holds is
+# decided at compile time (-11)), automatic -1 at n = 15 (a call site forces
+# the function it names before deciding the call's shape, so a call of a
+# waiting function builds the application protocol an eager load builds, and
+# the protocol's marker test around a value the translation already holds is
+# decided at compile time (-1)), plain -11 at n = 15 (a call site forces the
+# function it names before deciding the call's shape, so a call of a waiting
+# function builds the application protocol an eager load builds, and the
+# protocol's marker test around a value the translation already holds is
+# decided at compile time (-11)), automatic -1 at n = 18 (a call site forces
+# the function it names before deciding the call's shape, so a call of a
+# waiting function builds the application protocol an eager load builds, and
+# the protocol's marker test around a value the translation already holds is
+# decided at compile time (-1)), plain -11 at n = 18 (a call site forces the
+# function it names before deciding the call's shape, so a call of a waiting
+# function builds the application protocol an eager load builds, and the
+# protocol's marker test around a value the translation already holds is
+# decided at compile time (-11)), automatic -1 at n = 20 (a call site forces
+# the function it names before deciding the call's shape, so a call of a
+# waiting function builds the application protocol an eager load builds, and
+# the protocol's marker test around a value the translation already holds is
+# decided at compile time (-1)), plain -11 at n = 20 (a call site forces the
+# function it names before deciding the call's shape, so a call of a waiting
+# function builds the application protocol an eager load builds, and the
+# protocol's marker test around a value the translation already holds is
+# decided at compile time (-11)). [measured 2026-09-29T19:50:25+10:00: min of
+# three observations per size and mode before this commit and with it, read on
+# one battery path at the landing's HEAD; command=python -c "import
+# benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
+# from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_336, "automatic": 17_842},
-    15: {"plain": 953_824, "automatic": 19_096},
-    18: {"plain": 7_605_728, "automatic": 20_350},
-    20: {"plain": 30_412_256, "automatic": 21_186},
+    12: {"plain": 122_325, "automatic": 17_841},
+    15: {"plain": 953_813, "automatic": 19_095},
+    18: {"plain": 7_605_717, "automatic": 20_349},
+    20: {"plain": 30_412_245, "automatic": 21_185},
 }
 
 
