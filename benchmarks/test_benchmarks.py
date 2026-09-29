@@ -484,11 +484,35 @@ _ROWS = 2_000
 # battery path at the landing's HEAD; command=python -c "import
 # benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
 # from extensions/python].
+# Re-pinned 2026-09-29: automatic +48 at n = 12 (each definition marks its
+# name as changed and a sweep repairs only the receipts naming a marked name,
+# where it re-checked every receipt the process held (+48)), plain +48 at n =
+# 12 (each definition marks its name as changed and a sweep repairs only the
+# receipts naming a marked name, where it re-checked every receipt the process
+# held (+48)), automatic +48 at n = 15 (each definition marks its name as
+# changed and a sweep repairs only the receipts naming a marked name, where it
+# re-checked every receipt the process held (+48)), plain +48 at n = 15 (each
+# definition marks its name as changed and a sweep repairs only the receipts
+# naming a marked name, where it re-checked every receipt the process held
+# (+48)), automatic +48 at n = 18 (each definition marks its name as changed
+# and a sweep repairs only the receipts naming a marked name, where it re-
+# checked every receipt the process held (+48)), plain +48 at n = 18 (each
+# definition marks its name as changed and a sweep repairs only the receipts
+# naming a marked name, where it re-checked every receipt the process held
+# (+48)), automatic +48 at n = 20 (each definition marks its name as changed
+# and a sweep repairs only the receipts naming a marked name, where it re-
+# checked every receipt the process held (+48)), plain +48 at n = 20 (each
+# definition marks its name as changed and a sweep repairs only the receipts
+# naming a marked name, where it re-checked every receipt the process held
+# (+48)). [measured 2026-09-29T01:36:52+10:00: min of three observations per
+# size and mode before this commit and with it, read on one battery path at
+# the landing's HEAD; command=python -c "import benchmarks.test_benchmarks as
+# t; print(t._automatic_tabling_observations())" from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_274, "automatic": 17_780},
-    15: {"plain": 953_762, "automatic": 19_034},
-    18: {"plain": 7_605_666, "automatic": 20_288},
-    20: {"plain": 30_412_194, "automatic": 21_124},
+    12: {"plain": 122_322, "automatic": 17_828},
+    15: {"plain": 953_810, "automatic": 19_082},
+    18: {"plain": 7_605_714, "automatic": 20_336},
+    20: {"plain": 30_412_242, "automatic": 21_172},
 }
 
 
