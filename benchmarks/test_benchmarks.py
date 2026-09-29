@@ -452,11 +452,43 @@ _ROWS = 2_000
 # before this commit and with it, read on one battery path at the landing's
 # HEAD; command=python -c "import benchmarks.test_benchmarks as t;
 # print(t._automatic_tabling_observations())" from extensions/python].
+# Re-pinned 2026-09-29: automatic +2 at n = 12 (each definition through the
+# define doors asks whether its module holds a shadow-import receipt for the
+# name, holds it in flight until the write is visible when it does, and a
+# sweep leaves a receipt another live thread holds (+2)), plain +2 at n = 12
+# (each definition through the define doors asks whether its module holds a
+# shadow-import receipt for the name, holds it in flight until the write is
+# visible when it does, and a sweep leaves a receipt another live thread holds
+# (+2)), automatic +2 at n = 15 (each definition through the define doors asks
+# whether its module holds a shadow-import receipt for the name, holds it in
+# flight until the write is visible when it does, and a sweep leaves a receipt
+# another live thread holds (+2)), plain +2 at n = 15 (each definition through
+# the define doors asks whether its module holds a shadow-import receipt for
+# the name, holds it in flight until the write is visible when it does, and a
+# sweep leaves a receipt another live thread holds (+2)), automatic +2 at n =
+# 18 (each definition through the define doors asks whether its module holds a
+# shadow-import receipt for the name, holds it in flight until the write is
+# visible when it does, and a sweep leaves a receipt another live thread holds
+# (+2)), plain +2 at n = 18 (each definition through the define doors asks
+# whether its module holds a shadow-import receipt for the name, holds it in
+# flight until the write is visible when it does, and a sweep leaves a receipt
+# another live thread holds (+2)), automatic +2 at n = 20 (each definition
+# through the define doors asks whether its module holds a shadow-import
+# receipt for the name, holds it in flight until the write is visible when it
+# does, and a sweep leaves a receipt another live thread holds (+2)), plain +2
+# at n = 20 (each definition through the define doors asks whether its module
+# holds a shadow-import receipt for the name, holds it in flight until the
+# write is visible when it does, and a sweep leaves a receipt another live
+# thread holds (+2)). [measured 2026-09-29T01:13:13+10:00: min of three
+# observations per size and mode before this commit and with it, read on one
+# battery path at the landing's HEAD; command=python -c "import
+# benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
+# from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_272, "automatic": 17_778},
-    15: {"plain": 953_760, "automatic": 19_032},
-    18: {"plain": 7_605_664, "automatic": 20_286},
-    20: {"plain": 30_412_192, "automatic": 21_122},
+    12: {"plain": 122_274, "automatic": 17_780},
+    15: {"plain": 953_762, "automatic": 19_034},
+    18: {"plain": 7_605_666, "automatic": 20_288},
+    20: {"plain": 30_412_194, "automatic": 21_124},
 }
 
 
