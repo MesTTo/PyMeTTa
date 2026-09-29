@@ -44,6 +44,11 @@ Guarantees:
     reflection atom together [tested:
     test_an_abandoned_watch_finaliser_neither_crosses_nor_locks,
     test_an_abandoned_watch_is_withdrawn_at_the_next_subscribe; commit=330e04d428324008105db628ca5e0a0bbdfb55df]
+  - cancel() reached from a finaliser, such as a FutureSpace iteration's
+    finally when the collector finalises it, does what a collected watch
+    does and nothing more, so it takes no lock and makes no crossing
+    [tested 2026-09-30T09:09:35+10:00:
+    test_a_cancel_from_a_collected_generator_neither_crosses_nor_locks]
 Guarded by:
   - metta.events' fold registry lock protects queue state and the engine
     subscription snapshot [tested test_subscription_cancel_is_thread_safe]
@@ -65,6 +70,7 @@ from collections.abc import Callable, Mapping
 from typing import Any, Self
 
 from metta._atoms.factories import Atom, Expression, Symbol, Variable, _map_atoms, _to_atom
+from metta._binding.runtime import in_finaliser
 from metta._catalog.bounds import config
 from metta._declare.operations import _REFLECTION_SPACE, _reflect_add, _reflect_remove
 from metta._errors.errors import EngineError, MettaError
@@ -222,7 +228,22 @@ class Subscription(Fold):
         self.cancel()
 
     def cancel(self) -> None:
-        """End the standing query and withdraw its reflection atom."""
+        """End the standing query and withdraw its reflection atom.
+
+        Called while a garbage collection or one of the library's own
+        finalisers is running, as a FutureSpace iteration dropped part-way
+        cancels its subscription, this stops delivery at once and leaves the
+        withdrawal to the next subscribe() or cancel(), the way a collected
+        watch is withdrawn.
+        """
+        # A finaliser takes no lock and makes no crossing [source
+        # 2026-09-30T00:36:56+10:00: docs/journal/2026-09-06-finalisers-must-not-call-prolog.md],
+        # and the withdrawal below takes _TRANSACTION_LOCK and the registry's
+        # lock and crosses, so a finaliser's cancel is the collected watch's
+        # _abandon.
+        if in_finaliser():
+            self._abandon()
+            return
         with _TRANSACTION_LOCK:
             _withdraw_abandoned()
             self._withdraw()

@@ -1467,6 +1467,9 @@ class _NativeHandle(Handle):
 
         Handles are context managers, so the deterministic spelling is the
         file-object idiom: `with` the handle and it releases on exit.
+        From a finaliser the retraction goes to the engine's queue instead
+        [tested 2026-09-30T09:09:35+10:00:
+        test_a_collected_handle_releases_through_the_queue].
         """
         if self._released:
             return
@@ -1474,13 +1477,16 @@ class _NativeHandle(Handle):
 
         runtime = _binding.runtime.active_runtime()
         if runtime is not None:
-            runtime.do("metta_py_handle_release", self.ident)
+            _binding.runtime.release_engine_call(runtime, "metta_py_handle_release", self.ident)
 
     def __del__(self) -> None:
-        # Interpreter teardown cannot promise engine calls, so collection
-        # is a best-effort release and explicit release() the deterministic
-        # path.
-        with contextlib.suppress(Exception):
+        # A finaliser, declared as one so the release is handed to the queue:
+        # a __del__ runs wherever the last reference goes, possibly inside a
+        # crossing [source 2026-09-30T00:36:56+10:00:
+        # docs/journal/2026-09-06-finalisers-must-not-call-prolog.md].
+        # Interpreter teardown cannot promise even that, so collection is a
+        # best-effort release and explicit release() the deterministic path.
+        with contextlib.suppress(Exception), _binding.runtime.finalising:
             self.release()
 
 

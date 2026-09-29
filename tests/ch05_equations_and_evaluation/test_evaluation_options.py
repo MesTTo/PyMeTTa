@@ -26,6 +26,7 @@ from hypothesis import strategies as st
 import metta._spaces.evaluate as selection
 from metta import Expression, G, MeTTa, S, Space, V, equation
 from metta._atoms.factories import Undefined
+from metta._binding.runtime import in_finaliser
 from metta._errors.errors import (
     AssertionFailure,
     EngineError,
@@ -306,7 +307,7 @@ class TrackedSource:
         self.pulls = 0
         self.closes = 0
         self.closed = False
-        self.deferred = False
+        self.finalising: list[bool] = []
 
     def __iter__(self):
         """Iterate the single tracked source."""
@@ -320,15 +321,12 @@ class TrackedSource:
         return next(self.values)
 
     def close(self):
-        """Count every close and leave failed cleanup retryable."""
+        """Count every close, noting whether a finaliser made it, and leave failed cleanup retryable."""
         self.closes += 1
+        self.finalising.append(in_finaliser())
         if self.cleanup:
             raise self.cleanup
         self.closed = True
-
-    def close_deferred(self):
-        """Record the abandonment backstop without synchronous engine work."""
-        self.deferred = True
 
 
 def _supply(monkeypatch, source):
@@ -347,6 +345,8 @@ def test_evaluation_selections_close_on_every_exit(space, monkeypatch, answer):
         assert list(selected) == [G(1)]
         selected.close()
     assert source.closed and raw._done and source.pulls == 1
+    # Every exit here is the caller's own, so the close it makes is too.
+    assert source.finalising == [False]
     assert not raw._cache
 
 
@@ -360,16 +360,13 @@ def test_evaluation_selections_close_on_interrupt_and_abandonment(space, monkeyp
         next(iter(selected))
     assert source.closed
     abandoned = TrackedSource([G(1)])
-    raw = _supply(monkeypatch, abandoned)
+    _supply(monkeypatch, abandoned)
     selected = space.eval(S.x, answer=answer)
     del selected
     gc.collect()
-    # The test's own raw reference holds the backstop until it too is released.
-    assert not abandoned.closed
-    monkeypatch.undo()
-    del raw
-    gc.collect()
-    assert abandoned.deferred
+    # Abandonment closes the Answers the selection owns, as a declared
+    # finaliser, so every engine release under that close goes to the queue.
+    assert abandoned.finalising == [True]
 
 
 def test_evaluation_selections_preserve_original_and_cleanup_failures(space, monkeypatch):

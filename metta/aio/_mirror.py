@@ -246,6 +246,15 @@ class AsyncMeTTa(AsyncMeTTaBase):
         finishes it, an abort restores the space and the handle, and until
         then the handle refuses other operations. Outside a transaction the
         drop completes before returning.
+
+        A drop made while a garbage collection or one of the library's own
+        finalisers is running makes no engine call. It hands the space's
+        retirement to the next one, retiring the name rather than returning it
+        to the anonymous pool, and every handle of the space reads it dead once
+        that call has run. A handle whose space another party retired first
+        hands nothing over, since its name may belong to another space by
+        then. The handle's own cleanup waits for the next drop() made outside
+        a finaliser, which finds the engine side done and finishes the rest.
         """
         return await self.call(lambda m: m.drop())
 

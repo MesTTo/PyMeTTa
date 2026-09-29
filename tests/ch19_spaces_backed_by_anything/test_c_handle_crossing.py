@@ -2,6 +2,10 @@
 seam into Python by reference, goes back as the very same object, is
 unpacked through its extension's own accessors, and dies loudly after
 release.
+Guarantees: a handle nobody released is released by its finaliser through
+the engine's deferred queue, whether its last reference goes or the collector
+finalises it in a cycle [tested 2026-09-30T09:09:35+10:00:
+test_a_collected_handle_releases_through_the_queue].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -9,10 +13,13 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 
+import gc
+
 import pytest
 
 import metta
 from metta import Handle
+from metta._binding import runtime as _runtime
 from metta._errors.errors import EngineError
 from metta._roots import workspace
 
@@ -108,3 +115,37 @@ def test_a_handle_is_a_context_manager(vectors):  # noqa: D103  -- pytest discov
         assert unpack_vector(m, handle) == [0, 1]
     with pytest.raises(EngineError, match="metta_native_handle"), m.bind(h=handle):
         m.run("!(vector-length h)")
+
+
+@pytest.mark.parametrize("abandoned", ["by its last reference", "in a cycle"])
+def test_a_collected_handle_releases_through_the_queue(vectors, abandoned):
+    """A handle nobody released is released by its finaliser, after it.
+
+    The __del__ is a finaliser, so the registry entry's retraction waits for
+    the next crossing rather than calling the engine wherever the last
+    reference went; work queued before the drop is still queued after it, and
+    the entry is gone once one more call has crossed.
+    """
+    m = vectors
+    (row,) = m.run("!(vector-new 2)")
+    handle = row[0]
+    ident = handle.ident
+    stored = "aggregate_all(count, metta_py_handle_store(Id, _), N)"
+    assert m.runtime.once(stored, Id=ident)["N"] == 1
+    marker = (_runtime._CALL_PREDICATE, "true", ())
+    gc.collect()
+    gc.disable()
+    try:
+        _runtime._DEFERRED_WORK.append(marker)
+        if abandoned == "in a cycle":
+            cycle = [handle]
+            cycle.append(cycle)
+            del cycle
+        del handle, row
+    finally:
+        gc.enable()
+    gc.collect()
+    assert any(item is marker for item in _runtime._DEFERRED_WORK), (
+        "the handle's finaliser crossed into Prolog and drained the queue"
+    )
+    assert m.runtime.once(stored, Id=ident)["N"] == 0

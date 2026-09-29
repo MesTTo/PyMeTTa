@@ -64,6 +64,10 @@ PYTHON_SERVICES = {
     "metta._catalog.bounds": (
         "bound_row_changed", "bound_transaction_started", "bound_transaction_finished",
     ),
+    # The reclamation barrier's Python half: the collector and the releases
+    # its finalisers queued. The call is also the Prolog-to-Python crossing
+    # that hands back janus's deferred releases.
+    "metta._binding.runtime": ("reclaim_round",),
     "metta._errors.errors": ("is_transport_failure",),
     "metta.foreign": ("_provider_length",),
     "metta.algebra": ("_carrier_type_accepts",),
@@ -72,9 +76,6 @@ PYTHON_SERVICES = {
     # filter, so the import pays for the Python sources beside it and nothing
     # else (surface.pl, python_sibling_module_names/2).
     "fnmatch": ("filter",),
-    # The reclamation barrier's Python collector; the call is also the
-    # Prolog-to-Python crossing that hands back janus's deferred releases.
-    "gc": ("collect",),
     "importlib.util": ("module_from_spec", "spec_from_file_location"),
     "os": ("listdir",),
     "sys": (

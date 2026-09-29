@@ -11,9 +11,11 @@ Guarantees: ordinary eager evaluation keeps its existing kernel; explicit lazy
   test_evaluation_selection_preserves_eager_effects_and_bounded_demand;
   commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: each lazy selection owns its underlying Answers. Exhaustion,
-  an error, or explicit close releases it; abandonment releases references so
-  Answers' existing finalizer defers engine cleanup [tested:
-  test_evaluation_selections_close_on_every_exit; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+  an error, or explicit close releases it [tested 2026-09-30T09:09:35+10:00:
+  test_evaluation_selections_close_on_every_exit].
+  Abandonment closes it too, from a declared finaliser, so every engine
+  release under it goes to the engine's queue [tested 2026-09-30T09:09:35+10:00:
+  test_evaluation_selections_close_on_interrupt_and_abandonment].
   Cursor conversion uses the ordinary value converter and preserves both a
   conversion failure and a simultaneous cleanup failure [tested:
   test_cursor_conversion_preserves_its_failure_and_cleanup_failure;
@@ -29,7 +31,7 @@ import sys
 from collections import abc as _abc
 from collections.abc import Iterable, Iterator
 from itertools import islice
-from typing import TYPE_CHECKING, Any, Self, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Self, overload
 
 import metta._spaces.cursor as _spaces_cursor_module
 import metta._spaces.execution as _spaces_execution_module
@@ -55,6 +57,7 @@ from metta._atoms.factories import (
     unify,
 )
 from metta._atoms.templates import read_targets as _read_targets
+from metta._binding.runtime import finalising
 from metta._catalog.build import build
 from metta._catalog.project import auto_image, project
 from metta._errors.errors import EngineError, refuse
@@ -193,17 +196,13 @@ class _Selection:
         self._raw = None
         self._pending = None
 
-    def close_deferred(self) -> None:
-        """Release ownership through Answers' existing deferred finalizer."""
-        self._closed = True
-        self._iterator = None
-        self._raw = None
-        self._pending = None
-
 class _Stream(Iterator[Any]):
     """A closable single-pass projection of one selection."""
 
     __slots__ = ("_conversion", "_source")
+    # On the class, as Answers binds it: __del__ can run at interpreter
+    # shutdown after this module's globals are cleared.
+    _finalising: ClassVar[Any] = finalising
 
     def __init__(self, source: _Selection) -> None:
         self._source = source
@@ -243,7 +242,8 @@ class _Stream(Iterator[Any]):
             raise
 
     def __del__(self) -> None:
-        self._source.close_deferred()
+        with self._finalising:
+            self._source.close()
 
 def evaluate(
     space: Any, targets: tuple[Any, ...], *, answer: EvaluationAnswer | str,

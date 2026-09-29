@@ -93,10 +93,8 @@ Open Obligations:
 
 from __future__ import annotations
 
-import threading
 from collections import deque
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
-from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
@@ -116,7 +114,7 @@ from metta._atoms.factories import (
     _to_atom,
 )
 from metta._binding.options import EVALUATIONS, EvaluationRecord
-from metta._binding.runtime import Runtime, defer_engine_call
+from metta._binding.runtime import Runtime, release_engine_call
 from metta._catalog.bounds import config
 from metta._errors.errors import EngineError
 
@@ -585,18 +583,6 @@ def evaluate_count_if_repeatable(
     )
     return int(output[0]) if output else None
 
-_FINALISING = threading.local()
-
-@contextmanager
-def _finalising() -> Iterator[None]:
-    """Mark this thread as inside a finaliser, nestably."""
-    previous = getattr(_FINALISING, "active", False)
-    _FINALISING.active = True
-    try:
-        yield
-    finally:
-        _FINALISING.active = previous
-
 _OPEN_CURSORS: dict[int, Any] = {}
 
 def _hold_cursor(handle: Any) -> Any:
@@ -607,17 +593,19 @@ def _hold_cursor(handle: Any) -> Any:
 def _release_cursor(rt: Runtime, handle: Any) -> None:
     """Close a cursor now, or hand it to the next crossing from a finaliser.
 
-    The queue holds the handle from here until the close runs, taking over from
-    _OPEN_CURSORS, so it is continuously reachable and never inert when used.
+    Reached from the stream's finally, which the collector can run itself
+    before the view's own __del__, so the decision is release_engine_call's
+    rather than this caller's. A deferred close holds the handle in the queue
+    from here until it runs, taking over from _OPEN_CURSORS, so it is
+    continuously reachable and never inert when used
     [tested: test_a_view_dropped_in_a_cycle_defers_its_cursor_close,
     test_an_explicit_close_still_closes_its_cursor_immediately;
     commit=2421d06e697daffb0797c307a798131616ebdd8e]
+    [tested 2026-09-30T09:09:35+10:00:
+    test_an_abandoned_view_releases_without_crossing_from_its_finaliser].
     """
     _OPEN_CURSORS.pop(id(handle), None)
-    if getattr(_FINALISING, "active", False):
-        defer_engine_call("metta_py_cursor_close", handle)
-    else:
-        rt.do("metta_py_cursor_close", handle)
+    release_engine_call(rt, "metta_py_cursor_close", handle)
 
 class _RetainedAnswers:
     """An answer stream that owns the cursor a declined count left behind.
@@ -660,16 +648,6 @@ class _RetainedAnswers:
         finally:
             while self._retained:
                 _release_cursor(self._rt, self._retained.pop())
-
-    def close_deferred(self) -> None:
-        """close() reached from a finaliser: every cursor goes to the queue.
-
-        The generator's own finally releases a started cursor and this releases
-        an unstarted one, so the flag has to cover both; results.Answers.__del__
-        prefers this door over close() when the source offers it.
-        """
-        with _finalising():
-            self.close()
 
 def evaluate_answers(
     rt: Runtime,

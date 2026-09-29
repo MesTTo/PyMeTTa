@@ -385,6 +385,10 @@ sequence_length
 bound_transaction_started
 bound_transaction_finished
 
+# The reclamation barrier's Python half, called from metta_py_reclaim_rounds/2.
+# [source 2026-09-30T03:02:19+10:00: extensions/python/metta/_binding/profiling.pl, metta_py_reclaim_rounds/2].
+reclaim_round
+
 # Public configuration and collected marks are read by consumers and tests.
 # [tested: tests/ch01_getting_started/test_config.py, tests/repository/test_door_marks.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _.configure

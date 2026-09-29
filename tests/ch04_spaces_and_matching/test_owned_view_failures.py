@@ -114,7 +114,7 @@ def test_remote_owned_view_preserves_body_and_cleanup_errors(monkeypatch, owner)
 
 @pytest.mark.parametrize("owner,make", [
     (Answers, lambda: Answers(())),
-    (_Stream, lambda: _Stream(SimpleNamespace(close_deferred=lambda: None))),
+    (_Stream, lambda: _Stream(SimpleNamespace(close=lambda: None))),
     (RemoteCursor, lambda: object.__new__(RemoteCursor)),
     (Gateway, lambda: object.__new__(Gateway)),
     (Server, lambda: object.__new__(Server)),

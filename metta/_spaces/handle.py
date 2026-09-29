@@ -38,6 +38,14 @@ baseline [tested: test_temporary_spaces_leave_nothing_behind,
 test_committed_retirements_leave_nothing_behind,
 test_alias_release_leaves_nothing_behind,
 test_a_failed_close_retried_leaves_nothing_behind; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
+Guarantees: a drop reached from a finaliser, a collection or a declared package
+finaliser, crosses nothing: it hands the space's retirement to the engine's
+queue as an abandoned world's is, retiring the name rather than pooling it, and
+leaves the handle's own cleanup to a later drop(); a handle whose space another
+party retired first hands nothing over [tested 2026-09-30T09:09:35+10:00:
+test_an_abandoned_view_releases_without_crossing_from_its_finaliser,
+test_a_drop_from_a_finaliser_hands_the_retirement_over_and_a_later_drop_finishes_it,
+test_a_drop_from_a_finaliser_leaves_the_next_life_of_its_name_alone].
 """
 
 from __future__ import annotations
@@ -55,7 +63,15 @@ import metta.doors as _doors
 from metta._atoms.designation import _DEFAULT_SPACE, _SpaceId
 from metta._atoms.factories import Atom, Expression, Grounded, Handle, Symbol, Variable, _to_atom
 from metta._atoms.templates import HOLE_PREFIX as _HOLE_PREFIX
-from metta._binding.runtime import Runtime, bridge, original_exception, runtime, started
+from metta._binding.runtime import (
+    Runtime,
+    bridge,
+    defer_engine_call,
+    in_finaliser,
+    original_exception,
+    runtime,
+    started,
+)
 from metta._errors.errors import MettaError
 from metta._lazy import lazy
 from metta.vocabularies import SpaceCapability
@@ -628,14 +644,40 @@ class SpaceHandle(Handle):
         finishes it, an abort restores the space and the handle, and until
         then the handle refuses other operations. Outside a transaction the
         drop completes before returning.
+
+        A drop made while a garbage collection or one of the library's own
+        finalisers is running makes no engine call. It hands the space's
+        retirement to the next one, retiring the name rather than returning it
+        to the anonymous pool, and every handle of the space reads it dead once
+        that call has run. A handle whose space another party retired first
+        hands nothing over, since its name may belong to another space by
+        then. The handle's own cleanup waits for the next drop() made outside
+        a finaliser, which finds the engine side done and finishes the rest.
         """
         if self._dropped or self._drop_pending:
             return
-        self._leave_scopes()
         if self._cell is not None and self._cell.dead:
             # Another party retired the space, or this handle's own retirement
             # committed and its cleanup failed; only this side's cleanup remains.
+            # Decided before the finaliser's handover as well, because the
+            # handover names only the space: the name of a life that is over
+            # can be pooled and minted again, and a retirement queued under it
+            # retired that next life when the queue drained [tested 2026-09-30T09:09:35+10:00:
+            # test_a_drop_from_a_finaliser_leaves_the_next_life_of_its_name_alone].
             self._drop_engine_done = True
+        # A finaliser may only enqueue [source 2026-09-30T00:36:56+10:00:
+        # docs/journal/2026-09-06-finalisers-must-not-call-prolog.md], so this
+        # is the handover _release_abandoned_world makes for an abandoned
+        # context's world, the retirement without the pooling, for the reason
+        # given there. Leaving the scopes waits as well: resetting a scope
+        # token here would move the active space of whatever code the
+        # collector interrupted.
+        if in_finaliser():
+            if not self._drop_engine_done:
+                self._drop_engine_done = True
+                defer_engine_call("metta_py_drop_space", self._name)
+            return
+        self._leave_scopes()
         self._scoped = _spaces_lifetime_module.attach(self)
         if self._scoped and not self._drop_engine_done:
             with _spaces_lifetime_module.suspend():

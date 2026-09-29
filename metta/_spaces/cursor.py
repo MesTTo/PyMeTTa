@@ -1,6 +1,7 @@
 """Purpose: consume an engine-held query as a Python iterator.
 
-Owns resources: Cursor._finish closes an opened query on exhaustion or close;
+Owns resources: Cursor._finish closes an opened query on exhaustion or close,
+and hands the close to the engine's queue when a finaliser reached it;
 Cursor._reap defers abandonment cleanup to the engine
 [source: extensions/python/metta/_spaces/cursor.py:374, Cursor._reap; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
@@ -27,7 +28,7 @@ from metta._atoms.factories import (
     _variables,
     and_,
 )
-from metta._binding.runtime import Runtime, defer_engine_call
+from metta._binding.runtime import Runtime, defer_engine_call, release_engine_call
 from metta._catalog.bounds import config
 from metta._errors.errors import EngineError, MettaError
 from metta._lazy import lazy
@@ -374,16 +375,22 @@ class Cursor:
     def _finish(self) -> None:
         """Reap an opened engine; an inert, never-pulled cursor owns none.
 
-        Every caller of this is explicit -- exhaustion and close() -- so the
-        close is made here and now. detach() disarms the finalizer first, so
-        the collector cannot later defer a close of the same handle, and
-        returns None when it has already run, which keeps this idempotent.
+        Exhaustion and close() reach this, and close() is not always a
+        caller's: a match view's generator closes its cursor from its finally,
+        which the collector can run, and so can the view's __del__. So the
+        close goes through release_engine_call, made here and now on a
+        caller's stack and handed to the queue from a finaliser
+        [tested 2026-09-30T09:09:35+10:00:
+        test_an_abandoned_view_releases_without_crossing_from_its_finaliser].
+        detach() disarms the finalizer first, so the collector cannot later
+        defer a close of the same handle, and returns None when it has already
+        run, which keeps this idempotent.
         """
         finalizer, self._finalizer = self._finalizer, None
         if finalizer is None or finalizer.detach() is None:
             return
         try:
-            self._rt.do("metta_py_cursor_close", self._handle)
+            release_engine_call(self._rt, "metta_py_cursor_close", self._handle)
         except EngineError:
             # Explicit close still reports failures through iteration; this
             # arm is the exhaustion path, which has nothing to report to.

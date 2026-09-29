@@ -39,6 +39,10 @@ Guarantees:
   - a carried term holds a janus Term, so dropping it hands its record to the
     next crossing's erase [tested:
     test_a_dropped_carried_term_hands_its_record_to_the_next_crossing]
+  - it still does after an error door left an evaluation stream suspended in
+    a cycle, which the collection that queues the record also finalises
+    [tested 2026-09-30T09:09:35+10:00:
+    test_a_dropped_carried_term_hands_its_record_over_after_an_error_left_a_stream_suspended]
   - a world over a provider reads carried terms back as the provider stored
     them, and two crossings of one term are one atom to diff, AlphaSet and a
     world commit [tested: test_a_world_over_a_provider_commits_only_what_changed,
@@ -66,7 +70,7 @@ from metta import space as make_space
 from metta._atoms.model import _CarriedTerm
 from metta._binding import runtime as _runtime
 from metta._declare import declarations as _space_declarations
-from metta._errors.errors import EngineError, MettaError
+from metta._errors.errors import EngineError, MettaError, MettaResultError
 from metta.foreign import SpaceProvider
 from metta.foreign._persistent import PersistentFactSpace
 from metta.spaces import diff
@@ -529,3 +533,57 @@ def test_a_dropped_carried_term_hands_its_record_to_the_next_crossing():
         assert (_runtime._ERASE_RECORD, record) in _runtime._DEFERRED_WORK
         backed.eval(S.foo)
         assert (_runtime._ERASE_RECORD, record) not in _runtime._DEFERRED_WORK
+
+
+#: test_error_answers.py's err-div, whose (Error ...) answer the single-value
+#: doors raise on.
+_SAFE_DIV = (
+    '(= (err-div $x $y) (if (== $y 0) '
+    '(Error (err-div $x $y) "division by zero") (/ $x $y)))'
+)
+
+
+@pytest.mark.usefixtures("carry")
+def test_a_dropped_carried_term_hands_its_record_over_after_an_error_left_a_stream_suspended(metta):
+    """The dropped-term test above, run after test_error_answers.py's fn door test.
+
+    That order, one worker's in the first run that recorded each worker's
+    history, failed every time it was replayed. `.one()` and `.first()` raise
+    while the evaluation stream is suspended, and the exception's traceback
+    keeps the view in a cycle until a collection. The collector finalised the
+    stream's generator before the view's __del__, its finally closed the
+    cursor by crossing, and the crossing drained the queue, so the dropped
+    term's erase was gone before the test could see it queued. Automatic
+    collection is off from the first half to the second, so the leftover
+    cycle waits for the collection the second half makes, as it did then.
+    """
+    errors = metta._new_space()
+    errors.run(_SAFE_DIV)
+
+    def fn_doors_split_the_same_way():
+        f = errors.fn.err_div
+        failed = f(1, 0)
+        assert str(failed[0]).startswith("(Error ")
+        with pytest.raises(MettaResultError):
+            failed.one()
+        with pytest.raises(MettaResultError):
+            failed.first()
+        assert f(8, 2) == [4]
+
+    gc.collect()
+    gc.disable()
+    try:
+        fn_doors_split_the_same_way()
+        store = _Store()
+        with make_space(backing=store) as backed:
+            _store(backed, 0, "f(a)")
+            carried = store.stored.pop().children[2]
+            record = carried.record._record
+            del carried
+            gc.collect()
+            assert (_runtime._ERASE_RECORD, record) in _runtime._DEFERRED_WORK
+            backed.eval(S.foo)
+            assert (_runtime._ERASE_RECORD, record) not in _runtime._DEFERRED_WORK
+    finally:
+        gc.enable()
+        errors.drop()

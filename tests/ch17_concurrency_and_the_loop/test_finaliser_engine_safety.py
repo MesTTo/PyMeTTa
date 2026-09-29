@@ -35,6 +35,26 @@ Guarantees:
     the collector [tested:
     test_a_dropped_cursor_defers_its_close_instead_of_crossing;
     commit=2421d06e697daffb0797c307a798131616ebdd8e]
+  - a garbage collection makes the thread it runs on a finaliser, and only
+    that thread, and a package finaliser declares itself the same way
+    [tested 2026-09-30T09:09:35+10:00:
+    test_a_collection_makes_every_thread_it_runs_on_a_finaliser]
+  - an evaluation, a match or a theory view dropped part-way, by its last
+    reference or inside a cycle, releases its cursor and its scratch space
+    through the queue, so no finaliser drains the queue whichever member of
+    the cycle the collector finalises first [tested 2026-09-30T09:09:35+10:00:
+    test_an_abandoned_view_releases_without_crossing_from_its_finaliser]
+  - a drop reached from a finaliser hands the retirement to the queue, the
+    next crossing retires the space for every handle of its life, and a later
+    drop finishes the handle's own cleanup [tested 2026-09-30T09:09:35+10:00:
+    test_a_drop_from_a_finaliser_hands_the_retirement_over_and_a_later_drop_finishes_it]
+  - a drop reached from a finaliser on a handle whose life another handle
+    already ended hands nothing over, so the next life minted on the pooled
+    name survives the queue [tested 2026-09-30T09:09:35+10:00:
+    test_a_drop_from_a_finaliser_leaves_the_next_life_of_its_name_alone]
+  - reclaim() makes the releases its own collection queues before it
+    returns, so what an abandoned view held is collected inside the barrier
+    [tested 2026-09-30T09:09:35+10:00: test_reclaim_collects_what_an_abandoned_view_held]
   - the janus private structure the release depends on is asserted, so a janus
     upgrade that moves it fails here rather than at a core dump [tested:
     test_the_janus_term_shape_the_deferred_release_depends_on;
@@ -52,6 +72,10 @@ Guarantees:
     no engine crossing [tested:
     test_an_abandoned_watch_finaliser_neither_crosses_nor_locks;
     commit=330e04d428324008105db628ca5e0a0bbdfb55df]
+  - so does a subscription a generator cancels from its finally, the way a
+    FutureSpace iteration does, when the collector finalises that generator
+    [tested 2026-09-30T09:09:35+10:00:
+    test_a_cancel_from_a_collected_generator_neither_crosses_nor_locks]
   - every callback the collector runs for the package, each weakref.finalize
     callback and each weak reference's callback, only hands its work over:
     to the engine's deferred queue, to its owner's queue after flagging its
@@ -59,6 +83,9 @@ Guarantees:
     fails here before it can fail at a collection [tested:
     test_every_collector_callback_in_the_package_only_hands_its_work_over;
     commit=874fed30ee5d909920c30c322c3b425ed0c62c5b]
+  - so does each entry the package puts in gc.callbacks, which the collector
+    calls around every collection [tested 2026-09-30T09:09:35+10:00:
+    test_every_collector_callback_in_the_package_only_hands_its_work_over]
   - the four id-keyed weak tables (the box interns, the replay carriers, the
     type declarations and their carriers) evict a dead entry without taking
     their lock: the weak reference's callback returns while another thread
@@ -83,8 +110,9 @@ import pytest
 import metta._atoms.model as _model
 import metta._binding.host as _host
 import metta._binding.runtime as _engine
-from metta import S, V
+from metta import S, Space, V
 from metta._binding.runtime import bridge
+from metta._errors.errors import MettaError
 from metta._roots import workspace
 
 _NAMES = itertools.count()
@@ -335,6 +363,203 @@ def test_a_dropped_cursor_defers_its_close_instead_of_crossing(metta):
     assert _live_engines(metta) == baseline, "the deferred close never ran"
 
 
+def test_a_collection_makes_every_thread_it_runs_on_a_finaliser():
+    """The collector's window is a finaliser context, on its own thread only.
+
+    A suspended generator reachable only through a cycle is finalised by the
+    collector, which runs its finally inside the window; a second thread asked
+    at that moment is outside it, and so is a generator released by its
+    reference count with no collection running. A declared finaliser nests
+    and gives back what it found.
+    """
+    seen = {}
+
+    def suspended(tag):
+        try:
+            yield
+        finally:
+            seen[tag] = _engine.in_finaliser()
+            if tag == "collected":
+                other = []
+                reader = threading.Thread(target=lambda: other.append(_engine.in_finaliser()))
+                reader.start()
+                reader.join()
+                seen["another thread"] = other[0]
+
+    counted = suspended("counted")
+    next(counted)
+    del counted
+    collected = suspended("collected")
+    next(collected)
+    cycle = [collected]
+    cycle.append(cycle)
+    del collected, cycle
+    gc.collect()
+    with _engine.finalising:
+        with _engine.finalising:
+            pass
+        seen["declared"] = _engine.in_finaliser()
+    seen["after"] = _engine.in_finaliser()
+    assert seen == {
+        "counted": False,
+        "collected": True,
+        "another thread": False,
+        "declared": True,
+        "after": False,
+    }
+
+
+#: The lazy doors whose view releases engine state from its source's finally:
+#: an evaluation's cursor, a match's cursor, and a theory ask's scratch space
+#: with the evaluation cursor it holds. Each is pulled once, so its generator
+#: is suspended with all of it open.
+_LAZY_DOORS = {
+    "evaluation": lambda space: space.answers(S["abandoned-choice"]()),
+    "match": lambda space: space.match(S["abandoned-edge"](V.x, V.y)),
+    "theory": lambda space: space.answers(
+        S["abandoned-law"](),
+        theory=[S["="](S["abandoned-law"](), S.left), S["="](S["abandoned-law"](), S.right)],
+    ),
+}
+
+
+@pytest.mark.parametrize("abandoned", ["by its last reference", "in a cycle"])
+@pytest.mark.parametrize("door", sorted(_LAZY_DOORS))
+def test_an_abandoned_view_releases_without_crossing_from_its_finaliser(metta, door, abandoned):
+    """A view dropped part-way hands every release to the queue, however it dies.
+
+    Dropped by its last reference, its __del__ is the finaliser. Dropped in a
+    cycle, the collector finalises the view and its generator in no defined
+    order, and the generator's finally used to close its cursor by crossing,
+    which drained the queue at a point nobody chose. So work queued before the
+    drop must still be queued after it, and the next crossing then closes the
+    cursor and retires the scratch space. Automatic collection is off for the
+    reference-count case, so that case is the reference count alone.
+    """
+    space = metta._new_space()
+    try:
+        space.run("(= (abandoned-choice) (superpose (1 2 3)))")
+        space.add(S["abandoned-edge"](S.a, S.b), S["abandoned-edge"](S.b, S.c))
+        gc.collect()
+        baseline = _live_engines(metta)
+        spaces = set(metta.space_names())
+        marker = (_engine._CALL_PREDICATE, "true", ())
+        gc.disable()
+        try:
+            view = _LAZY_DOORS[door](space)
+            next(iter(view))
+            assert _live_engines(metta) == baseline + 1, "the pulled view holds no cursor"
+            _engine._DEFERRED_WORK.append(marker)
+            if abandoned == "in a cycle":
+                cycle = [view]
+                cycle.append(cycle)
+                del cycle
+            del view
+        finally:
+            gc.enable()
+        gc.collect()
+        assert any(item is marker for item in _engine._DEFERRED_WORK), (
+            "a finaliser crossed into Prolog and drained the queue"
+        )
+        assert _live_engines(metta) == baseline, "a handed-over cursor close never ran"
+        assert not any(item is marker for item in _engine._DEFERRED_WORK)
+        assert set(metta.space_names()) == spaces, "a handed-over scratch space was never retired"
+    finally:
+        space.drop()
+
+
+def test_a_drop_from_a_finaliser_hands_the_retirement_over_and_a_later_drop_finishes_it(metta):
+    """A drop made while this thread is a finaliser crosses nothing.
+
+    It hands the retirement to the queue, as an abandoned context's world is
+    handed over. The next crossing retires the space, which every handle of
+    its life then reads as dead, and a drop from a caller's stack finishes the
+    handle's own cleanup without retiring anything twice.
+    """
+    scratch = metta._new_space()
+    scratch.add(S["handover-fact"](S.a))
+    alias = Space(scratch)
+    name = scratch.name
+    marker = (_engine._CALL_PREDICATE, "true", ())
+    _engine._DEFERRED_WORK.append(marker)
+    with _engine.finalising:
+        scratch.drop()
+    assert any(item is marker for item in _engine._DEFERRED_WORK), "the drop crossed from a finaliser"
+    assert not scratch.dropped
+    with pytest.raises(MettaError, match="finished engine teardown; call drop"):
+        scratch.add(S["handover-fact"](S.b))
+    assert name not in metta.space_names()
+    with pytest.raises(MettaError, match="is dead: its space was dropped"):
+        alias.add(S["handover-fact"](S.c))
+    scratch.drop()
+    assert scratch.dropped
+
+
+def test_a_drop_from_a_finaliser_leaves_the_next_life_of_its_name_alone(metta):
+    """A handle whose life is over hands no retirement over.
+
+    Dropping a space through one handle ends its life for every handle and
+    returns the name to the pool, where the next mint takes it. The handle
+    left behind, dropped from a finaliser, queued the retirement by name, and
+    the queue retired the next life when it drained.
+    """
+    first = metta._new_space()
+    alias = Space(first)
+    name = first.name
+    first.drop()
+    second = metta._new_space()
+    try:
+        assert second.name == name, "the pool did not hand the released name out again"
+        second.add(S["next-life"](S.a))
+        with _engine.finalising:
+            alias.drop()
+        assert name in metta.space_names()
+        assert not second.dropped, "a handover made for an ended life retired the next one"
+        assert list(second.atoms()) == [S["next-life"](S.a)]
+        alias.drop()
+        assert alias.dropped
+    finally:
+        second.drop()
+
+
+@pytest.mark.parametrize("door", ["evaluation", "match"])
+def test_reclaim_collects_what_an_abandoned_view_held(metta, door):
+    """reclaim() makes the releases its own collection queued, inside the barrier.
+
+    A space is dropped while a pulled view over it lies abandoned in a cycle,
+    so reclaim()'s own collection finalises the view and queues its cursor
+    close. The queue drains at a crossing's entry and no round of the barrier
+    makes one, so the close waited for the call after reclaim() and every atom
+    the cursor held outlived the barrier. Each round now makes what its
+    collection queued, so none of the 2000 names is left when it returns.
+    """
+    space = metta._new_space()
+    prefix = f"reclaimview{door[0]}"
+    space.add(*[S["reclaim-view"](S[f"{prefix}{index:05x}"]) for index in range(2000)])
+    space.run("(= (reclaim-view-all) (match &self (reclaim-view $x) $x))")
+    gc.collect()
+    gc.disable()
+    try:
+        view = (
+            space.match(S["reclaim-view"](V.x))
+            if door == "match"
+            else space.answers(S["reclaim-view-all"]())
+        )
+        next(iter(view))
+        cycle = [view]
+        cycle.append(cycle)
+        del view, cycle
+    finally:
+        gc.enable()
+    space.drop()
+    metta.runtime.reclaim()
+    live = metta.runtime.must(
+        "aggregate_all(count, (current_blob(_Name, text), atom_length(_Name, 17), "
+        f"sub_atom(_Name, 0, 12, _, {prefix})), Live)"
+    )["Live"]
+    assert live == 0, f"{live} names of the dropped space outlived reclaim()"
+
+
 def test_an_abandoned_watch_finaliser_neither_crosses_nor_locks(metta, monkeypatch):
     """The watch's finaliser stops delivery and enqueues, and nothing else.
 
@@ -392,6 +617,74 @@ def test_an_abandoned_watch_finaliser_neither_crosses_nor_locks(metta, monkeypat
     assert not subscription._active, "the abandoned subscription still delivers"
     assert subscription in _subscribe._ABANDONED
     # The next cancel(), this one's own, withdraws everything the queue holds.
+    subscription.cancel()
+    assert subscription not in _subscribe._ABANDONED
+
+
+def test_a_cancel_from_a_collected_generator_neither_crosses_nor_locks(metta, monkeypatch):
+    """FutureSpace.__iter__'s shape: a generator cancelling its subscription in its finally.
+
+    Dropped part-way inside a cycle, the collector runs that finally, so it is
+    a finaliser, and cancel() does what a collected watch's finaliser does:
+    it stops delivery and enqueues, while another thread holds both locks a
+    cancel takes, and the next cancel() withdraws what the queue holds. The
+    cycle is unreachable before the collecting thread starts and automatic
+    collection is off until it has run, so the collecting thread's collection
+    is the one that finalises the generator.
+    """
+    import metta.subscribe as _subscribe
+    from metta.events import _REGISTRY
+
+    subscription = metta.subscribe(S["abandoned-future-tick"](V.n))
+
+    def iterate():
+        try:
+            yield
+        finally:
+            subscription.cancel()
+
+    locked, release = threading.Event(), threading.Event()
+    crossed: list[str] = []
+    runtime_type = type(metta.runtime)
+    thread_lock = runtime_type._thread_lock
+
+    def counted(runtime):
+        crossed.append(threading.current_thread().name)
+        return thread_lock(runtime)
+
+    def hold_both_locks():
+        with _subscribe._TRANSACTION_LOCK, _REGISTRY._lock:
+            locked.set()
+            release.wait()
+
+    holder = threading.Thread(target=hold_both_locks, name="lock-holder", daemon=True)
+    collector = threading.Thread(target=gc.collect, name="collector", daemon=True)
+    gc.collect()
+    gc.disable()
+    try:
+        iteration = iterate()
+        next(iteration)
+        cycle = [iteration]
+        cycle.append(cycle)
+        del iteration, cycle
+        monkeypatch.setattr(runtime_type, "_thread_lock", counted)
+        holder.start()
+        locked.wait()
+        collector.start()
+        collector.join(timeout=30)
+        waited_on_a_lock = collector.is_alive()
+    finally:
+        release.set()
+        if holder.is_alive():
+            holder.join()
+        if collector.is_alive():
+            collector.join()
+        monkeypatch.undo()
+        gc.enable()
+    assert not waited_on_a_lock, "the generator's cancel waited on a lock another thread held"
+    assert "collector" not in crossed, "the generator's cancel crossed into the engine"
+    assert not subscription._active, "the abandoned subscription still delivers"
+    assert subscription in _subscribe._ABANDONED
     subscription.cancel()
     assert subscription not in _subscribe._ABANDONED
 
@@ -499,20 +792,24 @@ def test_a_finaliser_at_interpreter_shutdown_prints_nothing(tmp_path):
 
 # What a finaliser may do, as statement shapes: hand a call to the engine's
 # deferred queue (defer_engine_call, or the `_enqueue` its default argument
-# binds), flag its object spent with a constant, or report a ResourceWarning,
-# which CPython's own finalisers raise for an abandoned resource
+# binds), set a flag on an object to a value that calls nothing, or report a
+# ResourceWarning, which CPython's own finalisers raise for an abandoned resource
 # [source: python/cpython c554143aa15132c413b231f2c6e41f3b98de7846,
 # Lib/subprocess.py:1132 Popen.__del__ and Modules/_io/fileio.c:107]. A guard
 # may choose between them so long as it calls nothing.
 _ENQUEUES = frozenset({"defer_engine_call", "_enqueue"})
 
 
+def _calls(node: ast.AST) -> bool:
+    return any(isinstance(inner, ast.Call) for inner in ast.walk(node))
+
+
 def _hands_over(statement: ast.stmt) -> bool:
     match statement:
         case ast.Expr(value=ast.Call(func=ast.Name(id=name))) if name in _ENQUEUES:
             return True
-        case ast.Assign(targets=[ast.Attribute()], value=ast.Constant()):
-            return True
+        case ast.Assign(targets=[ast.Attribute()], value=value):
+            return not _calls(value)
         case ast.Delete() | ast.Import(names=[ast.alias(name="warnings")]):
             return True
         case ast.Expr(
@@ -523,8 +820,7 @@ def _hands_over(statement: ast.stmt) -> bool:
         ):
             return True
         case ast.If(test=test, body=body, orelse=orelse):
-            calls = any(isinstance(node, ast.Call) for node in ast.walk(test))
-            return not calls and all(map(_hands_over, [*body, *orelse]))
+            return not _calls(test) and all(map(_hands_over, [*body, *orelse]))
         case _:
             return False
 
@@ -579,15 +875,16 @@ def _weak_reference_classes(modules: dict[Any, ast.Module]) -> set[str]:
 def test_every_collector_callback_in_the_package_only_hands_its_work_over():
     """Exhaustion over every callback the collector runs for the package.
 
-    Those are each weakref.finalize's callback and each weak reference's
+    Those are each weakref.finalize's callback, each weak reference's
     callback, made through weakref's constructors or through a class the
-    package derives from weakref.ref. Garbage collection runs either kind on
-    whichever thread allocates, at any allocation, so a callback that takes a
-    lock can wait on a thread that is waiting on the collecting one. The sites
-    are read from the source rather than listed, so a new one is in the census
-    the moment it is written. Every `.finalize(` call must be weakref's, and
-    every callback must be defer_engine_call itself or a function whose every
-    definition in the package only hands its work over.
+    package derives from weakref.ref, and each entry the package puts in
+    gc.callbacks. Garbage collection runs every kind on whichever thread
+    allocates, at any allocation, so a callback that takes a lock can wait on
+    a thread that is waiting on the collecting one. The sites are read from
+    the source rather than listed, so a new one is in the census the moment it
+    is written. Every `.finalize(` call must be weakref's, and every callback
+    must be defer_engine_call itself or a function whose every definition in
+    the package only hands its work over.
     """
     package = workspace() / "extensions" / "python" / "metta"
     modules = {path: ast.parse(path.read_text(encoding="utf-8")) for path in package.rglob("*.py")}
@@ -597,12 +894,21 @@ def test_every_collector_callback_in_the_package_only_hands_its_work_over():
             if isinstance(node, ast.FunctionDef):
                 definitions.setdefault(node.name, []).append(node)
     weak_classes = _weak_reference_classes(modules)
-    sites: dict[str, list[tuple[str, ast.expr]]] = {"weakref.finalize": [], "weak reference": []}
+    sites: dict[str, list[tuple[str, ast.expr]]] = {
+        "weakref.finalize": [], "weak reference": [], "gc.callbacks": [],
+    }
     for path, tree in modules.items():
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
             where = f"{path.relative_to(package)}:{node.lineno}"
+            match node.func:
+                case ast.Attribute(
+                    value=ast.Attribute(value=ast.Name(id="gc"), attr="callbacks"),
+                    attr="append" | "insert",
+                ):
+                    sites["gc.callbacks"].append((where, node.args[-1]))
+                    continue
             if isinstance(node.func, ast.Attribute) and node.func.attr == "finalize":
                 assert _weakref_member(node.func) == "finalize", (
                     f"{where}: a .finalize( call on something other than weakref"

@@ -125,6 +125,19 @@ Guarantees:
     test_a_drop_is_reclaimed_while_another_thread_collects,
     test_dropping_a_space_reclaims_its_atoms,
     test_a_released_index_is_collected_after_its_query_boundary]
+  - Runtime.reclaim makes, inside its rounds, the releases its own
+    collections queue, so what an abandoned view held is collected before it
+    returns [tested 2026-09-30T09:09:35+10:00:
+    test_reclaim_collects_what_an_abandoned_view_held]
+  - an engine release made while this thread runs a finaliser, inside a
+    garbage collection or inside a package finaliser that declared itself with
+    `with finalising:`, is handed to the next crossing rather than made,
+    whichever object the collector finalised first, so a collection never
+    drains the deferred queue [tested 2026-09-30T09:09:35+10:00:
+    test_a_collection_makes_every_thread_it_runs_on_a_finaliser,
+    test_an_abandoned_view_releases_without_crossing_from_its_finaliser,
+    test_a_dropped_carried_term_hands_its_record_over_after_an_error_left_a_stream_suspended,
+    test_a_collected_handle_releases_through_the_queue]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -144,6 +157,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import gc
 import importlib
 import logging
 import os
@@ -674,6 +688,110 @@ def _defer_record_erase(record: int, _enqueue: Any = _DEFERRED_WORK.append) -> N
     default except one whose identity is the point.
     """
     _enqueue((_ERASE_RECORD, record))
+
+
+# Whether this thread is running a finaliser, which decides whether a release
+# may cross or must be handed to the queue above. Two things make a thread a
+# finaliser, and both are recorded here rather than guessed at each release.
+#
+# The collector runs every finaliser of a collection between the start and
+# stop calls it makes to gc.callbacks, on the thread that collects, and a
+# collection that begins while one runs returns before either call
+# [source 2026-09-30T00:46:04+10:00: CPython v3.14.4 Python/gc.c:2031-2085,
+# _PyGC_Collect]. So `collecting` holds exactly while this thread's collection
+# runs, whatever object it finalises. That includes a suspended generator whose
+# finally releases a cursor: the collector finalises the members of one cycle
+# in no defined order, so the generator can go before the view whose __del__
+# would have declared itself, and its release then crossed and drained this
+# queue in the middle of an unrelated caller's work
+# [source 2026-09-30T00:36:56+10:00: docs/journal/2026-09-06-finalisers-must-not-call-prolog.md].
+#
+# A package finaliser that runs outside a collection, a __del__ reached by a
+# reference count, declares itself with `with finalising:`, which counts in
+# `declared`.
+class _FinaliserState(threading.local):
+    """This thread's finaliser context; the class attributes are every thread's start."""
+
+    collecting = False
+    declared = 0
+
+
+_FINALISING = _FinaliserState()
+
+
+def _collector_window(phase: str, _info: dict[str, int], _context: Any = _FINALISING) -> None:
+    """gc.callbacks entry: this thread is a finaliser while its collection runs."""
+    _context.collecting = phase == "start"
+
+
+gc.callbacks.append(_collector_window)
+
+
+class _Finalising:
+    """`with finalising:` declares the enclosed code a finaliser, nestably.
+
+    One shared object whose two methods count, not a generator context
+    manager, because every lazy view's __del__ enters it: a
+    contextlib.contextmanager builds a generator and a wrapper on each entry.
+    """
+
+    __slots__ = ()
+
+    def __enter__(self, _context: Any = _FINALISING) -> None:
+        _context.declared += 1
+
+    def __exit__(self, *_exception: object, _context: Any = _FINALISING) -> None:
+        _context.declared -= 1
+
+
+finalising = _Finalising()
+
+
+def in_finaliser(_context: Any = _FINALISING) -> bool:
+    """Whether this thread is inside a collection or a declared finaliser."""
+    return _context.collecting or _context.declared > 0
+
+
+def release_engine_call(
+    runtime: Runtime,
+    predicate: str,
+    *inputs: Any,
+    _finaliser: Any = in_finaliser,
+    _defer: Any = defer_engine_call,
+) -> None:
+    """Make a void release now, or hand it to the next crossing from a finaliser.
+
+    The one decision every engine release takes, so a close reached from a
+    caller's stack still happens before it returns and reports its failure
+    there, while the same close reached from a finaliser only enqueues. Both
+    helpers are default arguments for the reason _defer_record_erase gives: a
+    generator's finally can run at interpreter shutdown after this module's
+    globals are cleared.
+    """
+    if _finaliser():
+        _defer(predicate, *inputs)
+    else:
+        runtime.do(predicate, *inputs)
+
+
+def reclaim_round() -> int:
+    """One reclaim round's Python half: collect, then make what that queued.
+
+    metta_py_reclaim/1 calls this in each round in place of gc.collect(). A
+    finaliser the collection runs hands its release to the queue above rather
+    than making it, and the queue drains at a crossing's entry, which no round
+    makes, so a view abandoned before reclaim() kept its cursor, and every atom
+    the cursor held, past the barrier until the next call. The drain runs
+    inside the barrier's own call, on a thread holding its engine. Answers the
+    objects collected plus the releases made, so a round that did either is
+    not quiet and the rounds' own fixpoint decides when the barrier ends.
+    """
+    collected = gc.collect()
+    queued = len(_DEFERRED_WORK)
+    current = _STATE.runtime
+    if queued and current is not None:
+        current._drain_deferred()
+    return collected + queued
 
 
 def _install_deferred_term_release(janus: Any) -> None:
@@ -1526,8 +1644,9 @@ class Runtime:
         The barrier to cross before counting what something left behind:
         after it, a Python object, a clause or an atom still standing is
         retained, not waiting for a collector. The engine runs Python's
-        collector, SWI's clause, stack and atom collectors and janus's
-        deferred releases in rounds until one frees only what it made itself,
+        collector, the releases the collector's finalisers queued, SWI's
+        clause, stack and atom collectors and janus's deferred releases in
+        rounds until one frees only what it made itself,
         with SWI's collector thread stopped throughout, because a collection
         that thread is running makes an explicit one do nothing and keeps what
         was erased after it began (metta_py_reclaim/1 in _binding/profiling.pl).

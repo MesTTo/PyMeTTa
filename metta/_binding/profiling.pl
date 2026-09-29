@@ -277,9 +277,10 @@ metta_py_index_quality(Module, Name, Arity, Speedup, Realised) :-
 % puts the generation past everything erased before it, the protocol the
 % Prolog suite's collect_materialization_owners/0 uses for the same count.
 %
-% A round is quiet when Python's collector found nothing, the clause collection
-% reclaimed at most the round's own tick, and the live atom and clause counts
-% (statistics/2's atoms and clauses) end the round where they began it. What a
+% A round is quiet when Python's collector found nothing and made no release a
+% finaliser queued, the clause collection reclaimed at most the round's own
+% tick, and the live atom and clause counts (statistics/2's atoms and clauses)
+% end the round where they began it. What a
 % round freed cannot be the test, because what it makes for itself varies with
 % the process: SWI hands every clause a collection reclaims, the tick included,
 % to each listener on its erase channel as a clause blob [source
@@ -311,7 +312,10 @@ metta_py_reclaim_rounds(Round, Rounds) :-
     statistics(atoms, Atoms0),
     statistics(clauses, Clauses0),
     statistics(cgc_gained, Reclaimed0),
-    py_call(gc:collect(), Objects),
+    % reclaim_round/0 collects and then makes the releases the collection's
+    % finalisers queued, which no crossing of the round would otherwise make
+    % [source 2026-09-30T03:02:19+10:00: extensions/python/metta/_binding/runtime.py, reclaim_round].
+    py_call('metta._binding.runtime':reclaim_round(), Objects),
     metta_py_collection_ran(cgc, metta_py_collect_clauses),
     garbage_collect,
     metta_py_collection_ran(agc, garbage_collect_atoms),
