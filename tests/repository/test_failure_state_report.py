@@ -4,19 +4,20 @@ A red that passes when the named test is re-run alone is a claim about the
 process state the battery had and the re-run did not. `tests/conftest.py`
 attaches that state to every failing item, and this file is what keeps it
 attached: a planted red run through the same hook has to carry the engine's
-pragmas, its fuel scope, SWI's autoload and stack-limit flags, the worker, the
-position in the shuffled order, the seed and the load.
+pragmas, its fuel scope, SWI's autoload and stack-limit flags, the worker, its
+place in its worker's run, the history file and the command replaying it, the
+seed and the load.
 Assumes: this seat's pyproject.toml and an interpreter with janus_swi, the
   same pair every other runner here uses.
 Guarantees:
   - a failing item carries the report, with the state the failure had rather
-    than the state a later reader can reconstruct
-    [tested: test_a_failing_item_carries_the_state_that_decided_it; commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
+    than the state a later reader can reconstruct, its place in its process's
+    run and the command replaying that run among it
+    [tested 2026-09-29T16:37:35+10:00: test_a_failing_item_carries_the_state_that_decided_it]
   - the report names every field it promises, and says so when the engine
     cannot answer instead of dropping the row
-    [tested: test_the_state_report_names_every_field_it_promises,
-    test_a_reading_the_engine_refuses_is_reported_rather_than_dropped;
-    commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
+    [tested 2026-09-29T16:37:35+10:00: test_the_state_report_names_every_field_it_promises,
+    test_a_reading_the_engine_refuses_is_reported_rather_than_dropped]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +26,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from typing import ClassVar
@@ -50,18 +52,23 @@ def test_a_failing_item_carries_the_state_that_decided_it(tmp_path):
     """The hook is wired up, and it fires on a red and not on a green."""
     planted = tmp_path / "test_planted_red.py"
     planted.write_text(PLANTED, encoding="utf-8")
+    log = tmp_path / "run.log"
     result = subprocess.run(
         [
             sys.executable, "-m", "pytest", "-q",
             "--rootdir=.", "-c", "pyproject.toml",
             "-p", "no:benchmark", "-p", "no:cacheprovider",
-            "-p", "tests.conftest",
+            # The planted file sits outside the seat, so the seat's root
+            # conftest, which loads the history plugin for every run beneath
+            # it, is not loaded here; the two it would bring are named.
+            "-p", "tests.conftest", "-p", "tests._worker_history",
             str(planted),
         ],
         capture_output=True,
         text=True,
         timeout=300,
         cwd=str(PYTHON_ROOT),
+        env=os.environ | {"METTA_RUN_LOG": str(log)},
         check=False,
     )
     assert result.returncode != 0, result.stdout[-2000:]
@@ -70,10 +77,14 @@ def test_a_failing_item_carries_the_state_that_decided_it(tmp_path):
     # The pragma the planted test left in force is IN the report: reading the
     # state after the fact is what the report replaces.
     assert "max-stack-depth" in report, report[-3000:]
-    for field in ("worker:", "seed:", "order:", "load:", "spaces:", "fuel scope:",
-                  "prolog flags:", "function generation:"):
+    for field in ("worker:", "seed:", "order:", "history:", "replay:", "load:", "spaces:",
+                  "fuel scope:", "prolog flags:", "function generation:"):
         assert field in report, f"{field} missing from\n{report[-3000:]}"
     assert "metta=&self" in report, report[-3000:]
+    # Its place in its process's run, and the file holding that run beside the log.
+    assert "order: item 1 this process ran, after nothing before it" in report, report[-3000:]
+    assert f"history: {log}.history/" in report, report[-3000:]
+    assert "--replay-history=" in report, report[-3000:]
 
 
 @pytest.mark.usefixtures("metta")

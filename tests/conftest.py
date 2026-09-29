@@ -10,11 +10,12 @@ Guarantees:
     [tested: test_an_abandoned_watch_cancels_itself,
     test_source_tree_fixtures_coexist_with_installed_plugin_metadata;
     commit=993608c01049bcca7530931b680c416c81023543]
-  - every failing item carries the engine state, worker, order, seed and load
-    that decided it, so a red that passes alone is a finding with evidence
-    rather than an "intermittent"
-    [tested: test_a_failing_item_carries_the_state_that_decided_it,
-    test_the_state_report_names_every_field_it_promises; commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
+  - every failing item carries the engine state, worker, seed and load that
+    decided it, its place in its worker's run with the item before it there,
+    and the history file with the command replaying that run, so a red that
+    passes alone is a finding with evidence rather than an "intermittent"
+    [tested 2026-09-29T16:37:35+10:00: test_a_failing_item_carries_the_state_that_decided_it,
+    test_the_state_report_names_every_field_it_promises]
   - ``HYPOTHESIS_PROFILE=petta`` is a supported alias of the ordinary
     exploratory ``metta`` profile [tested: test_petta_profile_matches_metta;
     commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
@@ -144,24 +145,6 @@ def pytest_configure(config: pytest.Config) -> None:
     if not config.pluginmanager.is_registered(metta_pytest_plugin):
         config.pluginmanager.register(metta_pytest_plugin, "metta-source")
     _bound_children_to_a_wrapper()
-
-
-def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
-    """Name the ordering seed on a red run, which `-q` hides from the header.
-
-    pytest-randomly prints `Using --randomly-seed=N` through
-    `pytest_report_header`, and every runner here passes `-q`, which suppresses
-    it: the first red run under the shuffle reported a name-pool failure with no
-    way to repeat its order [measured 2026-09-07]. A failing run has to carry
-    the one argument that reproduces it.
-    """
-    if exitstatus == 0:
-        return
-    seed = config.getoption("randomly_seed", default=None)
-    if seed is not None:
-        terminalreporter.write_line(
-            f"order: this run was shuffled; repeat it with --randomly-seed={seed}"
-        )
 
 
 #: The manifest of `.metta` examples this suite runs itself, and the one skip
@@ -392,21 +375,19 @@ def engine_state_report(item) -> str:
     at least once: the interpreter pragmas (one engine-wide setting outlives
     the MeTTa object that wrote it), the evaluation fuel scope (an abandoned
     one silently drops a StackOverflow answer), SWI's autoload and stack-limit
-    flags, which xdist worker ran it, where in the shuffled order it ran and
-    under which seed, and the load, without which no timing red can be
-    attributed at all.
+    flags, which worker ran it under which seed, where in that worker's own
+    run it came and after which item, with the history file and the command
+    replaying that run (tests/_worker_history.py, since under xdist the seed
+    does not say which worker ran which file), and the load, without which no
+    timing red can be attributed at all.
     """
-    lines = [
-        f"worker: {os.environ.get('PYTEST_XDIST_WORKER', 'master')}",
-        f"seed: {item.config.getoption('randomly_seed', default='unset')}",
-    ]
-    try:
-        items = item.session.items
-        position = items.index(item)
-        previous = items[position - 1].nodeid if position else "none"
-        lines.append(f"order: item {position + 1} of {len(items)}, after {previous}")
-    except (AttributeError, ValueError):  # collection-time failures have no list
-        lines.append("order: this item is not in a collected list")
+    # Imported here rather than above: a run that loads this file with `-p`
+    # ahead of the plugin would otherwise import the plugin first as a plain
+    # module, and pytest then refuses to load it as one with
+    # "Module already imported so cannot be rewritten".
+    from tests import _worker_history
+
+    lines = _worker_history.report(item)
     try:
         lines.append(f"load: {Path('/proc/loadavg').read_text(encoding='utf-8').strip()}")
     except OSError:
