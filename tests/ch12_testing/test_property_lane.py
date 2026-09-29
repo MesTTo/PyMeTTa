@@ -2,7 +2,7 @@
     Python surface has hypothesis and the define fuzzer, and both reach the
     engine through janus, so nothing generated at the Prolog level until now.
     Three claims are checked here rather than read: the lane's generator really
-    does generate, because five planted defects each go red through it; its
+    does generate, because seven planted defects each go red through it; its
     vendored runner says where it came from and under what terms; and a gate
     run is the same run every time.
 Assumes:
@@ -44,13 +44,16 @@ PLANTS = {
     "number_blind": "a number",
     "flattened_nesting": "a nested expression",
     "identity_leak": "an answer holding a variable",
+    "closure_result_reentry": "a mapped value holding a call to a defined function",
 }
 
 #: The laws a plant is caught by. identity_leak damages EVALUATION, not the
 #: printer or the reader, so the plants no longer all belong to one law and the
 #: shipped control is run per law: a plant asked the wrong question reads as
-#: uncaught for a reason that is not a defect.
-LAWS = ("prop_eval_variant/1", "prop_roundtrip_full/1")
+#: uncaught for a reason that is not a defect. closure_result_reentry damages
+#: the closure spelling of a collection builtin, which only the spellings law
+#: compares with its binder spelling.
+LAWS = ("prop_eval_variant/1", "prop_hof_spellings/1", "prop_roundtrip_full/1")
 
 VENDORED = ("quickcheck.pl", "mavis.pl", "list_util.pl")
 

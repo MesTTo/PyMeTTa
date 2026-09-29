@@ -154,7 +154,7 @@ if TYPE_CHECKING:
         foldall: Symbol
         foldl: Symbol
         foldl_atom: Symbol
-        "foldl-atom: (-> Expression Atom Variable Variable Atom %Undefined%)\nfoldl-atom: (-> Expression Atom Expression %Undefined%)\n\n`functools.reduce` with an initial value is the same finite left fold. For a change stream, `m.events().fold(..., under=algebra)` makes the algebra itself the step; `into=State(...)` is the running-gauge form."
+        "foldl-atom: (-> Expression %Undefined% Variable Variable Atom %Undefined%)\nfoldl-atom: (-> Expression %Undefined% Expression %Undefined%)\n\n`functools.reduce` with an initial value is the same finite left fold. For a change stream, `m.events().fold(..., under=algebra)` makes the algebra itself the step; `into=State(...)` is the running-gauge form."
         for_each_in_atom: Symbol
         "for-each-in-atom: (-> Expression Atom (->))\n\nA `for` statement. It is called for its effect, so the row prints and answers the unit. Python's `for` has no value at all, and the concept map says `None` IS the unit, but `metta.ground(None)` renders `<NoneType>` rather than `()` today, so a row that wants the unit writes it [measured 2026-08-22]."
         forall: Symbol
@@ -1150,7 +1150,7 @@ _DOCUMENTATION = {
     "evalc": "evalc: (-> Atom SpaceType Atom)\n\nOne step WITH an explicit context space, which is `space.eval(term)`: the signature IS term plus space.",
     "filter-atom": "filter-atom: (-> Expression Variable Atom Expression)\nfilter-atom: (-> Expression Expression Expression)\n\nA comprehension with an `if`, or `filter`.",
     "floor-math": "floor-math: (-> Number Number)\n\n`math.floor`, the same integer-against-float difference as `ceil-math`.",
-    "foldl-atom": "foldl-atom: (-> Expression Atom Variable Variable Atom %Undefined%)\nfoldl-atom: (-> Expression Atom Expression %Undefined%)\n\n`functools.reduce` with an initial value is the same finite left fold. For a change stream, `m.events().fold(..., under=algebra)` makes the algebra itself the step; `into=State(...)` is the running-gauge form.",
+    "foldl-atom": "foldl-atom: (-> Expression %Undefined% Variable Variable Atom %Undefined%)\nfoldl-atom: (-> Expression %Undefined% Expression %Undefined%)\n\n`functools.reduce` with an initial value is the same finite left fold. For a change stream, `m.events().fold(..., under=algebra)` makes the algebra itself the step; `into=State(...)` is the running-gauge form.",
     "for-each-in-atom": "for-each-in-atom: (-> Expression Atom (->))\n\nA `for` statement. It is called for its effect, so the row prints and answers the unit. Python's `for` has no value at all, and the concept map says `None` IS the unit, but `metta.ground(None)` renders `<NoneType>` rather than `()` today, so a row that wants the unit writes it [measured 2026-08-22].",
     "format-args": "format-args: (-> String Expression String)\n\nAn f-string. MeTTa's `{}` holes are Python's own interpolation.",
     "function": "function: (-> Atom Atom)\n\nThe core's function frame, which `return` closes. MeTTa's compiled definitions do not go through this instruction and it is not implemented.",

@@ -142,7 +142,10 @@ def test_dynamic_head_errors_carriers_and_builtin_results_match() -> None:
             "(collapse-bind (superpose (left right)))",
             ["((left (bindings)) (right (bindings)))"],
         ),
-        ("c2-py-id-door", "(id (noeval (+ 20 22)))", ["42"]),
+        # A builtin's answer is not evaluated again, so the call noeval held
+        # stays the call, as `(id (quote (+ 20 22)))` does upstream; upstream
+        # has no noeval of its own.
+        ("c2-py-id-door", "(id (noeval (+ 20 22)))", ["(+ 20 22)"]),
     )
     for name, expression, expected in rows:
         both_doors(space, name, expression, expected)

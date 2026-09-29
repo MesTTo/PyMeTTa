@@ -4,7 +4,7 @@ Each row asks, per declared type, whether the argument reaches a user function
 AS WRITTEN or reduced, and the shipped expression family is asked the same
 question. The mask set is the arbiter's own one-line rule, not a set
 inferred from behaviour: a parameter is held back exactly when its declared
-evaluation view is `Atom`, `Variable` or `Expression`
+evaluation view is `Atom`
 [source: engine/translator/typing.pl, non_evaluated_parameter_type/1, which
 the argument mask consumes].
 Assumes:
@@ -147,8 +147,8 @@ FAMILY_ROWS = [
     ("!(cdr-atom (cdr-atom (a b c)))", "(c)"),
     ("!(index-atom ((+ 1 2) b) 0)", "3"),
     ("!(size-atom ((+ 1 2) b))", "2"),
-    # car-atom's %Undefined% result re-enters evaluation, so the operand it
-    # extracted unreduced reduces here and nowhere earlier.
+    # car-atom's operand evaluates before the operation runs, tuple members
+    # included, so the element it extracts is already 3.
     ("!(car-atom ((+ 1 2) b))", "3"),
     ("!(chain (+ 1 2) $x (quote $x))", "3"),
     ("!(atom-subst (+ 1 2) $x ($x $x))", "((+ 1 2) (+ 1 2))"),

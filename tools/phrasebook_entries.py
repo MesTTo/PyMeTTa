@@ -577,8 +577,8 @@ ENTRIES: list[Entry] = [
     Entry(
         "foldl-atom",
         (
-            "(-> Expression Atom Variable Variable Atom %Undefined%)",
-            "(-> Expression Atom Expression %Undefined%)",
+            "(-> Expression %Undefined% Variable Variable Atom %Undefined%)",
+            "(-> Expression %Undefined% Expression %Undefined%)",
         ),
         "Symbol", "atoms", "dissolves",
         "`functools.reduce` with an initial value is the same finite left fold. "

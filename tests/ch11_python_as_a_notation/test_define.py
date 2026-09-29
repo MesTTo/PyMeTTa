@@ -403,6 +403,31 @@ def test_filtered_comprehension_composes_filter_atom(m):  # noqa: D103  -- pytes
     assert m.run("!(dbig (1 2 3 4))") == [[Expression(3, 4)]]
 
 
+def test_a_comprehension_keeps_a_symbol_that_names_a_function(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # A comprehension lowers to the closure spellings of filter-atom and
+    # map-atom, and their answer is a value: the engine evaluated it a second
+    # time, so the symbol `title` came back as the call `(title)` and the
+    # filtered comprehension answered nothing. Upstream PeTTa answers `(title)`
+    # for the compiled equation, and so does the binder spelling.
+    @m.define
+    def title():
+        return "a title"
+
+    @m.define
+    def names():
+        items = S.quote((S.title,))
+        return [item for item in items if S["=="](item, S.title)]
+
+    @m.define
+    def names_map():
+        items = S.quote((S.title,))
+        return [item for item in items]  # noqa: C416  -- the comprehension is what is under test: it lowers to map-atom's closure spelling
+
+    assert list(names()) == [Expression(S.title)]
+    assert list(names_map()) == [Expression(S.title)]
+    assert m.eval(S.filter_atom(S.quote((S.title,)), V.item, S["=="](V.item, S.title))) == [Expression(S.title)]
+
+
 def test_match_in_body_binds_pattern_variables(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.parent(S.Tom, S.Bob), S.parent(S.Bob, S.Ann))
 
