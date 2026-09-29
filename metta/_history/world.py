@@ -17,6 +17,10 @@ Guarantees:
     transaction, then removes and adds the multiset diff as ordinary writes
     whose events publish after the complete diff is visible [tested:
     test_commit_applies_the_world_diff_as_post_commit_events; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - a collected world whose plan space was already dropped hands nothing
+    over, so the space minted next on the plan's name survives the backstop
+    [tested 2026-09-30T09:09:35+10:00:
+    test_a_collected_world_whose_plan_was_dropped_leaves_the_next_life_of_its_name_alone]
 Fails when:
   - a live member has no snapshot protocol, the parent changed since reify,
     or a provider cannot participate in an atomic transaction.
@@ -41,6 +45,7 @@ from metta.vocabularies import EffectClass
 
 if TYPE_CHECKING:
     import metta._faces.space as _space_face
+    from metta._spaces.lease import Cell
 else:
     import metta._faces.space as _space_face
 
@@ -106,7 +111,7 @@ _WORLD_EFFECT_ADMISSION: Callable[..., tuple[list[list[str]], EffectClass]] = (
     _admit_world_effect
 )
 
-def _abandon_world_plan(plan: str) -> None:
+def _abandon_world_plan(plan: str, life: Cell | None) -> None:
     """The abandonment backstop: hand the drop over, never make it, never pool.
 
     Reached only when a ReifiedWorld is collected without close(). It enqueues,
@@ -122,8 +127,14 @@ def _abandon_world_plan(plan: str) -> None:
     _release_abandoned_world
     [tested: test_a_collected_world_does_not_take_the_name_a_live_mint_released,
     test_a_closed_world_releases_its_plan_image; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604].
+
+    A plan whose life ended first hands nothing over, as an abandoned
+    context's home does, since its name may be another space's by then
+    [tested 2026-09-30T09:09:35+10:00:
+    test_a_collected_world_whose_plan_was_dropped_leaves_the_next_life_of_its_name_alone].
     """
-    defer_engine_call("metta_py_drop_space", plan)
+    if life is None or not life.dead:
+        defer_engine_call("metta_py_drop_space", plan)
 
 @dataclass(frozen=True, slots=True, weakref_slot=True)
 class ReifiedWorld:
@@ -141,7 +152,7 @@ class ReifiedWorld:
         object.__setattr__(
             self,
             "_finalizer",
-            weakref.finalize(self, _abandon_world_plan, self._plan.name),
+            weakref.finalize(self, _abandon_world_plan, self._plan.name, self._plan._cell),
         )
 
     def close(self) -> None:

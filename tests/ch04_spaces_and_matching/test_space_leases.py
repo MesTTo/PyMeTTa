@@ -7,13 +7,16 @@ rows follow outstanding handles rather than historical names
 test_aliases_share_one_life_and_a_reused_name_starts_another,
 test_a_handle_born_in_an_aborted_transaction_is_dead,
 test_lease_rows_follow_outstanding_handles; commit=a9b0ddb6db7f4837e1910b3e796ebee15a9bd81d].
+Guarantees: dropping a handle whose life already ended, once the name has a new
+life, leaves that life's subscriptions and definitions alone and pools nothing
+[tested 2026-09-30T09:09:35+10:00: test_a_dead_alias_drop_leaves_the_next_life_of_its_name_alone].
 """
 
 import gc
 
 import pytest
 
-from metta import MeTTa, S, Space, V
+from metta import MeTTa, S, Space, V, catalog
 from metta._errors.errors import MettaError
 
 ROW = S.lease_value
@@ -27,6 +30,12 @@ def _leases(runtime, name) -> int:
 
 def _native_release(runtime, name) -> None:
     runtime.must("atom_string(_Name, NameText), metta_release_space(_Name)", NameText=name)
+
+
+def _pooled(runtime, name) -> int:
+    return int(runtime.must(
+        "atom_string(_Name, NameText), aggregate_all(count, metta_py_free_space(_Name), N)", NameText=name,
+    )["N"])
 
 
 def test_a_native_drop_marks_every_retained_handle_dead():
@@ -68,6 +77,42 @@ def test_aliases_share_one_life_and_a_reused_name_starts_another():
         finally:
             second.drop()
         assert _leases(context.runtime, "&lease-reuse") == 0
+
+
+def test_a_dead_alias_drop_leaves_the_next_life_of_its_name_alone():
+    """A handle that outlived its life releases nothing the name's next life holds.
+
+    The alias's drop finished the Python side by NAME: it cancelled the next
+    life's subscriptions, released its definitions and put the name in the
+    pool while that life still held it.
+    """
+    with MeTTa() as context:
+        first = context.space()
+        alias = Space(first)
+        name = first.name
+        first.drop()
+        second = context.space()
+        try:
+            assert second.name == name, "the pool did not hand the released name out again"
+            seen = []
+            watch = second.subscribe(ROW(V.x), seen.append)
+
+            @second.define
+            def next_life_row(x):
+                return x
+
+            alias.drop()
+            assert alias.dropped
+            assert not second.dropped
+            second.add(ROW(9))
+            assert len(seen) == 1, "the dead alias cancelled the next life's subscription"
+            assert catalog.match(S.defined(S[name], S.next_life_row)), (
+                "the dead alias released the next life's definitions"
+            )
+            assert _pooled(context.runtime, name) == 0, "the dead alias pooled a name its next life holds"
+            watch.cancel()
+        finally:
+            second.drop()
 
 
 def test_a_handle_born_in_an_aborted_transaction_is_dead():

@@ -69,6 +69,9 @@ Guarantees:
     positional arguments remain stored-atom patterns [tested:
     test_guard_sequences_conjoin_without_changing_positional_patterns;
     commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
+  - an abandoned context whose home was already dropped leaves the space
+    minted next on the home's name alive [tested 2026-09-30T09:09:35+10:00:
+    test_an_abandoned_context_whose_home_was_dropped_leaves_the_next_life_of_its_name_alone]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -874,6 +877,29 @@ def test_an_abandoned_context_releases_its_world():  # noqa: D103  -- pytest dis
         "term_to_atom(_L, Worlds)"
     )["Worlds"]
     assert home not in left
+
+
+def test_an_abandoned_context_whose_home_was_dropped_leaves_the_next_life_of_its_name_alone():
+    """The backstop retires only the home it watched.
+
+    Dropping a context's home returns its name to the pool while the context
+    still holds the backstop, and the next context's home takes the name.
+    Collecting the first context then queued its home's drop by name, and the
+    queue retired the second context's home.
+    """
+    import gc
+
+    context = MeTTa()
+    home = context.self
+    name = home.name
+    home.drop()
+    with MeTTa() as other:
+        assert other.self.name == name, "the pool did not hand the dropped home's name out again"
+        other.self.add(S.row(2))
+        del context, home
+        gc.collect()
+        assert len(other.self.match(S.row(V.n))) == 1
+        assert not other.self.dropped, "the abandoned context retired another context's home"
 
 
 def test_a_failed_space_construction_leaks_nothing():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

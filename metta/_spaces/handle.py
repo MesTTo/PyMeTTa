@@ -46,6 +46,11 @@ party retired first hands nothing over [tested 2026-09-30T09:09:35+10:00:
 test_an_abandoned_view_releases_without_crossing_from_its_finaliser,
 test_a_drop_from_a_finaliser_hands_the_retirement_over_and_a_later_drop_finishes_it,
 test_a_drop_from_a_finaliser_leaves_the_next_life_of_its_name_alone].
+Guarantees: a handle whose life a later life of its name has succeeded releases
+only what it owns when it is dropped, its backing and that backing's provider
+registration, and leaves the name's subscriptions, definitions, records and
+pool entry to the life that holds it now [tested 2026-09-30T09:09:35+10:00:
+test_a_dead_alias_drop_leaves_the_next_life_of_its_name_alone].
 """
 
 from __future__ import annotations
@@ -794,8 +799,25 @@ class SpaceHandle(Handle):
         if self._dropped:
             return
         name = self._name
-        subscriptions = lazy('metta.subscribe')
         foreign = lazy('metta.foreign')
+        # Every record below but the backing is kept under the NAME, and a name
+        # outlives its life: once a later life has attached to it, what the
+        # name holds is that life's. A handle of an earlier life then releases
+        # what it can show is its own and pools nothing, the way a slot map's
+        # remove leaves a slot alone once the key's version is stale
+        # [source 2026-09-30T08:03:55+10:00:
+        # https://github.com/orlp/slotmap/blob/eccedefc5e09746944678ddcb854d1d709abb444/src/basic.rs#L506,
+        # SlotMap::remove, through contains_key's version check]
+        # [tested 2026-09-30T09:09:35+10:00: test_a_dead_alias_drop_leaves_the_next_life_of_its_name_alone].
+        if self._cell is not None and not _spaces_lease_module.latest(self._cell):
+            if self._backing is not None and foreign.has_provider(name) and foreign._provider(name) is self._backing:
+                foreign.unregister_provider(self._rt, name).wait()
+            self._close_backing()
+            self._withdrawal = None
+            self._dropped = True
+            self._leave_minter()
+            return
+        subscriptions = lazy('metta.subscribe')
         integrate = lazy('metta.integrate')
         # A failed cleanup is retryable, but may not release the name for reuse
         # or repeat engine teardown. The bookkeeping handle carries only the
@@ -810,11 +832,7 @@ class SpaceHandle(Handle):
         # only once none of them can reach it.
         if foreign.has_provider(name):
             foreign.unregister_provider(self._rt, name).wait()
-        if self._owns_backing:
-            close = getattr(self._backing, "close", None)
-            if callable(close):
-                close()
-            self._owns_backing = False
+        self._close_backing()
         _spaces_intents_module.clear(cleanup)
         lazy('metta._declare.functions')._invalidate_builtins_cache(self._rt)
         lazy('metta._declare.definitions').release_definitions(cleanup)
@@ -827,15 +845,29 @@ class SpaceHandle(Handle):
                 "atom_string(_Name, Space), metta_py_pool_space(_Name)", Space=name
             )
         self._dropped = True
-        # A minted handle leaves its context's registry once dropped: nothing
-        # is left for close() to release, and holding it kept the life's cell.
-        minter = self._minter() if self._minter is not None else None
-        if minter is not None and minter._minted.get(str(self._name)) is self:
-            del minter._minted[str(self._name)]
+        self._leave_minter()
         self._scoped = _spaces_lifetime_module.attach(self)
         if self._scoped:
             with _spaces_lifetime_module.suspend():
                 self._rt.must("lib_thread:scope_forget_space(Name)", Name=name)
+
+    def _close_backing(self) -> None:
+        """Close the backing this handle owns, once."""
+        if self._owns_backing:
+            close = getattr(self._backing, "close", None)
+            if callable(close):
+                close()
+            self._owns_backing = False
+
+    def _leave_minter(self) -> None:
+        """Leave the registry of the context that minted this handle.
+
+        Nothing is left for that context's close() to release, and holding the
+        handle kept the life's cell.
+        """
+        minter = self._minter() if self._minter is not None else None
+        if minter is not None and minter._minted.get(str(self._name)) is self:
+            del minter._minted[str(self._name)]
 
     @property
     @_doors.door(

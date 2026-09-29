@@ -18,6 +18,9 @@ Guarantees: an anonymous name outside a lifetime scope returns to the pool when
 its life ends, whichever handle ended it, because `Cell.ephemeral` is the
 life's property rather than one handle's
 [tested: test_alias_release_leaves_nothing_behind; commit=3aa8268da73cbbf54d382458b6cf3173175a0321].
+Guarantees: `latest` answers whether a cell's life is still the one its name
+answers for, so a handle that outlived its life can leave the next one alone
+[tested 2026-09-30T09:09:35+10:00: test_a_dead_alias_drop_leaves_the_next_life_of_its_name_alone].
 Owns resources: one engine lease row per cell, released by retirement or by the
 cell's finalizer, never by a native call from the garbage collector. No Python
 object crosses into the engine: janus retains a crossed object until atom GC, which
@@ -76,6 +79,16 @@ def attach(runtime: Any, name: Any) -> Cell:
     _BY_LEASE[cell.lease] = cell
     weakref.finalize(cell, defer_engine_call, "metta_py_lease_release", name, cell.lease)
     return cell
+
+
+def latest(cell: Cell) -> bool:
+    """Whether ``cell``'s life is the latest its name has had.
+
+    A new life replaces its name's entry when it attaches, and a live cell is
+    always that entry, since attach() shares it rather than starting another,
+    so a dead cell still standing there is a life nothing has succeeded.
+    """
+    return _BY_NAME.get(cell.name) is cell
 
 
 def _end(lease: int, reason: str) -> None:

@@ -35,6 +35,9 @@ Guarantees:
     test_a_closed_world_releases_its_plan_image,
     test_a_collected_world_does_not_take_the_name_a_live_mint_released;
     commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
+  - a world collected after its plan was dropped leaves the space minted next
+    on the plan's name alive [tested 2026-09-30T09:09:35+10:00:
+    test_a_collected_world_whose_plan_was_dropped_leaves_the_next_life_of_its_name_alone]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -905,3 +908,28 @@ def test_a_collected_world_does_not_take_the_name_a_live_mint_released(metta):
                 f"{again.name} was minted where {first} was released, so a "
                 f"collected world reordered the anonymous pool"
             )
+
+
+def test_a_collected_world_whose_plan_was_dropped_leaves_the_next_life_of_its_name_alone(metta):
+    """The backstop retires only the plan it watched.
+
+    Dropping the plan returns its name to the pool while the world still
+    holds the backstop, and the next mint takes the name. The collected
+    world then queued its plan's drop by name, and the queue retired the
+    space minted on it.
+    """
+    import gc
+
+    with metta._new_space() as m:
+        m.add(S.w_succeeded(1))
+        m.covers("writesState")
+        world = m.reify()
+        plan = world._plan.name
+        world._plan.drop()
+        with metta._new_space() as successor:
+            assert successor.name == plan, "the pool did not hand the plan's name out again"
+            successor.add(S.w_successor(1))
+            del world
+            gc.collect()
+            assert len(successor.match(S.w_successor(V.n))) == 1
+            assert not successor.dropped, "the collected world retired the space minted on its plan's name"

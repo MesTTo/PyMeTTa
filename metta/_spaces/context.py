@@ -4,6 +4,10 @@ Owns resources: MeTTaBase.close releases the context's minted home and spaces.
 Borrowed spaces survive. _release_abandoned_world defers an abandoned home's
 drop to the engine [source: extensions/python/metta/_spaces/context.py:148,
 _release_abandoned_world; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Guarantees: an abandoned context whose home another party already dropped
+hands nothing over, so the space minted next on the home's name survives the
+backstop [tested 2026-09-30T09:09:35+10:00:
+test_an_abandoned_context_whose_home_was_dropped_leaves_the_next_life_of_its_name_alone].
 """
 
 from __future__ import annotations
@@ -28,12 +32,13 @@ from metta.vocabularies import Atomicity, JournalSync
 
 if TYPE_CHECKING:
     from metta._faces.space import Space
+    from metta._spaces.lease import Cell
 
 
 if TYPE_CHECKING:
     import metta.library._lock
 
-def _release_abandoned_world(home: str) -> None:
+def _release_abandoned_world(home: str, life: Cell | None) -> None:
     """The finalize backstop: hand the drop over, never make it, never pool.
 
     Enqueued rather than called, because a finaliser may only enqueue: it runs
@@ -59,8 +64,15 @@ def _release_abandoned_world(home: str) -> None:
     still released, which is all this backstop ever promised
     [tested: test_an_abandoned_context_releases_its_world,
     test_a_dropped_handle_cannot_write_into_the_name_it_released; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604].
+
+    A home whose life another party ended first hands nothing over: its name
+    may be another space's by then, and a drop queued under it retired that
+    space when the queue drained, as Space.drop() decides for a handle
+    [tested 2026-09-30T09:09:35+10:00:
+    test_an_abandoned_context_whose_home_was_dropped_leaves_the_next_life_of_its_name_alone].
     """
-    defer_engine_call("metta_py_drop_space", home)
+    if life is None or not life.dead:
+        defer_engine_call("metta_py_drop_space", home)
 
 class MeTTaBase:
     """One MeTTa evaluation context; context-relative operations use Space.
@@ -130,7 +142,7 @@ class MeTTaBase:
             # resource may not die while a reference handed out of it lives
             # [tested: test_a_home_handle_outliving_its_context_keeps_the_world].
             self._finalizer = weakref.finalize(
-                self._self, _release_abandoned_world, self._self._space
+                self._self, _release_abandoned_world, self._self._space, self._self._cell
             )
         else:
             self._self = lazy('metta._faces.space').Space(space, _runtime=self._rt)
