@@ -508,11 +508,44 @@ _ROWS = 2_000
 # size and mode before this commit and with it, read on one battery path at
 # the landing's HEAD; command=python -c "import benchmarks.test_benchmarks as
 # t; print(t._automatic_tabling_observations())" from extensions/python].
+# Re-pinned 2026-09-29: automatic +14 at n = 12 (every operation that
+# registers a name outside a load opens a registration unit, files there the
+# repairs its registrations owe, and drains them once when it finishes, so a
+# caller compiled before the name became a function is repaired (+14)), plain
+# +14 at n = 12 (every operation that registers a name outside a load opens a
+# registration unit, files there the repairs its registrations owe, and drains
+# them once when it finishes, so a caller compiled before the name became a
+# function is repaired (+14)), automatic +14 at n = 15 (every operation that
+# registers a name outside a load opens a registration unit, files there the
+# repairs its registrations owe, and drains them once when it finishes, so a
+# caller compiled before the name became a function is repaired (+14)), plain
+# +14 at n = 15 (every operation that registers a name outside a load opens a
+# registration unit, files there the repairs its registrations owe, and drains
+# them once when it finishes, so a caller compiled before the name became a
+# function is repaired (+14)), automatic +14 at n = 18 (every operation that
+# registers a name outside a load opens a registration unit, files there the
+# repairs its registrations owe, and drains them once when it finishes, so a
+# caller compiled before the name became a function is repaired (+14)), plain
+# +14 at n = 18 (every operation that registers a name outside a load opens a
+# registration unit, files there the repairs its registrations owe, and drains
+# them once when it finishes, so a caller compiled before the name became a
+# function is repaired (+14)), automatic +14 at n = 20 (every operation that
+# registers a name outside a load opens a registration unit, files there the
+# repairs its registrations owe, and drains them once when it finishes, so a
+# caller compiled before the name became a function is repaired (+14)), plain
+# +14 at n = 20 (every operation that registers a name outside a load opens a
+# registration unit, files there the repairs its registrations owe, and drains
+# them once when it finishes, so a caller compiled before the name became a
+# function is repaired (+14)). [measured 2026-09-29T18:55:56+10:00: min of
+# three observations per size and mode before this commit and with it, read on
+# one battery path at the landing's HEAD; command=python -c "import
+# benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
+# from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_322, "automatic": 17_828},
-    15: {"plain": 953_810, "automatic": 19_082},
-    18: {"plain": 7_605_714, "automatic": 20_336},
-    20: {"plain": 30_412_242, "automatic": 21_172},
+    12: {"plain": 122_336, "automatic": 17_842},
+    15: {"plain": 953_824, "automatic": 19_096},
+    18: {"plain": 7_605_728, "automatic": 20_350},
+    20: {"plain": 30_412_256, "automatic": 21_186},
 }
 
 
