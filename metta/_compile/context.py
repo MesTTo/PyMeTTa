@@ -335,5 +335,10 @@ class CompilerContext(ABC):
         ...
 
     @abstractmethod
-    def _comprehension(self, generators: list[ast.comprehension], elt: ast.expr, line: int) -> Atom:
+    def _comprehension(
+        self,
+        generators: list[ast.comprehension],
+        element: Callable[[CompilerContext], Atom],
+        line: int,
+    ) -> Atom:
         ...

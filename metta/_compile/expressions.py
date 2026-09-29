@@ -113,6 +113,14 @@ Guarantees:
     type queries [tested:
     test_type_uses_engine_metatypes_with_an_explicit_host_boundary;
     commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
+  - dict and set literals hold their (key value) pairs as data once the
+    computed keys and values have run, so a key naming a function stays a
+    key and a literal stores what dict-put stores [tested 2026-09-29T19:22:59+10:00:
+    test_a_symbol_key_naming_a_function_stays_a_key_in_a_literal]
+  - dict and set comprehensions hold each pair the same way inside the
+    map-atom closure, which stores what dict-put stores once the engine
+    takes that closure's answer as produced [tested 2026-09-29T19:22:59+10:00:
+    test_a_symbol_key_naming_a_function_stays_a_key_in_a_comprehension]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -127,7 +135,7 @@ import functools
 import inspect
 import math
 import types
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 import metta._atoms.operators as _lowerings
 from metta._atoms.calls import bind_positional_call, refuse_unknown_keywords
@@ -995,9 +1003,14 @@ class ExpressionCompilerMixin(CompilerContext):
         Python's own order.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self._refuse_async_generators(node.generators, node.lineno)
-        return self._comprehension(node.generators, node.elt, node.lineno)
+        return self._comprehension(node.generators, lambda inner: inner.expression(node.elt), node.lineno)
 
-    def _comprehension(self, generators: list[ast.comprehension], elt: ast.expr, line: int) -> Atom:
+    def _comprehension(
+        self,
+        generators: list[ast.comprehension],
+        element: Callable[[CompilerContext], Atom],
+        line: int,
+    ) -> Atom:
         gen = generators[0]
         var = _name_of(gen.target, line)
         # The source reads in THIS scope: a later clause's source may use an
@@ -1020,9 +1033,9 @@ class ExpressionCompilerMixin(CompilerContext):
             for condition in gen.ifs
         ]
         if len(generators) == 1:
-            mapper = Expression([Symbol("|->"), Expression([binder]), inner.expression(elt)])
+            mapper = Expression([Symbol("|->"), Expression([binder]), element(inner)])
             return self._piped(source, [*stages, self._stage("map-atom", mapper)])
-        nested = inner._comprehension(generators[1:], elt, line)
+        nested = inner._comprehension(generators[1:], element, line)
         mapper = Expression([Symbol("|->"), Expression([binder]), nested])
         return self._piped(
             source,
@@ -1036,21 +1049,27 @@ class ExpressionCompilerMixin(CompilerContext):
     def _x_DictComp(self, node: ast.DictComp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """{k: v for ...} is the dict story's own lowering target: the
         comprehension builds the expression of (key value) pairs and
-        dict-space reads it back, exactly as test_dict_story pins.
+        dict-space reads it back, exactly as test_dict_story pins. Each pair
+        is held as data, as a literal's are.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self._refuse_async_generators(node.generators, node.lineno)
-        pair = ast.copy_location(ast.Tuple(elts=[node.key, node.value], ctx=ast.Load()), node)
-        ast.fix_missing_locations(pair)
+
+        def pair(inner: CompilerContext) -> Atom:
+            bindings: list[tuple[Atom, Variable]] = []
+            key = inner.expression(node.key)
+            return self._held(self._pair(key, inner.expression(node.value), bindings), bindings)
+
         return self._dict_space(self._comprehension(node.generators, pair, node.lineno))
 
     def _x_SetComp(self, node: ast.SetComp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """{e for ...} is the dict comprehension to True, Python's kinship."""
         self._refuse_async_generators(node.generators, node.lineno)
-        pair = ast.copy_location(
-            ast.Tuple(elts=[node.elt, ast.Constant(value=True)], ctx=ast.Load()),
-            node,
-        )
-        ast.fix_missing_locations(pair)
+
+        def pair(inner: CompilerContext) -> Atom:
+            bindings: list[tuple[Atom, Variable]] = []
+            truth = Grounded(True)  # noqa: FBT003  -- the boolean literal is atom data at this site, not a behavior switch
+            return self._held(self._pair(inner.expression(node.elt), truth, bindings), bindings)
+
         return self._dict_space(self._comprehension(node.generators, pair, node.lineno))
 
     def _refuse_async_generators(self, generators: list[ast.comprehension], line: int) -> None:
@@ -1828,28 +1847,53 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _sequence_value(self, elements: list[ast.expr]) -> Atom:
         """Evaluate the elements in order, then retain their expression as data."""
-        values = []
-        bindings = []
-        for element in elements:
-            value = self.expression(element)
-            if isinstance(value, Expression):
-                variable = Variable(self._temp("sequence-item"))
-                bindings.append((value, variable))
-                value = variable
-            values.append(value)
-        body = Expression(values)
-        if bindings:
-            body = Expression([Symbol("noeval"), body])
+        bindings: list[tuple[Atom, Variable]] = []
+        body = Expression([self._named(self.expression(element), bindings) for element in elements])
+        return self._held(body, bindings) if bindings else body
+
+    def _named(self, value: Atom, bindings: list[tuple[Atom, Variable]]) -> Atom:
+        """A computed value's fresh variable, its binding queued to evaluate in order; any other atom as it is."""
+        if not isinstance(value, Expression):
+            return value
+        variable = Variable(self._temp("sequence-item"))
+        bindings.append((value, variable))
+        return variable
+
+    @staticmethod
+    def _held(body: Atom, bindings: list[tuple[Atom, Variable]]) -> Atom:
+        """The body as data, after its queued bindings evaluate in order."""
+        held: Atom = Expression([Symbol("noeval"), body])
         for value, variable in reversed(bindings):
-            body = Expression([Symbol("chain"), value, variable, body])
-        return body
+            held = Expression([Symbol("chain"), value, variable, held])
+        return held
+
+    def _pair(self, key: Atom, value: Atom, bindings: list[tuple[Atom, Variable]]) -> Expression:
+        """One (key value) entry of a dict-space, its computed key and value named by queued bindings.
+
+        A key is data, as ``dict-put`` stores it, so every entry reaches
+        dict-space held (see _held): evaluated bare, a pair whose key names a
+        function runs as that call, and ``{S.id: 1}`` with lib_functional
+        loaded built ``1`` where Python means the pair ``(id 1)``
+        [tested 2026-09-29T19:22:59+10:00: test_a_symbol_key_naming_a_function_stays_a_key_in_a_literal]. Holding the
+        entries where dict-space evaluates them is the shape a dictionary's
+        entries already keep [source 2026-09-29T16:36:52+10:00:
+        docs/journal/2026-09-14-complete-call-signatures.md, "bind dictionary
+        entries inside their lexical evaluator"].
+        """
+        return Expression([self._named(key, bindings), self._named(value, bindings)])
+
+    def _held_pairs(self, pairs: Iterable[tuple[Atom, Atom]]) -> Atom:
+        """The expression of (key value) entries, as data once their computed parts evaluate."""
+        bindings: list[tuple[Atom, Variable]] = []
+        return self._held(Expression([self._pair(key, value, bindings) for key, value in pairs]), bindings)
 
     def _x_Dict(self, node: ast.Dict) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """A literal mapping METTAFIES: a dict is a SPACE of (key value) atoms.
 
         lib_dict's own decision, measured against the opaque handle, the
         live view, and a native type in its header: the literal lowers to
-        ``(dict-space ((k v) ...))``, a lookup is get-value, membership is
+        ``(dict-space (noeval ((k v) ...)))``, its computed keys and values
+        evaluated first (see _pair), a lookup is get-value, membership is
         dict-has, and every space operation works on it. The image is a
         SNAPSHOT of a mutable value, as the library states; a dict the
         Python side keeps mutating crosses as ``py({...})``, the handle
@@ -1862,9 +1906,7 @@ class ExpressionCompilerMixin(CompilerContext):
             if key_node is None:
                 return self._implicit_island(node)
             pairs[self.expression(key_node)] = self.expression(value_node)
-        return self._dict_space(
-            Expression([Expression([key, value]) for key, value in pairs.items()])
-        )
+        return self._dict_space(self._held_pairs(pairs.items()))
 
     def _x_Set(self, node: ast.Set) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """A literal set is a dict to True, Python's own kinship."""
@@ -1872,9 +1914,7 @@ class ExpressionCompilerMixin(CompilerContext):
             self.expression(element): Grounded(True)  # noqa: FBT003  -- the boolean literal is atom data at this site, not a behavior switch
             for element in node.elts
         }
-        return self._dict_space(
-            Expression([Expression([member, truth]) for member, truth in members.items()])
-        )
+        return self._dict_space(self._held_pairs(members.items()))
 
     def _dict_space(self, pairs: Atom) -> Expression:
         """One dict-space call, with the library dependency recorded."""

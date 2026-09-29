@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import pytest
 
-from metta import MeTTa, S, Space
+from metta import MeTTa, S, Space, lib
 from metta._errors.errors import CompileError
 
 
@@ -310,6 +310,105 @@ def test_set_membership_is_total(m):
 
     assert list(has(S.apple)) == [True]
     assert list(has(S.plum)) == [False]
+
+
+def _stored_pairs(function):
+    (made,) = function()
+    return sorted(str(atom) for atom in made.atoms())
+
+
+def _keyed_by_id(m):
+    """The dict-put path Syntropy used, the reference both literal and
+    comprehension forms must store, with lib_functional's `id` in scope,
+    written directly and computed by a call, whose answer the literal names
+    and holds before dict-space reads it.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    m += lib.functional
+
+    @m.define
+    def key():
+        return S.id
+
+    @m.define
+    def put_pair():
+        record = {}
+        record[S.id] = 1
+        return record
+
+    @m.define
+    def put_member():
+        record = {}
+        record[S.id] = True
+        return record
+
+    @m.define
+    def put_computed():
+        record = {}
+        record[key()] = 1
+        record[2] = key()
+        return record
+
+    assert _stored_pairs(put_pair) == ["(id 1)"]
+    assert _stored_pairs(put_member) == ["(id True)"]
+    assert _stored_pairs(put_computed) == ["(2 id)", "(id 1)"]
+    return key, put_pair, put_member, put_computed
+
+
+def test_a_symbol_key_naming_a_function_stays_a_key_in_a_literal(m):
+    """Syntropy's `{S.id: 1}` and the set `{S.id}` store what dict-put
+    stores, and so do a key and a value computed as that symbol.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    key, put_pair, put_member, put_computed = _keyed_by_id(m)
+
+    @m.define
+    def pair_literal():
+        return {S.id: 1}
+
+    @m.define
+    def member_literal():
+        return {S.id}
+
+    @m.define
+    def computed_literal():
+        return {key(): 1, 2: key()}
+
+    @m.define
+    def computed_member():
+        return {key()}
+
+    assert _stored_pairs(pair_literal) == _stored_pairs(put_pair)
+    assert _stored_pairs(member_literal) == _stored_pairs(put_member)
+    assert _stored_pairs(computed_literal) == _stored_pairs(put_computed)
+    assert _stored_pairs(computed_member) == _stored_pairs(put_member)
+
+
+def test_a_symbol_key_naming_a_function_stays_a_key_in_a_comprehension(m):
+    """The dict and set comprehensions over the same key store what dict-put
+    stores, read from a list or computed by a call, which also needs
+    map-atom's closure answer taken as produced.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    key, put_pair, put_member, _put_computed = _keyed_by_id(m)
+
+    @m.define
+    def pair_comprehension():
+        return {key: 1 for key in S.quote((S.id,))}  # noqa: C420 -- the comprehension is the lowering under test
+
+    @m.define
+    def member_comprehension():
+        return {key for key in S.quote((S.id,))}  # noqa: C416 -- the comprehension is the lowering under test
+
+    @m.define
+    def computed_comprehension():
+        return {key(): n for n in (1,)}
+
+    @m.define
+    def computed_member_comprehension():
+        return {key() for _ in (1,)}
+
+    assert _stored_pairs(pair_comprehension) == _stored_pairs(put_pair)
+    assert _stored_pairs(member_comprehension) == _stored_pairs(put_member)
+    assert _stored_pairs(computed_comprehension) == _stored_pairs(put_pair)
+    assert _stored_pairs(computed_member_comprehension) == _stored_pairs(put_member)
 
 
 def test_dict_mutation_rides_the_library_doors(m):
