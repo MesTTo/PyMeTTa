@@ -94,10 +94,7 @@ def application(compiler: CompilerContext, node: ast.Call, *, consumer: CallCons
         positional = pieces[0]
     else:
         for piece in reversed(pieces):
-            # union-atom returns Atom: the assembled run is data, including
-            # executable-looking children. append's Undefined result re-enters
-            # reduction here. lib_builtin_types declares both contracts.
-            positional = _expr(S["union-atom"], piece, positional)
+            positional = _expr(S.append, piece, positional)
     arguments = Variable(compiler._temp("call-positionals"))
     bindings.append((positional, arguments))
     keywords = Variable(compiler._temp("call-keywords"))
