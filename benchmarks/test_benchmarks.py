@@ -578,11 +578,23 @@ _ROWS = 2_000
 # one battery path at the landing's HEAD; command=python -c "import
 # benchmarks.test_benchmarks as t; print(t._automatic_tabling_observations())"
 # from extensions/python].
+# Re-pinned 2026-09-30: automatic -86 at n = 12, plain -30 at n = 12,
+# automatic -86 at n = 15, plain -30 at n = 15, automatic -86 at n = 18, plain
+# -30 at n = 18, automatic -86 at n = 20, plain -30 at n = 20, a named space's
+# prelude-tier type readers look the prelude's row up before asking whether it
+# governs there, and builtin_result_type/3 asks whether a program took a
+# builtin over only for a builtin whose result is evaluated
+# (engine/metta/types.pl, engine/translator/lowering.pl), so a lookup of a
+# name the prelude does not declare costs one indexed miss and no ownership
+# probe. [measured 2026-09-30T03:31:04+10:00: min of three observations per
+# size and mode before this commit and with it, read on one battery path at
+# the landing's HEAD; command=python -c "import benchmarks.test_benchmarks as
+# t; print(t._automatic_tabling_observations())" from extensions/python].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_325, "automatic": 17_841},
-    15: {"plain": 953_813, "automatic": 19_095},
-    18: {"plain": 7_605_717, "automatic": 20_349},
-    20: {"plain": 30_412_245, "automatic": 21_185},
+    12: {"plain": 122_295, "automatic": 17_755},
+    15: {"plain": 953_783, "automatic": 19_009},
+    18: {"plain": 7_605_687, "automatic": 20_263},
+    20: {"plain": 30_412_215, "automatic": 21_099},
 }
 
 
