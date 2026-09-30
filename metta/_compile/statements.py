@@ -1513,9 +1513,10 @@ class StatementCompilerMixin(CompilerContext):
         ))
 
     def _one_placement(self, label: str, term: Atom, leading: list[Variable], placements: int) -> Atom:
-        """The term the lowering places in `placements` positions, as one
-        equation each position calls, or the term itself where copying it
-        is smaller (see _cheaper_to_share).
+        """Share a term the lowering places at several positions, unless copying it is smaller.
+
+        Answers one equation each of the `placements` positions calls, or the
+        term itself where copying it is smaller (see _cheaper_to_share).
 
         The equation takes `leading` and every variable the scope binds.
         Every compiler of the term forks from this scope, so that is a
@@ -1529,7 +1530,7 @@ class StatementCompilerMixin(CompilerContext):
         summing the atoms of every equation it stored]. GHC's desugarer
         binds a pattern match's failure expression the same way:
         https://github.com/ghc/ghc/blob/9f48a5b908f572847bc8ba4657c9f5a5d4284556/compiler/GHC/HsToCore/Utils.hs#L888-L911
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
         arguments = [*leading, *_scope_variables(self)]
         if not _cheaper_to_share([term], placements, len(arguments) + 2):
             return term
@@ -1794,10 +1795,12 @@ class StatementCompilerMixin(CompilerContext):
         return cell, target
 
     def _if_statement(self, node: ast.If, rest: list[ast.stmt], body: _Body) -> Atom:
-        """Python's if: the test picks an arm, and an arm that falls through
+        """Compile Python's if, whose arm that falls through runs what follows.
+
+        Python's if: the test picks an arm, and an arm that falls through
         continues into the statements after the if, exactly as Python's does,
         in a function body and a generator body alike.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
         test = self._truthy(node.test)
         join = _Join(self, node, rest, body)
         # Each arm compiles in its own forked scope: a rebind inside one arm
@@ -2144,9 +2147,10 @@ def _suffix_names(
 
 @dataclass(frozen=True, slots=True)
 class _Body:
-    """What a statement list compiles to: a function's one value, or a
-    generator's superposition of answers.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The value a statement list compiles to.
+
+    A function's one value, or a generator's superposition of answers.
+    """
 
     # The statements as one term, in a compiler whose closer says what
     # falling off their end continues into. A function's is block itself,
@@ -2405,10 +2409,11 @@ class _Join:
         return term.subs(filled)
 
     def _helper(self) -> tuple[str, CompilerContext, list[str]]:
-        """The helper every arm calls with its own bindings of the names live
-        after the branch: its name, the compiler its body compiles in, holding
+        """The helper every arm of a branch calls with its bindings of the names live after it.
+
+        Answers the helper's name, the compiler its body compiles in, holding
         the proofs every arm agrees on, and its parameters.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
         edges = [edge for edge, _hole in self.edges]
         bound = set().union(*(edge.scope for edge in edges))
         params = sorted(self.live & (self.local | bound))

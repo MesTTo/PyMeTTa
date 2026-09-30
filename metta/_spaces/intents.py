@@ -266,10 +266,11 @@ def _all_events(space: str) -> set[LintEvent]:
 
 
 def _replace(registry: dict[str, Any], name: str, value: Any) -> None:
-    """Replace one space's mirror entry whole, None removing it, after
-    enlisting its preimage: the engine transaction restores the reflected
-    facts themselves, and this puts the mirror describing them back.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Replace one space's mirror entry whole, after enlisting its preimage.
+
+    None removes the entry. The engine transaction restores the reflected
+    facts themselves, and the preimage puts the mirror describing them back.
+    """
     lazy('metta._declare.operations')._replace_entry(
         registry, name, value, description=f"lint evidence of {name}"
     )

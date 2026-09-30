@@ -1019,8 +1019,7 @@ class SubscriberError(MettaError):
 
 
 class PartialWriteError(MettaError):
-    """A write failed after a provider outside the engine's transactions took
-    part of it.
+    """A write failed after a provider outside the engine's transactions took part of it.
 
     The engine's own state rolled back and the provider's did not: its
     storage keeps what it takes whatever a transaction does, since it
@@ -1032,7 +1031,7 @@ class PartialWriteError(MettaError):
     the failure itself. Removing `kept` and adding `lost` back leaves the
     space as it was: both are counted against what the space held before
     the write began, so neither names an occurrence that was already there.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
 
     def __init__(
         self,

@@ -272,9 +272,10 @@ def test_class_underscore_fields_receivers_and_packed_parameters(scratch_space, 
 
 
 def test_a_nested_def_parameter_sheds_the_outer_bindings_proofs(scratch_space):
-    """A lifted def's parameter holds what its caller passes, as a lambda's does,
-    whatever the enclosing binding of the same name was known to be.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """A lifted def's parameter sheds what the outer binding of its name was known to be.
+
+    It holds what its caller passes, as a lambda's parameter does.
+    """
     @scratch_space.define
     def doubled_text(x: int):  # noqa: ARG001 -- the outer binding whose proof the nested parameter must not inherit
         def twice(x):

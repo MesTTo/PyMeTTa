@@ -385,11 +385,12 @@ def test_the_implicit_name_is_mapped_and_name_is_exact(m):
 
 
 def test_the_guide_states_the_naming_map_the_code_applies(capsys):
-    """llms() teaches what define, op, module_ops and a compiled call do with a
-    Python name, each claim executed by the test named beside it: an
-    underscore is MeTTa's hyphen, and name=, a rename entry and the bracket
-    keep the exact spelling.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """llms() teaches how each door maps a Python name, each claim executed.
+
+    The doors are define, op, module_ops and a compiled call, and the test
+    named beside each claim executes it: an underscore is MeTTa's hyphen,
+    and name=, a rename entry and the bracket keep the exact spelling.
+    """
     import metta
 
     metta.llms()
@@ -423,12 +424,15 @@ def test_filtered_comprehension_composes_filter_atom(m):  # noqa: D103  -- pytes
     assert m.run("!(dbig (1 2 3 4))") == [[Expression(3, 4)]]
 
 
-def test_a_comprehension_keeps_a_symbol_that_names_a_function(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # A comprehension lowers to the closure spellings of filter-atom and
-    # map-atom, and their answer is a value: the engine evaluated it a second
-    # time, so the symbol `title` came back as the call `(title)` and the
-    # filtered comprehension answered nothing. Upstream PeTTa answers `(title)`
-    # for the compiled equation, and so does the binder spelling.
+def test_a_comprehension_keeps_a_symbol_that_names_a_function(m):
+    """A comprehension answers a symbol that names a function as that symbol.
+
+    A comprehension lowers to the closure spellings of filter-atom and
+    map-atom, and their answer is a value: the engine evaluated it a second
+    time, so the symbol `title` came back as the call `(title)` and the
+    filtered comprehension answered nothing. Upstream PeTTa answers `(title)`
+    for the compiled equation, and so does the binder spelling.
+    """
     @m.define
     def title():
         return "a title"

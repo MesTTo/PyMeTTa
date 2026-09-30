@@ -439,9 +439,10 @@ def flow_block(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[
 
 @st.composite
 def flow_if(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[str], bool]:
-    """An if with up to two elifs and an optional else, returning on every
-    path only when it has an else and every arm returns.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """An if with up to two elifs and an optional else.
+
+    It returns on every path only when it has an else and every arm returns.
+    """
     lines: list[str] = []
     closes = True
     for head in ("if", *("elif",) * draw(st.integers(0, 2))):
@@ -459,13 +460,15 @@ def flow_if(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[str
 
 @st.composite
 def flow_match(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[str], bool]:
-    """A match over a small integer: literal, alternative and guarded capture
-    cases, and an optional `case _` last, returning on every path only when
-    that case exists and every arm returns. A capture takes a fresh name,
+    """A match over a small integer.
+
+    Its cases are literal, alternative and guarded capture cases, and an
+    optional `case _` last, and it returns on every path only when that case
+    exists and every arm returns. A capture takes a fresh name,
     since Python binds it even when its guard fails and a compiled arm binds
     it only inside the arm, so the two agree only while nothing after the
     match reads it.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """
     inner = indent + "    "
     lines = [f"{indent}match ({draw(int_expr(tuple(scope)))}) % 4:"]
     closes = True
@@ -495,10 +498,11 @@ def flow_match(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[
 
 @st.composite
 def flow_for(draw, scope: list, indent: str, depth: int, sites) -> tuple[list[str], bool]:
-    """A for over a literal tuple whose body branches. It may run no round,
-    so it never returns on every path, and its target stays inside the body,
-    where the compiler refuses a read after the loop.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A for over a literal tuple whose body branches.
+
+    It may run no round, so it never returns on every path, and its target
+    stays inside the body, where the compiler refuses a read after the loop.
+    """
     target = f"i{next(sites)}"
     lines = [f"{indent}for {target} in {_tuple_literal(draw, 0, 3)}:"]
     body, _returns = draw(flow_block([*scope, target], indent + "    ", depth + 1, sites))
@@ -531,9 +535,10 @@ def flow_programs(draw):
 
 
 def _fallthrough_shapes(source: str) -> set[str]:
-    """The branch shapes a program holds whose arm falls into a statement
-    after the branch: `if`, `elif`, `match`, and any of them inside a `for`.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """The branch shapes a program holds whose arm falls into a statement after the branch.
+
+    They are `if`, `elif`, `match`, and any of them inside a `for`.
+    """
     shapes: set[str] = set()
 
     def falls(arm: list[ast.stmt]) -> bool:
@@ -566,9 +571,11 @@ def _fallthrough_shapes(source: str) -> set[str]:
 
 
 def _flows_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
-    """The compiled equations against the same function run natively, on
-    `rounds` fresh input pairs: the answer, and every effect in order.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """The compiled equations against the same function run natively.
+
+    They are compared on `rounds` fresh input pairs: the answer, and every
+    effect in order.
+    """
     name, source = program
     fn = _load(tmp_path_factory, source, name)
     defined = metta.define(fn)
@@ -638,18 +645,21 @@ def test_the_fuzzer_reaches_a_loop_inside_a_loop():
 @settings(max_examples=60, suppress_health_check=[HealthCheck.too_slow])
 @given(program=flow_programs(), data=st.data())
 def test_arms_that_fall_through_agree_with_native_python(metta, tmp_path_factory, program, data):
-    """Random nestings of if/elif/else, match and for whose arms return or
+    """Random branch nestings answer and act as the same function run natively.
+
+    Random nestings of if/elif/else, match and for whose arms return or
     fall through, the same function run natively as the oracle: its answer
     and every effect it records, in order.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """
     _flows_agree(metta, tmp_path_factory, program, data, rounds=3)
 
 
 def test_the_fuzzer_reaches_arms_that_fall_through():
-    """Each shape the join exists for, asserted rather than hoped for: an if,
-    an elif chain and a match whose arm falls into a statement after it, and
-    one of them inside a for body.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """Each shape the join exists for, asserted rather than hoped for.
+
+    The shapes are an if, an elif chain and a match whose arm falls into a
+    statement after it, and one of them inside a for body.
+    """
     reachable = settings(max_examples=300, phases=[Phase.generate])
     for shape in ("if", "elif", "match", "for"):
         find(

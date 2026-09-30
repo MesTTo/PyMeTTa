@@ -1067,7 +1067,7 @@ class ExpressionCompilerMixin(CompilerContext):
 
         def pair(inner: CompilerContext) -> Atom:
             bindings: list[tuple[Atom, Variable]] = []
-            truth = Grounded(True)  # noqa: FBT003  -- the boolean literal is atom data at this site, not a behavior switch
+            truth = Grounded(value=True)
             return self._held(self._pair(inner.expression(node.elt), truth, bindings), bindings)
 
         return self._dict_space(self._comprehension(node.generators, pair, node.lineno))

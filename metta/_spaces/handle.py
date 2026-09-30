@@ -264,11 +264,13 @@ class _HashableSpaceTerm(list[Any]):
     append = clear = extend = insert = pop = remove = reverse = sort = _immutable
 
 def space_wire(name: str | _HashableSpaceTerm) -> list:
-    """The portable operand for the space an engine name names: a parametric
-    space's expression, any other space's name under the space tag. A handle's
-    ``to_wire`` is this of its name, and so is a Python definition's home heard
-    from an engine notice, which has a name and no handle.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The portable operand for the space an engine name names.
+
+    A parametric space's expression, any other space's name under the space
+    tag. A handle's ``to_wire`` is this of its name, and so is a Python
+    definition's home heard from an engine notice, which has a name and no
+    handle.
+    """
     if isinstance(name, _HashableSpaceTerm):
         return name.__metta__().to_wire()
     return ["p", str(name)]

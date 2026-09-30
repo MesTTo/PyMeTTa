@@ -59,8 +59,19 @@ def m(metta):
         yield space
 
 
-def stable():  # noqa: D103 -- the report's function as it wrote it, whose doc atom would be one more atom to count
-    return 7
+def _as_reported():
+    """The report's function as it wrote it, with no docstring.
+
+    A docstring would publish a doc atom, one more atom for the scenarios below
+    to count, so the function is made here rather than written at module level.
+    """
+    def stable():
+        return 7
+
+    return stable
+
+
+stable = _as_reported()
 
 
 def _one():
@@ -505,9 +516,10 @@ def test_a_definition_brought_back_is_reflected_again(m, metta, door):
 
 
 def _looped(m, label: str) -> tuple[str, str]:
-    """Define a function whose loop calls an operation, so it files lint
-    evidence, and answer the definition's name and the operation's.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Define a function whose loop calls an operation, so it files lint evidence.
+
+    Answers the definition's name and the operation's.
+    """
     bump_name, name = f"standing_{label}_bump", f"standing-{label}-sum"
 
     @m.op(name=bump_name, effect="pureStructural")
@@ -539,11 +551,13 @@ def _program(verb: str, m, atoms) -> str:
 
 @pytest.mark.parametrize("home", ["named", "parametric"])
 def test_a_program_removing_and_restoring_an_equation_moves_the_definition(metta, home):
-    """A program's remove-atom retires the definition's reflection row, lint
-    evidence and twin family, and its add-atom brings all three back, with no
-    Python door between: the space tells the definition through the engine's
-    equation notice, in a parametric space as in a named one.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """A program's remove-atom and add-atom move a definition, with no Python door.
+
+    Remove-atom retires the definition's reflection row, lint evidence and
+    twin family, and add-atom brings all three back: the space tells the
+    definition through the engine's equation notice, in a parametric space
+    as in a named one.
+    """
     m = metta._new_space() if home == "named" else space(S["standing-program-home"](1))
     try:
         name, bump_name = _looped(m, f"program-{home}")
@@ -564,10 +578,11 @@ def test_a_program_removing_and_restoring_an_equation_moves_the_definition(metta
 
 @pytest.mark.parametrize("scope", ["python", "metta"])
 def test_a_rolled_back_program_removal_changes_nothing(m, scope):
-    """A program's removal inside a transaction that rolls back, Python's or
-    MeTTa's own (transaction ...), leaves the definition reflected, evidenced
-    and in its family: a rolled-back write is never heard.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """A program's removal in a transaction that rolls back is never heard.
+
+    Whether the transaction is Python's or MeTTa's own (transaction ...),
+    the definition stays reflected, evidenced and in its family.
+    """
     name, bump_name = _looped(m, f"rolled-{scope}")
     family = definitions._DEFINE_TWINS[m.name]._families[name]
     (head,) = _head_equations(m, name)
@@ -609,11 +624,13 @@ def test_a_speculative_program_removal_commits_nothing(m):
 
 
 def test_an_unwatched_equation_write_crosses_to_no_python(m):
-    """A program's write to a head no definition publishes reaches no Python;
+    """Only a write to a definition's head reaches Python, and later.
+
+    A program's write to a head no definition publishes reaches no Python;
     one to a definition's head is recorded for that definition during the
     program's crossing, since its writer can hold an engine lock there, and
     reconciled at the next crossing made outside the engine.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     m.define(stable)
     unrelated = parse("(= (standing-unrelated $x) $x)")
     m.run(_program("add-atom", m, [unrelated]) + " " + _program("remove-atom", m, [unrelated]))
@@ -625,12 +642,13 @@ def test_an_unwatched_equation_write_crosses_to_no_python(m):
 
 
 def test_a_notice_neither_locks_nor_crosses(m, monkeypatch):
-    """The engine's notice returns while another thread holds the definitions
-    lock, and makes no crossing: a single equation added outside any
-    transaction is heard while its writer holds the typing policy lock, which a
-    define holding the definitions lock can be waiting for, so a notice that
-    waited on that lock, or crossed, could close the cycle.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The engine's notice neither waits on the definitions lock nor crosses.
+
+    A single equation added outside any transaction is heard while its
+    writer holds the typing policy lock, which a define holding the
+    definitions lock can be waiting for, so a notice that waited on that
+    lock, or crossed, could close the cycle.
+    """
     m.define(stable)
     locked, release = threading.Event(), threading.Event()
     crossed: list[str] = []
@@ -672,14 +690,14 @@ def test_a_notice_neither_locks_nor_crosses(m, monkeypatch):
 
 
 def _stacked_first():
-    def subject(x=0):  # noqa: ARG001 -- the default is the clause head pattern
+    def subject(_x=0):
         yield 100
 
     return subject
 
 
 def _stacked_second():
-    def subject(x=1):  # noqa: ARG001 -- the default is the clause head pattern
+    def subject(_x=1):
         yield 200
         yield 300
 
@@ -687,11 +705,12 @@ def _stacked_second():
 
 
 def test_a_define_failing_part_way_leaves_an_equal_equation_standing(m):
-    """A define whose equation batch is refused part way adds nothing and
-    leaves an equal equation the space already held: every write of a define
-    rides one transaction. Removing the batch by value after the failure took
-    the held equation, which the define had never added.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """A define refused part way keeps an equal equation the space already held.
+
+    It adds nothing, since every write of a define rides one transaction.
+    Removing the batch by value after the failure took the held equation,
+    which the define had never added.
+    """
     m.define(_stacked_first())
     held = parse("(= (subject 1) 300)")
     m.add(held)
@@ -715,10 +734,12 @@ def test_a_define_failing_part_way_leaves_an_equal_equation_standing(m):
 
 
 def test_a_define_failing_at_any_write_changes_nothing(m, monkeypatch):
-    """Whichever of a re-define's writes fails, the space, the reflection rows,
+    """A re-define failing at any write changes nothing and tells no subscriber.
+
+    Whichever of a re-define's writes fails, the space, the reflection rows,
     the record and the twin family are as they were and no subscriber heard
     any of its writes, and a define after it publishes normally and is heard.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     first = m.define(_one())
     key = (m.name, "subject")
     atoms = _canonical(m.atoms())
@@ -764,14 +785,15 @@ def test_a_define_failing_at_any_write_changes_nothing(m, monkeypatch):
 
 
 def test_a_watcher_failing_after_a_definition_commits_leaves_it_recorded(m):
-    """A watcher raising on a define's writes, or on a removal's, does not undo
-    them, since it runs once they committed, so the definition records what
-    stands before the SubscriberError reaches the caller: the function answers
-    and is reflected, defining it again is a re-define rather than a refusal
-    of a head no record describes, and after a removal whose watcher raised
-    nothing of it is left recorded or reflected and a define publishes it
-    afresh.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """A watcher raising after a define or removal commits leaves it recorded.
+
+    The watcher runs once the writes committed, so it cannot undo them, and
+    the definition records what stands before the SubscriberError reaches
+    the caller: the function answers and is reflected, defining it again is
+    a re-define rather than a refusal of a head no record describes, and
+    after a removal whose watcher raised nothing of it is left recorded or
+    reflected and a define publishes it afresh.
+    """
 
     def refuse(_event):
         msg = "the watcher says no"
@@ -809,14 +831,16 @@ _RULE_PROVIDER = (
 
 
 def test_a_defined_function_keeps_its_static_type_shortcuts(m):
-    """A define compiles its clauses inside its own transaction, and a clause
+    """A define's clauses keep the static type shortcuts of one outside a transaction.
+
+    A define compiles its clauses inside its own transaction, and a clause
     compiled inside a transaction that opened before the typing-policy mutex
     keeps every dynamic type check, since its snapshot may predate a policy
     another owner published; the publication takes the mutex first, as the
     engine's own writers do, so a Number argument is decided by number/1
     before the general check, as it is for a function defined outside any
     transaction.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
 
     def countdown(n: int) -> int:
         return 0 if n == 0 else countdown(n - 1)
@@ -827,12 +851,14 @@ def test_a_defined_function_keeps_its_static_type_shortcuts(m):
 
 
 def test_a_definition_publishes_into_and_leaves_a_provider_that_declares_nothing(m):
-    """A provider that holds rules and says nothing about how its writes meet
-    a transaction takes a define and gives it back, as it takes the engine's
-    own rule registration: a define's one transaction is the engine's internal
-    form, which never asks a provider to roll back, where the user's
+    """A provider that declares nothing about its writes takes a define and gives it back.
+
+    It holds rules and says nothing about how its writes meet a
+    transaction, and takes a define as it takes the engine's own rule
+    registration: a define's one transaction is the engine's internal form,
+    which never asks a provider to roll back, where the user's
     (transaction ...) form refused the write as one it could not undo.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     m.register_prolog(path=_RULE_PROVIDER)
     demo = space(S["rule_demo"])
     try:
@@ -929,12 +955,14 @@ def _unmatched(left, right) -> list:
 
 @pytest.mark.usefixtures("metta")  # the session engine, whose value these do not read
 def test_a_define_failing_in_a_provider_outside_the_engine_names_what_it_kept(monkeypatch):
-    """A provider whose storage no engine transaction reaches keeps what a
+    """A provider outside every transaction makes a failed define name what it kept.
+
+    A provider whose storage no engine transaction reaches keeps what a
     failed re-define gave it and loses what it took, so the define raises
     PartialWriteError naming exactly those atoms, counted against what the
     provider held before, with the failure as its cause; the caller's repair
     from the error leaves the provider as it was.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     provider = _RuleList()
     with space(backing=provider) as home:
 
@@ -970,11 +998,13 @@ def test_a_define_failing_in_a_provider_outside_the_engine_names_what_it_kept(mo
 
 
 def test_a_define_failing_in_the_foreign_rules_provider_leaves_it_as_it_was(m, monkeypatch):
-    """The foreign-rules example's provider stores its atoms as clauses of
+    """A provider whose clauses the define's transaction reaches rolls back with it.
+
+    The foreign-rules example's provider stores its atoms as clauses of
     its own, so the define's transaction reaches them: a re-define failing
     after every write leaves the provider as it was and raises the failure
     itself, with nothing kept to name.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     m.register_prolog(path=_RULE_PROVIDER)
     demo = space(S["rule_demo"])
     defined = None
@@ -1006,10 +1036,12 @@ def test_a_define_failing_in_the_foreign_rules_provider_leaves_it_as_it_was(m, m
 
 @pytest.mark.usefixtures("metta")  # the session engine, whose value these do not read
 def test_a_removal_failing_in_a_provider_outside_the_engine_names_what_it_lost(monkeypatch):
-    """Removing a Defined publishes through the same crossing as define, so a
+    """A failed removal of a Defined names what a provider outside the engine lost.
+
+    Removing a Defined publishes through the same crossing as define, so a
     removal failing after every write in a provider outside the engine names
     the atoms the provider no longer holds, and the definition stays recorded.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     provider = _RuleList()
     with space(backing=provider) as home:
 
@@ -1049,10 +1081,12 @@ class _UnreadableAfterAdd(_RuleList):
 
 @pytest.mark.usefixtures("metta")  # the session engine, whose value these do not read
 def test_a_provider_unreadable_after_a_failed_define_is_named_not_hidden(monkeypatch):
-    """What a provider kept of a failed define is read back from it, so a
-    provider that cannot be read then fails loudly, naming itself, the read's
-    error and the define's failure, rather than leaving what it kept unsaid.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """A provider that cannot be read after a failed define fails loudly.
+
+    What a provider kept of a failed define is read back from it, so the
+    failure names the provider, the read's error and the define's failure,
+    rather than leaving what it kept unsaid.
+    """
     provider = _UnreadableAfterAdd()
     with space(backing=provider) as home:
 
@@ -1068,11 +1102,13 @@ def test_a_provider_unreadable_after_a_failed_define_is_named_not_hidden(monkeyp
 
 @pytest.mark.usefixtures("metta")  # the session engine, whose value these do not read
 def test_a_define_into_a_transactional_provider_rolls_it_back(monkeypatch):
-    """A provider declaring transactional writes is enlisted in the define's
-    transaction, which only the engine's coordinator does, so a re-define
-    failing after every write rolls the provider back with the engine and
-    raises the failure itself; a define that stands commits it.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """A provider declaring transactional writes rolls back with a failed define.
+
+    The engine's coordinator alone enlists it in the define's transaction,
+    so a re-define failing after every write rolls the provider back with
+    the engine and raises the failure itself; a define that stands commits
+    it.
+    """
     provider = _TransactionalRuleList()
     with space(backing=provider) as home:
         home.atomicity("transactional")

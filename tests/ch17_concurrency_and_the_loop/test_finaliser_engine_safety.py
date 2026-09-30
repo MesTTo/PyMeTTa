@@ -294,10 +294,12 @@ def test_a_failing_deferred_call_does_not_fail_the_crossing_that_drains_it(metta
 
 
 def test_safe_point_work_runs_outside_every_callback_until_done(metta):
-    """Work handed to a safe point runs at crossings made with no engine
-    callback open, never at one an operation makes inside the engine, and
-    again until it answers done.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Work handed to a safe point runs only at crossings outside the engine.
+
+    Those are crossings made with no engine callback open, never one an
+    operation makes inside the engine, and the work runs again at each until
+    it answers done.
+    """
     seen: list[bool] = []
 
     def work() -> bool:

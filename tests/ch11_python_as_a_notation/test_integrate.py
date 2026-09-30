@@ -73,9 +73,10 @@ def test_module_ops_bulk_registers_a_stdlib_module(metta):  # noqa: D103  -- pyt
 
 
 def test_module_ops_maps_an_implicit_name_and_keeps_a_rename_exact(metta):
-    """An underscore in a module callable's name is MeTTa's hyphen, as `@m.op`
-    maps it, while a rename entry and the prefix are kept as written.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """A module callable's underscore is MeTTa's hyphen, as `@m.op` maps it.
+
+    A rename entry and the prefix are kept as written.
+    """
 
     def add_one(value):
         return value + 1

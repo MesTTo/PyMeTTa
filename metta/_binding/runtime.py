@@ -724,9 +724,11 @@ _SAFE_POINT_WORK: dict[Callable[[], bool], None] = {}
 
 
 def at_safe_point(work: Callable[[], bool]) -> None:
-    """Run ``work`` at the next crossing made with no engine callback open,
-    and again at each one after until it answers that it is done.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Run ``work`` at a safe point until it answers that it is done.
+
+    A safe point is a crossing made with no engine callback open: ``work``
+    runs at the next one and again at each one after.
+    """
     _SAFE_POINT_WORK[work] = None
 
 
@@ -1632,15 +1634,17 @@ class Runtime:
             _DRAINING.active = False
 
     def _run_safe_point_work(self) -> None:
-        """Run the work handed to a safe point (at_safe_point), unless a
-        callback is open on this thread or this thread is already running it.
+        """Run the work at_safe_point was handed, unless this thread cannot run it now.
+
+        It cannot while a callback is open on this thread or while this
+        thread is already running that work.
 
         Each entry leaves the table before it runs and returns when it answers
         that it is not done, so an entry armed again while it runs is not lost.
         A failure has no caller to answer to here, as a deferred call's has
         none, and it must not fail the unrelated crossing that ran it: it is
         logged as a warning, since the work it stood for did not happen.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
         if getattr(_DRAINING, "safe_point", False) or _callbacks.entered():
             return
         _DRAINING.safe_point = True

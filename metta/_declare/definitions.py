@@ -249,10 +249,11 @@ from metta.vocabularies import EffectClass
 
 @dataclass(frozen=True, slots=True)
 class _Definition:
-    """What define published under one name in one space, never whether the
-    space still holds it: that is the space's answer, read by _standing
-    whenever it decides anything, so a removal through any door, a rollback
-    and a discarded scope need no entry of their own here.
+    """What define published under one name in one space.
+
+    Whether the space still holds it is the space's answer, read by
+    _standing whenever it decides anything, so a removal through any door, a
+    rollback and a discarded scope need no entry of their own here.
 
     ``clauses`` are the clause records the last define published, in
     definition order, each carrying its materialised physical equations,
@@ -262,7 +263,7 @@ class _Definition:
     ``declared`` and ``documented`` the declarations and the doc atom this
     definition added; ``reflected`` the facts it retained in ``&metta``.
     Replaced whole, never mutated, so a preimage is the object itself.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
 
     clauses: tuple[dict[str, Any], ...] = ()
     declared: tuple[Expression, ...] = ()
@@ -297,11 +298,12 @@ _DEFINE_FACT_REFS: dict[str, int] = {}
 _DEFINED_FUNCTION_NAMES: dict[tuple[str, types.FunctionType], frozenset[str]] = {}
 
 class _DefineLock:
-    """A re-entrant lock that can say whether this thread holds it, which
-    threading.RLock cannot be asked: the reconciliation a notice asks for
-    (_settle_noticed) must wait while this thread is inside a definitions
-    critical section, whose own write is still under way.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """A re-entrant lock that can say whether this thread holds it.
+
+    Python's threading.RLock cannot be asked that, and the reconciliation a
+    notice asks for (_settle_noticed) must wait while this thread is inside a
+    definitions critical section, whose own write is still under way.
+    """
 
     __slots__ = ("_depth", "_lock")
 
@@ -946,13 +948,14 @@ def _definition_facts(
 def _reflection_moves(
     previous: tuple[Expression, ...], current: tuple[Expression, ...]
 ) -> tuple[dict[str, int], list[Expression], list[Expression]]:
-    """What moving a definition's reflected facts from ``previous`` to
-    ``current`` changes: the reference count it leaves for each fact it moves,
-    0 where one reaches zero, the facts whose count leaves zero, which the
-    reflection space gains, and the facts whose count reaches zero, which it
+    """What moving a definition's reflected facts from ``previous`` to ``current`` changes.
+
+    Answers the reference count the move leaves for each fact it moves, 0
+    where one reaches zero; the facts whose count leaves zero, which the
+    reflection space gains; and the facts whose count reaches zero, which it
     loses. Definitions share a fact by counting it, so the space holds one
     copy however many reflect it.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     counts: dict[str, int] = {}
     gained: list[Expression] = []
     lost: list[Expression] = []
@@ -980,11 +983,12 @@ def _count_reflection(counts: dict[str, int]) -> None:
 def _sync_definition_facts(
     space: Any, previous: tuple[Expression, ...], current: tuple[Expression, ...]
 ) -> None:
-    """Move a definition's reflected facts from ``previous`` to ``current``, one
-    crossing per fact the reflection space gains or loses, and take back every
-    one of those writes when a later one fails: each inverse undoes a write this
-    move made, so it never touches another owner's copy.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Move a definition's reflected facts from ``previous`` to ``current``, all or none.
+
+    One crossing goes per fact the reflection space gains or loses, and when
+    a later one fails every earlier one is taken back: each inverse undoes a
+    write this move made, so it never touches another owner's copy.
+    """
     counts, gained, lost = _reflection_moves(previous, current)
     reflection = _declare_operations_module._REFLECTION_SPACE
     add = partial(space.runtime.must, "metta_py_add(Space, W)", Space=reflection)
@@ -1283,8 +1287,9 @@ def _unwind(undo: list[Callable[[], Any]], error: BaseException) -> None:
             )
 
 def remove_definition(space: Any, defined: Any) -> bool:
-    """Take one definition back out of the space: the body of
-    ``m.remove(<Defined>)`` and ``m -= <Defined>``.
+    """Take one definition back out of the space.
+
+    The body of ``m.remove(<Defined>)`` and ``m -= <Defined>``.
 
     A Defined names its whole definition: every stacked clause of that name
     in its space. Every atom it published that the space still holds, its
@@ -1296,7 +1301,7 @@ def remove_definition(space: Any, defined: Any) -> bool:
     them, so a later define of the name starts fresh. Answers whether the
     space held anything of it. A Defined of another space names nothing
     here, and a Prolog-backed one publishes no equations to remove.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     if isinstance(defined, _declare_define_module.PrologBacked):
         msg = (
             f"{defined.name} is registered from {defined.origin}, not published "
@@ -1319,7 +1324,7 @@ def _withdraw_definition(space: Any, name: str) -> bool:
         atoms = [
             *standing.held,
             *standing.declared,
-            *((definition.documented,) if standing.documented else ()),
+            *((held_doc,) if held_doc is not None else ()),
         ]
         stands = not speculative_enabled()
         counts, _, lost = _reflection_moves(definition.reflected if stands else (), ())
@@ -1346,16 +1351,17 @@ def _withdraw_definition(space: Any, name: str) -> bool:
         return bool(atoms)
 
 def _publish(space: Any, writes: list[list[Any]], watches: list[list[Any]]) -> BaseException | None:
-    """Run a definition's writes and watch in one transaction
-    (metta_py_publish_definition/2), and answer the error a watcher raised
-    once they committed, which the caller raises after its records follow
-    what stands: a SubscriberError, alone or grouped, says its write is
-    applied, and a definition that dropped its record then would leave the
-    space answering a head no record describes, which a later define of the
-    name refuses [tested 2026-09-30T08:34:03+10:00:
+    """Publish a definition's writes and watch in one transaction.
+
+    The transaction is metta_py_publish_definition/2's. Answers the error a
+    watcher raised once they committed, which the caller raises after its
+    records follow what stands: a SubscriberError, alone or grouped, says its
+    write is applied, and a definition that dropped its record then would
+    leave the space answering a head no record describes, which a later
+    define of the name refuses [tested 2026-09-30T08:34:03+10:00:
     test_a_watcher_failing_after_a_definition_commits_leaves_it_recorded].
     Any other error propagates with the writes rolled back.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     try:
         run_void_write(space.runtime, "metta_py_publish_definition", writes, watches)
     except BaseException as error:
@@ -1369,12 +1375,13 @@ def _publish(space: Any, writes: list[list[Any]], watches: list[list[Any]]) -> B
     return applied
 
 def _raise_what_providers_kept(space: Any, error: BaseException) -> None:
-    """Raise PartialWriteError from ``error`` when a provider outside the
-    engine's transactions kept or lost part of the failed publication, as
-    metta_py_publication_residue/1 counted it; return when every space the
-    publication wrote rolled back with it. A residue that cannot be read
-    leaves a note on ``error`` rather than hiding it.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Raise PartialWriteError when a provider outside the engine kept or lost part of a write.
+
+    The part is what metta_py_publication_residue/1 counted of the failed
+    publication, and the error is raised from ``error``; nothing is raised
+    when every space the publication wrote rolled back with it. A residue
+    that cannot be read leaves a note on ``error`` rather than hiding it.
+    """
     try:
         row = space.runtime.once("metta_py_publication_residue(Residue)")
     except Exception as unread:  # noqa: BLE001  -- the failure being raised outranks the residue; the note keeps both
@@ -1412,12 +1419,13 @@ def _retire(
     *,
     live: Sequence[dict[str, Any]] = (),
 ) -> None:
-    """Retire what the space no longer holds of one definition on the Python
-    side, its reflection rows having moved already: hand its twin family to
-    the ``live`` clauses, and file the lint evidence of the live ones,
+    """Retire on the Python side what the space no longer holds of a definition.
+
+    Its reflection rows have moved already, so this hands its twin family to
+    the ``live`` clauses and files the lint evidence of the live ones,
     withdrawing the ``lost`` ones'. Every change enlists its Python preimage
     in the caller's transaction frame.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     namespace = _DEFINE_TWINS.get(space.name)
     if namespace is not None:
         _declare_operations_module._record_registry_undo(
@@ -1431,7 +1439,9 @@ def _retire(
     )
 
 def equation_changed(space: list[Any], name: str) -> bool:
-    """The engine's notice that an equation of a head the definition ``name``
+    """Record the engine's notice that an equation a definition publishes moved.
+
+    The notice says an equation of a head the definition ``name``
     publishes entered or left ``space`` in a committed write, through any door,
     a program's ``remove-atom`` or ``add-atom`` as much as a Python removal
     (engine/ext_points.pl, seam:equation_changed/2, delivered by
@@ -1447,17 +1457,18 @@ def equation_changed(space: list[Any], name: str) -> bool:
     arrive while its writer holds an engine lock a define waits for while it
     holds _DEFINE_LOCK [tested 2026-09-30T08:34:03+10:00:
     test_an_unwatched_equation_write_crosses_to_no_python].
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     _NOTICED.append((space, name))
     at_safe_point(_settle_noticed)
     return True
 
 def _settle_noticed() -> bool:
-    """Reconcile every definition the recorded notices name, in order; each
-    reconciliation reads the space again, so a name noticed twice settles
-    once to what the space holds. Answers False, to run again at a later safe
-    point, on a thread inside a definitions critical section.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Reconcile every definition the recorded notices name, in order.
+
+    Each reconciliation reads the space again, so a name noticed twice
+    settles once to what the space holds. Answers False, to run again at a
+    later safe point, on a thread inside a definitions critical section.
+    """
     if _DEFINE_LOCK.held():
         return False
     with _DEFINE_LOCK:
@@ -1472,11 +1483,13 @@ def _settle_noticed() -> bool:
 
 @dataclass(frozen=True, slots=True)
 class _NoticedSpace:
-    """A definition's space as an engine notice names it, with what _reconcile
-    reads of a handle: the registry's key for it, the runtime and its wire. A
-    handle is not made, since inside an engine callback each read of a handle's
-    name asks the engine for its scope (metta._spaces.lifetime.current).
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """A definition's space as an engine notice names it.
+
+    It holds what _reconcile reads of a handle: the registry's key for it,
+    the runtime and its wire. A handle is not made, since inside an engine
+    callback each read of a handle's name asks the engine for its scope
+    (metta._spaces.lifetime.current).
+    """
 
     name: Any
     runtime: Any
@@ -1486,13 +1499,15 @@ class _NoticedSpace:
         return space_wire(self.name)
 
 def _noticed_space(wire: list[Any]) -> _NoticedSpace | None:
-    """The registry's key for the space a notice's wire names. An atom space's
-    key is its name; a parametric space's is the exact carrier its handle made,
-    found by its expression, which keeps every native field kind apart where
-    a plain list would merge them [source 2026-09-30T02:38:50+10:00:
+    """The registry's key for the space a notice's wire names.
+
+    An atom space's key is its name; a parametric space's is the exact
+    carrier its handle made, found by its expression, which keeps every
+    native field kind apart where a plain list would merge them
+    [source 2026-09-30T02:38:50+10:00:
     docs/journal/2026-09-14-parametric-space-transport.md]. None when no
     recorded definition lives there any more.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     engine = runtime()
     if wire[0] in ("p", "s"):
         return _NoticedSpace(wire[1], engine)
@@ -1504,11 +1519,13 @@ def _noticed_space(wire: list[Any]) -> _NoticedSpace | None:
     return None
 
 def _watched_heads(clauses: Sequence[dict[str, Any]]) -> tuple[str, ...]:
-    """Every head the clauses' physical equations define, the definition's own
-    name and each helper's, sorted and distinct: what the definition hears. A
-    local type alias publishes a scalar equation, (= Items (List Number)),
-    whose head is the symbol itself.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Every head a definition's clauses define, which is what it hears.
+
+    They are the heads of the clauses' physical equations, the definition's
+    own name and each helper's, sorted and distinct. A local type alias
+    publishes a scalar equation, (= Items (List Number)), whose head is the
+    symbol itself.
+    """
     names: set[str] = set()
     for atom in _physical_atoms(clauses):
         head = atom.children[1]
@@ -1520,9 +1537,11 @@ def _watched_heads(clauses: Sequence[dict[str, Any]]) -> tuple[str, ...]:
     return tuple(sorted(names))
 
 def _watches(space: Any, heads: Sequence[tuple[str, Sequence[str]]]) -> list[list[Any]]:
-    """metta_py_watch/1's argument: each named definition hears exactly these
-    heads in the space, and no heads ends its watch.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The argument of metta_py_watch/1 for the named definitions.
+
+    Each named definition hears exactly these heads in the space, and no
+    heads ends its watch.
+    """
     return [[space.name, name, list(watched)] for name, watched in heads]
 
 def _watch(space: Any, heads: Sequence[tuple[str, Sequence[str]]]) -> None:
@@ -1530,10 +1549,12 @@ def _watch(space: Any, heads: Sequence[tuple[str, Sequence[str]]]) -> None:
     space.runtime.must("metta_py_watch(W)", W=_watches(space, heads))
 
 def _reconcile(space: Any, key: tuple[str, str]) -> None:
-    """Move the reflection rows, twin family and lint evidence to the clauses
-    the space still answers through. The clause records stay as published:
-    what a partial removal left behind is still theirs to take.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Move a definition's Python-side state to the clauses the space answers through.
+
+    That state is its reflection rows, twin family and lint evidence. The
+    clause records stay as published: what a partial removal left behind is
+    still theirs to take.
+    """
     definition = _DEFINITIONS.get(key)
     if definition is None:
         return

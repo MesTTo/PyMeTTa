@@ -329,12 +329,13 @@ class TwinNamespace:
         fn: types.FunctionType | None,
         sources: frozenset[types.FunctionType] = frozenset(),
     ) -> Callable[[], None]:
-        """Make ``dispatcher`` the family of ``name``, moving the old family's
-        sources, ``fn`` and ``sources`` to it and pointing their references at
-        it; None retires the family, remembering it with its sources, and
-        leaves its references where they are. Called under _TWIN_LOCK; answers
-        the inverse.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """Make ``dispatcher`` the twin family of ``name``, or retire the family.
+
+        The old family's sources, ``fn`` and ``sources`` move to ``dispatcher``
+        and their references point at it; None retires the family, remembering
+        it with its sources, and leaves its references where they are. Called
+        under _TWIN_LOCK; answers the inverse.
+        """
         previous = self._families.get(name)
         retired_before = self._retired.get(name)
         moved = {

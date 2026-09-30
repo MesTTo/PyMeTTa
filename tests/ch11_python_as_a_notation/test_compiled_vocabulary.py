@@ -90,10 +90,11 @@ def test_list_collects_matching_answers_without_splicing_their_terms(m):
 
 
 def test_fn_special_forms_compile_in_a_body_and_keep_every_answer(m):
-    """Syntropy's program: fn.collapse in a body is the special form the
-    catalogue lists, and it keeps every answer, duplicates included, exactly
-    as list() and S.collapse do; fn.superpose spreads its elements.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """fn.collapse in a body keeps every answer; fn.superpose spreads its elements.
+
+    It is Syntropy's program: fn.collapse is the special form the catalogue
+    lists, and it keeps duplicates too, exactly as list() and S.collapse do.
+    """
     assert "collapse" in m.builtins()
     assert m.fn["collapse"] is not None
     m.add(S.Item(1), S.Item(2), S.Item(2))

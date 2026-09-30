@@ -318,11 +318,12 @@ def _stored_pairs(function):
 
 
 def _keyed_by_id(m):
-    """The dict-put path Syntropy used, the reference both literal and
-    comprehension forms must store, with lib_functional's `id` in scope,
+    """The dict-put reference the literal and comprehension forms must store.
+
+    It is the path Syntropy used, with lib_functional's `id` in scope,
     written directly and computed by a call, whose answer the literal names
     and holds before dict-space reads it.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     m += lib.functional
 
     @m.define
@@ -355,9 +356,11 @@ def _keyed_by_id(m):
 
 
 def test_a_symbol_key_naming_a_function_stays_a_key_in_a_literal(m):
-    """Syntropy's `{S.id: 1}` and the set `{S.id}` store what dict-put
+    """Dict and set literals over a function's symbol store what dict-put stores.
+
+    Syntropy's `{S.id: 1}` and the set `{S.id}` store what dict-put
     stores, and so do a key and a value computed as that symbol.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     key, put_pair, put_member, put_computed = _keyed_by_id(m)
 
     @m.define
@@ -383,10 +386,11 @@ def test_a_symbol_key_naming_a_function_stays_a_key_in_a_literal(m):
 
 
 def test_a_symbol_key_naming_a_function_stays_a_key_in_a_comprehension(m):
-    """The dict and set comprehensions over the same key store what dict-put
-    stores, read from a list or computed by a call, which also needs
+    """Dict and set comprehensions over a function's symbol store what dict-put stores.
+
+    The key is read from a list or computed by a call, which also needs
     map-atom's closure answer taken as produced.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     key, put_pair, put_member, _put_computed = _keyed_by_id(m)
 
     @m.define
@@ -511,9 +515,10 @@ def test_alpha_is_the_equality_family_spelling(m):
 
 
 def test_a_space_written_in_a_loop_body_or_after_a_try_keeps_its_writes(m):
-    """A loop's and a try's continuation equations keep a Space parameter a
-    space, and an augmented write after a try reads the name it writes.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """A loop's and a try's continuation equations keep a Space parameter a space.
+
+    An augmented write after a try reads the name it writes.
+    """
 
     @m.define
     def logged_loop(log: Space, a):

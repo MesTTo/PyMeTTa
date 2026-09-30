@@ -1,8 +1,8 @@
-"""Purpose: prove a compiled function continues past an if or a match the way
-Python does, each arm that falls through running the statements after the
-branch, from a plain body, an elif chain, a loop body, a try body and a
-constructor alike.
-"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+"""Purpose: prove a compiled function continues past an if or a match as Python does.
+
+Each arm that falls through runs the statements after the branch, from a
+plain body, an elif chain, a loop body, a try body and a constructor alike.
+"""
 
 from __future__ import annotations
 
@@ -116,10 +116,12 @@ def test_an_elif_chain_and_a_loop_body_continue_past_their_branch(scratch_space)
 
 
 def test_an_unmatched_subject_falls_through_to_what_follows_and_otherwise_answers_nothing(scratch_space):
-    """With statements after it, an unmatched case continues into them, as
+    """An unmatched case continues into what follows it, or answers nothing.
+
+    With statements after it, an unmatched case continues into them, as
     Python's does; with nothing after it, nested or not, it answers nothing,
     as MeTTa's case does.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     m = scratch_space
 
     @m.define
@@ -168,9 +170,11 @@ def test_a_branch_in_a_try_body_continues_inside_the_try(scratch_space):
 
 
 def test_one_arm_reaching_the_rest_compiles_it_in_place(scratch_space):
-    """An early return leaves one arm falling through, so no helper is minted;
+    """A helper is minted only for arms that fall through together.
+
+    An early return leaves one arm falling through, so no helper is minted;
     two arms falling through share one helper, called from each.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     m = scratch_space
 
     @m.define
@@ -225,10 +229,12 @@ def _nested_alternatives(count):
 
 @pytest.mark.parametrize("shape", [_branch_chain, _guarded_cases, _nested_alternatives])
 def test_emitted_size_is_linear_in_branches_guarded_cases_and_alternatives(scratch_space, tmp_path, shape):
-    """Count every stored helper too, so moving duplication cannot hide it: a
+    """Guards and alternatives multiply nothing that follows them, helpers counted.
+
+    Count every stored helper too, so moving duplication cannot hide it: a
     guard places the later cases twice and alternatives share one arm, and
     neither multiplies what follows.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     m = scratch_space
     inputs = (-1, 0, 1, 2, 3, 101)
     sizes = []
@@ -249,10 +255,12 @@ def test_emitted_size_is_linear_in_branches_guarded_cases_and_alternatives(scrat
 
 
 def test_alternatives_share_one_body_with_their_own_bindings(scratch_space):
-    """Each alternative binds the pattern's names in its own positions and
+    """Alternatives share one body, unless they prove different things about a name.
+
+    Each alternative binds the pattern's names in its own positions and
     calls the one body, so a loop in that body compiles once; alternatives
     that prove different things about a name each keep their own body.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     m = scratch_space
 
     @m.define
@@ -292,10 +300,12 @@ def test_alternatives_share_one_body_with_their_own_bindings(scratch_space):
 
 
 def test_a_small_default_and_a_small_shared_body_stay_in_place(scratch_space):
-    """Sharing costs a call at each place and an equation, so a term smaller
+    """A term smaller than what sharing costs is copied rather than shared.
+
+    Sharing costs a call at each place and an equation, so a term smaller
     than that is copied: the common guarded case followed by a default, and
     an alternative pattern's short body, keep their code inline.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     m = scratch_space
 
     @m.define
@@ -410,9 +420,11 @@ class JoinedValue:
 
 
 def test_constructors_keep_their_receiver_and_fields_across_branches_and_loops(scratch_space):
-    """A constructor's closer reads the receiver, or a value's fields, which no
+    """The join and a trailing loop carry a constructor's receiver and fields.
+
+    A constructor's closer reads the receiver, or a value's fields, which no
     statement spells: the join and a trailing loop carry them all the same.
-    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    """
     m = scratch_space
     for cls in (JoinedEntity, ElseLessEntity, LoopLastEntity):
         m.define(cls)

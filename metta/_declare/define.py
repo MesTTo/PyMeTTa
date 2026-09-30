@@ -1207,13 +1207,14 @@ class _Compiler(
         return nested
 
     def _shadow(self, names: list[str]) -> None:
-        """Forget every proof about the values of names a new binder shadows:
-        a parameter holds whatever its caller passes, whatever the outer
+        """Forget every proof about the values of names a new binder shadows.
+
+        A parameter holds whatever its caller passes, whatever the outer
         binding of the same name was known to be [source 2026-09-29T16:53:20+10:00:
         docs/journal/2026-09-14-python-binding-identity.md, "A new parameter
         also discards the outer value's number, container, dictionary, space
         and record proofs"].
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
         self.number_locals.difference_update(names)
         self.space_locals.difference_update(names)
         self.dict_locals.difference_update(names)

@@ -401,7 +401,19 @@ RUFF_FAMILY_BURN_DOWN = {
     # DECLARES whose body answers a constant, or a handler the reflection
     # space reaches rather than the caller; the example would be wrong without
     # the parameter and Python cannot see who supplies it.
-    "ARG": 167,
+    # 167 -> 171 on 2026-09-30 with the 0.9.4 landings, by a per-file diff of
+    # the --ignore-noqa findings at each landing's tip (pc-seat's d63149c21
+    # read 166), five sites whose parameter NAME is what the test exercises,
+    # so an underscore would unmake it: e84c2ab13's two in
+    # tests/ch11_python_as_a_notation/test_binding_identity.py, an outer
+    # parameter shadowed by the nested def's parameter of the same name, whose
+    # proof the nested one must not inherit; and 34a56ad83's
+    # test_expanded_call_values.py redefinition, whose `left` and `right` a
+    # forwarded keyword binds by name, and test_definition_standing.py's
+    # `_zero` clause, whose `x` is the parameter roster it stacks under with
+    # `_one`'s. That landing's two other stacked-clause subjects stack only
+    # with each other and take `_x` instead.
+    "ARG": 171,
     # The evaluation batch retains each acquired cursor before acquiring the
     # next one, so a failed acquisition can release the complete prefix.
     "PERF": 1,
