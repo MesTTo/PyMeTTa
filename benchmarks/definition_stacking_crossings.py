@@ -6,26 +6,34 @@ only those two new atoms. Rewriting every older atom makes K definitions cost
 2K squared engine calls; retaining unchanged atoms and batching each delta
 makes the same workload K calls and 2K transported atoms.
 
+A define publishes every engine write it makes in one crossing,
+`metta._declare.definitions._publish` (metta_py_publish_definition/2), so a
+crossing here is one publication that wrote into the subject space and the
+atoms transported are what those publications added to or removed from it;
+the reflection rows a publication writes into &metta are not the space's.
+
 Run from ``extensions/python``::
 
     python -m benchmarks.definition_stacking_crossings
 
 Guarantees:
   - generated functions remain inspectable without filesystem scratch data
-    [tested: test_stacked_definition_writes_scale_with_the_new_clause;
-    commit=9b6695455c30809c75267c50a5137e38925af386]
+    [tested 2026-09-30T13:57:54+10:00: test_stacked_definition_writes_scale_with_the_new_clause]
   - every measured clause answers its own literal head, so a lower write count
-    cannot hide a missing equation [tested:
-    test_stacked_definition_writes_scale_with_the_new_clause;
-    commit=9b6695455c30809c75267c50a5137e38925af386]
+    cannot hide a missing equation [tested 2026-09-30T13:57:54+10:00:
+    test_stacked_definition_writes_scale_with_the_new_clause]
+  - a publication that writes nothing into the subject space is not counted,
+    so a define that stopped writing through `_publish` reads 0 crossings
+    and fails the test rather than passing on a blind counter
+    [tested 2026-09-30T13:57:54+10:00: test_stacked_definition_writes_scale_with_the_new_clause]
   - K=8/16/32 took 128/512/2,048 calls and transported the same number
-    of atoms before the delta; it takes 8/16/32 calls and transports
-    16/32/64 atoms after the delta [measured: exact write-call and payload
-    counts at K=8/16/32; command=cd extensions/python && PYTHONPATH=.
-    python -m
-    benchmarks.definition_stacking_crossings 8 16 32; fixture=one main and
-    one loop-helper equation per disjoint literal clause;
-    commit=9b6695455c30809c75267c50a5137e38925af386]
+    of atoms before the delta (9b6695455c30809c75267c50a5137e38925af386);
+    K defines take K publications transporting 2K atoms, the new clause's
+    two equations each [measured 2026-09-30T13:58:08+10:00: exact publication
+    and payload counts at K=8/16/32; command=cd extensions/python &&
+    PYTHONPATH=. python -c "from benchmarks.definition_stacking_crossings
+    import rows; print(rows((8, 16, 32)))"; fixture=one main and one
+    loop-helper equation per disjoint literal clause]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -38,9 +46,12 @@ import argparse
 import itertools
 import linecache
 import time
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Any
 
+import metta._declare.definitions as _definitions
 from benchmarks import decide_width
 from metta import Grounded, Space
 
@@ -58,24 +69,38 @@ class Row:
     milliseconds: float
 
 
-class _CountingSpace(Space):
-    """A space that counts public write calls and their atom payloads."""
+@dataclass
+class _Publications:
+    """The define publications that wrote into one space, and their atoms."""
 
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
-        self.crossings = 0
-        self.transported = 0
+    space: str
+    crossings: int = 0
+    transported: int = 0
 
-    def add(self, *atoms: object) -> None:
-        if atoms:
-            self.crossings += 1
-            self.transported += len(atoms)
-        super().add(*atoms)
 
-    def remove(self, atom: object, *more: object) -> bool | int:
-        self.crossings += 1
-        self.transported += 1 + len(more)
-        return super().remove(atom, *more)
+@contextmanager
+def _counted(space: str) -> Iterator[_Publications]:
+    """Count every define publication writing into ``space`` while the block runs.
+
+    `_publish` is looked up in its module at each call, so the wrapper sees
+    every define; it is put back however the block ends.
+    """
+    counts = _Publications(space)
+    publish = _definitions._publish
+
+    def counted(target: Any, writes: list[list[Any]], watches: list[list[Any]]) -> BaseException | None:
+        # A write is [add|remove, SpaceName, Wires] (_binding/store.pl).
+        into = sum(len(wires) for _edge, written, wires in writes if written == space)
+        if into:
+            counts.crossings += 1
+            counts.transported += into
+        return publish(target, writes, watches)
+
+    _definitions._publish = counted
+    try:
+        yield counts
+    finally:
+        _definitions._publish = publish
 
 
 def _functions(count: int) -> tuple[str, dict[str, object]]:
@@ -109,15 +134,16 @@ def measure(count: int) -> Row:
         raise ValueError(msg)
     filename, namespace = _functions(count)
     function_name = f"definition-stacking-{next(_SERIALS)}"
-    subject = _CountingSpace(f"&{function_name}")
+    subject = Space(f"&{function_name}")
     started = time.perf_counter_ns()
     try:
-        for index in range(count):
-            function = namespace[f"clause_{index}"]
-            if not callable(function):
-                msg = f"generated clause {index} is not callable"
-                raise TypeError(msg)
-            subject.define(function, name=function_name)
+        with _counted(subject.name) as counts:
+            for index in range(count):
+                function = namespace[f"clause_{index}"]
+                if not callable(function):
+                    msg = f"generated clause {index} is not callable"
+                    raise TypeError(msg)
+                subject.define(function, name=function_name)
         elapsed = time.perf_counter_ns() - started
         answers = [subject.eval(f"({function_name} {index})") for index in range(count)]
         expected = [[Grounded(index)] for index in range(count)]
@@ -126,8 +152,8 @@ def measure(count: int) -> Row:
             raise AssertionError(msg)
         return Row(
             count,
-            subject.crossings,
-            subject.transported,
+            counts.crossings,
+            counts.transported,
             elapsed / 1_000_000,
         )
     finally:
