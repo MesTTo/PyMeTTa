@@ -1321,6 +1321,7 @@ def _withdraw_definition(space: Any, name: str) -> bool:
         if definition is None:
             return False
         standing = _standing(space, definition)
+        held_doc = definition.documented if standing.documented else None
         atoms = [
             *standing.held,
             *standing.declared,
