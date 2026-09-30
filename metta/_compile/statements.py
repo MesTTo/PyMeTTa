@@ -2386,22 +2386,23 @@ class _Join:
             )
             raise CompileError(msg, construct=self.construct, line=self.rest[0].lineno)
         aux = self.compiler.aux
-        if len(self.edges) == 1 and _occurrences([term, *aux[self.aux_start:arms_end]], self.edges[0][1]) == 1:
-            ((edge, hole),) = self.edges
-            edge.closer = self.compiler.closer
-            edge.closer_names = self.compiler.closer_names.copy()
-            filled: dict[Atom, Atom] = {hole: self.body.term(edge, self.rest)}
-        else:
-            helper, compiler, params = self._helper()
-            # Compiled here rather than in _helper, so a chain of branches
-            # costs the Python stack the same frames a branch on either path.
-            body = self.body.term(compiler, self.rest)
-            head = Expression([Symbol(helper), *(Variable(binding_name(name)) for name in params)])
-            self.compiler.aux.append(Expression([Symbol("="), head, body]))
-            filled = {
-                hole: Expression([Symbol(helper), *(Variable(edge.scope[name]) for name in params)])
-                for edge, hole in self.edges
-            }
+        filled: dict[Atom, Atom]
+        match self.edges:
+            case [(edge, hole)] if _occurrences([term, *aux[self.aux_start:arms_end]], hole) == 1:
+                edge.closer = self.compiler.closer
+                edge.closer_names = self.compiler.closer_names.copy()
+                filled = {hole: self.body.term(edge, self.rest)}
+            case _:
+                helper, compiler, params = self._helper()
+                # Compiled here rather than in _helper, so a chain of branches
+                # costs the Python stack the same frames a branch on either path.
+                body = self.body.term(compiler, self.rest)
+                head = Expression([Symbol(helper), *(Variable(binding_name(name)) for name in params)])
+                self.compiler.aux.append(Expression([Symbol("="), head, body]))
+                filled = {
+                    hole: Expression([Symbol(helper), *(Variable(edge.scope[name]) for name in params)])
+                    for edge, hole in self.edges
+                }
         for index in range(self.aux_start, arms_end):
             equation = aux[index].subs(filled)
             assert isinstance(equation, Expression)  # nosec B101 # a hole is one variable, never a whole equation
