@@ -69,6 +69,7 @@ def test_callback_facade_owns_no_state_and_delegates():
             "stream_reraise": "_errors.errors",
             "engine_message": "_binding.runtime",
             "heartbeat_tick": "_binding.runtime",
+            "equation_changed": "_declare.definitions",
             "type_names": "_binding.dispatch",
             "construct_token": "_binding.tokens",
             "foreign_add": "foreign",
