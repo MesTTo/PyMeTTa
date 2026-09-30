@@ -131,7 +131,17 @@ def test_tagged_match_guards_share_the_derivations_inference_budget(metta):
               "(= (binding-guard $n) (if (> $n 0) (binding-guard (- $n 1)) True))")
     for index in range(24):
         metta.add_tagged_fact(1, S["binding-row"](index))
-    guard = S["binding-guard"](100)
+    # The quota has to admit one guard and refuse the 24 the match runs, so it
+    # sits well inside both: one guard at depth 1000 fits 5153 inferences and
+    # the match 123909, 3.9 times below 20000 and 6.2 times above it. At depth
+    # 100 the match fitted 20757 and came to fit 15909, one guard 855 then 653,
+    # once a builtin call's answer stopped paying for a compiled continuation
+    # (af49565db), and the test stopped raising [measured
+    # 2026-09-30T13:58:44+10:00 at depth 100 and 1000 on this tree, and at
+    # depth 100 2026-09-30T13:59:34+10:00 on d63149c21, before it, and
+    # 2026-09-30T13:59:46+10:00 on af49565db: the least quota each run fits,
+    # found by bisecting the limiter itself].
+    guard = S["binding-guard"](1000)
     # Compilation reconciles the worker's existing recursive graph. The
     # preceding cold-call test covers that cost; this quota covers execution.
     metta.runtime.must("spaces:metta_ensure_compiled('binding-guard')")
